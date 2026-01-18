@@ -4,6 +4,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.util.Hand;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.World;
@@ -16,6 +17,7 @@ import net.minecraftforge.event.entity.EntityEvent;
 import net.minecraftforge.event.entity.item.ItemTossEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.player.*;
 import net.minecraftforge.event.world.BlockEvent;
@@ -33,16 +35,21 @@ import noppes.npcs.api.event.ItemEvent;
 import noppes.npcs.api.event.PlayerEvent;
 import noppes.npcs.api.wrapper.ItemScriptedWrapper;
 import noppes.npcs.constants.EnumGuiType;
+import noppes.npcs.constants.EnumPlayerData;
 import noppes.npcs.controllers.PixelmonHelper;
-import noppes.npcs.controllers.data.PlayerData;
-import noppes.npcs.controllers.data.PlayerScriptData;
+import noppes.npcs.controllers.PlayerDataController;
+import noppes.npcs.controllers.SyncController;
+import noppes.npcs.controllers.data.*;
 import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.items.ItemNbtBook;
 import noppes.npcs.items.ItemScripted;
 import noppes.npcs.packets.Packets;
 import noppes.npcs.packets.client.PacketItemUpdate;
+import noppes.npcs.packets.server.SPacketPlayerDataGet;
 import noppes.npcs.shared.common.util.LogWriter;
+import wfm.common.init.LOTRItems;
 
+import java.io.File;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -52,6 +59,37 @@ import java.util.*;
 
 public class ScriptPlayerEventHandler
 {
+    @SubscribeEvent
+    public void onItemUse(final LivingEntityUseItemEvent event) {
+        if (event.getItem() != null &&
+                event.getItem().getItem() == LOTRItems.PLEDGE_BREAKER.get()) {
+            if (event.getEntity() instanceof ServerPlayerEntity) {
+                ServerPlayerEntity player = (ServerPlayerEntity) event.getEntity();
+                String name = player.getName().getString();
+                if (!name.isEmpty()) {
+                    PlayerEntity pl = player.getServer().getPlayerList().getPlayerByName(name);
+                    PlayerData playerdata = null;
+                    if (pl == null) {
+                        playerdata = PlayerDataController.instance.getDataFromUsername(player.getServer(), name);
+                    } else {
+                        playerdata = PlayerData.get(pl);
+                    }
+                    File file = new File(CustomNpcs.getWorldSaveDirectory("playerdata"), playerdata.uuid + ".json");
+                    if (file.exists()) {
+                        file.delete();
+                    }
+
+                    if (pl != null) {
+                        playerdata.setNBT(new CompoundNBT());
+                        SPacketPlayerDataGet.sendPlayerData(EnumPlayerData.Players, player, name);
+                        playerdata.save(true);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     @SubscribeEvent
     public void onServerTick(final TickEvent.PlayerTickEvent event) {
         if (event.side != LogicalSide.SERVER || event.phase != TickEvent.Phase.START) {

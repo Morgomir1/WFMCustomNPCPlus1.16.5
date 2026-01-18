@@ -102,6 +102,16 @@ public class NoppesUtilServer
         }
         setEditingNpc(player, npc);
         playerdata.questData.checkQuestCompletion(player, 1);
+        
+        // Синхронизируем видимость NPC после открытия диалога,
+        // особенно если NPC должен быть скрыт - это исправляет баг
+        // с дублированием NPC при не загруженном чанке
+        if (dialog.hideNPC && VisibilityController.instance != null) {
+            // Планируем синхронизацию через тик, чтобы чанк успел загрузиться
+            player.level.getServer().execute(() -> {
+                VisibilityController.instance.onUpdate((ServerPlayerEntity) player);
+            });
+        }
     }
 
     public static String runCommand(final Entity executer, final String name, final String command, final PlayerEntity player) {

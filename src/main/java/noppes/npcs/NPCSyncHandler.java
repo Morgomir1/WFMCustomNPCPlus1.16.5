@@ -3,7 +3,9 @@ package noppes.npcs;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.world.ChunkEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import noppes.npcs.controllers.VisibilityController;
@@ -19,6 +21,38 @@ import java.util.Set;
 public class NPCSyncHandler {
     
     private static final Set<ServerPlayerEntity> playersToSync = new HashSet<>();
+    
+    /**
+     * Обработчик логина игрока - критично для исправления дублирования невидимых NPC
+     * Используем HIGHEST приоритет, чтобы выполниться ДО других обработчиков
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getPlayer() instanceof ServerPlayerEntity)) {
+            return;
+        }
+        
+        ServerPlayerEntity player = (ServerPlayerEntity) event.getPlayer();
+        
+        // КРИТИЧНО: Вызываем VisibilityController.onUpdate СРАЗУ и СИНХРОННО при логине
+        // Это должно произойти ДО того, как Minecraft отправит сущности клиенту при загрузке чанков
+        if (player.level instanceof ServerWorld) {
+            ServerWorld serverWorld = (ServerWorld) player.level;
+            
+            // PlayerLoggedInEvent уже выполняется на серверном потоке, вызываем синхронно
+            if (VisibilityController.instance != null) {
+                VisibilityController.instance.onUpdate(player);
+            }
+            
+            // Дополнительно: планируем повторную синхронизацию через тик
+            // на случай, если чанки загрузятся позже и отправят сущности
+            serverWorld.getServer().execute(() -> {
+                if (VisibilityController.instance != null) {
+                    VisibilityController.instance.onUpdate(player);
+                }
+            });
+        }
+    }
     
     /**
      * Обработчик загрузки чанка - синхронизирует NPC для игроков

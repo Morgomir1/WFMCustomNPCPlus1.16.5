@@ -66,8 +66,16 @@ minecraft {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
+    mavenCentral()
     flatDir {
         dirs 'lib'
+    }
+}
+
+configurations {
+    nashornEmbedded {
+        canBeConsumed = false
+        canBeResolved = true
     }
 }
 
@@ -81,11 +89,17 @@ dependencies {
     compileOnly name: 'WFM-1.0'
     implementation fg.deobf('lib:geckolib-forge-1.16.5:3.0.106')
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    // Standalone Nashorn for Java 15+ (JDK no longer bundles Nashorn)
+    implementation 'org.openjdk.nashorn:nashorn-core:15.7'
+    nashornEmbedded 'org.openjdk.nashorn:nashorn-core:15.7'
 }
 
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from zipTree('lib/' + archivesBaseName + '.jar')
+    from {
+        configurations.nashornEmbedded.collect { f -> zipTree(f) }
+    }
     manifest {
         attributes([
                 "Specification-Title"     : "examplemod",

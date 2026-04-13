@@ -121,62 +121,71 @@ public class CustomNpcs
     }
 
     private void setup(final FMLCommonSetupEvent event) {
-        final File dir = new File(FMLPaths.CONFIGDIR.get().toFile(), "..");
-        (CustomNpcs.Dir = new File(dir, "customnpcs")).mkdir();
-        (CustomNpcs.Config = new ConfigLoader(this.getClass(), new File(dir, "config"), "CustomNpcs")).loadConfig();
-        if (CustomNpcs.NpcNavRange < 16) {
-            CustomNpcs.NpcNavRange = 16;
+        final ClassLoader modCl = CustomNpcs.class.getClassLoader();
+        final ClassLoader oldTccl = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(modCl);
+            NashornClasspathBootstrap.ensure();
+            final File dir = new File(FMLPaths.CONFIGDIR.get().toFile(), "..");
+            (CustomNpcs.Dir = new File(dir, "customnpcs")).mkdir();
+            (CustomNpcs.Config = new ConfigLoader(this.getClass(), new File(dir, "config"), "CustomNpcs")).loadConfig();
+            if (CustomNpcs.NpcNavRange < 16) {
+                CustomNpcs.NpcNavRange = 16;
+            }
+            CapabilityManager.INSTANCE.register(PlayerData.class, new Capability.IStorage() {
+                public INBT writeNBT(final Capability capability, final Object instance, final Direction side) {
+                    return null;
+                }
+
+                public void readNBT(final Capability capability, final Object instance, final Direction side, final INBT nbt) {
+                }
+            },PlayerData::new);
+            CapabilityManager.INSTANCE.register(WrapperEntityData.class, new Capability.IStorage() {
+                public INBT writeNBT(final Capability capability, final Object instance, final Direction side) {
+                    return null;
+                }
+
+                public void readNBT(final Capability capability, final Object instance, final Direction side, final INBT nbt) {
+                }
+            }, () -> null);
+            CapabilityManager.INSTANCE.register(MarkData.class, new Capability.IStorage() {
+                public INBT writeNBT(final Capability capability, final Object instance, final Direction side) {
+                    return null;
+                }
+
+                public void readNBT(final Capability capability, final Object instance, final Direction side, final INBT nbt) {
+                }
+            }, MarkData::new);
+            CapabilityManager.INSTANCE.register(ItemStackWrapper.class, new Capability.IStorage<ItemStackWrapper>() {
+                public INBT writeNBT(final Capability capability, final ItemStackWrapper instance, final Direction side) {
+                    return null;
+                }
+
+                public void readNBT(final Capability capability, final ItemStackWrapper instance, final Direction side, final INBT nbt) {
+                }
+            }, () -> null);
+            Packets.register();
+            MinecraftForge.EVENT_BUS.register(new ServerEventsHandler());
+            MinecraftForge.EVENT_BUS.register(new ServerTickHandler());
+            MinecraftForge.EVENT_BUS.register(new CustomEntities());
+            MinecraftForge.EVENT_BUS.register(CustomNpcs.proxy);
+            MinecraftForge.EVENT_BUS.register(this);
+            NpcAPI.Instance().events().register(new AbilityEventHandler());
+            CustomNpcs.proxy.load();
+            PixelmonHelper.load();
+            final ScriptController controller = new ScriptController();
+            if (CustomNpcs.EnableScripting && !controller.languages.isEmpty()) {
+                MinecraftForge.EVENT_BUS.register(controller);
+                MinecraftForge.EVENT_BUS.register(new ScriptPlayerEventHandler().registerForgeEvents());
+                MinecraftForge.EVENT_BUS.register(new ScriptItemEventHandler());
+            }
+            setPrivateValue(RangedAttribute.class, (RangedAttribute)Attributes.MAX_HEALTH, Double.MAX_VALUE, 1);
+            new RecipeController();
+            new CustomNpcsPermissions();
         }
-        CapabilityManager.INSTANCE.register(PlayerData.class, new Capability.IStorage() {
-            public INBT writeNBT(final Capability capability, final Object instance, final Direction side) {
-                return null;
-            }
-
-            public void readNBT(final Capability capability, final Object instance, final Direction side, final INBT nbt) {
-            }
-        },PlayerData::new);
-        CapabilityManager.INSTANCE.register(WrapperEntityData.class, new Capability.IStorage() {
-            public INBT writeNBT(final Capability capability, final Object instance, final Direction side) {
-                return null;
-            }
-
-            public void readNBT(final Capability capability, final Object instance, final Direction side, final INBT nbt) {
-            }
-        }, () -> null);
-        CapabilityManager.INSTANCE.register(MarkData.class, new Capability.IStorage() {
-            public INBT writeNBT(final Capability capability, final Object instance, final Direction side) {
-                return null;
-            }
-
-            public void readNBT(final Capability capability, final Object instance, final Direction side, final INBT nbt) {
-            }
-        }, MarkData::new);
-        CapabilityManager.INSTANCE.register(ItemStackWrapper.class, new Capability.IStorage<ItemStackWrapper>() {
-            public INBT writeNBT(final Capability capability, final ItemStackWrapper instance, final Direction side) {
-                return null;
-            }
-
-            public void readNBT(final Capability capability, final ItemStackWrapper instance, final Direction side, final INBT nbt) {
-            }
-        }, () -> null);
-        Packets.register();
-        MinecraftForge.EVENT_BUS.register(new ServerEventsHandler());
-        MinecraftForge.EVENT_BUS.register(new ServerTickHandler());
-        MinecraftForge.EVENT_BUS.register(new CustomEntities());
-        MinecraftForge.EVENT_BUS.register(CustomNpcs.proxy);
-        MinecraftForge.EVENT_BUS.register(this);
-        NpcAPI.Instance().events().register(new AbilityEventHandler());
-        CustomNpcs.proxy.load();
-        PixelmonHelper.load();
-        final ScriptController controller = new ScriptController();
-        if (CustomNpcs.EnableScripting && !controller.languages.isEmpty()) {
-            MinecraftForge.EVENT_BUS.register(controller);
-            MinecraftForge.EVENT_BUS.register(new ScriptPlayerEventHandler().registerForgeEvents());
-            MinecraftForge.EVENT_BUS.register(new ScriptItemEventHandler());
+        finally {
+            Thread.currentThread().setContextClassLoader(oldTccl);
         }
-        setPrivateValue(RangedAttribute.class, (RangedAttribute)Attributes.MAX_HEALTH, Double.MAX_VALUE, 1);
-        new RecipeController();
-        new CustomNpcsPermissions();
     }
 
     @SubscribeEvent
@@ -193,10 +202,18 @@ public class CustomNpcs
         new LinkedNpcController();
         new MassBlockController();
         VisibilityController.instance = new VisibilityController();
-        ScriptController.Instance.loadCategories();
-        ScriptController.Instance.loadStoredData();
-        ScriptController.Instance.loadPlayerScripts();
-        ScriptController.Instance.loadForgeScripts();
+        final ClassLoader modCl = CustomNpcs.class.getClassLoader();
+        final ClassLoader oldTccl = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(modCl);
+            ScriptController.Instance.loadCategories();
+            ScriptController.Instance.loadStoredData();
+            ScriptController.Instance.loadPlayerScripts();
+            ScriptController.Instance.loadForgeScripts();
+        }
+        finally {
+            Thread.currentThread().setContextClassLoader(oldTccl);
+        }
         ScriptController.HasStart = false;
         WrapperNpcAPI.clearCache();
         CmdSchematics.names.clear();

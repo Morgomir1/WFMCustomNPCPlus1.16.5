@@ -15,6 +15,7 @@ import net.minecraft.util.math.*;
 import net.minecraft.util.math.vector.Vector3d;
 import net.minecraft.util.text.LanguageMap;
 import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.server.ServerWorld;
 import noppes.npcs.api.*;
 import noppes.npcs.api.entity.IEntity;
@@ -226,9 +227,26 @@ public class EntityWrapper<T extends Entity> implements IEntity
         return this.entity.tickCount;
     }
 
+    /** Bukkit: урон только с серверного потока (иначе {@code EntityDamageEvent} падает). */
+    private void applyHurtOnServer(final Runnable hurt) {
+        final MinecraftServer server = this.entity.level.getServer();
+        if (server == null) {
+            return;
+        }
+        if (server.isSameThread()) {
+            hurt.run();
+        } else {
+            server.execute(() -> {
+                if (this.entity.isAlive()) {
+                    hurt.run();
+                }
+            });
+        }
+    }
+
     @Override
     public void damage(final float amount) {
-        this.entity.hurt(DamageSource.GENERIC, amount);
+        this.applyHurtOnServer(() -> this.entity.hurt(DamageSource.GENERIC, amount));
     }
 
     @Override
@@ -580,9 +598,12 @@ public class EntityWrapper<T extends Entity> implements IEntity
     }
 
     public void damage(float damage, IEntity source) {
-        if(source.getType() == 1)
-            entity.hurt(new EntityDamageSource("player",source.getMCEntity()),damage);
-        else
-            entity.hurt(new EntityDamageSource(source.getTypeName(),source.getMCEntity()),damage);
+        this.applyHurtOnServer(() -> {
+            if (source.getType() == 1) {
+                this.entity.hurt(new EntityDamageSource("player", source.getMCEntity()), damage);
+            } else {
+                this.entity.hurt(new EntityDamageSource(source.getTypeName(), source.getMCEntity()), damage);
+            }
+        });
     }
 }

@@ -4,6 +4,7 @@
   "compatibilityLevel": "JAVA_8",
   "refmap": "customnpcs.refmap.json",
   "mixins": [
+    "TemplateEntitySpawnMixin",
     "CCreativeInventoryActionPacketMixin",
     "DelegatingResourcePackMixin",
     "IceBlockMixin",

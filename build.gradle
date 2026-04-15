@@ -129,6 +129,8 @@ tasks.register('copyClassesFromDeobf', Copy) {
 tasks.register('copyResourcesFromDeobf', Copy) {
     from(zipTree('lib/' + archivesBaseName + '-deobf.jar')){
         exclude "**/*.class"
+        // иначе затрётся расширенный список миксинов из src/main/resources
+        exclude "customnpcs.mixins.json"
     }
     into layout.buildDirectory.dir("resources\\main");
 }

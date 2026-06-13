@@ -12,7 +12,9 @@
     "NoiseChunkGeneratorMixin",
     "ProtocolTypeMixin",
     "ScoreBoardMixin",
-    "VineBlockMixin"
+    "VineBlockMixin",
+    "FactionMixin",
+    "GuiNPCManageFactionsMixin"
   ],
   "client": [
     "AgeableModelMixin",

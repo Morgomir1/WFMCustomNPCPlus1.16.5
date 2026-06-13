@@ -8,7 +8,8 @@ version = '1.16.5-1.0.0'
 
 java {
     archivesBaseName = 'CustomNPCs v1.16.5'
-    toolchain.languageVersion = JavaLanguageVersion.of(8)
+    // WFM-1.0.jar собирается Java 17; для compileOnly нужен компилятор, который читает class file 61.0
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
 }
 
 minecraft {
@@ -136,4 +137,5 @@ tasks.register('copyResourcesFromDeobf', Copy) {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.release = 8
 }

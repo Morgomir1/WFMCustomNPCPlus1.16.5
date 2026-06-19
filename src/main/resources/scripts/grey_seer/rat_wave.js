@@ -1,32 +1,52 @@
 // =====================================================
-// Grey Seer — ядро ИИ босса со случайными заклинаниями
+// Grey Seer — Серый провидец
 // CustomNPC+ JS-скрипт для WFM 1.16.5
 //
-// ВАЖНО: скрипт только на боссе! Клон "rat" — без скрипта.
-// Clone Bank: tab=1, name="rat"
+// Способности:
+// 1) Полчища крыс — 15s CD, призыв 10 крыс-миньонов с таймером жизни
+// 2) Прыжок — 15s CD, телепорт в случайную точку + волна искажения
+// 3) Волна искажения — 5s CD, 20–30 снарядов, счётчик искажения
 //
-// Новое заклинание: добавить в SPELLS и в SPELL_POOL.
+// Clone Bank: tab=1, name="rat" (крысы-миньоны)
+//
+// Точки телепорта (можно задать тут или через trigger):
+//   var TELEPORT_POINTS = [
+//       {x: 499888, y: 50, z: -600},
+//       {x: 499900, y: 50, z: -580},
+//       {x: 499870, y: 50, z: -610}
+//   ];
+// Настройка через команду:
+//   /script trigger set_tp 499888 50 -600 499900 50 -580 499870 50 -610
+//   /script trigger clear_tp
+// Принудительный каст:
+//   /script trigger cast rat_swarm
+//   /script trigger cast distortion_wave
 // =====================================================
 
-var RAT_LIFETIME = 200;
+var RAT_LIFETIME = 200;    // 10 секунд (20 тиков/сек)
 var MAX_RATS = 12;
 var CLONE_TAB = 1;
-var CLONE_NAME = "rat";
-var POOP_ITEM = "minecraft:cocoa_beans";
-var POOP_VOLLEY_MIN = 5;
-var POOP_VOLLEY_MAX = 10;
-var POOP_HIT_DELAY_TICKS = 12;
+var CLONE_NAME = "Крыса";
+var DISTORTION_ITEM = "minecraft:air";
+var DISTORTION_DAMAGE = 5;
+
+// Точки телепортации (заполняются в init() или через trigger)
+   var TELEPORT_POINTS = [
+       {x: 499888, y: 50, z: -600},
+       {x: 499900, y: 50, z: -580},
+       {x: 499870, y: 50, z: -610}
+   ];
 
 // --- Реестр заклинаний ---
 // weight > 0 — участвует в случайном выборе
-// weight = 0 — только принудительный каст (реакции)
+// weight = 0 — только принудительный каст (реакция на урон)
 var SPELLS = {
-    rat_wave: {
-        id: "rat_wave",
+    rat_swarm: {
+        id: "rat_swarm",
         weight: 10,
-        cooldown: 240,
-        enrageCooldown: 100,
-        announce: "§cКрысы, вперёд!",
+        cooldown: 300,          // 15 секунд
+        enrageCooldown: 180,
+        announce: "§cЧувствуете запах крыс?",
         count: 10,
         canCast: function(ctx) {
             return ctx.target != null
@@ -37,54 +57,49 @@ var SPELLS = {
             return spawnRatsAround(ctx, ctx.spell.count);
         }
     },
-    rat_burst: {
-        id: "rat_burst",
-        weight: 0,
-        cooldown: 160,
-        announce: "§cЯрость!",
-        count: 3,
-        canCast: function(ctx) {
-            return ctx.target != null
-                && ctx.target.isAlive()
-                && ctx.minions < MAX_RATS;
-        },
-        cast: function(ctx) {
-            return spawnRatsAround(ctx, ctx.spell.count);
-        }
-    },
-    teleport_poop: {
-        id: "teleport_poop",
-        weight: 6,
-        cooldown: 320,
+    leap: {
+        id: "leap",
+        weight: 0,              // только реакция на урон
+        cooldown: 300,          // 15 секунд
         enrageCooldown: 180,
-        announce: "§8*хлюп-хлюп*",
+        announce: "§8*шорох*",
+        distortionCount: 5,     // снарядов в залпе перед прыжком
         canCast: function(ctx) {
             return ctx.target != null && ctx.target.isAlive();
         },
         cast: function(ctx) {
-            if (!teleportBossRandom(ctx)) return 0;
-            var rat = spawnRat(ctx, ctx.npc.getX(), ctx.npc.getY() + 0.5, ctx.npc.getZ());
-            var volley = castPoopVolley(ctx, POOP_VOLLEY_MIN, POOP_VOLLEY_MAX);
-            return (rat != null ? 1 : 0) + volley;
+            // Залп искажения в сторону атакующего
+            if (ctx.spell.distortionCount > 0 && ctx.target != null) {
+                castDistortionWaveToward(ctx, ctx.target, ctx.spell.distortionCount);
+            }
+            teleportBoss(ctx);
+            return ctx.spell.distortionCount;
         }
     },
-    poop_volley: {
-        id: "poop_volley",
-        weight: 8,
-        cooldown: 200,
-        enrageCooldown: 120,
-        announce: "§8Волна говна!",
+    distortion_wave: {
+        id: "distortion_wave",
+        weight: 10,
+        cooldown: 100,          // 5 секунд
+        enrageCooldown: 60,
+        announce: "§5Искажение реальности!",
+        minCount: 35,
+        maxCount: 40,
         canCast: function(ctx) {
             return ctx.target != null && ctx.target.isAlive();
         },
         cast: function(ctx) {
-            return castPoopVolley(ctx, POOP_VOLLEY_MIN, POOP_VOLLEY_MAX);
+            var target = getRandomPlayer(ctx.world);
+            if (target == null) return 0;
+            var count = ctx.spell.minCount + Math.floor(
+                Math.random() * (ctx.spell.maxCount - ctx.spell.minCount + 1));
+            castDistortionWaveToward(ctx, target, count);
+            return count;
         }
     }
 };
 
 // Заклинания, из которых босс выбирает случайное
-var SPELL_POOL = ["rat_wave", "teleport_poop", "poop_volley"];
+var SPELL_POOL = ["rat_swarm", "distortion_wave"];
 
 // =====================================================
 // Утилиты босса
@@ -132,7 +147,7 @@ function buildCastContext(npc, spell) {
         npc: npc,
         world: world,
         target: npc.getAttackTarget(),
-        minions: countMinions(world, npc.getPos()),
+        minions: countMinions(world, npc.getPos(), npc),
         spell: spell
     };
 }
@@ -212,49 +227,59 @@ function castRandomSpell(npc) {
 // Миньоны (крысы)
 // =====================================================
 
-function countMinions(world, bossPos) {
+function countMinions(world, bossPos, boss) {
     var count = 0;
     var types = [2, 3, 5];
     for (var t = 0; t < types.length; t++) {
         var list = world.getNearbyEntities(bossPos, 50, types[t]);
         for (var i = 0; i < list.length; i++) {
-            if (isMinion(list[i])) count++;
+            if (isMinion(list[i], boss)) count++;
         }
     }
     return count;
 }
 
-function isMinion(entity) {
+function isMinion(entity, boss) {
+    // Проверяем по UUID в tempdata босса — это надёжнее, чем storeddata у клона
     try {
-        if (entity.getStoreddata().get("rat_minion") == 1) return true;
-    } catch (e) {}
-    try {
-        return entity.hasTag("rat_minion");
-    } catch (e2) {}
-    return false;
+        var uuid = entity.getUUID();
+        return boss.getTempdata().get("rat_" + uuid) == 1;
+    } catch (e) {
+        try {
+            return entity.hasTag("rat_minion");
+        } catch (e2) {
+            return false;
+        }
+    }
 }
 
-function markMinion(rat, world) {
+function markMinion(rat, boss, world) {
     rat.addTag("rat_minion");
-    rat.getStoreddata().put("rat_minion", 1);
-    rat.getStoreddata().put("spawn_tick", getWorldTime(world));
+    // Храним флаг + время спавна на боссе по UUID крысы
+    try {
+        var uuid = rat.getUUID();
+        boss.getTempdata().put("rat_" + uuid, 1);
+        boss.getTempdata().put("rat_spawn_" + uuid, boss.getAge());
+    } catch (e) {}
 }
 
-function removeMinion(entity, world) {
+function removeMinion(entity, boss, world) {
     try {
         world.spawnParticle("minecraft:poof",
             entity.getX(), entity.getY() + 0.3, entity.getZ(),
             0, 0, 0, 0, 3);
     } catch (e) {}
+    // Чистим данные на боссе
+    try {
+        var uuid = entity.getUUID();
+        boss.getTempdata().remove("rat_" + uuid);
+        boss.getTempdata().remove("rat_spawn_" + uuid);
+    } catch (e) {}
     try { entity.removeTag("rat_minion"); } catch (e2) {}
     try {
-        entity.getStoreddata().remove("rat_minion");
-        entity.getStoreddata().remove("spawn_tick");
-    } catch (e3) {}
-    try {
         entity.kill();
-    } catch (e4) {
-        try { entity.despawn(); } catch (e5) {}
+    } catch (e3) {
+        try { entity.despawn(); } catch (e4) {}
     }
 }
 
@@ -275,7 +300,7 @@ function spawnRat(ctx, sx, sy, sz) {
 
     if (rat == null) return null;
 
-    markMinion(rat, ctx.world);
+    markMinion(rat, ctx.npc, ctx.world);
     try {
         rat.setAttackTarget(ctx.target);
     } catch (e3) {}
@@ -288,9 +313,9 @@ function spawnRat(ctx, sx, sy, sz) {
 }
 
 function spawnRatsAround(ctx, count) {
-    cleanupMinions(ctx.world, ctx.npc.getPos());
+    cleanupMinions(ctx.world, ctx.npc.getPos(), ctx.npc);
 
-    var active = countMinions(ctx.world, ctx.npc.getPos());
+    var active = countMinions(ctx.world, ctx.npc.getPos(), ctx.npc);
     if (active >= MAX_RATS) return 0;
 
     var toSpawn = Math.min(count, MAX_RATS - active);
@@ -309,20 +334,64 @@ function spawnRatsAround(ctx, count) {
     return spawned;
 }
 
-// =====================================================
-// Волна говна (снаряды + дебаффы)
-// =====================================================
+function cleanupMinions(world, bossPos, boss) {
+    var now = boss.getAge();
+    var cleared = 0;
+    var types = [2, 3, 5];
 
-function randomTicks(minSec, maxSec) {
-    return Math.floor((minSec + Math.random() * (maxSec - minSec)) * 20);
+    for (var t = 0; t < types.length; t++) {
+        var list = world.getNearbyEntities(bossPos, 50, types[t]);
+        for (var i = 0; i < list.length; i++) {
+            var ent = list[i];
+            if (!isMinion(ent, boss)) continue;
+
+            // Время жизни считаем по boss.getAge() на момент спавна — хранится в tempdata босса
+            var uuid = ent.getUUID();
+            var spawnAge = boss.getTempdata().get("rat_spawn_" + uuid);
+            if (spawnAge == null) spawnAge = 0;
+
+            var expired = (spawnAge > 0 && (now - spawnAge) >= RAT_LIFETIME);
+            if (!ent.isAlive() || expired) {
+                removeMinion(ent, boss, world);
+                cleared++;
+            }
+        }
+    }
+    return cleared;
 }
 
-function poopPendingKey(uuid) {
-    return "poop_pending_" + uuid;
+function despawnAllMinions(boss) {
+    var world = boss.getWorld();
+    var bossPos = boss.getPos();
+    var types = [2, 3, 5];
+    var despawned = 0;
+
+    for (var t = 0; t < types.length; t++) {
+        var list = world.getNearbyEntities(bossPos, 50, types[t]);
+        for (var i = 0; i < list.length; i++) {
+            if (isMinion(list[i], boss)) {
+                removeMinion(list[i], boss, world);
+                despawned++;
+            }
+        }
+    }
+    return despawned;
 }
 
-function poopPendingTickKey(uuid) {
-    return "poop_pending_tick_" + uuid;
+// =====================================================
+// Волна искажения
+// =====================================================
+
+function getRandomPlayer(world) {
+    var players = world.getAllPlayers();
+    var alive = [];
+    for (var i = 0; i < players.length; i++) {
+        if (players[i] != null && players[i].isAlive()) {
+            alive.push(players[i]);
+        }
+    }
+    if (alive.length == 0) return null;
+    return alive[Math.floor(Math.random() * alive.length)];
 }
 
 function isPlayerEntity(entity) {
@@ -333,171 +402,238 @@ function isPlayerEntity(entity) {
     }
 }
 
-function applyPoopHit(player) {
-    var data = player.getStoreddata();
-    var hits = data.get("poop_hits");
+function applyDistortion(player) {
+    var data = player.getTempdata();
+    var hits = data.get("distortion_hits");
     if (hits == null) hits = 0;
     hits = hits + 1;
-    data.put("poop_hits", hits);
+    data.put("distortion_hits", hits);
 
     try {
-        player.addPotionEffect(PotionEffectType_BLINDNESS, randomTicks(1, 2), 0, true);
-    } catch (e) {}
+        // Каждые 5 попаданий: отравление I + слабость I на 15 секунд
+        if (hits >= 5 && hits % 5 == 0) {
+            player.addPotionEffect(PotionEffectType_POISON, 300, 0, false);
+            player.addPotionEffect(PotionEffectType_WEAKNESS, 300, 0, false);
+            player.message("§5Искажение усиливается! (" + hits + ")");
+        }
 
-    if (hits >= 5 && hits % 5 == 0) {
+        // Каждые 15 попаданий: медлительность I на 5с + слепота I на 2с
+        if (hits >= 15 && hits % 15 == 0) {
+            player.addPotionEffect(PotionEffectType_SLOWNESS, 100, 0, false);
+            player.addPotionEffect(PotionEffectType_BLINDNESS, 40, 0, false);
+            player.message("§5§lИскажение поглощает тебя! (" + hits + ")");
+        }
+    } catch (e) {
+        log("grey_seer: applyDistortion ERROR: " + e);
+    }
+}
+
+function configureDistortionProjectile(proj, world) {
+    try {
+        proj.setItem(world.createItem(DISTORTION_ITEM, 1));
+        proj.enableEvents();
+        proj.getTempdata().put("grey_seer_dist", 1);
+
+        // Сбрасываем эффекты из настроек дальнего боя NPC — иначе дебафф попадает на босса
+        var mc = proj.getMCEntity();
+        mc.effect = 0;
+        mc.duration = 0;
+        mc.amplify = 0;
+        mc.damage = DISTORTION_DAMAGE;
+        mc.explosiveDamage = false;
+        mc.setIs3D(false);
+    } catch (e) {
+        log("grey_seer: configure projectile ERROR: " + e);
+    }
+}
+
+function shootDistortionAt(npc, world, target, spreadX, spreadZ, aimY) {
+    var item = world.createItem(DISTORTION_ITEM, 1);
+    var proj = null;
+
+    try {
+        proj = npc.shootItem(
+            target.getX() + spreadX,
+            aimY,
+            target.getZ() + spreadZ,
+            item,
+            16 + Math.floor(Math.random() * 3)
+        );
+    } catch (e) {
         try {
-            player.addPotionEffect(PotionEffectType_POISON, randomTicks(15, 20), 0, false);
-            player.addPotionEffect(PotionEffectType_WEAKNESS, randomTicks(15, 20), 0, false);
+            proj = npc.shootItem(target, item, 16);
         } catch (e2) {}
     }
 
-    if (hits >= 15 && hits % 15 == 0) {
-        try {
-            player.addPotionEffect(PotionEffectType_SLOWNESS, randomTicks(5, 10), 0, false);
-        } catch (e3) {}
+    if (proj != null) {
+        configureDistortionProjectile(proj, world);
     }
-
-    log("grey_seer: poop hit #" + hits + " on " + player.getName());
+    return proj;
 }
 
-function queuePoopHits(boss, target, count) {
-    if (!isPlayerEntity(target)) return;
-    var uuid = target.getUUID();
-    var key = poopPendingKey(uuid);
-    var tickKey = poopPendingTickKey(uuid);
-    var pending = boss.getTempdata().get(key);
-    if (pending == null) pending = 0;
-    boss.getTempdata().put(key, pending + count);
-    boss.getTempdata().put(tickKey, getWorldTime(boss.getWorld()) + POOP_HIT_DELAY_TICKS);
-}
-
-function resolvePoopHit(boss, player, pending) {
-    var resolved = 0;
-    for (var i = 0; i < pending; i++) {
-        if (Math.random() < 0.85) {
-            applyPoopHit(player);
-            resolved++;
-        }
+function getProjectileBoss(event) {
+    try {
+        var owner = event.projectile.getMCEntity().getOwner();
+        if (owner == null) return null;
+        return event.API.getIEntity(owner);
+    } catch (e) {
+        return null;
     }
-    return resolved;
 }
 
-function processPendingPoopHits(npc) {
-    var world = npc.getWorld();
-    var players = world.getAllPlayers();
-    var now = getWorldTime(world);
-    var total = 0;
-
-    for (var p = 0; p < players.length; p++) {
-        var player = players[p];
-        if (player == null || !player.isAlive()) continue;
-
-        var uuid = player.getUUID();
-        var pending = npc.getTempdata().get(poopPendingKey(uuid));
-        if (pending == null || pending <= 0) continue;
-
-        var dueAt = npc.getTempdata().get(poopPendingTickKey(uuid));
-        if (dueAt == null) dueAt = 0;
-        if (now < dueAt) continue;
-
-        total += resolvePoopHit(npc, player, pending);
-        npc.getTempdata().put(poopPendingKey(uuid), 0);
+function wrapImpactTarget(event) {
+    var target = event.target;
+    if (target == null) return null;
+    try {
+        if (typeof target.getType == "function") return target;
+        return event.API.getIEntity(target);
+    } catch (e) {
+        return null;
     }
-    return total;
 }
 
-function castPoopVolley(ctx, minCount, maxCount) {
-    var target = ctx.target;
-    if (target == null || !target.isAlive()) return 0;
+function isSameEntity(a, b) {
+    try {
+        return String(a.getUUID()) == String(b.getUUID());
+    } catch (e) {
+        return false;
+    }
+}
 
-    var count = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
-    var item = ctx.world.createItem(POOP_ITEM, 1);
+function castDistortionWaveToward(ctx, target, count) {
     var npc = ctx.npc;
     var world = ctx.world;
 
     for (var i = 0; i < count; i++) {
-        var spread = (Math.random() - 0.5) * 2.0;
-        var aimY = target.getY() + 0.8 + Math.random() * 0.8;
+        var spreadX = (Math.random() - 0.5) * 0.2;
+        var spreadZ = (Math.random() - 0.5) * 0.2;
+        var aimY = target.getY() + 1.2;
+
+        // След из партиклов от босса к цели
+        var dx = (target.getX() - npc.getX()) / count;
+        var dz = (target.getZ() - npc.getZ()) / count;
+        var dy = (aimY - (npc.getY() + 1.2)) / count;
+
         try {
-            npc.shootItem(
-                target.getX() + spread,
-                aimY,
-                target.getZ() + spread,
-                item,
-                6 + Math.floor(Math.random() * 4)
-            );
-        } catch (e) {
-            try {
-                npc.shootItem(target, item, 8);
-            } catch (e2) {}
-        }
+            world.spawnParticle("minecraft:dragon_breath",
+                npc.getX() + dx * i,
+                npc.getY() + 1.2 + dy * i,
+                npc.getZ() + dz * i,
+                0, 0, 0, 0, 1);
+            world.spawnParticle("minecraft:portal",
+                npc.getX() + dx * i,
+                npc.getY() + 1.2 + dy * i,
+                npc.getZ() + dz * i,
+                0.02, 0.02, 0.02, 0.01, 1);
+        } catch (e) {}
+
+        shootDistortionAt(npc, world, target, spreadX, spreadZ, aimY);
     }
 
-    queuePoopHits(npc, target, count);
-
+    // Финальный партикл-всплеск на месте босса
     try {
-        world.spawnParticle("minecraft:spit",
+        world.spawnParticle("minecraft:dragon_breath",
             npc.getX(), npc.getY() + 1.2, npc.getZ(),
-            0.4, 0.2, 0.4, 0.05, 12);
-        world.spawnParticle("minecraft:falling_spore_blossom",
-            target.getX(), target.getY() + 1.5, target.getZ(),
-            0.6, 0.3, 0.6, 0.02, 8);
+            0.3, 0.2, 0.3, 0.03, 20);
+        world.spawnParticle("minecraft:portal",
+            npc.getX(), npc.getY() + 1.2, npc.getZ(),
+            0.2, 0.1, 0.2, 0.05, 10);
     } catch (e3) {}
 
     return count;
 }
 
-function teleportBossRandom(ctx) {
-    var target = ctx.target;
+// =====================================================
+// Телепорт
+// =====================================================
+
+function teleportBoss(ctx) {
     var npc = ctx.npc;
     var world = ctx.world;
-    if (target == null || !target.isAlive()) return false;
+    var point = null;
 
-    var angle = Math.random() * Math.PI * 2;
-    var dist = 5 + Math.random() * 5;
-    var tx = target.getX() + Math.sin(angle) * dist;
-    var tz = target.getZ() + Math.cos(angle) * dist;
-    var ty = target.getY();
+    // Используем заранее заданные точки, если есть
+    if (TELEPORT_POINTS.length > 0) {
+        point = TELEPORT_POINTS[Math.floor(Math.random() * TELEPORT_POINTS.length)];
+    } else {
+        // Fallback: случайная позиция рядом с точкой спавна
+        var spawnX = npc.getStoreddata().get("spawn_x");
+        var spawnY = npc.getStoreddata().get("spawn_y");
+        var spawnZ = npc.getStoreddata().get("spawn_z");
+        if (spawnX != null && spawnY != null && spawnZ != null) {
+            var angle = Math.random() * Math.PI * 2;
+            var dist = 4 + Math.random() * 4;
+            point = {
+                x: spawnX + Math.sin(angle) * dist,
+                y: spawnY,
+                z: spawnZ + Math.cos(angle) * dist
+            };
+        } else {
+            var angle = Math.random() * Math.PI * 2;
+            var dist = 5 + Math.random() * 5;
+            point = {
+                x: npc.getX() + Math.sin(angle) * dist,
+                y: npc.getY(),
+                z: npc.getZ() + Math.cos(angle) * dist
+            };
+        }
+    }
 
-    npc.setPosition(tx, ty, tz);
+    npc.setPosition(point.x, point.y, point.z);
 
     try {
-        world.spawnParticle("minecraft:portal", tx, ty + 1, tz, 0.3, 0.5, 0.3, 0.1, 25);
-        world.spawnParticle("minecraft:smoke", tx, ty + 0.2, tz, 0.2, 0.1, 0.2, 0.02, 10);
+        world.spawnParticle("minecraft:portal", point.x, point.y + 1, point.z,
+            0.3, 0.5, 0.3, 0.1, 25);
+        world.spawnParticle("minecraft:smoke", point.x, point.y + 0.2, point.z,
+            0.2, 0.1, 0.2, 0.02, 10);
         world.playSoundAt(npc.getPos(), "minecraft:entity.enderman.teleport", 1.0, 0.8);
     } catch (e) {}
 
     try {
-        npc.setAttackTarget(target);
+        if (ctx.target != null) npc.setAttackTarget(ctx.target);
     } catch (e2) {}
 
     return true;
 }
 
-function cleanupMinions(world, bossPos) {
-    var now = getWorldTime(world);
-    var cleared = 0;
-    var types = [2, 3, 5];
+// =====================================================
+// Сохранение/загрузка точек телепортации в storeddata
+// =====================================================
 
-    for (var t = 0; t < types.length; t++) {
-        var list = world.getNearbyEntities(bossPos, 50, types[t]);
-        for (var i = 0; i < list.length; i++) {
-            var ent = list[i];
-            if (!isMinion(ent)) continue;
+function loadTeleportPoints(npc) {
+    TELEPORT_POINTS = [];
+    var count = npc.getStoreddata().get("tp_count");
+    if (count == null || count <= 0) return;
 
-            var spawnTick = 0;
-            try {
-                spawnTick = ent.getStoreddata().get("spawn_tick");
-                if (spawnTick == null) spawnTick = 0;
-            } catch (e) {}
-
-            if (!ent.isAlive() || (spawnTick > 0 && (now - spawnTick) >= RAT_LIFETIME)) {
-                removeMinion(ent, world);
-                cleared++;
-            }
+    for (var i = 0; i < count; i++) {
+        var x = npc.getStoreddata().get("tp_" + i + "_x");
+        var y = npc.getStoreddata().get("tp_" + i + "_y");
+        var z = npc.getStoreddata().get("tp_" + i + "_z");
+        if (x != null && y != null && z != null) {
+            TELEPORT_POINTS.push({x: x, y: y, z: z});
         }
     }
-    return cleared;
+}
+
+function saveTeleportPoints(npc, points) {
+    var stored = npc.getStoreddata();
+    // Очищаем старые точки
+    var oldCount = stored.get("tp_count");
+    if (oldCount != null) {
+        for (var i = 0; i < oldCount; i++) {
+            stored.remove("tp_" + i + "_x");
+            stored.remove("tp_" + i + "_y");
+            stored.remove("tp_" + i + "_z");
+        }
+    }
+    // Сохраняем новые
+    stored.put("tp_count", points.length);
+    for (var i = 0; i < points.length; i++) {
+        stored.put("tp_" + i + "_x", points[i].x);
+        stored.put("tp_" + i + "_y", points[i].y);
+        stored.put("tp_" + i + "_z", points[i].z);
+    }
+    TELEPORT_POINTS = points.slice();
 }
 
 // =====================================================
@@ -511,16 +647,20 @@ function init(event) {
 
         if (npc.getStoreddata().get("_inited") == 1) return;
 
-        npc.setName("§c§lПовелитель Крыс");
-        npc.getStats().setMaxHealth(300);
-        npc.getStats().setResistance(0, 8);
+        // Сохраняем спавн-позицию для точек телепорта по умолчанию
+        npc.getStoreddata().put("spawn_x", npc.getX());
+        npc.getStoreddata().put("spawn_y", npc.getY());
+        npc.getStoreddata().put("spawn_z", npc.getZ());
 
-        npc.getTimers().start(1, 20, true); // ИИ: выбор заклинания
-        npc.getTimers().start(2, 20, true); // деспавн миньонов
-        npc.getTimers().start(3, 5, true);  // обработка попаданий говна
+        // Загружаем точки телепортации (если заданы ранее)
+        loadTeleportPoints(npc);
+
+        npc.getTimers().start(1, 20, true); // ИИ: выбор заклинания (каждую секунду)
+        npc.getTimers().start(2, 20, true); // очистка миньонов (каждую секунду)
         npc.getStoreddata().put("_inited", 1);
 
-        log("grey_seer init OK, spells=" + SPELL_POOL.join(", "));
+        log("grey_seer init OK, spells=" + SPELL_POOL.join(", ") +
+            ", tp_points=" + TELEPORT_POINTS.length);
     } catch (e) {
         log("grey_seer init ERROR: " + e);
     }
@@ -533,7 +673,7 @@ function tick(event) {
         var npc = event.npc;
         if (npc.getAge() % 20 != 0) return;
         if (Math.random() > 0.3) return;
-        npc.getWorld().spawnParticle("minecraft:smoke",
+        npc.getWorld().spawnParticle("minecraft:dragon_breath",
             npc.getX() + (Math.random() - 0.5) * 4,
             npc.getY() + 0.5 + Math.random() * 2,
             npc.getZ() + (Math.random() - 0.5) * 4,
@@ -547,7 +687,15 @@ function timer(event) {
 
     if (event.id == 1) {
         try {
-            castRandomSpell(npc);
+            // Если нет цели — деспавним всех крыс
+            if (npc.getAttackTarget() == null || !npc.getAttackTarget().isAlive()) {
+                var allDespawned = despawnAllMinions(npc);
+                if (allDespawned > 0) {
+                    log("grey_seer: despawned " + allDespawned + " rats (no target)");
+                }
+            } else {
+                castRandomSpell(npc);
+            }
         } catch (e) {
             log("grey_seer AI ERROR: " + e);
         }
@@ -556,7 +704,7 @@ function timer(event) {
 
     if (event.id == 2) {
         try {
-            var cleared = cleanupMinions(npc.getWorld(), npc.getPos());
+            var cleared = cleanupMinions(npc.getWorld(), npc.getPos(), npc);
             if (cleared > 0) {
                 log("grey_seer: despawned " + cleared + " rats");
             }
@@ -565,33 +713,45 @@ function timer(event) {
         }
         return;
     }
+}
 
-    if (event.id == 3) {
-        try {
-            processPendingPoopHits(npc);
-        } catch (e) {
-            log("grey_seer poop hits ERROR: " + e);
-        }
-    }
+function projectileTick(event) {
+    try {
+        var proj = event.projectile;
+        if (proj == null || proj.getTempdata().get("grey_seer_dist") != 1) return;
+
+        var world = proj.getWorld();
+        world.spawnParticle("minecraft:dragon_breath",
+            proj.getX(), proj.getY(), proj.getZ(),
+            0, 0, 0, 0, 1);
+        world.spawnParticle("minecraft:portal",
+            proj.getX(), proj.getY(), proj.getZ(),
+            0.02, 0.02, 0.02, 0.01, 1);
+    } catch (e) {}
 }
 
 function projectileImpact(event) {
-    if (!isBoss(event.npc)) return;
-
     try {
-        var target = null;
-        if (event.entity != null) target = event.entity;
-        else if (event.target != null) target = event.target;
+        // type 0 = попадание в сущность, 1 = в блок
+        if (event.type != 0) return;
 
+        var proj = event.projectile;
+        if (proj == null || proj.getTempdata().get("grey_seer_dist") != 1) return;
+
+        var boss = getProjectileBoss(event);
+        if (boss == null || !isBoss(boss)) return;
+
+        var target = wrapImpactTarget(event);
         if (!isPlayerEntity(target)) return;
+        if (isSameEntity(target, boss)) return;
 
-        applyPoopHit(target);
+        applyDistortion(target);
 
-        var key = poopPendingKey(target.getUUID());
-        var pending = event.npc.getTempdata().get(key);
-        if (pending != null && pending > 0) {
-            event.npc.getTempdata().put(key, pending - 1);
-        }
+        try {
+            boss.getWorld().spawnParticle("minecraft:end_rod",
+                target.getX(), target.getY() + 1.0, target.getZ(),
+                0.1, 0.1, 0.1, 0, 3);
+        } catch (e) {}
     } catch (e) {
         log("grey_seer projectileImpact ERROR: " + e);
     }
@@ -601,20 +761,20 @@ function damaged(event) {
     if (!isBoss(event.npc)) return;
 
     try {
-        if (Math.random() > 0.25) return;
         if (event.source == null || !event.source.isAlive()) return;
 
         var npc = event.npc;
-        if (!isSpellReady(npc, SPELLS.rat_burst)) return;
+        if (!isSpellReady(npc, SPELLS.leap)) return;
 
-        var ctx = buildCastContext(npc, SPELLS.rat_burst);
-        ctx.target = event.source;
-        if (!SPELLS.rat_burst.canCast(ctx)) return;
+        var ctx = buildCastContext(npc, SPELLS.leap);
+        ctx.target = event.source; // атакующий
+        if (!SPELLS.leap.canCast(ctx)) return;
 
-        npc.say(SPELLS.rat_burst.announce);
-        var spawned = SPELLS.rat_burst.cast(ctx);
-        if (spawned > 0) {
-            setSpellCooldown(npc, SPELLS.rat_burst);
+        npc.say(SPELLS.leap.announce);
+        var result = SPELLS.leap.cast(ctx);
+        if (result > 0) {
+            setSpellCooldown(npc, SPELLS.leap);
+            log("grey_seer: leap triggered by " + event.source.getName());
         }
     } catch (e) {
         log("grey_seer damaged ERROR: " + e);
@@ -631,20 +791,36 @@ function kill(event) {
     } catch (e) {}
 }
 
+function targetLost(event) {
+    if (!isBoss(event.npc)) return;
+
+    try {
+        var npc = event.npc;
+        var despawned = despawnAllMinions(npc);
+        if (despawned > 0) {
+            npc.say("§7Крысы, прочь!");
+            log("grey_seer: lost target, despawned " + despawned + " rats");
+        }
+    } catch (e) {
+        log("grey_seer targetLost ERROR: " + e);
+    }
+}
+
 function died(event) {
     if (!isBoss(event.npc)) return;
 
     try {
         var world = event.npc.getWorld();
-        world.broadcast("§c§lПовелитель Крыс повержен!");
+        world.broadcast("§c§lСерый Провидец повержен! Да сгинет проклятие!");
 
+        // Убираем всех миньонов
         var types = [2, 3, 5];
         var despawned = 0;
         for (var t = 0; t < types.length; t++) {
             var list = world.getNearbyEntities(event.npc.getPos(), 60, types[t]);
             for (var i = 0; i < list.length; i++) {
-                if (isMinion(list[i])) {
-                    removeMinion(list[i], world);
+                if (isMinion(list[i], event.npc)) {
+                    removeMinion(list[i], event.npc, world);
                     despawned++;
                 }
             }
@@ -652,5 +828,53 @@ function died(event) {
         log("grey_seer died: despawned " + despawned + " rats");
     } catch (e) {
         log("grey_seer died ERROR: " + e);
+    }
+}
+
+function trigger(event) {
+    if (!isBoss(event.npc)) return;
+
+    var npc = event.npc;
+    var id = event.id;
+    var args = event.arguments;
+
+    if (id == "set_tp") {
+        // /script trigger set_tp x1 y1 z1 x2 y2 z2 ...
+        if (args == null || args.length < 3 || args.length % 3 != 0) {
+            npc.say("§cИспользование: /script trigger set_tp x1 y1 z1 x2 y2 z2 ...");
+            return;
+        }
+        var points = [];
+        for (var i = 0; i < args.length; i += 3) {
+            points.push({
+                x: Number(args[i]),
+                y: Number(args[i + 1]),
+                z: Number(args[i + 2])
+            });
+        }
+        saveTeleportPoints(npc, points);
+        npc.say("§aУстановлено " + points.length + " точек телепортации.");
+        log("grey_seer: set " + points.length + " teleport points");
+        return;
+    }
+
+    if (id == "clear_tp") {
+        saveTeleportPoints(npc, []);
+        npc.say("§eТочки телепортации очищены. Используются позиции от спавна.");
+        log("grey_seer: teleport points cleared");
+        return;
+    }
+
+    if (id == "cast") {
+        // /script trigger cast <spell_id>
+        if (args != null && args.length >= 1) {
+            var spellId = String(args[0]);
+            if (castSpell(npc, spellId)) {
+                npc.say("§aКаст: " + spellId);
+            } else {
+                npc.say("§cНе удалось кастануть " + spellId + " (кулдаун/условия)");
+            }
+        }
+        return;
     }
 }

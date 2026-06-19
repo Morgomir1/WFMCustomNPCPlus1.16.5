@@ -12,6 +12,7 @@ import com.mojang.blaze3d.systems.*;
 import net.minecraft.util.math.vector.*;
 import noppes.npcs.entity.*;
 import noppes.npcs.mixin.*;
+import noppes.npcs.client.EntityUtil;
 import noppes.npcs.shared.common.util.*;
 import net.minecraft.util.*;
 import net.minecraft.client.resources.*;
@@ -124,6 +125,9 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
     private void renderGeoModel(EntityCustomNpc npc, MatrixStack matrixStack, IRenderTypeBuffer buffer, int packedLight)
     {
         Entity entity = npc.modelData.getEntity(npc);
+        if (entity instanceof LivingEntity) {
+            EntityUtil.Copy(npc, (LivingEntity) entity);
+        }
         entity.yRot = entity.yRotO = 0;
         if (!npc.isInvisible())
         {

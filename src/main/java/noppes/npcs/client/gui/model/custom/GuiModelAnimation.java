@@ -1,6 +1,5 @@
 package noppes.npcs.client.gui.model.custom;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
 import net.minecraft.util.ResourceLocation;
 import noppes.npcs.client.gui.util.GuiNPCInterface;
 import noppes.npcs.shared.client.gui.components.GuiButtonNop;
@@ -12,22 +11,28 @@ import software.bernie.geckolib3.resource.GeckoLibCache;
 
 public class GuiModelAnimation extends GuiNPCInterface implements ITextfieldListener {
 
+    private static final int HINT_COLOR = 0xA0A0A0;
+    private static final int ROW_HEIGHT = 34;
+
     @Override
     public void init() {
         super.init();
-        int y = guiTop + 44;
-        addSelectionBlock(1,y,"Animation File:",npc.display.customModelData.getAnimFile());
-        addSelectionBlock(2,y+=23,"Idle:",npc.display.customModelData.getIdleAnim());
-        addSelectionBlock(3,y+=23,"Walk:",npc.display.customModelData.getWalkAnim());
-        addSelectionBlock(4,y+=23,"Attack:",npc.display.customModelData.getAttackAnim());
-        addSelectionBlock(5,y+23,"Hurt:",npc.display.customModelData.getHurtAnim());
+        int y = guiTop + 30;
+        this.addLabel(new GuiLabel(100, "Анимации GeckoLib", guiLeft - 130, y, 0xffffff));
+        y += 18;
+        addSelectionBlock(1, y, "Файл анимаций", "Путь к .animation.json (все клипы модели)", npc.display.customModelData.getAnimFile());
+        addSelectionBlock(2, y += ROW_HEIGHT, "Idle", "Стоит на месте — включается автоматически", npc.display.customModelData.getIdleAnim());
+        addSelectionBlock(3, y += ROW_HEIGHT, "Walk", "Идёт — включается автоматически", npc.display.customModelData.getWalkAnim());
+        addSelectionBlock(4, y += ROW_HEIGHT, "Attack", "При ударе в ближнем бою (авто)", npc.display.customModelData.getAttackAnim());
+        addSelectionBlock(5, y += ROW_HEIGHT, "Hurt", "Пока не подключено — оставьте пустым", npc.display.customModelData.getHurtAnim());
         this.addButton(new GuiButtonNop(this, 670, width - 22, 2, 20, 20, "X"));
     }
 
-    public void addSelectionBlock(int id, int y, String label, String value){
-        this.addLabel(new GuiLabel(id,label, guiLeft - 85, y + 5,0xffffff));
-        addTextField(new GuiTextFieldNop(id,this, guiLeft - 40, y, 200, 20, value));
-        this.addButton(new GuiButtonNop(this,id, guiLeft + 163, y, 80, 20, "mco.template.button.select"));
+    private void addSelectionBlock(int id, int y, String label, String desc, String value) {
+        this.addLabel(new GuiLabel(id, label, guiLeft - 130, y + 2, 0xffffff));
+        this.addLabel(new GuiLabel(id + 100, desc, guiLeft - 130, y + 12, HINT_COLOR));
+        addTextField(new GuiTextFieldNop(id, this, guiLeft - 40, y + 4, 200, 20, value));
+        this.addButton(new GuiButtonNop(this, id, guiLeft + 163, y + 4, 80, 20, "mco.template.button.select"));
     }
 
     @Override
@@ -52,7 +57,7 @@ public class GuiModelAnimation extends GuiNPCInterface implements ITextfieldList
         if(button.id==4){
             setSubGui(new GuiStringSelection(this,"Selecting geckolib attack animation:",
                     AnimationFileUtil.getAnimationList(npc.display.customModelData.getAnimFile()),
-                    (name)-> npc.display.customModelData.setAnimFile(name)));
+                    (name)-> npc.display.customModelData.setAttackAnim(name)));
         }
         if(button.id==5){
             setSubGui(new GuiStringSelection(this,"Selecting geckolib hurt animation:",

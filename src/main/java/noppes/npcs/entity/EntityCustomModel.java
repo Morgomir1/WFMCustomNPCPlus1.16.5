@@ -17,16 +17,54 @@ import software.bernie.geckolib3.core.manager.AnimationFactory;
 
 public class EntityCustomModel extends CreatureEntity implements IAnimatable, IAnimationTickable {
     private AnimationFactory factory = new AnimationFactory(this);
-    public ResourceLocation modelResLoc=new ResourceLocation("geckolib3", "geo/bike.geo.json");
-    public ResourceLocation animResLoc=new ResourceLocation("geckolib3", "bike.animation.json");
+    public ResourceLocation modelResLoc = new ResourceLocation("geckolib3", "geo/bike.geo.json");
+    public ResourceLocation animResLoc = new ResourceLocation("geckolib3", "bike.animation.json");
     public ResourceLocation textureResLoc = new ResourceLocation("geckolib3", "textures/model/entity/bike.png");
     public String idleAnim = "";
     public String walkAnim = "";
-    public String hurtAnim = "";
-    public String attackAnim = "";
+    public String geckoHurtAnim = "";
+    public String geckoAttackAnim = "";
     public AnimationBuilder dialogAnim = null;
     public AnimationBuilder manualAnim = null;
     public ItemStack leftHeldItem;
+    private boolean attackSwingConsumed;
+
+    private boolean isMeleeAttacking() {
+        return this.swinging || this.getAttackAnim(1.0f) > 0.001f;
+    }
+
+    private <E extends IAnimatable> PlayState handleAttackAnimation(AnimationEvent<E> event) {
+        if (manualAnim != null || dialogAnim != null || geckoAttackAnim.isEmpty()) {
+            if (!isMeleeAttacking()) {
+                attackSwingConsumed = false;
+            }
+            return null;
+        }
+
+        AnimationController<?> controller = event.getController();
+        AnimationState state = controller.getAnimationState();
+
+        if (!isMeleeAttacking()) {
+            attackSwingConsumed = false;
+            if (state != AnimationState.Stopped) {
+                return PlayState.CONTINUE;
+            }
+            return null;
+        }
+
+        if (!attackSwingConsumed) {
+            controller.markNeedsReload();
+            controller.setAnimation(new AnimationBuilder().playOnce(geckoAttackAnim));
+            attackSwingConsumed = true;
+            return PlayState.CONTINUE;
+        }
+
+        if (state != AnimationState.Stopped) {
+            return PlayState.CONTINUE;
+        }
+        return null;
+    }
+
     private <E extends IAnimatable> PlayState predicateMovement(AnimationEvent<E> event) {
         if (manualAnim != null) {
             if (event.getController().getAnimationState() == AnimationState.Stopped) {
@@ -50,6 +88,12 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
                 return PlayState.CONTINUE;
             }
         }
+
+        PlayState attackState = handleAttackAnimation(event);
+        if (attackState != null) {
+            return attackState;
+        }
+
         if (!event.isMoving() || walkAnim.isEmpty()) {
             if (!idleAnim.isEmpty()) {
                 event.getController().setAnimation(new AnimationBuilder().loop(idleAnim));
@@ -62,20 +106,14 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
         return PlayState.CONTINUE;
     }
 
-    private <E extends IAnimatable> PlayState predicateAttack(AnimationEvent<E> event) {
-        return PlayState.CONTINUE;
-    }
-
     public EntityCustomModel(EntityType<? extends CreatureEntity> type, World worldIn) {
         super(type, worldIn);
         this.noCulling = true;
     }
 
-
     @Override
     public void registerControllers(AnimationData data) {
-        data.addAnimationController(new AnimationController<>(this, "movement", 10, this::predicateMovement));
-        data.addAnimationController(new AnimationController<>(this, "attack", 10, this::predicateAttack));
+        data.addAnimationController(new AnimationController<>(this, "movement", 0, this::predicateMovement));
     }
 
     @Override

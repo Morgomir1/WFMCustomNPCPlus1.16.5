@@ -125,6 +125,8 @@ public class EntityUtil
             ((EntityCustomModel) entity).animResLoc=new ResourceLocation(((EntityNPCInterface) copied).display.customModelData.getAnimFile());
             ((EntityCustomModel) entity).idleAnim=((EntityNPCInterface) copied).display.customModelData.getIdleAnim();
             ((EntityCustomModel) entity).walkAnim=((EntityNPCInterface) copied).display.customModelData.getWalkAnim();
+            ((EntityCustomModel) entity).geckoAttackAnim=((EntityNPCInterface) copied).display.customModelData.getAttackAnim();
+            ((EntityCustomModel) entity).geckoHurtAnim=((EntityNPCInterface) copied).display.customModelData.getHurtAnim();
             if(((EntityNPCInterface) copied).inventory.getLeftHand()!=null){
                 ((EntityCustomModel) entity).leftHeldItem=((EntityNPCInterface) copied).inventory.getLeftHand().getMCItemStack();
             }

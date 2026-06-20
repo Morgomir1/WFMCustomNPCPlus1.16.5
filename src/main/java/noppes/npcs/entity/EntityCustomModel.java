@@ -46,9 +46,6 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
 
         if (!isMeleeAttacking()) {
             attackSwingConsumed = false;
-            if (state != AnimationState.Stopped) {
-                return PlayState.CONTINUE;
-            }
             return null;
         }
 

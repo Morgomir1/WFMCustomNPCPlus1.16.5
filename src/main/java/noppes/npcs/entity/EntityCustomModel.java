@@ -26,6 +26,8 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
     public String geckoAttackAnim = "";
     public AnimationBuilder dialogAnim = null;
     public AnimationBuilder manualAnim = null;
+    private AnimationBuilder appliedDialogAnim = null;
+    private AnimationBuilder appliedManualAnim = null;
     public ItemStack leftHeldItem;
     private boolean attackSwingConsumed;
 
@@ -66,24 +68,32 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
         if (manualAnim != null) {
             if (event.getController().getAnimationState() == AnimationState.Stopped) {
                 manualAnim = null;
+                appliedManualAnim = null;
             } else {
-                if (event.getController().currentAnimationBuilder != manualAnim) {
+                if (appliedManualAnim != manualAnim) {
                     event.getController().markNeedsReload();
+                    event.getController().setAnimation(manualAnim);
+                    appliedManualAnim = manualAnim;
                 }
-                event.getController().setAnimation(manualAnim);
                 return PlayState.CONTINUE;
             }
+        } else {
+            appliedManualAnim = null;
         }
         if (dialogAnim != null) {
             if (event.getController().getAnimationState() == AnimationState.Stopped) {
                 dialogAnim = null;
+                appliedDialogAnim = null;
             } else {
-                if (event.getController().currentAnimationBuilder != dialogAnim) {
+                if (appliedDialogAnim != dialogAnim) {
                     event.getController().markNeedsReload();
+                    event.getController().setAnimation(dialogAnim);
+                    appliedDialogAnim = dialogAnim;
                 }
-                event.getController().setAnimation(dialogAnim);
                 return PlayState.CONTINUE;
             }
+        } else {
+            appliedDialogAnim = null;
         }
 
         PlayState attackState = handleAttackAnimation(event);

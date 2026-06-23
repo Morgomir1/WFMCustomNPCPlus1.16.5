@@ -26,6 +26,7 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
     public String geckoAttackAnim = "";
     public AnimationBuilder dialogAnim = null;
     public AnimationBuilder manualAnim = null;
+    public double manualAnimSpeed = 1.0;
     private AnimationBuilder appliedDialogAnim = null;
     private AnimationBuilder appliedManualAnim = null;
     public ItemStack leftHeldItem;
@@ -73,6 +74,7 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
                 if (appliedManualAnim != manualAnim) {
                     event.getController().markNeedsReload();
                     event.getController().setAnimation(manualAnim);
+                    event.getController().setAnimationSpeed(manualAnimSpeed);
                     appliedManualAnim = manualAnim;
                 }
                 return PlayState.CONTINUE;
@@ -103,11 +105,13 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
 
         if (!event.isMoving() || walkAnim.isEmpty()) {
             if (!idleAnim.isEmpty()) {
+                event.getController().setAnimationSpeed(1.0);
                 event.getController().setAnimation(new AnimationBuilder().loop(idleAnim));
             } else {
                 return PlayState.STOP;
             }
         } else {
+            event.getController().setAnimationSpeed(1.0);
             event.getController().setAnimation(new AnimationBuilder().loop(walkAnim));
         }
         return PlayState.CONTINUE;

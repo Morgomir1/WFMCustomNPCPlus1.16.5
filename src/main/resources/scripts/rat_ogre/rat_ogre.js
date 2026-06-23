@@ -252,6 +252,32 @@ function zeroMotion(entity) {
     } catch (e) {}
 }
 
+function getGroundY(world, x, z) {
+    try {
+        var bx = Math.floor(x);
+        var bz = Math.floor(z);
+        for (var y = 255; y >= 0; y--) {
+            var block = world.getBlock(bx, y, bz);
+            if (block != null && !block.isAir()) {
+                return y + 1;
+            }
+        }
+    } catch (e) {}
+    return 64;
+}
+
+function safeSetPosition(npc, x, y, z) {
+    if (y < 1) {
+        y = getGroundY(npc.getWorld(), x, z);
+        if (y < 1) y = 64;
+    }
+    // принудительная загрузка чанка запросом блока
+    try {
+        npc.getWorld().getBlock(Math.floor(x), 64, Math.floor(z));
+    } catch (e) {}
+    npc.setPosition(x, y, z);
+}
+
 function getDashState(npc) {
     var state = npc.getTempdata().get("dash_state");
     return state == null ? STATE_IDLE : String(state);
@@ -444,13 +470,13 @@ function beginDash(npc) {
     data.put("dash_yaw", npc.getRotation());
     data.put("dash_traveled", 0);
     data.put("dash_start_x", npc.getX());
-    data.put("dash_start_y", npc.getY());
     data.put("dash_start_z", npc.getZ());
 
     data.remove("windup_end");
 
     setDashState(npc, STATE_DASHING);
     npc.getTimers().start(2, 1, true);
+    playDashAnimation(npc);
 
     npc.say("§4*рывок!*");
     log("rat_ogre: dash started, yaw=" + npc.getRotation());
@@ -465,17 +491,16 @@ function dashStep(npc) {
     traveled = traveled + DASH_BLOCKS_PER_STEP;
 
     var startX = Number(data.get("dash_start_x"));
-    var startY = Number(data.get("dash_start_y"));
     var startZ = Number(data.get("dash_start_z"));
     var dirX = Number(data.get("dash_dir_x"));
     var dirZ = Number(data.get("dash_dir_z"));
 
     var nx = startX + dirX * traveled;
-    var ny = startY;
     var nz = startZ + dirZ * traveled;
+    var ny = getGroundY(world, nx, nz);
 
     haltNpcMovement(npc);
-    npc.setPosition(nx, ny, nz);
+    safeSetPosition(npc, nx, ny, nz);
     faceDashTarget(npc, data);
 
     var victims = findDashVictims(world, npc);
@@ -504,12 +529,12 @@ function finishDash(npc) {
     data.remove("dash_yaw");
     data.remove("dash_traveled");
     data.remove("dash_start_x");
-    data.remove("dash_start_y");
     data.remove("dash_start_z");
 
     setDashState(npc, STATE_IDLE);
     setDashCooldown(npc);
     resumeCombatAI(npc);
+    stopAnimations(npc);
     log("rat_ogre: dash finished");
 }
 
@@ -598,6 +623,36 @@ function playJumpAttackAnimation(npc) {
         log("rat_ogre: jump attack anim sent OK");
     } catch (e) {
         log("rat_ogre: jump attack anim ERROR: " + e);
+    }
+}
+
+function playDashAnimation(npc) {
+    try {
+        var api = null;
+        try {
+            if (typeof API !== "undefined" && API != null && typeof API.createAnimBuilder === "function") {
+                api = API;
+            }
+        } catch (e) {}
+        if (api == null) {
+            api = Java.type("noppes.npcs.api.NpcAPI").Instance();
+        }
+
+        var builder = api.createAnimBuilder();
+        builder.loop("walk_chase");
+        npc.syncAnimationsForAll(builder, 2.0);
+        log("rat_ogre: dash anim walk_chase x2 sent OK");
+    } catch (e) {
+        log("rat_ogre: dash anim ERROR: " + e);
+    }
+}
+
+function stopAnimations(npc) {
+    try {
+        npc.stopManualAnimation();
+        log("rat_ogre: manual anim stopped");
+    } catch (e) {
+        log("rat_ogre: stopManualAnimation ERROR: " + e);
     }
 }
 
@@ -720,10 +775,10 @@ function applyJumpLanding(npc) {
     var data = npc.getTempdata();
     var world = npc.getWorld();
     var landX = npc.getX();
-    var landY = Number(data.get("jump_start_y"));
     var landZ = npc.getZ();
+    var landY = getGroundY(world, landX, landZ);
 
-    npc.setPosition(landX, landY, landZ);
+    safeSetPosition(npc, landX, landY, landZ);
     faceJumpTarget(npc, data);
     spawnJumpLandingParticles(world, landX, landY, landZ);
 

@@ -18,42 +18,59 @@ import software.bernie.geckolib3.core.builder.RawAnimation;
 public class PacketSyncAnimation extends PacketBasic {
     private final int id;
     private final AnimationBuilder builder;
+    private final double speed;
+    private final boolean hasBuilder;
 
     public PacketSyncAnimation(int entityId, AnimationBuilder builder) {
+        this(entityId, builder, 1.0);
+    }
+
+    public PacketSyncAnimation(int entityId, AnimationBuilder builder, double speed) {
         this.id = entityId;
         this.builder = builder;
+        this.speed = speed;
+        this.hasBuilder = builder != null;
     }
 
     public static void encode(PacketSyncAnimation msg, PacketBuffer buf) {
         buf.writeInt(msg.id);
+        buf.writeDouble(msg.speed);
+        buf.writeBoolean(msg.hasBuilder);
 
-        CompoundNBT compound = new CompoundNBT();
-        ListNBT animList = new ListNBT();
-        for(RawAnimation anim: msg.builder.getRawAnimationList()){
-            CompoundNBT animTag = new CompoundNBT();
-            animTag.putString("name", anim.animationName);
-            if(anim.loopType!=null) {
-                animTag.putInt("loop", ((ILoopType.EDefaultLoopTypes) anim.loopType).ordinal());
-            }else{
-                animTag.putInt("loop",1);
+        if (msg.hasBuilder) {
+            CompoundNBT compound = new CompoundNBT();
+            ListNBT animList = new ListNBT();
+            for(RawAnimation anim: msg.builder.getRawAnimationList()){
+                CompoundNBT animTag = new CompoundNBT();
+                animTag.putString("name", anim.animationName);
+                if(anim.loopType!=null) {
+                    animTag.putInt("loop", ((ILoopType.EDefaultLoopTypes) anim.loopType).ordinal());
+                }else{
+                    animTag.putInt("loop",1);
+                }
+                animList.add(animTag);
             }
-            animList.add(animTag);
+            compound.put("anims",animList);
+            buf.writeNbt(compound);
         }
-        compound.put("anims",animList);
-        buf.writeNbt(compound);
     }
 
     public static PacketSyncAnimation decode(PacketBuffer buf) {
         int id = buf.readInt();
-        AnimationBuilder builder = new AnimationBuilder();
-        CompoundNBT compound = buf.readNbt();
-        ListNBT animList = compound.getList("anims",10);
-        for(int i=0;i<animList.size();i++){
-            CompoundNBT animTag = (CompoundNBT) animList.get(i);
-            builder.addAnimation(animTag.getString("name"),
-                    ILoopType.EDefaultLoopTypes.values()[animTag.getInt("loop")]);
+        double speed = buf.readDouble();
+        boolean hasBuilder = buf.readBoolean();
+        AnimationBuilder builder = null;
+        if (hasBuilder) {
+            builder = new AnimationBuilder();
+            CompoundNBT compound = buf.readNbt();
+            ListNBT animList = compound.getList("anims",10);
+            for(int i=0;i<animList.size();i++){
+                CompoundNBT animTag = (CompoundNBT) animList.get(i);
+                builder.addAnimation(animTag.getString("name"),
+                        ILoopType.EDefaultLoopTypes.values()[animTag.getInt("loop")]);
+            }
         }
-        return new PacketSyncAnimation(id,builder);
+        return new PacketSyncAnimation(id, builder, speed);
     }
 
     @OnlyIn(Dist.CLIENT)
@@ -64,5 +81,6 @@ public class PacketSyncAnimation extends PacketBasic {
         if(npc.modelData==null || !(npc.modelData.getEntity(npc) instanceof EntityCustomModel)) return;
         EntityCustomModel entityCustomModel = (EntityCustomModel) npc.modelData.getEntity(npc);
         entityCustomModel.manualAnim = builder;
+        entityCustomModel.manualAnimSpeed = speed;
     }
 }

@@ -264,4 +264,10 @@ public class NPCWrapper<T extends EntityNPCInterface> extends EntityLivingWrappe
     public void syncAnimationsForAll(AnimationBuilder builder) {
         Packets.sendAll(new PacketSyncAnimation(entity.getId(),builder));
     }
+    public void syncAnimationsForAll(AnimationBuilder builder, double speed) {
+        Packets.sendAll(new PacketSyncAnimation(entity.getId(),builder,speed));
+    }
+    public void stopManualAnimation() {
+        Packets.sendAll(new PacketSyncAnimation(entity.getId(),null,1.0));
+    }
 }

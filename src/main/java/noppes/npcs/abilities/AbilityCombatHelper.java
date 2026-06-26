@@ -1,7 +1,11 @@
 package noppes.npcs.abilities;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityClassification;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.potion.Effect;
+import net.minecraft.potion.EffectInstance;
 import noppes.npcs.api.NpcAPI;
 import noppes.npcs.api.block.IBlock;
 import noppes.npcs.api.entity.IEntity;
@@ -100,6 +104,251 @@ public final class AbilityCombatHelper {
         active.ez = sz + dirZ * distance;
         active.ey = findGroundY(ctx.world, active.ex, active.ez, sy);
         return true;
+    }
+
+    public static boolean computeRetreatEndPoints(final ActiveAbility active, final AbilityContext ctx) {
+        final double sx = ctx.npc.getX();
+        final double sy = ctx.npc.getY();
+        final double sz = ctx.npc.getZ();
+        final double tx = ctx.target.getX();
+        final double tz = ctx.target.getZ();
+
+        final double dx = sx - tx;
+        final double dz = sz - tz;
+        final double len = Math.sqrt(dx * dx + dz * dz);
+
+        final double dirX;
+        final double dirZ;
+        if (len < 0.05) {
+            final float yaw = getNpcYaw(ctx.npc);
+            final double rad = (yaw + 90.0) * 0.0174532925;
+            dirX = Math.cos(rad);
+            dirZ = Math.sin(rad);
+            active.yaw = yaw;
+        } else {
+            dirX = dx / len;
+            dirZ = dz / len;
+            active.yaw = computeYaw(dx, dz);
+        }
+
+        active.sx = sx;
+        active.sy = sy;
+        active.sz = sz;
+
+        double distance = ctx.params.getDouble(AbilityParamKeys.DISTANCE, 6.0);
+        if (distance < 0.05) {
+            distance = 6.0;
+        }
+        active.ex = sx + dirX * distance;
+        active.ez = sz + dirZ * distance;
+        active.ey = findGroundY(ctx.world, active.ex, active.ez, sy);
+        return true;
+    }
+
+    public static boolean isUndead(final IEntity entity) {
+        return false;
+    }
+
+    public static boolean isInFrontCone(
+            final ICustomNpc npc,
+            final IEntity entity,
+            final double halfAngleDeg) {
+        final double nx = npc.getX();
+        final double nz = npc.getZ();
+        final double ex = entity.getX();
+        final double ez = entity.getZ();
+        final float yaw = getNpcYaw(npc);
+        final double rad = (yaw + 90.0) * 0.0174532925;
+        final double fwdX = Math.cos(rad);
+        final double fwdZ = Math.sin(rad);
+        double toX = ex - nx;
+        double toZ = ez - nz;
+        final double len = Math.sqrt(toX * toX + toZ * toZ);
+        if (len < 0.05) {
+            return true;
+        }
+        toX /= len;
+        toZ /= len;
+        final double dot = fwdX * toX + fwdZ * toZ;
+        final double angle = Math.toDegrees(Math.acos(Math.max(-1.0, Math.min(1.0, dot))));
+        return angle <= halfAngleDeg;
+    }
+
+    public static void applyPotionNearby(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final AbilityEffectType effectType,
+            final int duration,
+            final int amplifier) {
+        final Effect effect = effectType.toMcEffect();
+        final int range = (int) Math.ceil(radius + 0.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(x, y, z),
+                range,
+                -1);
+
+        for (final IEntity ent : list) {
+            if (!isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            if (flatDistance(ent.getX(), ent.getZ(), x, z) > radius) {
+                continue;
+            }
+            applyEffect(ent, effect, duration, amplifier);
+        }
+    }
+
+    public static void applyEffect(
+            final IEntity entity,
+            final Effect effect,
+            final int duration,
+            final int amplifier) {
+        try {
+            final Entity mc = entity.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                ((LivingEntity) mc).addEffect(new EffectInstance(effect, duration, amplifier));
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    public static void damageWithUndeadBonus(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final double damage,
+            final double undeadBonus,
+            final double dirX,
+            final double dirZ,
+            final double knockback,
+            final double lift,
+            final boolean useFixedDir) {
+        final int range = (int) Math.ceil(radius + 0.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(x, y, z),
+                range,
+                -1);
+
+        for (final IEntity ent : list) {
+            if (!isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            final String id = String.valueOf(ent.getUUID());
+            if (active.hitUuids.contains(id)) {
+                continue;
+            }
+            if (flatDistance(ent.getX(), ent.getZ(), x, z) > radius) {
+                continue;
+            }
+            final float finalDamage = isUndead(ent)
+                    ? (float) (damage * undeadBonus)
+                    : (float) damage;
+            ent.damage(finalDamage);
+            if (ent instanceof IEntityLiving) {
+                final IEntityLiving living = (IEntityLiving) ent;
+                if (useFixedDir) {
+                    living.setMotionX(dirX * knockback);
+                    living.setMotionY(lift);
+                    living.setMotionZ(dirZ * knockback);
+                } else {
+                    applyRadialKnockback(living, x, z, knockback, lift);
+                }
+            }
+            AbilityVfx.spawnHitParticle(ctx.world, ent);
+            active.hitUuids.add(id);
+        }
+    }
+
+    public static void damageInConeWithUndeadBonus(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final double halfAngleDeg,
+            final double damage,
+            final double undeadBonus,
+            final double knockback,
+            final double lift) {
+        final int range = (int) Math.ceil(radius + 0.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(x, y, z),
+                range,
+                -1);
+
+        for (final IEntity ent : list) {
+            if (!isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            if (!isInFrontCone(ctx.npc, ent, halfAngleDeg)) {
+                continue;
+            }
+            final String id = String.valueOf(ent.getUUID());
+            if (active.hitUuids.contains(id)) {
+                continue;
+            }
+            if (flatDistance(ent.getX(), ent.getZ(), x, z) > radius) {
+                continue;
+            }
+            final float finalDamage = isUndead(ent)
+                    ? (float) (damage * undeadBonus)
+                    : (float) damage;
+            ent.damage(finalDamage);
+            if (ent instanceof IEntityLiving) {
+                applyRadialKnockback((IEntityLiving) ent, x, z, knockback, lift);
+            }
+            AbilityVfx.spawnHitParticle(ctx.world, ent);
+            active.hitUuids.add(id);
+        }
+    }
+
+    public static void applyPotionInCone(
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final double halfAngleDeg,
+            final AbilityEffectType effectType,
+            final int duration,
+            final int amplifier) {
+        final int range = (int) Math.ceil(radius + 0.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(x, y, z),
+                range,
+                -1);
+
+        for (final IEntity ent : list) {
+            if (!isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            if (!isInFrontCone(ctx.npc, ent, halfAngleDeg)) {
+                continue;
+            }
+            if (flatDistance(ent.getX(), ent.getZ(), x, z) > radius) {
+                continue;
+            }
+            applyEffect(ent, effectType.toMcEffect(), duration, amplifier);
+        }
+    }
+
+    public static double distanceToTarget(final AbilityContext ctx) {
+        if (ctx.target == null) {
+            return Double.MAX_VALUE;
+        }
+        return flatDistance(
+                ctx.npc.getX(),
+                ctx.npc.getZ(),
+                ctx.target.getX(),
+                ctx.target.getZ());
     }
 
     public static boolean computeEndPoints(

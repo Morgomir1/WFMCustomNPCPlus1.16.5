@@ -89,6 +89,54 @@ public final class AbilityVfx {
         }
     }
 
+    public static void spawnMuzzleFlash(final IWorld world, final double x, final double y, final double z) {
+        final Random r = AbilityCombatHelper.random();
+        safeSpawn(world, "minecraft:smoke", x, y, z, 0, 0.05, 0, 0.02, 6);
+        safeSpawn(world, "minecraft:large_smoke", x, y, z,
+                (r.nextDouble() - 0.5) * 0.1, 0.08, (r.nextDouble() - 0.5) * 0.1, 0.01, 3);
+        safeSpawn(world, "minecraft:crit", x, y, z, 0, 0, 0, 0, 2);
+    }
+
+    public static void spawnHolySplash(final IWorld world, final double x, final double y, final double z) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 16; i++) {
+            final double a = r.nextDouble() * Math.PI * 2;
+            final double dist = r.nextDouble() * 3.5;
+            safeSpawn(world, "minecraft:entity_effect",
+                    x + Math.cos(a) * dist,
+                    y + 0.2 + r.nextDouble() * 1.5,
+                    z + Math.sin(a) * dist,
+                    0.9, 0.95, 0.3, 0, 1);
+        }
+        safeSpawn(world, "minecraft:splash", x, y + 0.5, z, 0, 0.1, 0, 0.05, 12);
+    }
+
+    public static void spawnFireRing(final IWorld world, final double x, final double y, final double z, final double radius) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 12; i++) {
+            final double a = (i / 12.0) * Math.PI * 2;
+            safeSpawn(world, "minecraft:flame",
+                    x + Math.cos(a) * radius,
+                    y + 0.1,
+                    z + Math.sin(a) * radius,
+                    0, 0.06, 0, 0.02, 1);
+        }
+        safeSpawn(world, "minecraft:lava",
+                x + (r.nextDouble() - 0.5) * radius,
+                y + 0.1,
+                z + (r.nextDouble() - 0.5) * radius,
+                0, 0.02, 0, 0, 2);
+    }
+
+    public static void spawnNetTrail(final IWorld world, final double x, final double y, final double z) {
+        final Random r = AbilityCombatHelper.random();
+        safeSpawn(world, "minecraft:cloud",
+                x + (r.nextDouble() - 0.5) * 0.6,
+                y + r.nextDouble() * 0.8,
+                z + (r.nextDouble() - 0.5) * 0.6,
+                0, 0.02, 0, 0, 2);
+    }
+
     private static void safeSpawn(
             final IWorld world,
             final String particle,

@@ -66,6 +66,14 @@ public final class AbilityParams {
         return Boolean.parseBoolean(String.valueOf(value));
     }
 
+    public String getString(final String key, final String fallback) {
+        final Object value = this.values.get(key);
+        if (value == null) {
+            return fallback;
+        }
+        return String.valueOf(value);
+    }
+
     public static Set<String> keys(final String... keys) {
         final Set<String> set = new HashSet<>();
         if (keys != null) {

@@ -1,7 +1,6 @@
 package noppes.npcs.abilities;
 
-import noppes.npcs.abilities.impl.DashAbility;
-import noppes.npcs.abilities.impl.JumpSlamAbility;
+import noppes.npcs.abilities.impl.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,6 +11,12 @@ public final class AbilityRegistry {
     static {
         register(new DashAbility());
         register(new JumpSlamAbility());
+        register(new PistolShotAbility());
+        register(new NetThrowAbility());
+        register(new StakeThrustAbility());
+        register(new HolyWaterSplashAbility());
+        register(new BurningBrandAbility());
+        register(new RetreatDashAbility());
     }
 
     private AbilityRegistry() {

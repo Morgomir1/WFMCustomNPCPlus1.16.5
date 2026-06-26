@@ -16,6 +16,7 @@ public final class ActiveAbility {
 
     public int phase;
     public int ticksLeft;
+    public int elapsedTicks;
     public final Set<String> hitUuids = new HashSet<>();
 
     public double sx;

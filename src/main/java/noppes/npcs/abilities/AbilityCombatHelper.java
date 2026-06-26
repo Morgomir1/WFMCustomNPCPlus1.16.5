@@ -5,6 +5,7 @@ import net.minecraft.entity.LivingEntity;
 import noppes.npcs.api.NpcAPI;
 import noppes.npcs.api.block.IBlock;
 import noppes.npcs.api.entity.IEntity;
+import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.api.entity.IMob;
 import noppes.npcs.entity.EntityNPCInterface;
@@ -62,10 +63,53 @@ public final class AbilityCombatHelper {
                 && !"minecraft:void_air".equals(name);
     }
 
+    public static boolean computeDashEndPoints(final ActiveAbility active, final AbilityContext ctx) {
+        final double sx = ctx.npc.getX();
+        final double sy = ctx.npc.getY();
+        final double sz = ctx.npc.getZ();
+        final double tx = ctx.target.getX();
+        final double tz = ctx.target.getZ();
+
+        final double dx = tx - sx;
+        final double dz = tz - sz;
+        final double len = Math.sqrt(dx * dx + dz * dz);
+
+        final double dirX;
+        final double dirZ;
+        if (len < 0.05) {
+            final float yaw = getNpcYaw(ctx.npc);
+            final double rad = (yaw + 90.0) * 0.0174532925;
+            dirX = Math.cos(rad);
+            dirZ = Math.sin(rad);
+            active.yaw = yaw;
+        } else {
+            dirX = dx / len;
+            dirZ = dz / len;
+            active.yaw = computeYaw(dx, dz);
+        }
+
+        active.sx = sx;
+        active.sy = sy;
+        active.sz = sz;
+
+        double distance = ctx.params.getDouble(AbilityParamKeys.DISTANCE, 16.0);
+        if (distance < 0.05) {
+            distance = 16.0;
+        }
+        active.ex = sx + dirX * distance;
+        active.ez = sz + dirZ * distance;
+        active.ey = findGroundY(ctx.world, active.ex, active.ez, sy);
+        return true;
+    }
+
     public static boolean computeEndPoints(
             final ActiveAbility active,
             final AbilityContext ctx,
             final boolean dashStyle) {
+        if (dashStyle) {
+            return computeDashEndPoints(active, ctx);
+        }
+
         final double sx = ctx.npc.getX();
         final double sy = ctx.npc.getY();
         final double sz = ctx.npc.getZ();
@@ -80,25 +124,25 @@ public final class AbilityCombatHelper {
             return false;
         }
 
-        final double dirX = dx / len;
-        final double dirZ = dz / len;
         active.yaw = computeYaw(dx, dz);
         active.sx = sx;
         active.sy = sy;
         active.sz = sz;
-
-        if (dashStyle) {
-            final double distance = ctx.params.getDouble(AbilityParamKeys.DISTANCE, 16.0);
-            final double dashDist = Math.min(distance, len + 0.5);
-            active.ex = sx + dirX * dashDist;
-            active.ez = sz + dirZ * dashDist;
-            active.ey = findGroundY(ctx.world, active.ex, active.ez, sy);
-        } else {
-            active.ex = tx;
-            active.ez = tz;
-            active.ey = findGroundY(ctx.world, active.ex, active.ez, ty);
-        }
+        active.ex = tx;
+        active.ez = tz;
+        active.ey = findGroundY(ctx.world, active.ex, active.ez, ty);
         return true;
+    }
+
+    private static float getNpcYaw(final ICustomNpc npc) {
+        try {
+            if (npc instanceof IEntityLiving) {
+                final Entity entity = ((IEntityLiving) npc).getMCEntity();
+                return entity.yRot;
+            }
+        } catch (final Exception ignored) {
+        }
+        return 0.0f;
     }
 
     public static void damageNearby(

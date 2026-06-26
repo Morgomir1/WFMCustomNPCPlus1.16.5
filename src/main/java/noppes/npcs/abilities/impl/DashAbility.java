@@ -20,6 +20,11 @@ public final class DashAbility implements CnpcAbility {
     }
 
     @Override
+    public boolean cancelsOnTargetLost() {
+        return false;
+    }
+
+    @Override
     public Map<String, Object> defaultParams() {
         return AbilityDefaults.dash();
     }
@@ -39,7 +44,7 @@ public final class DashAbility implements CnpcAbility {
     @Override
     public boolean onStart(final ActiveAbility active, final AbilityContext ctx) {
         active.jumpStyle = false;
-        if (!AbilityCombatHelper.computeEndPoints(active, ctx, true)) {
+        if (!AbilityCombatHelper.computeDashEndPoints(active, ctx)) {
             return false;
         }
         active.phase = ActiveAbility.PHASE_CHARGE;
@@ -94,8 +99,8 @@ public final class DashAbility implements CnpcAbility {
 
         final double progress = 1.0 - (active.ticksLeft - 1) / (double) total;
         final double cx = active.sx + (active.ex - active.sx) * progress;
-        final double cy = active.sy + (active.ey - active.sy) * progress;
         final double cz = active.sz + (active.ez - active.sz) * progress;
+        final double cy = AbilityCombatHelper.findGroundY(ctx.world, cx, cz, active.sy);
 
         AbilityCombatHelper.stopNavigation(ctx.npc);
         ctx.npc.setPosition(cx, cy, cz);
@@ -118,10 +123,11 @@ public final class DashAbility implements CnpcAbility {
     }
 
     private void finishDash(final ActiveAbility active, final AbilityContext ctx) {
-        ctx.npc.setPosition(active.ex, active.ey, active.ez);
-        AbilityVfx.spawnLandBurst(ctx.world, active.ex, active.ey, active.ez, false);
+        final double ey = AbilityCombatHelper.findGroundY(ctx.world, active.ex, active.ez, active.sy);
+        ctx.npc.setPosition(active.ex, ey, active.ez);
+        AbilityVfx.spawnLandBurst(ctx.world, active.ex, ey, active.ez, false);
         ctx.world.playSoundAt(
-                NpcAPI.Instance().getIPos(active.ex, active.ey, active.ez),
+                NpcAPI.Instance().getIPos(active.ex, ey, active.ez),
                 "minecraft:entity.generic.explode",
                 0.8F,
                 1.1F);

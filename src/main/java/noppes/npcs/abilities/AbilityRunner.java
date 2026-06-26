@@ -11,6 +11,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class AbilityRunner {
+    private static final int MAX_ABILITY_TICKS = 600;
     private static final Map<UUID, ActiveAbility> ACTIVE = new ConcurrentHashMap<>();
 
     private AbilityRunner() {
@@ -48,6 +49,7 @@ public final class AbilityRunner {
         final AbilityContext ctx = new AbilityContext(npc, target, npc.getWorld(), params);
         final ActiveAbility active = new ActiveAbility(uuid, abilityId, ability, params, ctx);
         if (!ability.onStart(active, ctx)) {
+            LogWriter.info("AbilityRunner: onStart failed for ability: " + abilityId);
             return false;
         }
         ACTIVE.put(uuid, active);
@@ -99,17 +101,28 @@ public final class AbilityRunner {
             removeAndCancel(active);
             return;
         }
-        if (active.ability.requiresTarget()) {
+        active.elapsedTicks++;
+        if (active.elapsedTicks > MAX_ABILITY_TICKS) {
+            LogWriter.info("AbilityRunner: ability timed out: " + active.abilityId);
+            removeAndCancel(active);
+            return;
+        }
+        if (active.ability.cancelsOnTargetLost() && active.ability.requiresTarget()) {
             if (ctx.target == null || !ctx.target.isAlive()) {
                 removeAndCancel(active);
                 return;
             }
         }
 
-        final TickResult result = active.ability.tick(active, ctx);
-        if (result == TickResult.FINISHED) {
-            ACTIVE.remove(active.npcUuid);
-            active.ability.onEnd(active, ctx);
+        try {
+            final TickResult result = active.ability.tick(active, ctx);
+            if (result == TickResult.FINISHED) {
+                ACTIVE.remove(active.npcUuid);
+                active.ability.onEnd(active, ctx);
+            }
+        } catch (final Exception e) {
+            LogWriter.except(e);
+            removeAndCancel(active);
         }
     }
 

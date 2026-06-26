@@ -8,6 +8,10 @@ public interface CnpcAbility {
 
     boolean requiresTarget();
 
+    default boolean cancelsOnTargetLost() {
+        return true;
+    }
+
     Map<String, Object> defaultParams();
 
     Set<String> knownParamKeys();

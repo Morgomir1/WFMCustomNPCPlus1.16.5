@@ -22,6 +22,7 @@ public final class AbilityParamKeys {
     public static final String DAMAGE_PER_TICK = "damagePerTick";
     public static final String CONE_HALF_ANGLE = "coneHalfAngle";
     public static final String RADIUS = "radius";
+    public static final String SHOTS = "shots";
 
     private AbilityParamKeys() {
     }

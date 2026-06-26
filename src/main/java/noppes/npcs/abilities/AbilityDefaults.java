@@ -90,6 +90,48 @@ public final class AbilityDefaults {
         return map;
     }
 
+    public static Map<String, Object> zombieOgreLeadbelcherSlam() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.DAMAGE, 12.0);
+        map.put(AbilityParamKeys.RADIUS, 3.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.9);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.15);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "blindness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 30);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        return map;
+    }
+
+    public static Map<String, Object> zombieOgreLeadbelcherArtillery() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 14);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 6);
+        map.put(AbilityParamKeys.SHOTS, 2);
+        map.put(AbilityParamKeys.DISTANCE, 10.0); // длина "полосы" обстрела
+        map.put(AbilityParamKeys.DAMAGE, 18.0);
+        map.put(AbilityParamKeys.ACCURACY, 3);
+        map.put(AbilityParamKeys.MAX_RANGE, 32.0);
+        map.put(AbilityParamKeys.PROJECTILE_ITEM, "wfm:ogre_leadbelcher_gun");
+        map.put(AbilityParamKeys.RADIUS, 2.0); // ширина "полосы"
+        return map;
+    }
+
+    public static Map<String, Object> zombieOgreLeadbelcherTrample() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 12.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 18);
+        map.put(AbilityParamKeys.DAMAGE, 4.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.15);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.9);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "blindness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 30);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        return map;
+    }
+
     public static Map<String, Object> retreatDash() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.DISTANCE, 6.0);

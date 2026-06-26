@@ -17,6 +17,9 @@ public final class AbilityRegistry {
         register(new HolyWaterSplashAbility());
         register(new BurningBrandAbility());
         register(new RetreatDashAbility());
+        register(new ZombieOgreLeadbelcherSlamAbility());
+        register(new ZombieOgreLeadbelcherArtilleryAbility());
+        register(new ZombieOgreLeadbelcherTrampleAbility());
     }
 
     private AbilityRegistry() {

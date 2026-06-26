@@ -34,13 +34,26 @@ arr[0] = 42;
 var FloatType = Java.type("java.awt.geom.Arc2D$Float");
 ```
 
-В CustomNPC+ предпочитай API-обёртки. `Java.type` — для классов мода, когда wrapper недоступен:
+## Java.type — стандартный bootstrap WFM
+
+В скриптах **способностей NPC** — обязательно в начале файла:
 
 ```javascript
-var NpcAPI = Java.type("noppes.npcs.api.NpcAPI");
-var api = NpcAPI.Instance();
-var entity = api.getIEntity(someMcEntity);
+var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
 ```
+
+Использование:
+
+```javascript
+var pos = NpcAPI.getIPos(x, y, z);
+var entity = NpcAPI.getIEntity(someMcEntity);
+var list = world.getNearbyEntities(pos, radius, EntitiesType.ANY);
+```
+
+`event.API` в хуках — тот же синглтон. В утилитах без `event` — только глобальный `NpcAPI`.
+
+Другие классы (`java.util.ArrayList`, …) — только по необходимости. См. [architecture.md](../customnpc-js-scripting/architecture.md).
 
 ---
 
@@ -54,7 +67,7 @@ var HashMap = Java.type("java.util.HashMap");
 var map = new java.util.HashMap();
 ```
 
-В скриптах CustomNPC+ **обычно не нужны** — используй `event.world`, `event.npc`, `event.player`.
+В скриптах способностей **не нужны** `event.world` через Java — bootstrap `NpcAPI` + `npc.getWorld()` достаточно. `java.util.*` — редко.
 
 ---
 
@@ -142,14 +155,22 @@ CustomNPC `getNearbyEntities` возвращает JS-массив IEntity — �
 
 ## Конвертация storeddata / tempdata
 
-`IData.put(key, value)` принимает **number или string** (API CustomNPC+). При чтении:
+**Стандарт WFM:** храни значения как **строки**, читай через хелперы:
 
 ```javascript
-var v = data.get("count");     // может быть string "5"
-var n = Number(v);             // явное приведение
-if (isNaN(n)) n = 0;
-data.put("count", n + 1);
+data.put("phase", "1");
+data.put("cd_until", String(now + 400));
+data.put("x", String(x));
+
+function getInt(data, key) {
+    if (!data.has(key)) return 0;
+    return parseInt(String(data.get(key)));
+}
 ```
+
+Флаги сравнивай: `String(data.get(KEY)) == "1"`.
+
+`IData.put(key, value)` принимает number или string — для единообразия в способностях предпочитай **string**.
 
 ---
 

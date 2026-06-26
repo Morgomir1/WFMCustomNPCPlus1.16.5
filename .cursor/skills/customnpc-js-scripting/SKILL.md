@@ -1,24 +1,74 @@
 ---
 name: customnpc-js-scripting
-description: Обучает работе с JS-скриптами CustomNPC+ (Nashorn ECMAScript) для создания уникальных способностей NPC, спеллов, AI-паттернов и кастомной логики. Используй при упоминании JS-скриптов, CustomNPC+, способностей NPC, NPC-спеллов, скриптовых абилок, AI через CustomNPCs, или когда нужно сделать уникальное поведение моба через CustomNPCs.
+description: Обучает JS-скриптам CustomNPC+ (Nashorn ES5.1) для способностей NPC — стандарт WFM tick state machine, Java.type(NpcAPI).Instance(), storeddata-строки, getTotalTime-кулдауны, VFX-пролёт. Используй при JS-скриптах CustomNPC+, способностях/спеллах NPC, босс-абилках, AI через CustomNPCs, или когда нужно уникальное поведение моба.
 ---
 
 # JS-скриптинг CustomNPC+ для WFM 1.16.5
 
-> **Связанный skill:** `nashorn-customnpc-scripting` — ограничения Nashorn (ES5.1), Java↔JS interop, стиль кода и отладка синтаксиса. Этот skill покрывает события и API CustomNPC+.
+> **Связанный skill:** `nashorn-customnpc-scripting` — Nashorn ES5.1, `Java.type`, bootstrap `NpcAPI`, стиль кода. Этот skill — события, API и **архитектура способностей**.
+
+## Стандартная архитектура WFM (способности NPC)
+
+**Два пути:**
+
+1. **Java-абилки + тонкий JS** (боссы, сложная механика) — `AbilityAPI.start(npc, id, target, params)`. См. [abilities-reference.md](abilities-reference.md) и секцию в [architecture.md](architecture.md).
+2. **Tick state machine в JS** (простые способности, VFX-пролёт) — зарядка → активная фаза → финиш. Полный разбор: [architecture.md](architecture.md).
+
+### Bootstrap (начало каждого скрипта способности)
+
+```javascript
+var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+```
+
+Если `EntitiesType` недоступен — используй числовые id (`-1` = любая сущность). См. таблицу «Типы сущностей» внизу.
+
+### Каркас файла
+
+1. Bootstrap → 2. **НАСТРОЙКИ** → 3. ключи storeddata → 4. **`function tick(e)`** → 5. фазы (`startCharge`, `doChargingTick`, `doActiveTick`, `clearState`) → 6. VFX/урон → 7. утилиты (`getInt`, `getFloat`, `distance`)
+
+### Главный цикл
+
+```javascript
+function tick(e) {
+    var npc = e.npc;
+    var world = npc.getWorld();
+    var data = npc.getStoreddata();
+    var now = world.getTotalTime();
+
+    if (!npc.isAlive()) { clearState(data); return; }
+    if (String(data.get(CHARGING_KEY)) == "1") { doChargingTick(npc, world, data); return; }
+    if (String(data.get(ACTIVE_KEY)) == "1") { doActiveTick(npc, world, data); return; }
+    if (now < getInt(data, CD_KEY)) return;
+    // проверки цели → startCharge(...)
+}
+```
+
+**Состояние:** все значения в `storeddata` — **строки** (`"0"`/`"1"`, координаты через `String(x)`). **Кулдаун:** `data.put(CD_KEY, String(now + COOLDOWN_TICKS))`. **Урон:** `NpcAPI.getIPos(x,y,z)` + `world.getNearbyEntities(pos, radius, EntitiesType.ANY)` + hit-list UUID в storeddata.
+
+**VFX-пролёт:** координаты эффекта в storeddata; NPC может стоять на месте. **Реальный рывок:** `npc.setPosition(x, y, z)` в `doActiveTick`.
+
+### Когда другие события (не основной путь)
+
+| Событие | Когда |
+|---|---|
+| `tick` | **Основной** цикл способностей |
+| `init` + `timer(1)` | Только плавный motion (толчок по ПКМ) |
+| `projectileImpact` | `shootItem` + `enableEvents()` |
+| `interact` | Утилиты по ПКМ |
+
+---
 
 ## Общая архитектура
 
-CustomNPC+ использует **Nashorn** (JSR-223 `javax.script.ScriptEngine`) для выполнения JavaScript на сервере. Скрипты пишутся на **ECMAScript** (JavaScript) и выполняются **только на сервере** через `ScriptContainer`.
+CustomNPC+ использует **Nashorn** (JSR-223) на **сервере** через `ScriptContainer`. Скрипт — в GUI NPC, сохраняется в NBT.
 
-**Ключевой принцип**: каждый NPC может иметь свой скрипт. Скрипт пишется в GUI CustomNPC+ (редактор скриптов) и сохраняется в NBT NPC.
+### Жизненный цикл
 
-### Жизненный цикл скрипта
-
-1. NPC заспавнился → `init(event)` — однократно при создании
-2. Каждые 10 тиков → `tick(event)` — раз в 0.5 секунды
-3. События взаимодействия → `interact(event)`, `damaged(event)`, `died(event)` и т.д.
-4. Таймеры → `timer(event)` — по расписанию
+1. **`tick(event)`** — **главный цикл** способностей (раз в 10 игровых тиков ≈ 0.5 с)
+2. `init(event)` — опционально (таймеры с интервалом 1 тик)
+3. `timer(event)` — опционально (не для стандартных боевых абилок)
+4. `interact`, `damaged`, `projectileImpact` — по задаче
 
 ### Как скрипт выполняется
 
@@ -332,7 +382,7 @@ function wrapImpactTarget(event) {
     var target = event.target;
     if (target == null) return null;
     if (typeof target.getMCEntity == "function") return target; // уже IEntity
-    return event.API.getIEntity(target);
+    return NpcAPI.getIEntity(target); // или event.API.getIEntity(target)
 }
 
 function isPlayerEntity(entity) {
@@ -359,11 +409,11 @@ function getProjectileBoss(event) {
     var world = event.projectile.getWorld();
 
     if (mc.thrower != null) {
-        var boss = event.API.getIEntity(mc.thrower);
+        var boss = NpcAPI.getIEntity(mc.thrower);
         if (boss != null) return boss;
     }
     if (mc.npc != null) {
-        var boss2 = event.API.getIEntity(mc.npc);
+        var boss2 = NpcAPI.getIEntity(mc.npc);
         if (boss2 != null) return boss2;
     }
     if (mc.throwerName != null && String(mc.throwerName).length > 0) {
@@ -449,6 +499,16 @@ function projectileImpact(event) {
 | 5 | [examples/wfm/boss-phases.md](examples/wfm/boss-phases.md) | Босс с фазами | `storeddata`, `timer`, `damaged` |
 | 6 | [examples/wfm/healer-support.md](examples/wfm/healer-support.md) | Хиллер-саппорт | `timer`, `interact` |
 | 7 | [examples/wfm/shield-blocker.md](examples/wfm/shield-blocker.md) | Щитоносец с блокированием | `damaged`, `meleeAttack` |
+| 8 | [examples/wfm/tick-ability-state-machine.md](examples/wfm/tick-ability-state-machine.md) | **Эталон способности** (tick SM) | `tick`, `Java.type`, storeddata |
+
+### Референсные скрипты (WFMCustomNPCPlus1.16.5)
+
+| Паттерн | Файл |
+|---|---|
+| **Эталон способности (tick SM)** | [architecture.md](architecture.md) — зарядка, VFX-пролёт, таран, `NpcAPI.getIPos` |
+| Снаряды + `projectileImpact` | `scripts/grey_seer/rat_wave.js` |
+| `interact` + `timer(1)` (исключение) | `scripts/push_interact/player_push_in_npc_look_dir.js` |
+| Рывок с `setPosition` | `boss_dash_script.js` |
 
 ---
 
@@ -524,15 +584,18 @@ dump(event.world);
 
 ## Лучшие практики
 
-1. **Таймеры — не каждый тик**: Используйте `getTimers().start(id, interval, repeat)` вместо `tick()` для переодических действий. Это снижает нагрузку.
-2. **Не злоупотребляйте `tick()`**: Если проверка не нужна каждый тик, используйте счётчик: `if (npc.getAge() % 20 == 0)` — раз в секунду.
-3. **Храните состояние в storeddata**: `getStoreddata()` переживёт перезагрузку мира. Для стаков/проклятий на игроке — `player.getStoreddata()`, не только `addTag`.
-4. **Ограничивайте поиск сущностей**: `getNearbyEntities()` с разумным range (не 100+).
-5. **Не спамьте партиклами**: `spawnParticle` с count=1 каждый тик — нормально, count=100 каждый тик — лаг.
-6. **Cancelable события**: В `damaged` можно отменить урон (`setCanceled(true)`), но не злоупотребляйте — это иммунитет.
-7. **npc.getAge()**: Возвращает возраст NPC в тиках. Можно использовать как счётчик.
-8. **Тестируйте с `/script reload`**: После изменения скрипта в GUI выполните команду для перезагрузки.
-9. **Разделяйте логику**: Один скрипт — одна ответственность. Не пишите 500 строк в один NPC.
+1. **Bootstrap вверху**: `var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance()` + `EntitiesType` — в каждом скрипте способности.
+2. **Один диспетчер `tick`**: фазы через флаги в `storeddata` (`CHARGING_KEY`, `ACTIVE_KEY`), не размазывай state machine по `timer`/`damaged`.
+3. **storeddata — строки**: флаги `"0"`/`"1"`, числа через `String()`, чтение через `getInt`/`getFloat`.
+4. **Кулдаун через `world.getTotalTime()`**: абсолютная метка `now + COOLDOWN_TICKS`, не декремент каждый тик.
+5. **Hit-list в storeddata**: UUID через `;` — не бить одну цель дважды за пролёт.
+6. **Позиция для AoE**: `NpcAPI.getIPos(x, y, z)` для `getNearbyEntities` и `playSoundAt`.
+7. **Проверяй цель**: `canSeeEntity`, дистанция, при необходимости — только игрок (`getAllPlayers` + UUID).
+8. **`clearState`**: при смерти NPC и срыве каста (потеря цели, нет линии видимости).
+9. **Таймеры — исключение**: только для motion 1 тик/тик (`push_interact`); перед `start` — `timers.has(id)` (идемпотентный `init`).
+10. **Снаряды** — отдельный паттерн: `shootItem` + `enableEvents()` + `projectileImpact`; там `NpcAPI.getIEntity` для сырого `event.target`.
+11. **Партиклы**: строковые id (`"end_rod"`, `"soul_fire_flame"`) для сложного VFX; не спамь сотнями за один вызов `tick`.
+12. **`/script reload`** после правок в GUI.
 
 ---
 

@@ -1,0 +1,110 @@
+# Java-абилки CustomNPC+ (`AbilityAPI`)
+
+Серверные боевые способности NPC в пакете `noppes.npcs.abilities`. Механика (фазы charge/active, движение, урон, VFX) — в Java; JS-скрипт только решает **когда** кастовать и передаёт **пер-кастовые** параметры.
+
+Пример тонкого оркестратора: `src/main/resources/scripts/boss_dash_jump/boss_dash_jump.js`.
+
+---
+
+## Bootstrap в скрипте
+
+```javascript
+var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
+```
+
+---
+
+## API
+
+| Метод | Описание |
+|-------|----------|
+| `start(npc, id, target)` | Старт с дефолтами Java |
+| `start(npc, id, target, overrides)` | Старт с переопределениями (`Map` из `params`) |
+| `params(key, value, ...)` | Пары key/value → `HashMap`; нечётное число аргументов → исключение |
+| `isBusy(npc)` | `true`, пока абилка активна |
+| `getActiveId(npc)` | id активной абилки или `null` |
+| `cancel(npc)` | Принудительный сброс |
+
+- `npc` — `ICustomNpc`
+- `target` — `IEntityLiving` (для `dash` и `jump_slam` обязателен)
+- Неизвестный `id` → лог + `false` от `start`
+- Тик runner: каждый **серверный** тик (`AbilityTickHandler`, `ServerTickEvent` END)
+
+---
+
+## Зарегистрированные абилки
+
+| id | Класс | Описание |
+|----|-------|----------|
+| `dash` | `DashAbility` | Рывок к цели, урон по пути |
+| `jump_slam` | `JumpSlamAbility` | Прыжок по дуге, AoE при приземлении |
+
+---
+
+## Параметры (`AbilityAPI.params`)
+
+Дефолты — в `AbilityDefaults`. Неизвестные ключи логируются и игнорируются.
+
+### `dash`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `distance` | double | 16.0 | Макс. дистанция рывка |
+| `chargeTicks` | int | 10 | Тики зарядки |
+| `activeTicks` | int | 7 | Тики активной фазы |
+| `damage` | double | 10.0 | Урон при контакте |
+| `knockback` | double | 1.8 | Сила отбрасывания |
+| `knockbackY` | double | 0.35 | Вертикальный импульс |
+| `hitRadius` | double | 1.6 | Радиус попадания по пути |
+
+### `jump_slam`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 12 | Тики зарядки |
+| `activeTicks` | int | 9 | Тики полёта по дуге |
+| `damage` | double | 14.0 | Урон при приземлении |
+| `knockback` | double | 2.2 | Радиальное отбрасывание |
+| `knockbackY` | double | 0.55 | Вертикальный импульс |
+| `landRadius` | double | 2.8 | Радиус AoE при приземлении |
+| `arcHeight` | double | 6.0 | Высота дуги |
+
+**Кулдауны босса** (`dashCooldown`, `jumpCooldown`) — не в Java; хранятся в JS `storeddata`.
+
+---
+
+## Примеры
+
+```javascript
+// дефолты
+AbilityAPI.start(npc, "dash", target);
+
+// пер-кастовый урон
+var hpRatio = npc.getHealth() / npc.getMaxHealth();
+var damage = hpRatio < 0.3 ? 14.0 : 10.0;
+AbilityAPI.start(npc, "dash", target, AbilityAPI.params("damage", damage));
+
+// усиленный прыжок
+AbilityAPI.start(npc, "jump_slam", target, AbilityAPI.params(
+    "damage", 18.0,
+    "arcHeight", 7.0,
+    "landRadius", 3.0
+));
+
+// в timer/tick оркестратора
+if (AbilityAPI.isBusy(npc)) return;
+```
+
+При смерти NPC или потере цели: `AbilityAPI.cancel(npc)`.
+
+---
+
+## Архитектура (кратко)
+
+```
+JS → AbilityAPI.start → AbilityRunner (Map UUID → ActiveAbility)
+     ↑ каждый серверный тик
+AbilityTickHandler → AbilityRunner.tickAll → DashAbility / JumpSlamAbility
+```
+
+Новые абилки: реализовать `CnpcAbility`, зарегистрировать в `AbilityRegistry`, добавить дефолты и ключи в `AbilityParamKeys` / `abilities-reference.md`.

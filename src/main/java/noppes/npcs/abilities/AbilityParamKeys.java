@@ -23,6 +23,16 @@ public final class AbilityParamKeys {
     public static final String CONE_HALF_ANGLE = "coneHalfAngle";
     public static final String RADIUS = "radius";
     public static final String SHOTS = "shots";
+    public static final String SHOT_INTERVAL = "shotInterval";
+    public static final String FIRST_SHOT_TICK = "firstShotTick";
+    public static final String BULLET_VELOCITY = "bulletVelocity";
+    public static final String LIFE_STEAL_PER_HIT = "lifeStealPerHit";
+    public static final String HEAL_PER_TICK = "healPerTick";
+    public static final String SUMMON_COUNT = "summonCount";
+    public static final String SUMMON_RADIUS = "summonRadius";
+    public static final String MAX_SUMMONED_NEAR_BOSS = "maxSummonedNearBoss";
+    public static final String CLONE_TAB = "cloneTab";
+    public static final String CLONE_NAME = "cloneName";
 
     private AbilityParamKeys() {
     }

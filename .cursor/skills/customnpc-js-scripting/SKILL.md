@@ -57,6 +57,10 @@ function tick(e) {
 | `projectileImpact` | `shootItem` + `enableEvents()` |
 | `interact` | Утилиты по ПКМ |
 
+### Переключение режимов AI (OnAttack)
+
+Для фаз «стоять и кастовать», «отступать N секунд», «снова атаковать» — `npc.getAi().setRetaliateType(id)` + `setWalkingSpeed`. Полный паттерн, константы и цикл стрельба→отступление: [ai-retaliate-modes.md](ai-retaliate-modes.md).
+
 ---
 
 ## Общая архитектура
@@ -508,6 +512,8 @@ function projectileImpact(event) {
 | **Эталон способности (tick SM)** | [architecture.md](architecture.md) — зарядка, VFX-пролёт, таран, `NpcAPI.getIPos` |
 | Снаряды + `projectileImpact` | `scripts/grey_seer/rat_wave.js` |
 | `interact` + `timer(1)` (исключение) | `scripts/push_interact/player_push_in_npc_look_dir.js` |
+| OnAttack: мщение / отступление | `scripts/skaven/skaven_eshin_smoke_stab.js` |
+| OnAttack + Java-абилка: залп → отступление 8 сек | `scripts/skaven/skaven_engineer_ratling_gun.js` |
 | Рывок с `setPosition` | `boss_dash_script.js` |
 
 ---
@@ -592,10 +598,11 @@ dump(event.world);
 6. **Позиция для AoE**: `NpcAPI.getIPos(x, y, z)` для `getNearbyEntities` и `playSoundAt`.
 7. **Проверяй цель**: `canSeeEntity`, дистанция, при необходимости — только игрок (`getAllPlayers` + UUID).
 8. **`clearState`**: при смерти NPC и срыве каста (потеря цели, нет линии видимости).
-9. **Таймеры — исключение**: только для motion 1 тик/тик (`push_interact`); перед `start` — `timers.has(id)` (идемпотентный `init`).
-10. **Снаряды** — отдельный паттерн: `shootItem` + `enableEvents()` + `projectileImpact`; там `NpcAPI.getIEntity` для сырого `event.target`.
-11. **Партиклы**: строковые id (`"end_rod"`, `"soul_fire_flame"`) для сложного VFX; не спамь сотнями за один вызов `tick`.
-12. **`/script reload`** после правок в GUI.
+9. **Таймеры — исключение**: только для motion 1 тик/тик (`push_interact`); для периодики — `forceStart` в `init` + страховка в `interact`.
+10. **Режимы OnAttack**: `setRetaliateType` (0 мстить / 2 отступать / 3 ничего) — см. [ai-retaliate-modes.md](ai-retaliate-modes.md).
+11. **Снаряды** — отдельный паттерн: `shootItem` + `enableEvents()` + `projectileImpact`; там `NpcAPI.getIEntity` для сырого `event.target`.
+12. **Партиклы**: строковые id (`"end_rod"`, `"soul_fire_flame"`) для сложного VFX; не спамь сотнями за один вызов `tick`.
+13. **`/script reload`** после правок в GUI.
 
 ---
 

@@ -14,6 +14,8 @@ public final class WfmIntegration {
     private static final String EQUIP_PISTOL_METHOD = "equipPistolForShot";
     private static final String RESTORE_EQUIPMENT_METHOD = "restoreEquipment";
     private static final String PERFORM_PISTOL_SHOT_METHOD = "performPistolShot";
+    private static final String EQUIP_RATLING_METHOD = "equipRatlingGunForShot";
+    private static final String PERFORM_RATLING_SHOT_METHOD = "performRatlingShot";
     private static final String EQUIP_LEADBELCHER_METHOD = "equipLeadbelcherForShot";
     private static final String PERFORM_LEADBELCHER_SHOT_TO_POINT_METHOD = "performLeadbelcherShotTowardPoint";
     private static final String PERFORM_LEADBELCHER_SHOT_AT_TARGET_METHOD = "performLeadbelcherShotAtTarget";
@@ -26,6 +28,8 @@ public final class WfmIntegration {
     private static Method equipPistolMethod;
     private static Method restoreEquipmentMethod;
     private static Method performPistolShotMethod;
+    private static Method equipRatlingMethod;
+    private static Method performRatlingShotMethod;
 
     private static Boolean leadbelcherAvailable;
     private static Method equipLeadbelcherMethod;
@@ -128,6 +132,55 @@ public final class WfmIntegration {
                     gunItemId,
                     inaccuracy,
                     damage);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (final Exception ignored) {
+            return false;
+        }
+    }
+
+    public static boolean equipRatlingGunForShot(final ICustomNpc npc, final String gunItemId) {
+        ensureGunInitialized();
+        if (!isWfmGunAvailable() || npc == null || equipRatlingMethod == null) {
+            return equipPistolForShot(npc, gunItemId);
+        }
+        try {
+            final LivingEntity shooter = toLivingEntity(npc);
+            if (shooter == null) {
+                return false;
+            }
+            final Object result = equipRatlingMethod.invoke(null, shooter, gunItemId);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (final Exception ignored) {
+            return equipPistolForShot(npc, gunItemId);
+        }
+    }
+
+    public static boolean performRatlingShot(
+            final ICustomNpc npc,
+            final IEntityLiving target,
+            final float inaccuracy,
+            final float damage,
+            final float velocity) {
+        ensureGunInitialized();
+        if (npc == null || target == null || !target.isAlive()) {
+            return false;
+        }
+        if (performRatlingShotMethod == null) {
+            return false;
+        }
+        try {
+            final LivingEntity shooter = toLivingEntity(npc);
+            final LivingEntity targetEntity = toLivingEntity(target);
+            if (shooter == null || targetEntity == null) {
+                return false;
+            }
+            final Object result = performRatlingShotMethod.invoke(
+                    null,
+                    shooter,
+                    targetEntity,
+                    inaccuracy,
+                    damage,
+                    velocity);
             return result instanceof Boolean && (Boolean) result;
         } catch (final Exception ignored) {
             return false;
@@ -312,12 +365,30 @@ public final class WfmIntegration {
                     String.class,
                     float.class,
                     float.class);
+            try {
+                equipRatlingMethod = helper.getMethod(
+                        EQUIP_RATLING_METHOD,
+                        LivingEntity.class,
+                        String.class);
+                performRatlingShotMethod = helper.getMethod(
+                        PERFORM_RATLING_SHOT_METHOD,
+                        LivingEntity.class,
+                        LivingEntity.class,
+                        float.class,
+                        float.class,
+                        float.class);
+            } catch (final Exception ignored) {
+                equipRatlingMethod = null;
+                performRatlingShotMethod = null;
+            }
             gunAvailable = true;
         } catch (final Exception e) {
             gunAvailable = false;
             equipPistolMethod = null;
             restoreEquipmentMethod = null;
             performPistolShotMethod = null;
+            equipRatlingMethod = null;
+            performRatlingShotMethod = null;
         }
     }
 

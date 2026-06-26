@@ -21,27 +21,11 @@ var SPEED_CAP = 3.9;         // безопасный предел на комп�
 var ACTIVE_PUSH = {}; // uuid -> { ticksLeft: n, x:..., y:..., z:... }
 
 function init(event) {
-    // Таймер всегда включён, но реально работает только когда есть активные толчки.
-    try {
-        var timers = event.npc.getTimers();
-        // При /script reload или пересоздании скрипта init может вызываться повторно.
-        // Поэтому делаем запуск идемпотентным: если таймер уже есть — не стартуем второй раз.
-        if (timers != null) {
-            try {
-                if (typeof timers.has == "function" && timers.has(TIMER_ID)) return;
-            } catch (eHas) {}
-            try {
-                if (typeof timers.stop == "function") timers.stop(TIMER_ID);
-            } catch (eStop) {}
-            timers.start(TIMER_ID, TIMER_TICK, true);
-        }
-    } catch (e) {
-        // Не спамим лог: это обычно безвредно (таймер уже был создан ранее).
-    }
+    startPushTimer(event.npc);
 }
 
 function timer(event) {
-    if (event.id != TIMER_ID) return;
+    if (Number(event.id) != TIMER_ID) return;
     if (isEmptyMap(ACTIVE_PUSH)) return;
 
     var npc = event.npc;
@@ -84,6 +68,9 @@ function interact(event) {
         var player = event.player;
         if (npc == null || player == null) return;
         if (!player.isAlive()) return;
+
+        // init может не вызваться (NPC уже в мире без сохранения жезлом) — страхуемся здесь.
+        startPushTimer(npc);
 
         var dir = getNpcLookDir(npc);
         if (dir == null) return;
@@ -160,6 +147,21 @@ function getNpcLookDir(npc) {
     } catch (e) {
         log("[push_look_dir] getLookDir failed: " + e);
         return null;
+    }
+}
+
+function startPushTimer(npc) {
+    if (npc == null) return;
+    try {
+        var timers = npc.getTimers();
+        if (timers == null) return;
+        if (typeof timers.forceStart == "function") {
+            timers.forceStart(TIMER_ID, TIMER_TICK, true);
+        } else {
+            timers.start(TIMER_ID, TIMER_TICK, true);
+        }
+    } catch (e) {
+        log("[push_look_dir] startPushTimer failed: " + e);
     }
 }
 

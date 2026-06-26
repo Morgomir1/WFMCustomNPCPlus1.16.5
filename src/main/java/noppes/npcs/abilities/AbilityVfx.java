@@ -26,6 +26,21 @@ public final class AbilityVfx {
         }
     }
 
+    public static void spawnBloodCharge(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 4; i++) {
+            safeSpawn(world, "minecraft:entity_effect",
+                    x + (r.nextDouble() - 0.5) * 1.2,
+                    y + 0.2 + r.nextDouble() * 0.4,
+                    z + (r.nextDouble() - 0.5) * 1.2,
+                    0.9, 0.1, 0.1, 0, 1);
+        }
+    }
+
     public static void spawnStartBurst(
             final IWorld world,
             final double x,
@@ -41,6 +56,43 @@ public final class AbilityVfx {
                     z + Math.sin(a) * 1.4,
                     0, 0.12, 0, 0, 1);
         }
+    }
+
+    public static void spawnBloodBurst(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius) {
+        final int count = 12;
+        for (int i = 0; i < count; i++) {
+            final double a = (i / (double) count) * Math.PI * 2;
+            safeSpawn(world, "minecraft:entity_effect",
+                    x + Math.cos(a) * radius,
+                    y + 0.3,
+                    z + Math.sin(a) * radius,
+                    0.9, 0.1, 0.1, 0, 1);
+        }
+        safeSpawn(world, "minecraft:damage_indicator", x, y + 0.8, z, 0, 0, 0, 0, 6);
+    }
+
+    public static void spawnBatSmoke(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 10; i++) {
+            final double a = r.nextDouble() * Math.PI * 2;
+            final double dist = r.nextDouble() * radius;
+            safeSpawn(world, "minecraft:smoke",
+                    x + Math.cos(a) * dist,
+                    y + 0.2 + r.nextDouble(),
+                    z + Math.sin(a) * dist,
+                    0, 0.04, 0, 0.01, 2);
+        }
+        safeSpawn(world, "minecraft:large_smoke", x, y + 0.5, z, 0, 0.05, 0, 0.02, 4);
     }
 
     public static void spawnDashTrail(final IWorld world, final double x, final double y, final double z) {

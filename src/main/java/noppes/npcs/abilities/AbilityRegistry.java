@@ -20,6 +20,11 @@ public final class AbilityRegistry {
         register(new ZombieOgreLeadbelcherSlamAbility());
         register(new ZombieOgreLeadbelcherArtilleryAbility());
         register(new ZombieOgreLeadbelcherTrampleAbility());
+        register(new VampirePounceAbility());
+        register(new VampireBloodSiphonAbility());
+        register(new VampireBatSwarmAbility());
+        register(new VampireBloodNovaAbility());
+        register(new RatlingGunVolleyAbility());
     }
 
     private AbilityRegistry() {

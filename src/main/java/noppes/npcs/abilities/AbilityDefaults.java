@@ -132,6 +132,71 @@ public final class AbilityDefaults {
         return map;
     }
 
+    public static Map<String, Object> vampirePounce() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 9);
+        map.put(AbilityParamKeys.DAMAGE, 12.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.4);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.35);
+        map.put(AbilityParamKeys.LAND_RADIUS, 2.6);
+        map.put(AbilityParamKeys.ARC_HEIGHT, 7.0);
+        map.put(AbilityParamKeys.LIFE_STEAL_PER_HIT, 1.5);
+        return map;
+    }
+
+    public static Map<String, Object> vampireBloodSiphon() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 8);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 40);
+        map.put(AbilityParamKeys.DAMAGE_PER_TICK, 0.8);
+        map.put(AbilityParamKeys.HEAL_PER_TICK, 0.6);
+        map.put(AbilityParamKeys.MAX_RANGE, 6.0);
+        return map;
+    }
+
+    public static Map<String, Object> vampireBatSwarm() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 22);
+        map.put(AbilityParamKeys.RADIUS, 5.0);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "blindness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 40);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.SUMMON_COUNT, 2);
+        map.put(AbilityParamKeys.SUMMON_RADIUS, 4.0);
+        map.put(AbilityParamKeys.MAX_SUMMONED_NEAR_BOSS, 6);
+        map.put(AbilityParamKeys.CLONE_TAB, 1);
+        map.put(AbilityParamKeys.CLONE_NAME, "vampire_bat");
+        return map;
+    }
+
+    public static Map<String, Object> vampireBloodNova() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.DAMAGE, 18.0);
+        map.put(AbilityParamKeys.RADIUS, 5.5);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.2);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.35);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "weakness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 40);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        return map;
+    }
+
+    public static Map<String, Object> ratlingGunVolley() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 60);
+        map.put(AbilityParamKeys.FIRST_SHOT_TICK, 3);
+        map.put(AbilityParamKeys.SHOT_INTERVAL, 5);
+        map.put(AbilityParamKeys.DAMAGE, 8.0);
+        map.put(AbilityParamKeys.ACCURACY, 6);
+        map.put(AbilityParamKeys.MAX_RANGE, 36.0);
+        map.put(AbilityParamKeys.BULLET_VELOCITY, 6.0);
+        map.put(AbilityParamKeys.PROJECTILE_ITEM, "wfm:skaven_ratling_gun");
+        return map;
+    }
+
     public static Map<String, Object> retreatDash() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.DISTANCE, 6.0);

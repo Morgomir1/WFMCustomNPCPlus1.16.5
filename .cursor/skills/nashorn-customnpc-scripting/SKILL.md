@@ -177,7 +177,10 @@ function wrapEntity(raw) {
 Отключает скрипт до `/script reload`. `try/catch` + `log(e)` в рискованных местах.
 
 ### Таймеры (только если используешь)
-Идемпотентный `init`: `if (timers.has(id)) return;` перед `start`.
+Идемпотентный `init`: `forceStart(id, 1, true)`; страховка запуска в `interact` если `init` не сработал.
+
+### Режимы OnAttack (`setRetaliateType`)
+Стрельба / отступление / «ничего» — [ai-retaliate-modes.md](ai-retaliate-modes.md).
 
 ---
 

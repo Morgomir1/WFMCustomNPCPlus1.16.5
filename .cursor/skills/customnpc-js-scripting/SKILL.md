@@ -5,6 +5,8 @@ description: Обучает работе с JS-скриптами CustomNPC+ (Na
 
 # JS-скриптинг CustomNPC+ для WFM 1.16.5
 
+> **Связанный skill:** `nashorn-customnpc-scripting` — ограничения Nashorn (ES5.1), Java↔JS interop, стиль кода и отладка синтаксиса. Этот skill покрывает события и API CustomNPC+.
+
 ## Общая архитектура
 
 CustomNPC+ использует **Nashorn** (JSR-223 `javax.script.ScriptEngine`) для выполнения JavaScript на сервере. Скрипты пишутся на **ECMAScript** (JavaScript) и выполняются **только на сервере** через `ScriptContainer`.

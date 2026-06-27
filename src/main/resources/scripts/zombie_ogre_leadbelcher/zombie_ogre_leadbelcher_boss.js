@@ -6,14 +6,20 @@
  * - zombie_ogre_leadbelcher_artillery: артиллерийский залп ядром свинцеплюя по позициям игроков
  * - zombie_ogre_leadbelcher_trample: бежит вперёд, распинывая всех по пути (урон+откид+слепота)
  *
- * Скрипт только решает КОГДА кастовать и с какими params.
+ * Скрипт решает КОГДА кастовать и с какими params.
+ * Slam — только если в зоне удара перед собой есть враг.
  */
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
+var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
 
 var TIMER_ID = 771;
 
 var MAIN_INTERVAL_TICKS = 120;
 var NEARSHOT_INTERVAL_TICKS = 80;
+
+var SLAM_RADIUS = 3.0;
+var SLAM_FORWARD_OFFSET = 2.2;
 
 var MAIN_NEXT_CAST_KEY = "zolb_main_next";
 var NEARSHOT_NEXT_CAST_KEY = "zolb_near_next";
@@ -67,7 +73,7 @@ function timer(event) {
     // Основные атаки по кулдауну.
     if (now < getInt(data, MAIN_NEXT_CAST_KEY)) return;
 
-    var chosen = chooseMainAbility(dist);
+    var chosen = chooseMainAbility(npc, world, dist);
     AbilityAPI.start(npc, chosen, target, buildParamsFor(chosen, dist));
     data.put(MAIN_NEXT_CAST_KEY, String(now + MAIN_INTERVAL_TICKS));
 }
@@ -80,19 +86,68 @@ function died(event) {
     AbilityAPI.cancel(event.npc);
 }
 
-function chooseMainAbility(dist) {
-    if (dist <= 4.0) return SLAM_ID;
+function chooseMainAbility(npc, world, dist) {
+    if (hasVictimInSlamZone(npc, world)) return SLAM_ID;
     if (dist <= 10.0) return TRAMPLE_ID;
     return ARTILLERY_ID;
+}
+
+function hasVictimInSlamZone(npc, world) {
+    var impact = computeSlamImpactPoint(npc);
+    var pos = NpcAPI.getIPos(impact.x, impact.y, impact.z);
+    var range = Math.ceil(SLAM_RADIUS + 0.5);
+    var list = world.getNearbyEntities(pos, range, EntitiesType.ANY);
+
+    for (var i = 0; i < list.length; i++) {
+        var ent = list[i];
+        if (!isValidSlamTarget(npc, ent)) continue;
+        if (flatDist(ent.getX(), ent.getZ(), impact.x, impact.z) <= SLAM_RADIUS) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function computeSlamImpactPoint(npc) {
+    var yaw = Number(npc.getRotation());
+    var rad = (yaw + 90.0) * 0.0174532925;
+    var dirX = Math.cos(rad);
+    var dirZ = Math.sin(rad);
+    return {
+        x: npc.getX() + dirX * SLAM_FORWARD_OFFSET,
+        y: npc.getY(),
+        z: npc.getZ() + dirZ * SLAM_FORWARD_OFFSET
+    };
+}
+
+function isValidSlamTarget(npc, ent) {
+    if (ent == null || !ent.isAlive()) return false;
+    if (String(ent.getUUID()) == String(npc.getUUID())) return false;
+
+    var target = npc.getAttackTarget();
+    if (target != null && String(target.getUUID()) == String(ent.getUUID())) return true;
+
+    return isPlayerEntity(ent);
+}
+
+function isPlayerEntity(entity) {
+    if (entity == null) return false;
+    if (typeof entity.typeOf == "function" && entity.typeOf(1)) return true;
+    if (typeof entity.getType == "function" && entity.getType() == 1) return true;
+    if (typeof entity.getMCEntity == "function") {
+        var mc = entity.getMCEntity();
+        if (mc != null && String(mc.getClass().getName()).indexOf("ServerPlayerEntity") >= 0) return true;
+    }
+    return String(entity.getClass().getName()).indexOf("ServerPlayerEntity") >= 0;
 }
 
 function buildParamsFor(abilityId, dist) {
     if (abilityId == SLAM_ID) {
         return AbilityAPI.params(
             "damage", 12.0,
-            "radius", 3.0,
-            "knockback", 0.9,
-            "knockbackY", 0.15,
+            "radius", SLAM_RADIUS,
+            "knockback", 2.4,
+            "knockbackY", 0.55,
             "effectType", "blindness",
             "effectDuration", 30,
             "effectAmplifier", 0,

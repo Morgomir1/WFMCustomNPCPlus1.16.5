@@ -25,6 +25,8 @@ import com.google.gson.*;
 import net.minecraft.entity.*;
 import noppes.npcs.*;
 
+import javax.annotation.Nullable;
+
 public class ItemStackWrapper implements IItemStack, ICapabilitySerializable<CompoundNBT>
 {
     private Map<String, Object> tempData;
@@ -447,7 +449,16 @@ public class ItemStackWrapper implements IItemStack, ICapabilitySerializable<Com
 
     public static void register(final AttachCapabilitiesEvent<ItemStack> event) {
         final ItemStackWrapper wrapper = createNew(event.getObject());
-        event.addCapability(ItemStackWrapper.key, wrapper);
+        if (wrapper instanceof ItemScriptedWrapper) {
+            event.addCapability(ItemStackWrapper.key, wrapper);
+            return;
+        }
+        event.addCapability(ItemStackWrapper.key, new ICapabilityProvider() {
+            @Override
+            public <T> LazyOptional<T> getCapability(final Capability<T> cap, @Nullable final Direction side) {
+                return wrapper.getCapability(cap, side);
+            }
+        });
     }
 
     private static ItemStackWrapper createNew(final ItemStack item) {
@@ -515,17 +526,29 @@ public class ItemStackWrapper implements IItemStack, ICapabilitySerializable<Com
         this.setMCNbt(nbt);
     }
 
-    public CompoundNBT getMCNbt() {
-        final CompoundNBT compound = item.getOrCreateTag();
+    protected CompoundNBT buildCapabilityNbt() {
+        final CompoundNBT compound = new CompoundNBT();
         if (!this.storedData.isEmpty()) {
-            compound.put("StoredData", this.storedData);
+            compound.put("StoredData", this.storedData.copy());
         }
         return compound;
     }
 
+    public CompoundNBT getMCNbt() {
+        return this.buildCapabilityNbt();
+    }
+
     public void setMCNbt(final CompoundNBT compound) {
-        item.setTag(compound);
-        this.storedData = compound.getCompound("StoredData");
+        if (compound == null || compound.isEmpty()) {
+            this.storedData = new CompoundNBT();
+            return;
+        }
+        if (compound.contains("StoredData")) {
+            this.storedData = compound.getCompound("StoredData").copy();
+        }
+        else {
+            this.storedData = new CompoundNBT();
+        }
     }
 
     @Override

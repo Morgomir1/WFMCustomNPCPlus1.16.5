@@ -5,7 +5,7 @@ description: Обучает JS-скриптам CustomNPC+ (Nashorn ES5.1) дл�
 
 # JS-скриптинг CustomNPC+ для WFM 1.16.5
 
-> **Связанные skills:** `nashorn-customnpc-scripting` — Nashorn ES5.1, `Java.type`, bootstrap `NpcAPI`, стиль кода. `customnpc-java-abilities` — создание абилок в Java (`CnpcAbility`, `AbilityRegistry`). Этот skill — события, API и **архитектура способностей**.
+> **Связанные skills:** `nashorn-customnpc-scripting` — Nashorn ES5.1, `Java.type`, bootstrap `NpcAPI`, стиль кода. `customnpc-java-abilities` — создание абилок в Java (`CnpcAbility`, `AbilityRegistry`). [script-java-helpers.md](script-java-helpers.md) — утилиты `ScriptDataUtil`, vampire helpers. Этот skill — события, API и **архитектура способностей**.
 
 ## Стандартная архитектура WFM (способности NPC)
 

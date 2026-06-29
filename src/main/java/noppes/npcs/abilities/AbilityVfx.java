@@ -189,6 +189,46 @@ public final class AbilityVfx {
                 0, 0.02, 0, 0, 2);
     }
 
+    public static void spawnFeastBloodBurst(final IWorld world, final double x, final double y, final double z, final int count) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < count; i++) {
+            final double ox = (r.nextDouble() - 0.5) * 1.4;
+            final double oy = r.nextDouble() * 0.9;
+            final double oz = (r.nextDouble() - 0.5) * 1.4;
+            final double vx = (r.nextDouble() - 0.5) * 0.45;
+            final double vy = 0.05 + r.nextDouble() * 0.35;
+            final double vz = (r.nextDouble() - 0.5) * 0.45;
+            safeSpawn(world, "minecraft:damage_indicator", x + ox, y + oy + 0.35, z + oz, vx, vy, vz, 0.02, 1);
+            safeSpawn(world, "minecraft:crimson_spore", x + ox, y + oy, z + oz, vx, vy * 0.6, vz, 0.08, 2);
+        }
+        safeSpawn(world, "minecraft:sweep_attack", x, y + 0.7, z, 0, 0, 0, 0, 1);
+        safeSpawn(world, "minecraft:angry_villager", x, y + 1.0, z, 0, 0, 0, 0, 2);
+    }
+
+    public static void spawnFeastFinishFlourish(final IWorld world, final double x, final double y, final double z) {
+        for (int ring = 0; ring < 3; ring++) {
+            final double radius = 0.6 + ring * 0.45;
+            for (int a = 0; a < 8; a++) {
+                final double angle = a * (Math.PI * 2 / 8);
+                final double px = x + Math.cos(angle) * radius;
+                final double pz = z + Math.sin(angle) * radius;
+                safeSpawn(world, "minecraft:damage_indicator", px, y + 0.5, pz, 0, 0.25, 0, 0.03, 1);
+                safeSpawn(world, "minecraft:crimson_spore", px, y + 0.2, pz, 0, 0.08, 0, 0.05, 2);
+            }
+        }
+    }
+
+    public static void spawnDecayCloud(final IWorld world, final double x, final double y, final double z, final float height) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 12; i++) {
+            final double ox = (r.nextDouble() - 0.5) * 0.9;
+            final double oy = r.nextDouble() * height;
+            final double oz = (r.nextDouble() - 0.5) * 0.9;
+            safeSpawn(world, "minecraft:smoke", x + ox, y + oy, z + oz, 0, 0.06, 0, 0.02, 2);
+            safeSpawn(world, "minecraft:cloud", x + ox, y + oy + 0.3, z + oz, 0, 0.04, 0, 0.01, 1);
+        }
+    }
+
     private static void safeSpawn(
             final IWorld world,
             final String particle,

@@ -6,18 +6,24 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.potion.Effect;
 import net.minecraft.potion.EffectInstance;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.world.World;
 import noppes.npcs.api.NpcAPI;
 import noppes.npcs.api.block.IBlock;
 import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.api.entity.IMob;
+import noppes.npcs.api.wrapper.WorldWrapper;
 import noppes.npcs.entity.EntityNPCInterface;
 
 import java.util.Random;
 
 public final class AbilityCombatHelper {
     private static final Random RANDOM = new Random();
+    private static final double DASH_CLIP_STEP = 0.2;
+    private static final double DASH_WALL_MARGIN = 0.35;
+    private static final double MIN_DASH_DISTANCE = 0.5;
 
     private AbilityCombatHelper() {
     }
@@ -100,10 +106,7 @@ public final class AbilityCombatHelper {
         if (distance < 0.05) {
             distance = 16.0;
         }
-        active.ex = sx + dirX * distance;
-        active.ez = sz + dirZ * distance;
-        active.ey = findGroundY(ctx.world, active.ex, active.ez, sy);
-        return true;
+        return applyClippedDashEnd(active, ctx, dirX, dirZ, distance);
     }
 
     public static boolean computeRetreatEndPoints(final ActiveAbility active, final AbilityContext ctx) {
@@ -139,9 +142,126 @@ public final class AbilityCombatHelper {
         if (distance < 0.05) {
             distance = 6.0;
         }
-        active.ex = sx + dirX * distance;
-        active.ez = sz + dirZ * distance;
-        active.ey = findGroundY(ctx.world, active.ex, active.ez, sy);
+        return applyClippedDashEnd(active, ctx, dirX, dirZ, distance);
+    }
+
+    public static double[] resolveDashPointAtProgress(
+            final AbilityContext ctx,
+            final double sx,
+            final double sy,
+            final double sz,
+            final double ex,
+            final double ez,
+            final double progress) {
+        final double clampedProgress = Math.max(0.0, Math.min(1.0, progress));
+        double cx = sx + (ex - sx) * clampedProgress;
+        double cz = sz + (ez - sz) * clampedProgress;
+        double cy = findGroundY(ctx.world, cx, cz, sy);
+        if (canNpcOccupy(ctx, cx, cy, cz)) {
+            return new double[]{cx, cy, cz};
+        }
+
+        double low = 0.0;
+        double high = clampedProgress;
+        for (int i = 0; i < 8; i++) {
+            final double mid = (low + high) * 0.5;
+            final double mx = sx + (ex - sx) * mid;
+            final double mz = sz + (ez - sz) * mid;
+            final double my = findGroundY(ctx.world, mx, mz, sy);
+            if (canNpcOccupy(ctx, mx, my, mz)) {
+                low = mid;
+                cx = mx;
+                cy = my;
+                cz = mz;
+            } else {
+                high = mid;
+            }
+        }
+        return new double[]{cx, cy, cz};
+    }
+
+    private static boolean applyClippedDashEnd(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double dirX,
+            final double dirZ,
+            final double distance) {
+        final double clipped = clipDashDistance(ctx, active.sx, active.sy, active.sz, dirX, dirZ, distance);
+        if (clipped < MIN_DASH_DISTANCE) {
+            return false;
+        }
+        active.ex = active.sx + dirX * clipped;
+        active.ez = active.sz + dirZ * clipped;
+        active.ey = findGroundY(ctx.world, active.ex, active.ez, active.sy);
+        return true;
+    }
+
+    private static double clipDashDistance(
+            final AbilityContext ctx,
+            final double sx,
+            final double sy,
+            final double sz,
+            final double dirX,
+            final double dirZ,
+            final double maxDistance) {
+        double safeDistance = 0.0;
+        double traveled = DASH_CLIP_STEP;
+        while (traveled <= maxDistance) {
+            final double x = sx + dirX * traveled;
+            final double z = sz + dirZ * traveled;
+            final double y = findGroundY(ctx.world, x, z, sy);
+            if (!canNpcOccupy(ctx, x, y, z)) {
+                break;
+            }
+            safeDistance = traveled;
+            traveled += DASH_CLIP_STEP;
+        }
+        return Math.max(0.0, safeDistance - DASH_WALL_MARGIN);
+    }
+
+    private static boolean canNpcOccupy(
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z) {
+        try {
+            final Entity entity = ctx.npc.getMCEntity();
+            if (entity != null && ctx.world instanceof WorldWrapper) {
+                final World world = ((WorldWrapper) ctx.world).getMCWorld();
+                final AxisAlignedBB moved = entity.getBoundingBox().move(
+                        x - entity.getX(),
+                        y - entity.getY(),
+                        z - entity.getZ());
+                return world.noCollision(entity, moved);
+            }
+        } catch (final Exception ignored) {
+        }
+        return canStandAtBlocks(ctx.world, x, y, z);
+    }
+
+    private static boolean canStandAtBlocks(
+            final noppes.npcs.api.IWorld world,
+            final double x,
+            final double y,
+            final double z) {
+        final int minX = (int) Math.floor(x - 0.3);
+        final int maxX = (int) Math.floor(x + 0.3);
+        final int minZ = (int) Math.floor(z - 0.3);
+        final int maxZ = (int) Math.floor(z + 0.3);
+        final int footY = (int) Math.floor(y);
+        final IBlock floor = world.getBlock((int) Math.floor(x), footY - 1, (int) Math.floor(z));
+        if (!isSolidBlock(floor)) {
+            return false;
+        }
+        for (int bx = minX; bx <= maxX; bx++) {
+            for (int bz = minZ; bz <= maxZ; bz++) {
+                for (int by = footY; by <= footY + 1; by++) {
+                    if (isSolidBlock(world.getBlock(bx, by, bz))) {
+                        return false;
+                    }
+                }
+            }
+        }
         return true;
     }
 

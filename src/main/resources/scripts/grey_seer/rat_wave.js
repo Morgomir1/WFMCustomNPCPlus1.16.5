@@ -4,14 +4,14 @@
 //
 // Способности:
 // 1) Полчища крыс — 15s CD, призыв 10 крыс-миньонов с таймером жизни
-// 2) Прыжок — 15s CD, телепорт в случайную точку
+// 2) Прыжок — 15s CD, телепорт в самую далёкую точку
 // 3) Волна проклятия — 5s CD, залп 10–15 снарядов, стаки проклятия в тегах игрока
 //    5 стаков: отравление I (5с), 10: слабость I (15с), 15: замедление I (10с) + сброс стаков
 //
 // Clone Bank: tab=1, name="rat" (крысы-миньоны)
 //
-// Точки телепорта (можно задать тут или через trigger):
-//   var TELEPORT_POINTS = [
+// Точки телепорта по умолчанию (если не заданы через trigger set_tp / clear_tp):
+//   var DEFAULT_TELEPORT_POINTS = [
 //       {x: 499888, y: 50, z: -600},
 //       {x: 499900, y: 50, z: -580},
 //       {x: 499870, y: 50, z: -610}
@@ -57,12 +57,13 @@ function getEntityDebugName(entity) {
     }
 }
 
-// Точки телепортации (заполняются в init() или через trigger)
-   var TELEPORT_POINTS = [
-       {x: 499888, y: 50, z: -600},
-       {x: 499900, y: 50, z: -580},
-       {x: 499870, y: 50, z: -610}
-   ];
+// Точки телепортации по умолчанию (переопределяются через trigger set_tp)
+var DEFAULT_TELEPORT_POINTS = [
+    {x: 500171, y: 81, z: -1055},
+    {x: 500160, y:88, z:-1050},
+    {x: 500163, y:87, z:-1034},
+    {x:500153, y: 87, z:-1037}
+];
 
 // --- Реестр заклинаний ---
 // weight > 0 — участвует в случайном выборе
@@ -525,6 +526,24 @@ function spawnCurseTrailParticles(world, x1, y1, z1, x2, y2, z2) {
     }
 }
 
+function bindProjectileOwner(mc, bossNpc) {
+    if (mc == null || bossNpc == null) return;
+
+    var bossMc = bossNpc.getMCEntity();
+    if (bossMc == null) return;
+
+    if (typeof mc.setOwner == "function") {
+        try {
+            mc.setOwner(bossMc);
+            return;
+        } catch (eSetOwner) {}
+    }
+
+    // Прямая запись полей в Nashorn часто read-only — не логируем ожидаемый отказ
+    try { mc.thrower = bossMc; } catch (eThrower) {}
+    try { mc.npc = bossMc; } catch (eNpc) {}
+}
+
 function configureCurseProjectile(proj, world, bossNpc) {
     try {
         proj.enableEvents();
@@ -540,16 +559,14 @@ function configureCurseProjectile(proj, world, bossNpc) {
         }
 
         var mc = proj.getMCEntity();
-        mc.effect = 0;
-        mc.duration = 0;
-        mc.amplify = 0;
-        mc.damage = CURSE_PROJECTILE_DAMAGE;
-        mc.explosiveDamage = false;
-        mc.setIs3D(false);
-        if (bossNpc != null) {
-            var bossMc = bossNpc.getMCEntity();
-            mc.thrower = bossMc;
-            mc.npc = bossMc;
+        if (mc != null) {
+            mc.effect = 0;
+            mc.duration = 0;
+            mc.amplify = 0;
+            mc.damage = CURSE_PROJECTILE_DAMAGE;
+            mc.explosiveDamage = false;
+            mc.setIs3D(false);
+            bindProjectileOwner(mc, bossNpc);
         }
     } catch (e) {
         log("grey_seer: configureCurseProjectile ERROR: " + e);
@@ -677,14 +694,38 @@ function wrapImpactTarget(event) {
 // Телепорт
 // =====================================================
 
+function pickFarthestTeleportPoint(npc, points) {
+    if (points == null || points.length == 0) return null;
+
+    var curX = npc.getX();
+    var curY = npc.getY();
+    var curZ = npc.getZ();
+    var best = points[0];
+    var bestDistSq = -1;
+
+    for (var i = 0; i < points.length; i++) {
+        var p = points[i];
+        var dx = p.x - curX;
+        var dy = p.y - curY;
+        var dz = p.z - curZ;
+        var distSq = dx * dx + dy * dy + dz * dz;
+        if (distSq > bestDistSq) {
+            bestDistSq = distSq;
+            best = p;
+        }
+    }
+    return best;
+}
+
 function teleportBoss(ctx) {
     var npc = ctx.npc;
     var world = ctx.world;
     var point = null;
+    var points = getTeleportPoints(npc);
 
     // Используем заранее заданные точки, если есть
-    if (TELEPORT_POINTS.length > 0) {
-        point = TELEPORT_POINTS[Math.floor(Math.random() * TELEPORT_POINTS.length)];
+    if (points.length > 0) {
+        point = pickFarthestTeleportPoint(npc, points);
     } else {
         // Fallback: случайная позиция рядом с точкой спавна
         var spawnX = npc.getStoreddata().get("spawn_x");
@@ -730,19 +771,40 @@ function teleportBoss(ctx) {
 // Сохранение/загрузка точек телепортации в storeddata
 // =====================================================
 
-function loadTeleportPoints(npc) {
-    TELEPORT_POINTS = [];
-    var count = npc.getStoreddata().get("tp_count");
-    if (count == null || count <= 0) return;
-
-    for (var i = 0; i < count; i++) {
-        var x = npc.getStoreddata().get("tp_" + i + "_x");
-        var y = npc.getStoreddata().get("tp_" + i + "_y");
-        var z = npc.getStoreddata().get("tp_" + i + "_z");
-        if (x != null && y != null && z != null) {
-            TELEPORT_POINTS.push({x: x, y: y, z: z});
-        }
+function cloneTeleportPoints(points) {
+    var out = [];
+    for (var i = 0; i < points.length; i++) {
+        out.push({
+            x: Number(points[i].x),
+            y: Number(points[i].y),
+            z: Number(points[i].z)
+        });
     }
+    return out;
+}
+
+function getTeleportPoints(npc) {
+    var stored = npc.getStoreddata();
+    var count = stored.get("tp_count");
+
+    // clear_tp явно ставит tp_count = 0 → fallback к спавну
+    if (count != null) {
+        if (count <= 0) return [];
+
+        var points = [];
+        for (var i = 0; i < count; i++) {
+            var x = stored.get("tp_" + i + "_x");
+            var y = stored.get("tp_" + i + "_y");
+            var z = stored.get("tp_" + i + "_z");
+            if (x != null && y != null && z != null) {
+                points.push({x: Number(x), y: Number(y), z: Number(z)});
+            }
+        }
+        return points;
+    }
+
+    // tp_count не задан — используем точки из скрипта
+    return cloneTeleportPoints(DEFAULT_TELEPORT_POINTS);
 }
 
 function saveTeleportPoints(npc, points) {
@@ -763,7 +825,6 @@ function saveTeleportPoints(npc, points) {
         stored.put("tp_" + i + "_y", points[i].y);
         stored.put("tp_" + i + "_z", points[i].z);
     }
-    TELEPORT_POINTS = points.slice();
 }
 
 // =====================================================
@@ -782,15 +843,12 @@ function init(event) {
         npc.getStoreddata().put("spawn_y", npc.getY());
         npc.getStoreddata().put("spawn_z", npc.getZ());
 
-        // Загружаем точки телепортации (если заданы ранее)
-        loadTeleportPoints(npc);
-
         npc.getTimers().start(1, 20, true); // ИИ: выбор заклинания (каждую секунду)
         npc.getTimers().start(2, 20, true); // очистка миньонов (каждую секунду)
         npc.getStoreddata().put("_inited", 1);
 
         log("grey_seer init OK, spells=" + SPELL_POOL.join(", ") +
-            ", tp_points=" + TELEPORT_POINTS.length);
+            ", tp_points=" + getTeleportPoints(npc).length);
     } catch (e) {
         log("grey_seer init ERROR: " + e);
     }

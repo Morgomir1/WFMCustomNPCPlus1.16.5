@@ -184,6 +184,49 @@ public final class AbilityDefaults {
         return map;
     }
 
+    public static Map<String, Object> bloodDragonRiposte() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 4.4);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 7);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 4);
+        map.put(AbilityParamKeys.DAMAGE, 14.0);
+        map.put(AbilityParamKeys.RADIUS, 2.6);
+        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 70.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.0);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.24);
+        return map;
+    }
+
+    public static Map<String, Object> barrowSentinel() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 2.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
+        map.put(AbilityParamKeys.DAMAGE, 11.0);
+        map.put(AbilityParamKeys.RADIUS, 3.2);
+        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 52.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.8);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.15);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "slowness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 10);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.EXECUTE_HP_THRESHOLD, 0.35);
+        map.put(AbilityParamKeys.EXECUTE_BONUS_DAMAGE, 7.0);
+        return map;
+    }
+
+    public static Map<String, Object> graspingDead() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 5);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 34);
+        map.put(AbilityParamKeys.RADIUS, 1.8);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "slowness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 35);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 1);
+        map.put(AbilityParamKeys.DAMAGE_PER_TICK, 0.0);
+        return map;
+    }
+
     public static Map<String, Object> ratlingGunVolley() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.ACTIVE_TICKS, 60);

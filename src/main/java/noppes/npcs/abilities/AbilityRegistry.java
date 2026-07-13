@@ -24,6 +24,9 @@ public final class AbilityRegistry {
         register(new VampireBloodSiphonAbility());
         register(new VampireBatSwarmAbility());
         register(new VampireBloodNovaAbility());
+        register(new BloodDragonRiposteAbility());
+        register(new BarrowSentinelAbility());
+        register(new GraspingDeadAbility());
         register(new RatlingGunVolleyAbility());
     }
 

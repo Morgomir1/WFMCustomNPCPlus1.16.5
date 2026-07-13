@@ -98,9 +98,11 @@ public final class DashAbility implements CnpcAbility {
         }
 
         final double progress = 1.0 - (active.ticksLeft - 1) / (double) total;
-        final double cx = active.sx + (active.ex - active.sx) * progress;
-        final double cz = active.sz + (active.ez - active.sz) * progress;
-        final double cy = AbilityCombatHelper.findGroundY(ctx.world, cx, cz, active.sy);
+        final double[] point = AbilityCombatHelper.resolveDashPointAtProgress(
+                ctx, active.sx, active.sy, active.sz, active.ex, active.ez, progress);
+        final double cx = point[0];
+        final double cy = point[1];
+        final double cz = point[2];
 
         AbilityCombatHelper.stopNavigation(ctx.npc);
         ctx.npc.setPosition(cx, cy, cz);
@@ -123,11 +125,15 @@ public final class DashAbility implements CnpcAbility {
     }
 
     private void finishDash(final ActiveAbility active, final AbilityContext ctx) {
-        final double ey = AbilityCombatHelper.findGroundY(ctx.world, active.ex, active.ez, active.sy);
-        ctx.npc.setPosition(active.ex, ey, active.ez);
-        AbilityVfx.spawnLandBurst(ctx.world, active.ex, ey, active.ez, false);
+        final double[] point = AbilityCombatHelper.resolveDashPointAtProgress(
+                ctx, active.sx, active.sy, active.sz, active.ex, active.ez, 1.0);
+        final double ex = point[0];
+        final double ey = point[1];
+        final double ez = point[2];
+        ctx.npc.setPosition(ex, ey, ez);
+        AbilityVfx.spawnLandBurst(ctx.world, ex, ey, ez, false);
         ctx.world.playSoundAt(
-                NpcAPI.Instance().getIPos(active.ex, ey, active.ez),
+                NpcAPI.Instance().getIPos(ex, ey, ez),
                 "minecraft:entity.generic.explode",
                 0.8F,
                 1.1F);

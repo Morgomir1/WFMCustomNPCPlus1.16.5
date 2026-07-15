@@ -38,9 +38,11 @@ public class EntityCloneStructureSpawner extends Entity {
             EntityDataManager.defineId(EntityCloneStructureSpawner.class, DataSerializers.BOOLEAN);
 
     private static final float CREATIVE_RADIUS = 16.0f;
+    private static final int CREATIVE_BLOCK_LOG_INTERVAL = 100;
     private static boolean isInvisible = true;
 
     private boolean failed;
+    private int creativeBlockTicks;
     public double spin;
     public double spinO;
 
@@ -68,8 +70,14 @@ public class EntityCloneStructureSpawner extends Entity {
             return;
         }
         if (this.hasCreativeNearby()) {
+            this.creativeBlockTicks++;
+            if (this.creativeBlockTicks == 1 || this.creativeBlockTicks % CREATIVE_BLOCK_LOG_INTERVAL == 0) {
+                LogWriter.warn("CloneStructureSpawner: waiting — creative player within " + CREATIVE_RADIUS
+                        + " at " + this.blockPosition() + " clone=" + cloneName);
+            }
             return;
         }
+        this.creativeBlockTicks = 0;
 
         final int cloneTab = this.getCloneTab();
         try {
@@ -84,13 +92,17 @@ public class EntityCloneStructureSpawner extends Entity {
                     cloneTab, cloneName,
                     NpcAPI.Instance().getIWorld((ServerWorld) this.level));
             if (spawned == null) {
-                LogWriter.error("CloneStructureSpawner: spawn failed tab=" + cloneTab + " name=" + cloneName
-                        + " at " + this.blockPosition());
+                LogWriter.error("CloneStructureSpawner: spawnClone returned null tab=" + cloneTab
+                        + " name=" + cloneName + " at " + this.blockPosition());
                 this.failed = true;
                 return;
             }
+            LogWriter.info("CloneStructureSpawner: spawned clone tab=" + cloneTab + " name=" + cloneName
+                    + " at " + this.blockPosition());
             this.remove();
         } catch (final Exception e) {
+            LogWriter.error("CloneStructureSpawner: exception spawning tab=" + cloneTab + " name=" + cloneName
+                    + " at " + this.blockPosition());
             LogWriter.except(e);
             this.failed = true;
         }
@@ -123,10 +135,10 @@ public class EntityCloneStructureSpawner extends Entity {
                 this.failed = false;
             }
             if (manual) {
-                player.sendMessage(new StringTextComponent("Clone Structure Spawner: ManualPlacement=true (editing)")
+                player.sendMessage(new StringTextComponent("Clone Structure Spawner: UNARMED (editing, will not auto-spawn)")
                         .withStyle(TextFormatting.YELLOW), Util.NIL_UUID);
             } else {
-                player.sendMessage(new StringTextComponent("Clone Structure Spawner: Armed for structure (ManualPlacement=false)")
+                player.sendMessage(new StringTextComponent("Clone Structure Spawner: ARMED (will spawn when no creative nearby)")
                         .withStyle(TextFormatting.GREEN), Util.NIL_UUID);
             }
             return ActionResultType.SUCCESS;
@@ -150,14 +162,17 @@ public class EntityCloneStructureSpawner extends Entity {
         player.sendMessage(new StringTextComponent("  CloneName: ").withStyle(TextFormatting.GREEN)
                 .append(new StringTextComponent(this.getCloneName().isEmpty() ? "(unset)" : this.getCloneName())
                         .withStyle(TextFormatting.WHITE)), Util.NIL_UUID);
-        player.sendMessage(new StringTextComponent("  ManualPlacement: ").withStyle(TextFormatting.GREEN)
-                .append(new StringTextComponent(Boolean.toString(this.isManualPlacement()))
-                        .withStyle(this.isManualPlacement() ? TextFormatting.YELLOW : TextFormatting.RED)), Util.NIL_UUID);
+        player.sendMessage(new StringTextComponent("  Status: ").withStyle(TextFormatting.GREEN)
+                .append(new StringTextComponent(this.isManualPlacement() ? "UNARMED" : "ARMED")
+                        .withStyle(this.isManualPlacement() ? TextFormatting.YELLOW : TextFormatting.AQUA)), Util.NIL_UUID);
         if (this.failed) {
-            player.sendMessage(new StringTextComponent("  Failed: true").withStyle(TextFormatting.RED), Util.NIL_UUID);
+            player.sendMessage(new StringTextComponent("  Failed: true (see server log; Shift+empty hand to re-arm)")
+                    .withStyle(TextFormatting.RED), Util.NIL_UUID);
         }
         player.sendMessage(new StringTextComponent("Name tag / named item = set CloneName; Shift+empty hand = Arm/Disarm")
                 .withStyle(TextFormatting.GRAY), Util.NIL_UUID);
+        player.sendMessage(new StringTextComponent("Structure Save auto-arms for templates; hand-placed stay UNARMED until Arm.")
+                .withStyle(TextFormatting.DARK_GRAY), Util.NIL_UUID);
         return ActionResultType.SUCCESS;
     }
 
@@ -206,6 +221,12 @@ public class EntityCloneStructureSpawner extends Entity {
 
     public void setManualPlacement(final boolean manual) {
         this.entityData.set(DATA_MANUAL_PLACEMENT, manual);
+    }
+
+    /** Called when this marker is spawned from a Structure Template (not hand placement / chunk load). */
+    public void armFromStructureTemplate() {
+        this.setManualPlacement(false);
+        this.failed = false;
     }
 
     @Override

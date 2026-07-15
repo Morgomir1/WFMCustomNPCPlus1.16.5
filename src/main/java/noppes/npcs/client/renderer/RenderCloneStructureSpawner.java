@@ -51,7 +51,7 @@ public class RenderCloneStructureSpawner extends EntityRenderer<EntityCloneStruc
         if (name != null && !name.isEmpty()) {
             final ITextComponent label = new StringTextComponent(
                     "Clone[" + entity.getCloneTab() + "]: " + name
-                            + (entity.isManualPlacement() ? " [edit]" : " [armed]"));
+                            + (entity.isManualPlacement() ? " [UNARMED]" : " [ARMED]"));
             this.renderNameTag(entity, label, matrix, buffer, packedLight);
         }
         super.render(entity, entityYaw, partialTicks, matrix, buffer, packedLight);

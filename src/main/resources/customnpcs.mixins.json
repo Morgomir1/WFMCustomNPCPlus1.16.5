@@ -12,6 +12,7 @@
     "NoiseChunkGeneratorMixin",
     "ProtocolTypeMixin",
     "ScoreBoardMixin",
+    "TemplateMixin",
     "VineBlockMixin"
   ],
   "client": [

@@ -129,17 +129,14 @@ public class EntityCloneStructureSpawner extends Entity {
 
         final ItemStack held = player.getItemInHand(hand);
         if (player.isShiftKeyDown() && held.isEmpty()) {
-            final boolean manual = !this.isManualPlacement();
-            this.setManualPlacement(manual);
-            if (!manual) {
-                this.failed = false;
-            }
-            if (manual) {
-                player.sendMessage(new StringTextComponent("Clone Structure Spawner: UNARMED (editing, will not auto-spawn)")
-                        .withStyle(TextFormatting.YELLOW), Util.NIL_UUID);
-            } else {
+            if (this.isManualPlacement()) {
+                this.arm();
                 player.sendMessage(new StringTextComponent("Clone Structure Spawner: ARMED (will spawn when no creative nearby)")
                         .withStyle(TextFormatting.GREEN), Util.NIL_UUID);
+            } else {
+                this.setManualPlacement(true);
+                player.sendMessage(new StringTextComponent("Clone Structure Spawner: UNARMED (editing, will not auto-spawn)")
+                        .withStyle(TextFormatting.YELLOW), Util.NIL_UUID);
             }
             return ActionResultType.SUCCESS;
         }
@@ -171,7 +168,7 @@ public class EntityCloneStructureSpawner extends Entity {
         }
         player.sendMessage(new StringTextComponent("Name tag / named item = set CloneName; Shift+empty hand = Arm/Disarm")
                 .withStyle(TextFormatting.GRAY), Util.NIL_UUID);
-        player.sendMessage(new StringTextComponent("Structure Save auto-arms for templates; hand-placed stay UNARMED until Arm.")
+        player.sendMessage(new StringTextComponent("Arm (Shift+empty hand) before Structure Save — ManualPlacement is saved as-is.")
                 .withStyle(TextFormatting.DARK_GRAY), Util.NIL_UUID);
         return ActionResultType.SUCCESS;
     }
@@ -223,10 +220,10 @@ public class EntityCloneStructureSpawner extends Entity {
         this.entityData.set(DATA_MANUAL_PLACEMENT, manual);
     }
 
-    /** Called when this marker is spawned from a Structure Template (not hand placement / chunk load). */
-    public void armFromStructureTemplate() {
-        this.setManualPlacement(false);
+    /** Clears failed and enables auto-spawn (ManualPlacement=false). For JS / scripts. */
+    public void arm() {
         this.failed = false;
+        this.setManualPlacement(false);
     }
 
     @Override

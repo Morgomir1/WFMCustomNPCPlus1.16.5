@@ -114,7 +114,7 @@ tasks.register('copyClassesFromDeobf', Copy) {
 
 /**
  * Base jar resources first, but never wipe Mixin AP output for customnpcs.refmap.json —
- * otherwise newly added mixins (e.g. TemplateMixin) ship without SRG remaps and injectors no-op.
+ * otherwise local mixin remaps are lost when deobf resources overwrite the AP refmap.
  */
 tasks.register('copyResourcesFromDeobf', Copy) {
     from(zipTree('lib/' + archivesBaseName + '-deobf.jar')){
@@ -169,7 +169,7 @@ tasks.register('mergeMixinRefmap') {
         def merged = [mappings: mappings, data: [searge: searge]]
         outFile.parentFile.mkdirs()
         outFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(merged))
-        logger.lifecycle("Merged mixin refmap entries: ${mappings.size()} (TemplateMixin=${mappings.containsKey('noppes/npcs/mixin/TemplateMixin')})")
+        logger.lifecycle("Merged mixin refmap entries: ${mappings.size()}")
     }
 }
 

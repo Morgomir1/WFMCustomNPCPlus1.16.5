@@ -62,11 +62,19 @@ public class EntityCloneStructureSpawner extends Entity {
         if (this.level.isClientSide) {
             return;
         }
-        if (this.isManualPlacement() || this.failed) {
+        if (this.isManualPlacement()) {
+            return;
+        }
+        if (this.failed) {
             return;
         }
         final String cloneName = this.getCloneName();
         if (cloneName == null || cloneName.isEmpty()) {
+            this.creativeBlockTicks++;
+            if (this.creativeBlockTicks == 1 || this.creativeBlockTicks % CREATIVE_BLOCK_LOG_INTERVAL == 0) {
+                LogWriter.warn("CloneStructureSpawner: ARMED but CloneName empty at " + this.blockPosition()
+                        + " — set name tag / CloneName NBT");
+            }
             return;
         }
         if (this.hasCreativeNearby()) {
@@ -223,7 +231,10 @@ public class EntityCloneStructureSpawner extends Entity {
     /** Clears failed and enables auto-spawn (ManualPlacement=false). For JS / scripts. */
     public void arm() {
         this.failed = false;
+        this.creativeBlockTicks = 0;
         this.setManualPlacement(false);
+        LogWriter.info("CloneStructureSpawner: arm() clone=" + this.getCloneName()
+                + " tab=" + this.getCloneTab() + " at " + this.blockPosition());
     }
 
     @Override

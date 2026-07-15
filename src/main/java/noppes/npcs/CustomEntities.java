@@ -40,6 +40,8 @@ public class CustomEntities
     public static EntityType<? extends ThrowableEntity> entityProjectile;
     @ObjectHolder("custommodelentity")
     public static EntityType<? extends EntityCustomModel> entityCustomModel;
+    @ObjectHolder("clone_structure_spawner")
+    public static EntityType<?> entityCloneStructureSpawner;
     private static List<EntityType> types;
 
     @SubscribeEvent
@@ -57,6 +59,7 @@ public class CustomEntities
         registerNewentity(event.getRegistry(), EntityChairMount.class, "customnpcchairmount", EntityChairMount::new, 64, 10, false, 0.001f, 0.001f);
         registerNewentity(event.getRegistry(), EntityProjectile.class, "customnpcprojectile", EntityProjectile::new, 64, 20, true, 0.5f, 0.5f);
         registerNewentity(event.getRegistry(), EntityCustomModel.class, "custommodelentity", EntityCustomModel::new, 64, 10, false, 0.7F, 2F);
+        registerNewentity(event.getRegistry(), EntityCloneStructureSpawner.class, "clone_structure_spawner", EntityCloneStructureSpawner::new, 64, 10, false, 0.5f, 1.0f);
     }
 
     @SubscribeEvent

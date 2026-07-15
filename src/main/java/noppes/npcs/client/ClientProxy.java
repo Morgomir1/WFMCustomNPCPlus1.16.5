@@ -88,6 +88,9 @@ public class ClientProxy extends CommonProxy
         RenderingRegistry.registerEntityRenderingHandler(CustomEntities.entityNpcAlex, manager -> new RenderCustomNpc(manager, new PlayerModel(0.0f, true)));
         RenderingRegistry.registerEntityRenderingHandler(CustomEntities.entityNpcClassicPlayer, manager -> new RenderCustomNpc(manager, new ModelClassicPlayer(0.0f)));
         RenderingRegistry.registerEntityRenderingHandler(CustomEntities.entityCustomModel, RenderCustomModel::new);
+        RenderingRegistry.registerEntityRenderingHandler(
+                (EntityType<EntityCloneStructureSpawner>) (EntityType<?>) CustomEntities.entityCloneStructureSpawner,
+                RenderCloneStructureSpawner::new);
         ScreenManager.register(CustomContainer.container_carpentrybench, GuiNpcCarpentryBench::new);
         ScreenManager.register(CustomContainer.container_customgui, GuiCustom::new);
         ScreenManager.register(CustomContainer.container_mail, GuiMailmanWrite::new);

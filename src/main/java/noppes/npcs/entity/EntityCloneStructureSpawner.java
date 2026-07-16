@@ -37,6 +37,8 @@ public class EntityCloneStructureSpawner extends Entity {
             EntityDataManager.defineId(EntityCloneStructureSpawner.class, DataSerializers.INT);
     private static final DataParameter<Boolean> DATA_MANUAL_PLACEMENT =
             EntityDataManager.defineId(EntityCloneStructureSpawner.class, DataSerializers.BOOLEAN);
+    private static final DataParameter<Boolean> DATA_HAS_SPAWNED =
+            EntityDataManager.defineId(EntityCloneStructureSpawner.class, DataSerializers.BOOLEAN);
 
     private static final float CREATIVE_RADIUS = 16.0f;
     private static final int CREATIVE_BLOCK_LOG_INTERVAL = 100;
@@ -63,7 +65,7 @@ public class EntityCloneStructureSpawner extends Entity {
         if (this.level.isClientSide) {
             return;
         }
-        if (this.isManualPlacement() || this.failed) {
+        if (this.isManualPlacement() || this.hasSpawned() || this.failed) {
             return;
         }
         this.trySpawnNow();
@@ -71,17 +73,15 @@ public class EntityCloneStructureSpawner extends Entity {
 
     /**
      * Attempts to spawn the clone immediately (same rules as the tick path).
+     * On success sets {@link #hasSpawned()} and leaves this entity in the world.
      *
-     * @return true if a clone was spawned and this spawner was removed
+     * @return true if a clone was spawned
      */
     public boolean trySpawnNow() {
         if (this.level.isClientSide || !this.isAlive()) {
             return false;
         }
-        if (this.isManualPlacement()) {
-            return false;
-        }
-        if (this.failed) {
+        if (this.isManualPlacement() || this.hasSpawned() || this.failed) {
             return false;
         }
 
@@ -126,8 +126,8 @@ public class EntityCloneStructureSpawner extends Entity {
                 return false;
             }
             LogWriter.info("CloneStructureSpawner: spawned clone tab=" + cloneTab + " name=" + cloneName
-                    + " at " + this.blockPosition());
-            this.remove();
+                    + " at " + this.blockPosition() + " (hasSpawned=true, entity kept)");
+            this.setHasSpawned(true);
             return true;
         } catch (final Exception e) {
             LogWriter.error("CloneStructureSpawner: ARMED but spawn blocked: EXCEPTION tab="
@@ -142,6 +142,9 @@ public class EntityCloneStructureSpawner extends Entity {
      * Human-readable why an armed spawner is not spawning (for helper / logs).
      */
     public String describeSpawnBlockReason() {
+        if (this.hasSpawned()) {
+            return "SPAWNED";
+        }
         if (this.isManualPlacement()) {
             return "UNARMED";
         }
@@ -243,6 +246,16 @@ public class EntityCloneStructureSpawner extends Entity {
 
         final ItemStack held = player.getItemInHand(hand);
         if (player.isShiftKeyDown() && held.isEmpty()) {
+            // Creative re-test: clear persisted spawn flag (arm() never clears hasSpawned)
+            if (this.hasSpawned()) {
+                this.clearHasSpawned();
+                this.setManualPlacement(true);
+                this.failed = false;
+                player.sendMessage(new StringTextComponent(
+                        "Clone Structure Spawner: SPAWNED cleared → UNARMED (ready to re-arm)")
+                        .withStyle(TextFormatting.LIGHT_PURPLE), Util.NIL_UUID);
+                return ActionResultType.SUCCESS;
+            }
             if (this.isManualPlacement()) {
                 this.arm();
                 player.sendMessage(new StringTextComponent("Clone Structure Spawner: ARMED (will spawn when no creative nearby)")
@@ -274,14 +287,17 @@ public class EntityCloneStructureSpawner extends Entity {
                 .append(new StringTextComponent(this.getCloneName().isEmpty() ? "(unset)" : this.getCloneName())
                         .withStyle(TextFormatting.WHITE)), Util.NIL_UUID);
         player.sendMessage(new StringTextComponent("  Status: ").withStyle(TextFormatting.GREEN)
-                .append(new StringTextComponent(this.isManualPlacement() ? "UNARMED" : "ARMED")
-                        .withStyle(this.isManualPlacement() ? TextFormatting.YELLOW : TextFormatting.AQUA)), Util.NIL_UUID);
+                .append(new StringTextComponent(this.describeStatusLabel())
+                        .withStyle(this.hasSpawned() ? TextFormatting.GRAY
+                                : (this.isManualPlacement() ? TextFormatting.YELLOW : TextFormatting.AQUA))), Util.NIL_UUID);
         if (this.failed) {
             player.sendMessage(new StringTextComponent("  Failed: true (see server log; Shift+empty hand to re-arm)")
                     .withStyle(TextFormatting.RED), Util.NIL_UUID);
         }
         player.sendMessage(new StringTextComponent("Name tag / named item = set CloneName; Shift+empty hand = Arm/Disarm")
                 .withStyle(TextFormatting.GRAY), Util.NIL_UUID);
+        player.sendMessage(new StringTextComponent("After spawn: entity stays with hasSpawned; Shift+empty clears SPAWNED for re-test.")
+                .withStyle(TextFormatting.DARK_GRAY), Util.NIL_UUID);
         player.sendMessage(new StringTextComponent("Arm (Shift+empty hand) before Structure Save — ManualPlacement is saved as-is.")
                 .withStyle(TextFormatting.DARK_GRAY), Util.NIL_UUID);
         return ActionResultType.SUCCESS;
@@ -338,19 +354,48 @@ public class EntityCloneStructureSpawner extends Entity {
         return this.failed;
     }
 
+    public boolean hasSpawned() {
+        return this.entityData.get(DATA_HAS_SPAWNED);
+    }
+
+    public void setHasSpawned(final boolean spawned) {
+        this.entityData.set(DATA_HAS_SPAWNED, spawned);
+    }
+
+    /** Creative re-test only — {@link #arm()} does not clear this flag. */
+    public void clearHasSpawned() {
+        this.setHasSpawned(false);
+        this.creativeBlockTicks = 0;
+    }
+
+    /** Display label: SPAWNED / UNARMED / ARMED. */
+    public String describeStatusLabel() {
+        if (this.hasSpawned()) {
+            return "SPAWNED";
+        }
+        return this.isManualPlacement() ? "UNARMED" : "ARMED";
+    }
+
     /**
      * Clears failed and enables auto-spawn (ManualPlacement=false).
-     * Immediately attempts spawn when no creative player is nearby.
+     * Does not clear {@link #hasSpawned()} — once spawned, stays spawned until creative reset.
+     * Immediately attempts spawn when no creative player is nearby and !hasSpawned.
      */
     public void arm() {
         this.failed = false;
         this.creativeBlockTicks = 0;
         this.setManualPlacement(false);
         LogWriter.info("CloneStructureSpawner: arm() clone=" + this.getCloneName()
-                + " tab=" + this.getCloneTab() + " at " + this.blockPosition());
+                + " tab=" + this.getCloneTab() + " hasSpawned=" + this.hasSpawned()
+                + " at " + this.blockPosition());
+        if (this.hasSpawned()) {
+            LogWriter.info("CloneStructureSpawner: after arm() skipped spawn (hasSpawned=true) at "
+                    + this.blockPosition());
+            return;
+        }
         final boolean spawned = this.trySpawnNow();
-        if (!spawned && this.isAlive()) {
-            LogWriter.info("CloneStructureSpawner: after arm() still present, blockReason="
+        if (!spawned) {
+            LogWriter.info("CloneStructureSpawner: after arm() still waiting, blockReason="
                     + this.describeSpawnBlockReason() + " at " + this.blockPosition());
         }
     }
@@ -360,6 +405,7 @@ public class EntityCloneStructureSpawner extends Entity {
         this.entityData.define(DATA_CLONE_NAME, "");
         this.entityData.define(DATA_CLONE_TAB, 1);
         this.entityData.define(DATA_MANUAL_PLACEMENT, true);
+        this.entityData.define(DATA_HAS_SPAWNED, false);
     }
 
     @Override
@@ -371,6 +417,7 @@ public class EntityCloneStructureSpawner extends Entity {
         if (nbt.contains("ManualPlacement")) {
             this.setManualPlacement(nbt.getBoolean("ManualPlacement"));
         }
+        this.setHasSpawned(nbt.getBoolean("HasSpawned"));
         this.failed = nbt.getBoolean("Failed");
     }
 
@@ -379,6 +426,7 @@ public class EntityCloneStructureSpawner extends Entity {
         nbt.putString("CloneName", this.getCloneName());
         nbt.putInt("CloneTab", this.getCloneTab());
         nbt.putBoolean("ManualPlacement", this.isManualPlacement());
+        nbt.putBoolean("HasSpawned", this.hasSpawned());
         if (this.failed) {
             nbt.putBoolean("Failed", true);
         }

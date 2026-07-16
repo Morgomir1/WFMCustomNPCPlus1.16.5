@@ -9,12 +9,15 @@
 // 4. Спавнеры при ручной/структурной постановке UNARMED; при заходе Survival/Adventure
 //    хелпер вызовет arm() + trySpawnNow(). Спавн клона — когда рядом нет CREATIVE
 //    по GameType (не abilities.instabuild; важно для Arclight/Velocity).
+// 5. После успешного спавна сущность остаётся с hasSpawned=true и больше не спавнится.
+//    armNearby пропускает hasSpawned; freshlyArmed считает только UNARMED без hasSpawned.
+//    Creative Shift+пустая рука на спавнере сбрасывает SPAWNED для повторного теста.
 //
 // Логи сервера (ищи "CloneStructureSpawnerHelper" / "clone_spawner_arm_block"):
 //  - no playable … | players=… → рядом нет survival/adventure (смотри gt=/instabuild=)
 //  - no spawners within … → сущность спавнера не найдена (дальность / чанк)
-//  - freshlyArmed=N spawnedNow=M → реально сняли UNARMED и/или сразу заспавнили
-//  - already ARMED still present blockReason=… → почему моб не вышел
+//  - freshlyArmed=N spawnedNow=M alreadySpawned=K → сняли UNARMED / сразу заспавнили / уже SPAWNED
+//  - already ARMED still waiting blockReason=… → почему моб ещё не вышел
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var CloneSpawnerHelper = Java.type("noppes.npcs.script.CloneStructureSpawnerHelper");
@@ -56,6 +59,7 @@ function tick(event) {
     }
 
     data.put(CD_KEY, String(now + COOLDOWN_TICKS));
+    // armNearby skips hasSpawned; does not re-arm already-spawned spawners
     var freshlyArmed = CloneSpawnerHelper.armNearby(world, x, y, z, SPAWNER_RANGE);
     log("clone_spawner_arm_block: tick freshlyArmed=" + freshlyArmed
         + " at " + block.getX() + "," + block.getY() + "," + block.getZ());

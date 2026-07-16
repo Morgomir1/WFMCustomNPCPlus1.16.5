@@ -103,11 +103,13 @@ public final class CloneStructureSpawnerHelper {
     }
 
     /**
-     * Arms {@link EntityCloneStructureSpawner} entities that are still UNARMED (ManualPlacement).
-     * Already-armed spawners are left alone (not re-counted). {@link EntityCloneStructureSpawner#arm()}
-     * also calls {@code trySpawnNow()} immediately.
+     * Arms {@link EntityCloneStructureSpawner} entities that are still UNARMED (ManualPlacement)
+     * and have not already spawned ({@code hasSpawned=false}).
+     * Already-armed / already-spawned spawners are left alone (not re-counted).
+     * {@link EntityCloneStructureSpawner#arm()} also calls {@code trySpawnNow()} immediately
+     * but never clears {@code hasSpawned}.
      *
-     * @return number of spawners freshly armed (UNARMED→ARMED), not already-armed recounts
+     * @return number of spawners freshly armed (UNARMED→ARMED, !hasSpawned), not already-armed recounts
      */
     public static int armNearby(
             final IWorld world,
@@ -131,9 +133,14 @@ public final class CloneStructureSpawnerHelper {
         }
         int freshlyArmed = 0;
         int alreadyArmed = 0;
+        int alreadySpawned = 0;
         int spawnedNow = 0;
         for (final EntityCloneStructureSpawner spawner : list) {
             if (spawner == null || !spawner.isAlive()) {
+                continue;
+            }
+            if (spawner.hasSpawned()) {
+                alreadySpawned++;
                 continue;
             }
             final boolean wasUnarmed = spawner.isManualPlacement();
@@ -146,8 +153,8 @@ public final class CloneStructureSpawnerHelper {
                             + " clone=" + spawner.getCloneName()
                             + " tab=" + spawner.getCloneTab()
                             + " at " + spawner.blockPosition());
-                } else if (spawner.isAlive()) {
-                    LogWriter.info("CloneStructureSpawnerHelper: already ARMED still present"
+                } else {
+                    LogWriter.info("CloneStructureSpawnerHelper: already ARMED still waiting"
                             + " blockReason=" + spawner.describeSpawnBlockReason()
                             + " clone=" + spawner.getCloneName()
                             + " tab=" + spawner.getCloneTab()
@@ -157,7 +164,7 @@ public final class CloneStructureSpawnerHelper {
             }
             spawner.arm();
             freshlyArmed++;
-            if (!spawner.isAlive()) {
+            if (spawner.hasSpawned()) {
                 spawnedNow++;
                 LogWriter.info("CloneStructureSpawnerHelper: freshly armed and SPAWNED immediately"
                         + " clone=" + spawner.getCloneName()
@@ -174,6 +181,7 @@ public final class CloneStructureSpawnerHelper {
         LogWriter.info("CloneStructureSpawnerHelper: near " + fmt(x, y, z)
                 + " freshlyArmed=" + freshlyArmed
                 + " alreadyArmed=" + alreadyArmed
+                + " alreadySpawned=" + alreadySpawned
                 + " spawnedNow=" + spawnedNow
                 + " found=" + list.size());
         return freshlyArmed;

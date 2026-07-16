@@ -1,18 +1,20 @@
 // Scripted Block: при появлении Survival/Adventure-игрока рядом — вооружает
-// EntityCloneStructureSpawner (arm), клоны сам не спавнит.
+// EntityCloneStructureSpawner (arm + немедленный trySpawnNow).
 //
 // Установка:
 // 1. Поставь Scripted Block в структуру рядом со спавнерами.
 // 2. Открой GUI блока → вкладка Tick → вставь этот скрипт целиком
 //    (если GUI глючит на длинной вставке — вставляй частями; после патча GuiTextArea обычно ок).
 // 3. Включи Scripts Enabled на блоке → сохрани.
-// 4. Спавнеры при ручной/структурной постановке UNARMED; при заходе Survival-игрока
-//    хелпер вызовет arm(). Спавн клона — когда рядом нет creative (радиус 16 у спавнера).
+// 4. Спавнеры при ручной/структурной постановке UNARMED; при заходе Survival/Adventure
+//    хелпер вызовет arm() + trySpawnNow(). Спавн клона — когда рядом нет CREATIVE
+//    по GameType (не abilities.instabuild; важно для Arclight/Velocity).
 //
 // Логи сервера (ищи "CloneStructureSpawnerHelper" / "clone_spawner_arm_block"):
-//  - no playable player → рядом нет survival/adventure
+//  - no playable … | players=… → рядом нет survival/adventure (смотри gt=/instabuild=)
 //  - no spawners within … → сущность спавнера не найдена (дальность / чанк)
-//  - armed N spawner(s) → arm() прошёл
+//  - freshlyArmed=N spawnedNow=M → реально сняли UNARMED и/или сразу заспавнили
+//  - already ARMED still present blockReason=… → почему моб не вышел
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var CloneSpawnerHelper = Java.type("noppes.npcs.script.CloneStructureSpawnerHelper");
@@ -47,14 +49,15 @@ function tick(event) {
     var z = block.getZ() + 0.5;
 
     if (!CloneSpawnerHelper.hasPlayablePlayerNearby(world, x, y, z, PLAYER_RANGE)) {
+        var detail = CloneSpawnerHelper.describeNearbyPlayers(world, x, y, z, PLAYER_RANGE);
         maybeLogIdle(data, now, "no playable (survival/adventure) player within "
-            + PLAYER_RANGE + " at " + x + "," + y + "," + z);
+            + PLAYER_RANGE + " at " + x + "," + y + "," + z + " | players=" + detail);
         return;
     }
 
     data.put(CD_KEY, String(now + COOLDOWN_TICKS));
-    var armed = CloneSpawnerHelper.armNearby(world, x, y, z, SPAWNER_RANGE);
-    log("clone_spawner_arm_block: tick armed=" + armed
+    var freshlyArmed = CloneSpawnerHelper.armNearby(world, x, y, z, SPAWNER_RANGE);
+    log("clone_spawner_arm_block: tick freshlyArmed=" + freshlyArmed
         + " at " + block.getX() + "," + block.getY() + "," + block.getZ());
 }
 

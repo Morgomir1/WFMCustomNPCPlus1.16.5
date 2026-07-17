@@ -229,6 +229,186 @@ public final class AbilityVfx {
         }
     }
 
+    /** Зарядка Дракенфельса: огонь душ + песок душ + WFM fog. */
+    public static void spawnDarkCharge(final IWorld world, final double x, final double y, final double z) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 4; i++) {
+            final double ox = (r.nextDouble() - 0.5) * 1.3;
+            final double oy = 0.2 + r.nextDouble() * 0.6;
+            final double oz = (r.nextDouble() - 0.5) * 1.3;
+            safeSpawn(world, "minecraft:soul_fire_flame", x + ox, y + oy, z + oz, 0, 0.05, 0, 0.01, 1);
+            safeSpawn(world, "minecraft:soul", x + ox * 0.7, y + oy * 0.5, z + oz * 0.7, 0, 0.04, 0, 0.01, 1);
+        }
+        spawnWfmFog(world, x, y + 0.35, z, 0.9, 2);
+    }
+
+    /** Burst Poison Feast / cleave finish: кольцо души + туман. */
+    public static void spawnPoisonFeastBurst(final IWorld world, final double x, final double y, final double z, final double radius) {
+        final int count = 14;
+        for (int i = 0; i < count; i++) {
+            final double a = (i / (double) count) * Math.PI * 2;
+            final double px = x + Math.cos(a) * radius;
+            final double pz = z + Math.sin(a) * radius;
+            safeSpawn(world, "minecraft:soul_fire_flame", px, y + 0.25, pz, 0, 0.1, 0, 0.02, 1);
+            safeSpawn(world, "minecraft:soul",
+                    x + Math.cos(a) * (radius * 0.7),
+                    y + 0.2,
+                    z + Math.sin(a) * (radius * 0.7),
+                    0, 0.06, 0, 0.015, 1);
+        }
+        spawnWfmFogRing(world, x, y + 0.3, z, radius * 0.85, 10);
+        safeSpawn(world, "minecraft:soul", x, y + 0.5, z, 0.2, 0.12, 0.2, 0.03, 8);
+    }
+
+    public static void spawnSoulCharge(final IWorld world, final double x, final double y, final double z) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 5; i++) {
+            final double ox = (r.nextDouble() - 0.5) * 1.2;
+            final double oy = 0.25 + r.nextDouble() * 0.7;
+            final double oz = (r.nextDouble() - 0.5) * 1.2;
+            safeSpawn(world, "minecraft:soul_fire_flame", x + ox, y + oy, z + oz, 0, 0.05, 0, 0.01, 1);
+            safeSpawn(world, "minecraft:soul", x + ox * 0.8, y + oy * 0.6, z + oz * 0.8, 0, 0.04, 0, 0.01, 1);
+        }
+        spawnWfmFog(world, x, y + 0.4, z, 0.7, 2);
+    }
+
+    public static void spawnSoulBurst(final IWorld world, final double x, final double y, final double z, final double radius) {
+        final int count = 12;
+        for (int i = 0; i < count; i++) {
+            final double a = (i / (double) count) * Math.PI * 2;
+            final double px = x + Math.cos(a) * radius;
+            final double pz = z + Math.sin(a) * radius;
+            safeSpawn(world, "minecraft:soul_fire_flame", px, y + 0.35, pz, 0, 0.1, 0, 0.02, 1);
+            safeSpawn(world, "minecraft:soul", px, y + 0.45, pz, 0, 0.06, 0, 0.015, 1);
+        }
+        safeSpawn(world, "minecraft:soul", x, y + 0.8, z, 0.15, 0.08, 0.15, 0.025, 8);
+        spawnWfmFogRing(world, x, y + 0.25, z, Math.max(1.2, radius * 0.9), 8);
+    }
+
+    public static void spawnShadowTrail(final IWorld world, final double x, final double y, final double z) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 3; i++) {
+            safeSpawn(world, "minecraft:soul_fire_flame",
+                    x + (r.nextDouble() - 0.5) * 0.7,
+                    y + r.nextDouble() * 1.4,
+                    z + (r.nextDouble() - 0.5) * 0.7,
+                    0, 0.04, 0, 0, 1);
+            safeSpawn(world, "minecraft:soul",
+                    x + (r.nextDouble() - 0.5) * 0.6,
+                    y + 0.15 + r.nextDouble() * 0.8,
+                    z + (r.nextDouble() - 0.5) * 0.6,
+                    0, 0.03, 0, 0.01, 1);
+        }
+        if (r.nextBoolean()) {
+            spawnWfmFog(world, x, y + 0.2, z, 0.35, 1);
+        }
+    }
+
+    /** Aura thralls: туман + песок душ вместо обычного smoke. */
+    public static void spawnSoulFogCloud(final IWorld world, final double x, final double y, final double z, final float height) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 10; i++) {
+            final double ox = (r.nextDouble() - 0.5) * 1.1;
+            final double oy = r.nextDouble() * height;
+            final double oz = (r.nextDouble() - 0.5) * 1.1;
+            safeSpawn(world, "minecraft:soul", x + ox, y + oy, z + oz, 0, 0.05, 0, 0.015, 1);
+            if (i % 2 == 0) {
+                safeSpawn(world, "minecraft:soul_fire_flame", x + ox, y + oy + 0.15, z + oz, 0, 0.03, 0, 0.01, 1);
+            }
+        }
+        spawnWfmFog(world, x, y + height * 0.35, z, 1.0, 3);
+        spawnWfmFogWall(world, x, y + 0.1, z, 0.5, 1);
+    }
+
+    public static void spawnSoulThread(
+            final IWorld world,
+            final double x1,
+            final double y1,
+            final double z1,
+            final double x2,
+            final double y2,
+            final double z2) {
+        final int steps = 8;
+        for (int i = 0; i <= steps; i++) {
+            final double t = i / (double) steps;
+            final double x = x1 + (x2 - x1) * t;
+            final double y = y1 + (y2 - y1) * t + 0.4;
+            final double z = z1 + (z2 - z1) * t;
+            safeSpawn(world, "minecraft:soul_fire_flame", x, y, z, 0, 0.02, 0, 0, 1);
+            if (i % 2 == 0) {
+                safeSpawn(world, "minecraft:soul", x, y + 0.1, z, 0, 0.02, 0, 0.01, 1);
+            }
+            if (i == 0 || i == steps || i == steps / 2) {
+                spawnWfmFog(world, x, y, z, 0.25, 1);
+            }
+        }
+    }
+
+    private static void spawnWfmFog(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double spread,
+            final int count) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < count; i++) {
+            final double ox = (r.nextDouble() - 0.5) * spread;
+            final double oz = (r.nextDouble() - 0.5) * spread;
+            safeSpawn(world, "wfm:fog",
+                    x + ox,
+                    y + r.nextDouble() * 0.2,
+                    z + oz,
+                    (r.nextDouble() - 0.5) * 0.008,
+                    0.001 + r.nextDouble() * 0.003,
+                    (r.nextDouble() - 0.5) * 0.008,
+                    0.0,
+                    1);
+        }
+    }
+
+    private static void spawnWfmFogRing(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final int count) {
+        for (int i = 0; i < count; i++) {
+            final double a = (i / (double) count) * Math.PI * 2;
+            safeSpawn(world, "wfm:fog",
+                    x + Math.cos(a) * radius,
+                    y,
+                    z + Math.sin(a) * radius,
+                    Math.cos(a) * 0.01,
+                    0.002,
+                    Math.sin(a) * 0.01,
+                    0.0,
+                    1);
+        }
+    }
+
+    private static void spawnWfmFogWall(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double spread,
+            final int count) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < count; i++) {
+            safeSpawn(world, "wfm:fog_wall",
+                    x + (r.nextDouble() - 0.5) * spread,
+                    y + r.nextDouble() * 0.4,
+                    z + (r.nextDouble() - 0.5) * spread,
+                    (r.nextDouble() - 0.5) * 0.01,
+                    0.002,
+                    (r.nextDouble() - 0.5) * 0.01,
+                    0.0,
+                    1);
+        }
+    }
+
     private static void safeSpawn(
             final IWorld world,
             final String particle,

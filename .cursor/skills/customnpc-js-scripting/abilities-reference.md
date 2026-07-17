@@ -38,6 +38,14 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 |----|-------|----------|
 | `dash` | `DashAbility` | Рывок к цели, урон по пути |
 | `jump_slam` | `JumpSlamAbility` | Прыжок по дуге, AoE при приземлении |
+| `drachenfels_poison_feast` | `DrachenfelsPoisonFeastAbility` | AoE яд + урон (тело Дракенфельса) |
+| `drachenfels_dark_cleave` | `DrachenfelsDarkCleaveAbility` | Короткий рывок-замах конусом |
+| `drachenfels_soul_rend` | `DrachenfelsSoulRendAbility` | Конус soul/wither (дух) |
+| `drachenfels_spirit_barrage` | `DrachenfelsSpiritBarrageAbility` | Серия импульсов к цели |
+| `drachenfels_raise_thralls` | `DrachenfelsRaiseThrallsAbility` | Призыв thrall-клонов + aura |
+| `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
+
+Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
 
 ---
 
@@ -69,7 +77,75 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `landRadius` | double | 2.8 | Радиус AoE при приземлении |
 | `arcHeight` | double | 6.0 | Высота дуги |
 
-**Кулдауны босса** (`dashCooldown`, `jumpCooldown`) — не в Java; хранятся в JS `storeddata`.
+### `drachenfels_poison_feast`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 14 | Зарядка |
+| `damage` | double | 14.0 | Урон AoE |
+| `radius` | double | 5.0 | Радиус |
+| `knockback` / `knockbackY` | double | 0.9 / 0.25 | Отбрасывание |
+| `effectType` | string | `poison` | Эффект (`AbilityEffectType`) |
+| `effectDuration` | int | 80 | Длительность эффекта (тики MC) |
+| `effectAmplifier` | int | 1 | Уровень эффекта |
+
+### `drachenfels_dark_cleave`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `distance` | double | 5.5 | Длина рывка |
+| `chargeTicks` / `activeTicks` | int | 8 / 5 | Фазы |
+| `damage` | double | 13.0 | Урон |
+| `radius` | double | 2.4 | Радиус конуса |
+| `coneHalfAngle` | double | 65.0 | Полуугол конуса |
+| `knockback` / `knockbackY` | double | 1.4 / 0.3 | Отбрасывание |
+
+### `drachenfels_soul_rend`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 12 | Зарядка |
+| `damage` | double | 12.0 | Урон конуса |
+| `radius` | double | 6.0 | Дальность конуса |
+| `coneHalfAngle` | double | 40.0 | Полуугол |
+| `effectType` | string | `wither` | Эффект |
+| `effectDuration` / `effectAmplifier` | int | 60 / 0 | Параметры эффекта |
+| `knockback` / `knockbackY` | double | 0.7 / 0.2 | Отбрасывание |
+
+### `drachenfels_spirit_barrage`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 10 / 16 | Фазы |
+| `shots` | int | 4 | Число импульсов |
+| `distance` | double | 14.0 | Макс. длина линии импульсов |
+| `damage` | double | 7.0 | Урон импульса |
+| `hitRadius` | double | 1.8 | Радиус попадания |
+| `knockback` / `knockbackY` | double | 0.5 / 0.15 | Отбрасывание |
+
+### `drachenfels_raise_thralls`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 12 / 18 | Фазы |
+| `summonCount` | int | 2 | Сколько клонов |
+| `summonRadius` | double | 3.5 | Радиус спавна |
+| `maxSummonedNearBoss` | int | 4 | Лимит thrall рядом |
+| `cloneTab` / `cloneName` | int / string | 1 / `Drachenfels Thrall` | Clone Bank |
+| `radius` | double | 4.0 | Радиус aura slow |
+| `effectType` | string | `slowness` | Эффект aura |
+
+### `drachenfels_shadow_step`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `distance` | double | 10.0 | Дистанция dash |
+| `chargeTicks` / `activeTicks` | int | 6 / 5 | Фазы |
+| `damage` | double | 8.0 | Урон по пути |
+| `hitRadius` | double | 1.5 | Радиус хита |
+| `knockback` / `knockbackY` | double | 1.1 / 0.25 | Отбрасывание |
+
+**Кулдауны босса** — не в Java; хранятся в JS `storeddata`.
 
 ---
 

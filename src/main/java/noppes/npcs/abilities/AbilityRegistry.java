@@ -28,6 +28,12 @@ public final class AbilityRegistry {
         register(new BarrowSentinelAbility());
         register(new GraspingDeadAbility());
         register(new RatlingGunVolleyAbility());
+        register(new DrachenfelsPoisonFeastAbility());
+        register(new DrachenfelsDarkCleaveAbility());
+        register(new DrachenfelsSoulRendAbility());
+        register(new DrachenfelsSpiritBarrageAbility());
+        register(new DrachenfelsRaiseThrallsAbility());
+        register(new DrachenfelsShadowStepAbility());
     }
 
     private AbilityRegistry() {

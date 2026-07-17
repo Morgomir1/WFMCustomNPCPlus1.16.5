@@ -247,4 +247,85 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
         return map;
     }
+
+    public static Map<String, Object> drachenfelsPoisonFeast() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 14);
+        map.put(AbilityParamKeys.DAMAGE, 14.0);
+        map.put(AbilityParamKeys.RADIUS, 5.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.9);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "poison");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 80);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 1);
+        return map;
+    }
+
+    public static Map<String, Object> drachenfelsDarkCleave() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 5.5);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 8);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
+        map.put(AbilityParamKeys.DAMAGE, 13.0);
+        map.put(AbilityParamKeys.RADIUS, 2.4);
+        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 65.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.4);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.3);
+        return map;
+    }
+
+    public static Map<String, Object> drachenfelsSoulRend() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.DAMAGE, 12.0);
+        map.put(AbilityParamKeys.RADIUS, 6.0);
+        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 40.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.7);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.2);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "wither");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 60);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        return map;
+    }
+
+    public static Map<String, Object> drachenfelsSpiritBarrage() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 16);
+        map.put(AbilityParamKeys.SHOTS, 4);
+        map.put(AbilityParamKeys.DISTANCE, 14.0);
+        map.put(AbilityParamKeys.DAMAGE, 7.0);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.8);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.5);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.15);
+        return map;
+    }
+
+    public static Map<String, Object> drachenfelsRaiseThralls() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 18);
+        map.put(AbilityParamKeys.RADIUS, 4.0);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "slowness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 40);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.SUMMON_COUNT, 2);
+        map.put(AbilityParamKeys.SUMMON_RADIUS, 3.5);
+        map.put(AbilityParamKeys.MAX_SUMMONED_NEAR_BOSS, 4);
+        map.put(AbilityParamKeys.CLONE_TAB, 1);
+        map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels Thrall");
+        return map;
+    }
+
+    public static Map<String, Object> drachenfelsShadowStep() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 10.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 6);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
+        map.put(AbilityParamKeys.DAMAGE, 8.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.1);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.5);
+        return map;
+    }
 }

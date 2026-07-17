@@ -25,7 +25,13 @@ noppes.npcs.abilities/
     ├── StakeThrustAbility.java    # id: stake_thrust
     ├── HolyWaterSplashAbility.java # id: holy_water_splash
     ├── BurningBrandAbility.java   # id: burning_brand
-    └── RetreatDashAbility.java    # id: retreat_dash
+    ├── RetreatDashAbility.java    # id: retreat_dash
+    ├── DrachenfelsPoisonFeastAbility.java  # id: drachenfels_poison_feast
+    ├── DrachenfelsDarkCleaveAbility.java   # id: drachenfels_dark_cleave
+    ├── DrachenfelsSoulRendAbility.java     # id: drachenfels_soul_rend
+    ├── DrachenfelsSpiritBarrageAbility.java # id: drachenfels_spirit_barrage
+    ├── DrachenfelsRaiseThrallsAbility.java # id: drachenfels_raise_thralls
+    └── DrachenfelsShadowStepAbility.java   # id: drachenfels_shadow_step
 ```
 
 ## CnpcAbility — контракт
@@ -237,6 +243,19 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 Дуга (jump_slam): `cy = baseY + Math.sin(t * Math.PI) * arcHeight`.
 
+### `drachenfels_*` — парный босс Constant Drachenfels
+
+| id | Роль | Суть |
+|----|------|------|
+| `drachenfels_poison_feast` | body | AoE poison + damage |
+| `drachenfels_dark_cleave` | body | короткий dash + cone |
+| `drachenfels_soul_rend` | spirit | cone wither |
+| `drachenfels_spirit_barrage` | spirit | импульсы к цели |
+| `drachenfels_raise_thralls` | оба | spawnClone thralls |
+| `drachenfels_shadow_step` | оба | soul dash |
+
+Дефолты — `AbilityDefaults.drachenfels*()`. Эффекты `poison` / `wither` — в `AbilityEffectType`.
+
 ## Примеры скриптов
 
 | Файл | Назначение |
@@ -244,5 +263,6 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `scripts/boss_dash_jump/boss_periodic_abilities.js` | Чередование dash/jump, фикс. params |
 | `scripts/boss_dash_jump/boss_dash_jump.js` | То же + бонус урона при низком HP |
 | `scripts/witch_hunter/witch_hunter_boss.js` | Охотник на ведьм: фазы, выбор по дистанции |
+| `scripts/drachenfels/drachenfels_boss.js` | Тело+дух, Immortal Bond revive, фазы 1/2/bond |
 
 После правки скрипта на NPC: `/script reload`.

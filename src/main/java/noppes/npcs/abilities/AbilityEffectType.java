@@ -5,7 +5,9 @@ import net.minecraft.potion.Effect;
 public enum AbilityEffectType {
     SLOWNESS("slowness"),
     WEAKNESS("weakness"),
-    BLINDNESS("blindness");
+    BLINDNESS("blindness"),
+    POISON("poison"),
+    WITHER("wither");
 
     private final String id;
 
@@ -36,6 +38,10 @@ public enum AbilityEffectType {
                 return net.minecraft.potion.Effects.WEAKNESS;
             case BLINDNESS:
                 return net.minecraft.potion.Effects.BLINDNESS;
+            case POISON:
+                return net.minecraft.potion.Effects.POISON;
+            case WITHER:
+                return net.minecraft.potion.Effects.WITHER;
             case SLOWNESS:
             default:
                 return net.minecraft.potion.Effects.MOVEMENT_SLOWDOWN;

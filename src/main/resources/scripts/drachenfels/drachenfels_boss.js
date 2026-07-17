@@ -1,13 +1,15 @@
 /**
  * Босс: Constant Drachenfels — парный (тело + дух).
  *
- * Immortal Bond: если убит один, живой воскрешает мёртвого через REVIVE_WINDOW_TICKS,
- * если второго не убили вовремя. Воскрешения без лимита, пока жив партнёр.
+ * Immortal Bond: при летальном уроне тот же entity «падает» на месте,
+ * партнёр поднимает ЕГО ЖЕ (UUID/home не меняются). spawnClone для боссов нет.
+ * Настоящая смерть обоих → обычный CNPC-respawn на домашней точке.
  *
  * Роль: storeddata df_role = "body" | "spirit" (или по имени клона).
- * Тег: drachenfels. Clone Bank: Drachenfels Body / Spirit / Thrall.
+ * Тег: drachenfels (вешается в init). Thralls: тег drachenfels_thrall.
  *
- * Механика боя — Java AbilityAPI. JS: фазы, CD, выбор скилла, связь пары, revive.
+ * Движение: не преследует в мили (OnAttack=Ничего). Дистанция — kite/retreat
+ * и shadow_step. Дух: Navigation=Flying + hover.
  */
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
@@ -22,11 +24,35 @@ var CAST_INTERVAL_BOND = 48;
 var REVIVE_WINDOW_TICKS = 240;
 var REVIVE_HP_RATIO = 0.45;
 var LINK_RADIUS = 48;
+var THRALL_RANGE = 48;
 var PAIR_TAG = "drachenfels";
+var THRALL_TAG = "drachenfels_thrall";
+
+// CNPC OnAttack: 0=Мстить, 1=Паника, 2=Отступать, 3=Ничего
+var RETALIATE_REVENGE = 0;
+var RETALIATE_RETREAT = 2;
+var RETALIATE_NONE = 3;
+// Navigation: 0=Ground, 1=Flying, 2=Swimming
+var NAV_GROUND = 0;
+var NAV_FLYING = 1;
+// Moving: 0=Standing, 1=Wandering, 2=MovingPath
+var MOVING_STANDING = 0;
+
+var VISIBLE_HIDDEN = 1;
+var VISIBLE_NORMAL = 0;
+
+// Дистанции «скиллового» позиционирования
+var BODY_MIN_RANGE = 3.8;
+var BODY_MAX_RANGE = 9.5;
+var SPIRIT_MIN_RANGE = 6.5;
+var SPIRIT_MAX_RANGE = 15.0;
+var KITE_TICKS = 45;
+var KITE_SPEED_BODY = 5;
+var KITE_SPEED_SPIRIT = 6;
+var CASTER_SPEED = 1;
+var AGRO_RANGE = 28;
 
 var CLONE_TAB = 1;
-var CLONE_BODY = "Drachenfels Body";
-var CLONE_SPIRIT = "Drachenfels Spirit";
 var CLONE_THRALL = "Drachenfels Thrall";
 
 var ROLE_KEY = "df_role";
@@ -34,17 +60,32 @@ var PARTNER_UUID_KEY = "df_partner_uuid";
 var PAIR_ID_KEY = "df_pair_id";
 var PARTNER_DEAD_KEY = "df_partner_dead";
 var REVIVE_UNTIL_KEY = "df_revive_until";
+var DEAD_UUID_KEY = "df_dead_uuid";
 var DEAD_X_KEY = "df_dead_x";
 var DEAD_Y_KEY = "df_dead_y";
 var DEAD_Z_KEY = "df_dead_z";
 var DEAD_ROLE_KEY = "df_dead_role";
-var DEAD_CLONE_KEY = "df_dead_clone";
+var DOWNED_KEY = "df_downed";
+var DOWNED_X_KEY = "df_downed_x";
+var DOWNED_Y_KEY = "df_downed_y";
+var DOWNED_Z_KEY = "df_downed_z";
+var HOME_X_KEY = "df_home_x";
+var HOME_Y_KEY = "df_home_y";
+var HOME_Z_KEY = "df_home_z";
+var HOVER_Y_KEY = "df_hover_y";
+var HOVER_AMP = 0.22;
+var HOVER_MAX_DRIFT = 1.8;
+var SAVED_RETALIATE_KEY = "df_saved_retaliate";
+var SAVED_SPEED_KEY = "df_saved_speed";
+var SAVED_VISIBLE_KEY = "df_saved_visible";
 var PHASE_KEY = "df_phase";
 var NEXT_CAST_KEY = "df_next_cast";
 var LAST_ABILITY_KEY = "df_last_ability";
 var FORCED_ABILITY_KEY = "df_forced_ability";
 var CD_PREFIX = "df_cd_";
 var LINKED_KEY = "df_linked";
+var KITE_UNTIL_KEY = "df_kite_until";
+var STANCE_READY_KEY = "df_stance_ready";
 
 var POISON_FEAST_ID = "drachenfels_poison_feast";
 var DARK_CLEAVE_ID = "drachenfels_dark_cleave";
@@ -91,12 +132,32 @@ function init(event) {
     if (!npc.hasTag(PAIR_TAG)) {
         npc.addTag(PAIR_TAG);
     }
-    data.put(PHASE_KEY, "1");
+    // Домашняя точка — куда вернёт CNPC-respawn после настоящей смерти обоих
+    if (!data.has(HOME_X_KEY) || String(data.get(HOME_X_KEY)).length == 0) {
+        data.put(HOME_X_KEY, String(npc.getX()));
+        data.put(HOME_Y_KEY, String(npc.getY()));
+        data.put(HOME_Z_KEY, String(npc.getZ()));
+    }
+    if (getRole(data) == "spirit") {
+        if (!data.has(HOVER_Y_KEY) || String(data.get(HOVER_Y_KEY)).length == 0) {
+            data.put(HOVER_Y_KEY, String(getFloat(data, HOME_Y_KEY) + 1.2));
+        }
+    }
+    if (String(data.get(DOWNED_KEY)) != "1") {
+        data.put(PHASE_KEY, "1");
+        data.put(PARTNER_DEAD_KEY, "0");
+        data.put(REVIVE_UNTIL_KEY, "0");
+        data.put(DEAD_UUID_KEY, "");
+        data.put(DOWNED_X_KEY, "");
+        data.put(DOWNED_Y_KEY, "");
+        data.put(DOWNED_Z_KEY, "");
+    }
     data.put(LAST_ABILITY_KEY, "");
     data.put(FORCED_ABILITY_KEY, "");
-    data.put(PARTNER_DEAD_KEY, "0");
-    data.put(REVIVE_UNTIL_KEY, "0");
+    data.put(KITE_UNTIL_KEY, "0");
     tryLinkPartner(npc);
+    applyCasterStance(npc);
+    data.put(STANCE_READY_KEY, "1");
     startTimers(npc);
 }
 
@@ -104,10 +165,20 @@ function timer(event) {
     if (event.id == PHASE_CHECK_ID) {
         var npc = event.npc;
         if (!npc.isAlive()) return;
+
+        var data = npc.getStoreddata();
+        if (String(data.get(DOWNED_KEY)) == "1") {
+            tickDownedWatchdog(npc);
+            return;
+        }
+
         tryLinkPartner(npc);
+        ensureCombatTarget(npc);
         updateBondAndPhase(npc);
         tickBondVfx(npc);
         tryCompleteRevive(npc);
+        cleanupThrallsIfNoAggro(npc);
+        manageSpacing(npc);
         return;
     }
     if (event.id != TIMER_ID) return;
@@ -117,11 +188,28 @@ function timer(event) {
         AbilityAPI.cancel(npc);
         return;
     }
-    if (AbilityAPI.isBusy(npc)) return;
+
+    var data = npc.getStoreddata();
+    if (String(data.get(DOWNED_KEY)) == "1") {
+        // Каждый тик: иначе гравитация/полёт колбасит между pin'ами раз в 20 тиков
+        AbilityAPI.cancel(npc);
+        freezeDownedNpc(npc);
+        return;
+    }
+
+    tickSpiritHover(npc);
+
+    if (AbilityAPI.isBusy(npc)) {
+        // Во время абилки не бежать в мили
+        try { npc.getAi().setRetaliateType(RETALIATE_NONE); } catch (eBusy) {}
+        return;
+    }
 
     var world = npc.getWorld();
-    var data = npc.getStoreddata();
     var now = world.getTotalTime();
+    ensureCombatTarget(npc);
+    manageSpacing(npc);
+
     if (now < getInt(data, NEXT_CAST_KEY)) return;
 
     var target = npc.getAttackTarget();
@@ -139,6 +227,9 @@ function timer(event) {
     }
     if (abilityId == null) return;
 
+    // Перед кастом — стойка кастера (не chase)
+    applyCasterStance(npc);
+
     var started = AbilityAPI.start(npc, abilityId, target, buildParams(abilityId, phase, data));
     if (!started) return;
 
@@ -152,14 +243,100 @@ function timer(event) {
     }
 }
 
+/**
+ * Летальный удар → падение ТОГО ЖЕ NPC (если партнёр жив и не упал).
+ * Второй летальный при упавшем партнёре → настоящая смерть обоих (CNPC-respawn home).
+ */
+function damaged(event) {
+    var npc = event.npc;
+    var data = npc.getStoreddata();
+
+    if (String(data.get(DOWNED_KEY)) == "1") {
+        cancelLethal(event);
+        pinDownedPosition(npc);
+        try { npc.setHealth(1); } catch (e) {}
+        return;
+    }
+
+    var damage = 0;
+    try { damage = parseFloat(String(event.damage)); } catch (e2) { damage = 0; }
+    if (!(damage > 0)) return;
+
+    var hp = npc.getHealth();
+    if (hp - damage > 0.5) return;
+
+    tryLinkPartner(npc);
+    var partner = findPartner(npc);
+    // Партнёр ещё не слинкован — ищем рядом ещё раз перед настоящей смертью
+    if (partner == null || !partner.isAlive() || isDowned(partner)) {
+        tryLinkPartner(npc);
+        partner = findPartner(npc);
+    }
+
+    if (partner != null && partner.isAlive() && isDowned(partner)) {
+        // Второй босс умирает по-настоящему — добиваем упавшего (оба → CNPC home respawn)
+        trulyKillDowned(partner);
+        clearBondFlags(data);
+        return; // не cancel: текущий тоже умирает по-настоящему
+    }
+
+    if (partner == null || !partner.isAlive()) {
+        // Нет живого партнёра — обычная смерть (CNPC вернёт на home)
+        clearBondFlags(data);
+        return;
+    }
+
+    cancelLethal(event);
+    enterDownedState(npc, partner);
+}
+
+function cancelLethal(event) {
+    try { event.setCanceled(true); } catch (e) {}
+    try {
+        if (typeof event.setDamage == "function") event.setDamage(0);
+    } catch (e2) {}
+}
+
 function targetLost(event) {
     AbilityAPI.cancel(event.npc);
+    despawnThrallsNear(event.npc);
 }
 
 function died(event) {
     var npc = event.npc;
     AbilityAPI.cancel(npc);
-    onPartnerDied(npc);
+    despawnThrallsNear(npc);
+
+    var data = npc.getStoreddata();
+    var world = npc.getWorld();
+
+    // Настоящая смерть выжившего во время bond → добить упавшего того же UUID
+    if (String(data.get(PARTNER_DEAD_KEY)) == "1") {
+        var downed = findNpcByUuid(world, String(data.get(DEAD_UUID_KEY)));
+        if (downed != null && isDowned(downed)) {
+            trulyKillDowned(downed);
+        }
+    }
+
+    var partner = findPartner(npc);
+    if (partner != null && isDowned(partner)) {
+        trulyKillDowned(partner);
+    }
+
+    clearBondFlags(data);
+}
+
+function clearBondFlags(data) {
+    if (data == null) return;
+    data.put(DOWNED_KEY, "0");
+    data.put(PARTNER_DEAD_KEY, "0");
+    data.put(REVIVE_UNTIL_KEY, "0");
+    data.put(DEAD_UUID_KEY, "");
+    data.put(KITE_UNTIL_KEY, "0");
+    data.put(DOWNED_X_KEY, "");
+    data.put(DOWNED_Y_KEY, "");
+    data.put(DOWNED_Z_KEY, "");
+    data.put(FORCED_ABILITY_KEY, "");
 }
 
 function ensureRole(npc, data) {
@@ -183,12 +360,21 @@ function getRole(data) {
     return role == "spirit" ? "spirit" : "body";
 }
 
-function cloneNameForRole(role) {
-    return role == "spirit" ? CLONE_SPIRIT : CLONE_BODY;
+function isDowned(npc) {
+    if (npc == null) return false;
+    return String(npc.getStoreddata().get(DOWNED_KEY)) == "1";
+}
+
+function findPartner(npc) {
+    var uuid = String(npc.getStoreddata().get(PARTNER_UUID_KEY));
+    if (uuid.length == 0) return null;
+    return findNpcByUuid(npc.getWorld(), uuid);
 }
 
 function tryLinkPartner(npc) {
     var data = npc.getStoreddata();
+    if (isDowned(npc)) return;
+
     var partnerUuid = String(data.get(PARTNER_UUID_KEY));
     if (partnerUuid.length > 0) {
         var existing = findNpcByUuid(npc.getWorld(), partnerUuid);
@@ -212,6 +398,7 @@ function tryLinkPartner(npc) {
         if (other == null || !other.isAlive()) continue;
         if (String(other.getUUID()) == myUuid) continue;
         if (!other.hasTag(PAIR_TAG)) continue;
+        if (isDowned(other)) continue;
         var od = other.getStoreddata();
         ensureRole(other, od);
         var otherRole = getRole(od);
@@ -261,70 +448,377 @@ function ensurePairId(a, b) {
     db.put(PAIR_ID_KEY, pairId);
 }
 
-function onPartnerDied(deadNpc) {
-    var data = deadNpc.getStoreddata();
-    var partnerUuid = String(data.get(PARTNER_UUID_KEY));
-    if (partnerUuid.length == 0) return;
+function enterDownedState(npc, partner) {
+    AbilityAPI.cancel(npc);
+    var data = npc.getStoreddata();
+    var x = npc.getX();
+    var y = npc.getY();
+    var z = npc.getZ();
 
-    var world = deadNpc.getWorld();
-    var partner = findNpcByUuid(world, partnerUuid);
-    if (partner == null || !partner.isAlive()) {
-        clearPairWorldData(world, String(data.get(PAIR_ID_KEY)));
-        return;
-    }
+    data.put(DOWNED_KEY, "1");
+    data.put(PARTNER_DEAD_KEY, "0");
+    data.put(REVIVE_UNTIL_KEY, "0");
+    data.put(KITE_UNTIL_KEY, "0");
+    data.put(DOWNED_X_KEY, String(x));
+    data.put(DOWNED_Y_KEY, String(y));
+    data.put(DOWNED_Z_KEY, String(z));
 
-    var pairId = String(data.get(PAIR_ID_KEY));
-    if (pairId.length == 0) {
-        ensurePairId(deadNpc, partner);
-        pairId = String(data.get(PAIR_ID_KEY));
-    }
+    try { npc.setHealth(1); } catch (e) {}
+    try { npc.setAttackTarget(null); } catch (e2) {}
+    try { npc.setPosition(x, y, z); } catch (ePos) {}
 
-    var role = getRole(data);
+    try {
+        var ai = npc.getAi();
+        data.put(SAVED_RETALIATE_KEY, String(RETALIATE_NONE));
+        data.put(SAVED_SPEED_KEY, String(CASTER_SPEED));
+        ai.setRetaliateType(RETALIATE_NONE);
+        ai.setWalkingSpeed(0);
+        ai.setMovingType(MOVING_STANDING);
+        // Оставляем Flying: на Ground гравитация роняет, а pin дёргает вверх-вниз
+        if (typeof ai.setNavigationType == "function") {
+            ai.setNavigationType(getRole(data) == "spirit" ? NAV_FLYING : NAV_GROUND);
+        }
+    } catch (e3) {}
+
+    freezeDownedNpc(npc);
+
+    // Не скрываем полностью — тот же моб остаётся на точке падения (виден как «труп»)
+    try {
+        var display = npc.getDisplay();
+        if (!data.has(SAVED_VISIBLE_KEY) || String(data.get(SAVED_VISIBLE_KEY)).length == 0) {
+            data.put(SAVED_VISIBLE_KEY, String(display.getVisible()));
+        }
+        display.setVisible(VISIBLE_NORMAL);
+    } catch (e4) {}
+
+    armPartnerBond(partner, npc);
+
+    var world = npc.getWorld();
+    partner.say("§5§l" + QUOTES_BOND[Math.floor(Math.random() * QUOTES_BOND.length)]);
+
+    try {
+        world.spawnParticle("minecraft:soul", x, y + 1.0, z, 0.3, 0.5, 0.3, 0.04, 20);
+        world.spawnParticle("minecraft:soul_fire_flame", x, y + 0.6, z, 0.25, 0.4, 0.25, 0.03, 16);
+        try {
+            world.spawnParticle("wfm:fog", x, y + 0.3, z, 0.4, 0.1, 0.4, 0, 6);
+        } catch (fogErr) {}
+        world.playSoundAt(NpcAPI.getIPos(x, y, z), "minecraft:entity.wither.hurt", 0.8, 0.6);
+    } catch (e5) {}
+}
+
+function armPartnerBond(partner, downedNpc) {
+    if (partner == null || downedNpc == null) return;
+    var world = partner.getWorld();
     var now = world.getTotalTime();
+    var dd = downedNpc.getStoreddata();
+    var role = getRole(dd);
     var pd = partner.getStoreddata();
     pd.put(PARTNER_DEAD_KEY, "1");
     pd.put(REVIVE_UNTIL_KEY, String(now + REVIVE_WINDOW_TICKS));
-    pd.put(DEAD_X_KEY, String(deadNpc.getX()));
-    pd.put(DEAD_Y_KEY, String(deadNpc.getY()));
-    pd.put(DEAD_Z_KEY, String(deadNpc.getZ()));
+    pd.put(DEAD_UUID_KEY, String(downedNpc.getUUID()));
+    pd.put(DEAD_X_KEY, String(dd.get(DOWNED_X_KEY)));
+    pd.put(DEAD_Y_KEY, String(dd.get(DOWNED_Y_KEY)));
+    pd.put(DEAD_Z_KEY, String(dd.get(DOWNED_Z_KEY)));
     pd.put(DEAD_ROLE_KEY, role);
-    pd.put(DEAD_CLONE_KEY, cloneNameForRole(role));
     pd.put(PHASE_KEY, "bond");
     pd.put(FORCED_ABILITY_KEY, getBondPressureAbility(getRole(pd)));
     pd.put(NEXT_CAST_KEY, String(now + 10));
+    ensurePairId(downedNpc, partner);
+}
 
-    putPairWorldDeath(world, pairId, deadNpc, role);
-    partner.say("§5§l" + QUOTES_BOND[Math.floor(Math.random() * QUOTES_BOND.length)]);
+function pinDownedPosition(npc) {
+    if (npc == null) return;
+    var data = npc.getStoreddata();
+    if (!data.has(DOWNED_X_KEY) || String(data.get(DOWNED_X_KEY)).length == 0) return;
+    var x = getFloat(data, DOWNED_X_KEY);
+    var y = getFloat(data, DOWNED_Y_KEY);
+    var z = getFloat(data, DOWNED_Z_KEY);
+    try {
+        npc.setPosition(x, y, z);
+        npc.setMotionX(0);
+        npc.setMotionY(0);
+        npc.setMotionZ(0);
+    } catch (e) {}
+}
+
+/** Полная заморозка упавшего (позиция + AI + без hover). */
+function freezeDownedNpc(npc) {
+    if (npc == null || !isDowned(npc)) return;
+    pinDownedPosition(npc);
+    try { npc.setHealth(1); } catch (e) {}
+    try { npc.setAttackTarget(null); } catch (e2) {}
+    try {
+        var ai = npc.getAi();
+        ai.setRetaliateType(RETALIATE_NONE);
+        ai.setWalkingSpeed(0);
+        ai.setMovingType(MOVING_STANDING);
+        // Spirit: flying без вертикальной скорости (motion обнулён в pin)
+        if (typeof ai.setNavigationType == "function") {
+            var role = getRole(npc.getStoreddata());
+            ai.setNavigationType(role == "spirit" ? NAV_FLYING : NAV_GROUND);
+        }
+    } catch (e3) {}
+}
+
+function exitDownedState(npc, hpRatio) {
+    var data = npc.getStoreddata();
+    var x = getFloat(data, DOWNED_X_KEY);
+    var y = getFloat(data, DOWNED_Y_KEY);
+    var z = getFloat(data, DOWNED_Z_KEY);
+
+    data.put(DOWNED_KEY, "0");
+    data.put(KITE_UNTIL_KEY, "0");
+
+    // Тот же entity, та же точка падения
+    if (String(data.get(DOWNED_X_KEY)).length > 0) {
+        try { npc.setPosition(x, y, z); } catch (ePos) {}
+    }
+
+    try {
+        var maxHp = npc.getMaxHealth();
+        if (maxHp > 0) {
+            npc.setHealth(maxHp * hpRatio);
+        }
+    } catch (e) {}
+
+    try {
+        var display = npc.getDisplay();
+        var vis = data.has(SAVED_VISIBLE_KEY) ? getInt(data, SAVED_VISIBLE_KEY) : VISIBLE_NORMAL;
+        display.setVisible(vis);
+    } catch (e3) {}
+
+    data.put(DOWNED_X_KEY, "");
+    data.put(DOWNED_Y_KEY, "");
+    data.put(DOWNED_Z_KEY, "");
+
+    applyCasterStance(npc);
+}
+
+function trulyKillDowned(npc) {
+    if (npc == null) return;
+    var data = npc.getStoreddata();
+    clearBondFlags(data);
+
+    try {
+        var display = npc.getDisplay();
+        var vis = data.has(SAVED_VISIBLE_KEY) ? getInt(data, SAVED_VISIBLE_KEY) : VISIBLE_NORMAL;
+        display.setVisible(vis);
+    } catch (e) {}
+
+    AbilityAPI.cancel(npc);
+    // Обычная смерть → CNPC Respawn Time вернёт ЭТОТ же слот/home, не clone
+    try { npc.setHealth(0); } catch (e2) {}
+    try { npc.kill(); } catch (e3) {}
+}
+
+function tickDownedWatchdog(npc) {
+    AbilityAPI.cancel(npc);
+    freezeDownedNpc(npc);
+
+    var myUuid = String(npc.getUUID());
+    var partner = findPartner(npc);
+
+    // Партнёр жив и держит bond на НАШ UUID → остаёмся упавшими на месте
+    if (partner != null && partner.isAlive() && !isDowned(partner)) {
+        var pd = partner.getStoreddata();
+        if (String(pd.get(PARTNER_DEAD_KEY)) == "1" && String(pd.get(DEAD_UUID_KEY)) == myUuid) {
+            return;
+        }
+        // Bond слетел — восстановить на того же downed entity
+        armPartnerBond(partner, npc);
+        return;
+    }
+
+    // Партнёра больше нет (настоящая смерть) → умираем сами (CNPC home respawn)
+    if (partner == null || !partner.isAlive()) {
+        trulyKillDowned(npc);
+    }
 }
 
 function getBondPressureAbility(role) {
     return role == "spirit" ? SOUL_REND_ID : POISON_FEAST_ID;
 }
 
-function putPairWorldDeath(world, pairId, deadNpc, role) {
-    if (pairId.length == 0) return;
-    var wd = world.getStoreddata();
-    var p = "df_pair_" + pairId + "_";
-    wd.put(p + "dead_x", String(deadNpc.getX()));
-    wd.put(p + "dead_y", String(deadNpc.getY()));
-    wd.put(p + "dead_z", String(deadNpc.getZ()));
-    wd.put(p + "dead_role", role);
-    wd.put(p + "dead_clone", cloneNameForRole(role));
-    wd.put(p + "alive_uuid", String(deadNpc.getStoreddata().get(PARTNER_UUID_KEY)));
+/**
+ * При OnAttack=Ничего CNPC сам может не брать цель.
+ * Берём ближайшего игрока в AGRO_RANGE и setAttackTarget.
+ */
+function ensureCombatTarget(npc) {
+    if (npc == null || isDowned(npc)) return null;
+    var cur = null;
+    try { cur = npc.getAttackTarget(); } catch (e) { cur = null; }
+    if (cur != null && cur.isAlive()) return cur;
+
+    var world = npc.getWorld();
+    var best = null;
+    var bestDist = AGRO_RANGE + 1;
+    try {
+        var players = world.getAllPlayers();
+        for (var i = 0; i < players.length; i++) {
+            var p = players[i];
+            if (p == null || !p.isAlive()) continue;
+            try {
+                if (typeof p.getGamemode == "function") {
+                    var gm = p.getGamemode();
+                    if (gm == 1 || gm == 3) continue; // creative / spectator
+                }
+            } catch (eGm) {}
+            var d = flatDistance(npc, p);
+            if (d < bestDist) {
+                bestDist = d;
+                best = p;
+            }
+        }
+    } catch (e2) {}
+
+    if (best != null) {
+        try { npc.setAttackTarget(best); } catch (e3) {}
+    }
+    return best;
 }
 
-function clearPairWorldData(world, pairId) {
-    if (pairId.length == 0) return;
-    var wd = world.getStoreddata();
-    var p = "df_pair_" + pairId + "_";
-    var keys = ["dead_x", "dead_y", "dead_z", "dead_role", "dead_clone", "alive_uuid"];
-    for (var i = 0; i < keys.length; i++) {
-        if (wd.has(p + keys[i])) wd.remove(p + keys[i]);
+/** Кастерская стойка: не преследует, стоит на месте; дух — летает. */
+function applyCasterStance(npc) {
+    if (npc == null || isDowned(npc)) return;
+    var data = npc.getStoreddata();
+    var role = getRole(data);
+    try {
+        var ai = npc.getAi();
+        ai.setRetaliateType(RETALIATE_NONE);
+        ai.setMovingType(MOVING_STANDING);
+        ai.setWalkingSpeed(CASTER_SPEED);
+        if (typeof ai.setNavigationType == "function") {
+            ai.setNavigationType(role == "spirit" ? NAV_FLYING : NAV_GROUND);
+        }
+        if (typeof ai.setLeapAtTarget == "function") {
+            ai.setLeapAtTarget(false);
+        }
+    } catch (e) {}
+}
+
+function applyKiteStance(npc) {
+    if (npc == null || isDowned(npc)) return;
+    var data = npc.getStoreddata();
+    var role = getRole(data);
+    try {
+        var ai = npc.getAi();
+        ai.setRetaliateType(RETALIATE_RETREAT);
+        ai.setMovingType(MOVING_STANDING);
+        ai.setWalkingSpeed(role == "spirit" ? KITE_SPEED_SPIRIT : KITE_SPEED_BODY);
+        if (typeof ai.setNavigationType == "function") {
+            ai.setNavigationType(role == "spirit" ? NAV_FLYING : NAV_GROUND);
+        }
+    } catch (e) {}
+}
+
+function isKiting(data, now) {
+    return now < getInt(data, KITE_UNTIL_KEY);
+}
+
+/**
+ * Держит дистанцию: слишком близко → краткий kite;
+ * слишком далеко → forced shadow_step (скилловое сближение).
+ */
+function manageSpacing(npc) {
+    if (npc == null || !npc.isAlive() || isDowned(npc)) return;
+    if (AbilityAPI.isBusy(npc)) {
+        applyCasterStance(npc);
+        return;
     }
+
+    var data = npc.getStoreddata();
+    var now = npc.getWorld().getTotalTime();
+    var target = null;
+    try { target = npc.getAttackTarget(); } catch (e) { target = null; }
+
+    if (target == null || !target.isAlive()) {
+        applyCasterStance(npc);
+        data.put(KITE_UNTIL_KEY, "0");
+        return;
+    }
+
+    var role = getRole(data);
+    var dist = flatDistance(npc, target);
+    var minR = role == "spirit" ? SPIRIT_MIN_RANGE : BODY_MIN_RANGE;
+    var maxR = role == "spirit" ? SPIRIT_MAX_RANGE : BODY_MAX_RANGE;
+
+    if (dist < minR) {
+        data.put(KITE_UNTIL_KEY, String(now + KITE_TICKS));
+        applyKiteStance(npc);
+        return;
+    }
+
+    if (isKiting(data, now)) {
+        applyKiteStance(npc);
+        return;
+    }
+
+    if (dist > maxR && isCooldownReady(data, now, SHADOW_STEP_ID)) {
+        var forced = String(data.get(FORCED_ABILITY_KEY));
+        if (forced.length == 0) {
+            data.put(FORCED_ABILITY_KEY, SHADOW_STEP_ID);
+        }
+    }
+
+    applyCasterStance(npc);
+}
+
+/**
+ * Парение духа вокруг фиксированной высоты (df_hover_y).
+ * Без постоянного +Y — иначе улетает в небо.
+ */
+function tickSpiritHover(npc) {
+    var data = npc.getStoreddata();
+    if (getRole(data) != "spirit") return;
+    if (isDowned(npc)) return;
+
+    try {
+        var ai = npc.getAi();
+        if (typeof ai.setNavigationType == "function") {
+            ai.setNavigationType(NAV_FLYING);
+        }
+    } catch (e) {}
+
+    // Во время абилки (shadow_step и т.п.) высоту не трогаем
+    if (AbilityAPI.isBusy(npc)) return;
+
+    try {
+        if (!data.has(HOVER_Y_KEY) || String(data.get(HOVER_Y_KEY)).length == 0) {
+            var base = data.has(HOME_Y_KEY) ? getFloat(data, HOME_Y_KEY) + 1.2 : npc.getY();
+            data.put(HOVER_Y_KEY, String(base));
+        }
+        var hoverY = getFloat(data, HOVER_Y_KEY);
+        var t = npc.getWorld().getTotalTime();
+        var targetY = hoverY + Math.sin(t * 0.07) * HOVER_AMP;
+        var x = npc.getX();
+        var y = npc.getY();
+        var z = npc.getZ();
+        var dy = targetY - y;
+
+        // Жёсткий потолок / пол — если унесло
+        if (y > hoverY + HOVER_MAX_DRIFT) {
+            npc.setPosition(x, hoverY + HOVER_AMP, z);
+            npc.setMotionY(-0.1);
+            return;
+        }
+        if (y < hoverY - HOVER_MAX_DRIFT) {
+            npc.setPosition(x, hoverY - HOVER_AMP, z);
+            npc.setMotionY(0.05);
+            return;
+        }
+
+        // Мягкая коррекция к целевой высоте (и вверх, и вниз)
+        var corr = dy * 0.15;
+        if (corr > 0.06) corr = 0.06;
+        if (corr < -0.06) corr = -0.06;
+        npc.setMotionY(corr);
+    } catch (e3) {}
 }
 
 function updateBondAndPhase(npc) {
     var data = npc.getStoreddata();
+    if (isDowned(npc)) return;
+
     var partnerDead = String(data.get(PARTNER_DEAD_KEY)) == "1";
     if (partnerDead) {
         var until = getInt(data, REVIVE_UNTIL_KEY);
@@ -361,9 +855,10 @@ function tickBondVfx(npc) {
     var now = npc.getWorld().getTotalTime();
     if (now % 10 != 0) return;
 
-    var dx = getFloat(data, DEAD_X_KEY);
-    var dy = getFloat(data, DEAD_Y_KEY);
-    var dz = getFloat(data, DEAD_Z_KEY);
+    var downed = findNpcByUuid(npc.getWorld(), String(data.get(DEAD_UUID_KEY)));
+    var dx = downed != null ? downed.getX() : getFloat(data, DEAD_X_KEY);
+    var dy = downed != null ? downed.getY() : getFloat(data, DEAD_Y_KEY);
+    var dz = downed != null ? downed.getZ() : getFloat(data, DEAD_Z_KEY);
     var world = npc.getWorld();
     try {
         var steps = 8;
@@ -394,66 +889,58 @@ function tickBondVfx(npc) {
 function tryCompleteRevive(npc) {
     var data = npc.getStoreddata();
     if (String(data.get(PARTNER_DEAD_KEY)) != "1") return;
-    if (!npc.isAlive()) return;
+    if (!npc.isAlive() || isDowned(npc)) return;
 
     var world = npc.getWorld();
     var now = world.getTotalTime();
     var until = getInt(data, REVIVE_UNTIL_KEY);
     if (until <= 0 || now < until) return;
 
-    var pairId = String(data.get(PAIR_ID_KEY));
-
-    var x = getFloat(data, DEAD_X_KEY);
-    var y = getFloat(data, DEAD_Y_KEY);
-    var z = getFloat(data, DEAD_Z_KEY);
-    var deadRole = String(data.get(DEAD_ROLE_KEY));
-    if (deadRole != "spirit") deadRole = "body";
-    var cloneName = String(data.get(DEAD_CLONE_KEY));
-    if (cloneName.length == 0) cloneName = cloneNameForRole(deadRole);
-
-    var spawned = null;
-    try {
-        spawned = world.spawnClone(x, y, z, CLONE_TAB, cloneName);
-    } catch (e) {
-        spawned = null;
-    }
-    if (spawned == null) {
-        log("drachenfels revive failed: clone " + cloneName);
+    // Только существующий entity по UUID — никаких spawnClone
+    var deadUuid = String(data.get(DEAD_UUID_KEY));
+    var downed = findNpcByUuid(world, deadUuid);
+    if (downed == null || !downed.isAlive() || !isDowned(downed)) {
         data.put(PARTNER_DEAD_KEY, "0");
         data.put(REVIVE_UNTIL_KEY, "0");
+        data.put(DEAD_UUID_KEY, "");
         return;
     }
 
-    try {
-        if (!spawned.hasTag(PAIR_TAG)) spawned.addTag(PAIR_TAG);
-    } catch (e2) {}
+    if (String(downed.getUUID()) != deadUuid) {
+        log("drachenfels revive aborted: uuid mismatch");
+        return;
+    }
 
-    var sd = spawned.getStoreddata();
-    sd.put(ROLE_KEY, deadRole);
-    sd.put(PHASE_KEY, "1");
+    exitDownedState(downed, REVIVE_HP_RATIO);
+    linkPair(npc, downed);
+
+    var sd = downed.getStoreddata();
+    var hpPhaseDowned = downed.getMaxHealth() > 0 && (downed.getHealth() / downed.getMaxHealth()) <= 0.5 ? "2" : "1";
+    sd.put(PHASE_KEY, hpPhaseDowned);
     sd.put(PARTNER_DEAD_KEY, "0");
     sd.put(REVIVE_UNTIL_KEY, "0");
+    sd.put(DEAD_UUID_KEY, "");
     sd.put(LAST_ABILITY_KEY, "");
     sd.put(FORCED_ABILITY_KEY, "");
-    sd.put(PAIR_ID_KEY, pairId);
-
-    try {
-        var maxHp = spawned.getMaxHealth();
-        if (maxHp > 0) {
-            spawned.setHealth(maxHp * REVIVE_HP_RATIO);
-        }
-    } catch (e3) {}
-
-    linkPair(npc, spawned);
-    startTimers(spawned);
 
     data.put(PARTNER_DEAD_KEY, "0");
     data.put(REVIVE_UNTIL_KEY, "0");
-
+    data.put(DEAD_UUID_KEY, "");
     var hpPhase = npc.getMaxHealth() > 0 && (npc.getHealth() / npc.getMaxHealth()) <= 0.5 ? "2" : "1";
     data.put(PHASE_KEY, hpPhase);
 
+    // Передать цель живому, если есть
+    try {
+        var target = npc.getAttackTarget();
+        if (target != null && target.isAlive()) {
+            downed.setAttackTarget(target);
+        }
+    } catch (e) {}
+
     npc.say("§5§l" + QUOTES_REVIVE[Math.floor(Math.random() * QUOTES_REVIVE.length)]);
+    var x = downed.getX();
+    var y = downed.getY();
+    var z = downed.getZ();
     try {
         world.spawnParticle("minecraft:soul_fire_flame", x, y + 1.0, z, 0.3, 0.6, 0.3, 0.05, 24);
         world.spawnParticle("minecraft:soul", x, y + 0.8, z, 0.35, 0.4, 0.35, 0.04, 16);
@@ -465,14 +952,62 @@ function tryCompleteRevive(npc) {
     } catch (e4) {}
 }
 
+function cleanupThrallsIfNoAggro(npc) {
+    if (hasCombatTarget(npc)) return;
+    var partner = findPartner(npc);
+    if (partner != null && partner.isAlive() && !isDowned(partner) && hasCombatTarget(partner)) {
+        return;
+    }
+    despawnThrallsNear(npc);
+    if (partner != null) {
+        despawnThrallsNear(partner);
+    }
+}
+
+function hasCombatTarget(npc) {
+    try {
+        var t = npc.getAttackTarget();
+        return t != null && t.isAlive();
+    } catch (e) {
+        return false;
+    }
+}
+
+function despawnThrallsNear(npc) {
+    if (npc == null) return 0;
+    var world = npc.getWorld();
+    var pos = NpcAPI.getIPos(npc.getX(), npc.getY(), npc.getZ());
+    var list = world.getNearbyEntities(pos, THRALL_RANGE, 2);
+    var count = 0;
+    for (var i = 0; i < list.length; i++) {
+        var ent = list[i];
+        if (ent == null || !ent.isAlive()) continue;
+        if (!ent.hasTag(THRALL_TAG)) continue;
+        try {
+            ent.despawn();
+            count++;
+        } catch (e) {
+            try { ent.kill(); count++; } catch (e2) {}
+        }
+    }
+    return count;
+}
+
 function pickAbility(npc, target, phase, data, now) {
     var role = getRole(data);
     var dist = flatDistance(npc, target);
     var last = String(data.get(LAST_ABILITY_KEY));
+    var minR = role == "spirit" ? SPIRIT_MIN_RANGE : BODY_MIN_RANGE;
+    var maxR = role == "spirit" ? SPIRIT_MAX_RANGE : BODY_MAX_RANGE;
+
+    // Слишком далеко — сначала скилловый рывок, не бег
+    if (dist > maxR && isCooldownReady(data, now, SHADOW_STEP_ID) && last != SHADOW_STEP_ID) {
+        return SHADOW_STEP_ID;
+    }
 
     if (phase == "bond") {
         if (role == "body") {
-            if (dist < 4.5 && isCooldownReady(data, now, DARK_CLEAVE_ID)) return DARK_CLEAVE_ID;
+            if (dist < 5.0 && isCooldownReady(data, now, DARK_CLEAVE_ID)) return DARK_CLEAVE_ID;
             if (isCooldownReady(data, now, POISON_FEAST_ID)) return POISON_FEAST_ID;
             if (isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
             if (isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
@@ -486,36 +1021,39 @@ function pickAbility(npc, target, phase, data, now) {
     }
 
     if (role == "body") {
-        if (phase == "2" && dist < 5.5 && isCooldownReady(data, now, POISON_FEAST_ID) && Math.random() < 0.35) {
+        if (phase == "2" && dist >= minR && dist < 6.5 && isCooldownReady(data, now, POISON_FEAST_ID) && Math.random() < 0.35) {
             return POISON_FEAST_ID;
         }
-        if (dist < 4.0 && isCooldownReady(data, now, DARK_CLEAVE_ID)) {
+        if (dist >= minR && dist < 5.5 && isCooldownReady(data, now, DARK_CLEAVE_ID)) {
             if (last != DARK_CLEAVE_ID || Math.random() < 0.55) return DARK_CLEAVE_ID;
         }
         if (dist > 7.0 && isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
         if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID) && Math.random() < 0.3) {
             return RAISE_THRALLS_ID;
         }
-        if (dist < 6.5 && isCooldownReady(data, now, POISON_FEAST_ID)) return POISON_FEAST_ID;
+        if (dist < 7.0 && isCooldownReady(data, now, POISON_FEAST_ID)) return POISON_FEAST_ID;
         if (isCooldownReady(data, now, DARK_CLEAVE_ID)) return DARK_CLEAVE_ID;
         if (isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
         if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
         return null;
     }
 
-    // spirit
+    // spirit — держит дистанцию, бьёт ranged
+    if (dist < minR && isCooldownReady(data, now, SHADOW_STEP_ID) && Math.random() < 0.35) {
+        // Не dash в упор: kite уже отводит; shadow_step только если совсем прилипли и kite не справляется
+        return null;
+    }
     if (phase == "2" && isCooldownReady(data, now, SPIRIT_BARRAGE_ID) && Math.random() < 0.32) {
         return SPIRIT_BARRAGE_ID;
     }
-    if (dist < 7.0 && isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
+    if (dist >= minR && dist < 10.0 && isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
     if (dist > 6.0 && isCooldownReady(data, now, SPIRIT_BARRAGE_ID)) return SPIRIT_BARRAGE_ID;
-    if (dist < 3.5 && isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
     if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID) && Math.random() < 0.28) {
         return RAISE_THRALLS_ID;
     }
     if (isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
     if (isCooldownReady(data, now, SPIRIT_BARRAGE_ID)) return SPIRIT_BARRAGE_ID;
-    if (isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
+    if (dist > maxR && isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
     if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
     return null;
 }
@@ -532,7 +1070,7 @@ function buildParams(abilityId, phase, data) {
             "knockbackY", 0.28,
             "effectType", "poison",
             "effectDuration", p2 ? 100 : 80,
-            "effectAmplifier", p2 ? 1 : 1,
+            "effectAmplifier", 1,
             "chargeTicks", bond ? 10 : (p2 ? 11 : 14)
         );
     }

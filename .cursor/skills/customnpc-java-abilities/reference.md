@@ -30,6 +30,7 @@ noppes.npcs.abilities/
     ├── DrachenfelsDarkCleaveAbility.java   # id: drachenfels_dark_cleave
     ├── DrachenfelsSoulRendAbility.java     # id: drachenfels_soul_rend
     ├── DrachenfelsSpiritBarrageAbility.java # id: drachenfels_spirit_barrage
+    ├── DrachenfelsSoulSeekerAbility.java    # id: drachenfels_soul_seeker
     ├── DrachenfelsRaiseThrallsAbility.java # id: drachenfels_raise_thralls
     └── DrachenfelsShadowStepAbility.java   # id: drachenfels_shadow_step
 ```
@@ -251,6 +252,7 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `drachenfels_dark_cleave` | body | короткий dash + cone |
 | `drachenfels_soul_rend` | spirit | cone wither |
 | `drachenfels_spirit_barrage` | spirit | импульсы к цели |
+| `drachenfels_soul_seeker` | оба | дальние soul-импульсы (punish kite) |
 | `drachenfels_raise_thralls` | оба | spawnClone thralls |
 | `drachenfels_shadow_step` | оба | soul dash |
 

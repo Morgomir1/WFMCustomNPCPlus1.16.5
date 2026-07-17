@@ -301,6 +301,20 @@ public final class AbilityDefaults {
         return map;
     }
 
+    public static Map<String, Object> drachenfelsSoulSeeker() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 14);
+        map.put(AbilityParamKeys.SHOTS, 2);
+        map.put(AbilityParamKeys.DISTANCE, 40.0);
+        map.put(AbilityParamKeys.MAX_RANGE, 40.0);
+        map.put(AbilityParamKeys.DAMAGE, 10.0);
+        map.put(AbilityParamKeys.HIT_RADIUS, 2.2);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.65);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.18);
+        return map;
+    }
+
     public static Map<String, Object> drachenfelsRaiseThralls() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.CHARGE_TICKS, 12);

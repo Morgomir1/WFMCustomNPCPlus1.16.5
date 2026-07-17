@@ -42,6 +42,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `drachenfels_dark_cleave` | `DrachenfelsDarkCleaveAbility` | Короткий рывок-замах конусом |
 | `drachenfels_soul_rend` | `DrachenfelsSoulRendAbility` | Конус soul/wither (дух) |
 | `drachenfels_spirit_barrage` | `DrachenfelsSpiritBarrageAbility` | Серия импульсов к цели |
+| `drachenfels_soul_seeker` | `DrachenfelsSoulSeekerAbility` | Дальние soul-импульсы (punish kite) |
 | `drachenfels_raise_thralls` | `DrachenfelsRaiseThrallsAbility` | Призыв thrall-клонов + aura |
 | `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
 
@@ -122,6 +123,17 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `damage` | double | 7.0 | Урон импульса |
 | `hitRadius` | double | 1.8 | Радиус попадания |
 | `knockback` / `knockbackY` | double | 0.5 / 0.15 | Отбрасывание |
+
+### `drachenfels_soul_seeker`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 12 / 14 | Фазы |
+| `shots` | int | 2 | Число импульсов (1–3) |
+| `maxRange` / `distance` | double | 40.0 | Дальность луча к цели |
+| `damage` | double | 10.0 | Урон импульса (по пути ~55%) |
+| `hitRadius` | double | 2.2 | Радиус попадания |
+| `knockback` / `knockbackY` | double | 0.65 / 0.18 | Отбрасывание |
 
 ### `drachenfels_raise_thralls`
 

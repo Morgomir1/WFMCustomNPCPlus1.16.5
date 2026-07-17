@@ -50,7 +50,11 @@ var KITE_TICKS = 45;
 var KITE_SPEED_BODY = 5;
 var KITE_SPEED_SPIRIT = 6;
 var CASTER_SPEED = 1;
-var AGRO_RANGE = 28;
+var AGRO_RANGE = 56;        // радиус захвата цели от NPC
+var LEASH_RANGE = 72;       // арена: игрок/цель в радиусе от home
+var HOME_ARRIVE_DIST = 1.8; // уже «дома»
+// RETALIATE_NONE часто сбрасывает цель → targetLost; домой только после паузы без игрока
+var HOME_RETURN_DELAY_TICKS = 50;
 
 var CLONE_TAB = 1;
 var CLONE_THRALL = "Drachenfels Thrall";
@@ -86,13 +90,17 @@ var CD_PREFIX = "df_cd_";
 var LINKED_KEY = "df_linked";
 var KITE_UNTIL_KEY = "df_kite_until";
 var STANCE_READY_KEY = "df_stance_ready";
+var LOST_AGGRO_SINCE_KEY = "df_lost_aggro_since";
 
 var POISON_FEAST_ID = "drachenfels_poison_feast";
 var DARK_CLEAVE_ID = "drachenfels_dark_cleave";
 var SOUL_REND_ID = "drachenfels_soul_rend";
 var SPIRIT_BARRAGE_ID = "drachenfels_spirit_barrage";
+var SOUL_SEEKER_ID = "drachenfels_soul_seeker";
 var RAISE_THRALLS_ID = "drachenfels_raise_thralls";
 var SHADOW_STEP_ID = "drachenfels_shadow_step";
+// Дальше этой дистанции — punish soul_seeker (не дать убежать)
+var PUNISH_RANGE = 14.0;
 
 var QUOTES_BODY_1 = [
     "Пир отравлен — так же, как и ваша надежда.",
@@ -155,6 +163,7 @@ function init(event) {
     data.put(LAST_ABILITY_KEY, "");
     data.put(FORCED_ABILITY_KEY, "");
     data.put(KITE_UNTIL_KEY, "0");
+    data.put(LOST_AGGRO_SINCE_KEY, "0");
     tryLinkPartner(npc);
     applyCasterStance(npc);
     data.put(STANCE_READY_KEY, "1");
@@ -178,7 +187,10 @@ function timer(event) {
         tickBondVfx(npc);
         tryCompleteRevive(npc);
         cleanupThrallsIfNoAggro(npc);
-        manageSpacing(npc);
+        tryReturnHomeIfIdle(npc);
+        if (hasCombatTarget(npc)) {
+            manageSpacing(npc);
+        }
         return;
     }
     if (event.id != TIMER_ID) return;
@@ -298,8 +310,17 @@ function cancelLethal(event) {
 }
 
 function targetLost(event) {
-    AbilityAPI.cancel(event.npc);
-    despawnThrallsNear(event.npc);
+    var npc = event.npc;
+    AbilityAPI.cancel(npc);
+    // RETALIATE_NONE часто шлёт targetLost при живом игроке рядом —
+    // не телепортируемся и не режем thralls сразу. Перехват цели / debounce home.
+    if (isInBondPhase(npc) || isDowned(npc)) return;
+    var retarget = ensureCombatTarget(npc);
+    if (retarget != null) {
+        clearLostAggroTimer(npc);
+        return;
+    }
+    markLostAggro(npc);
 }
 
 function died(event) {
@@ -337,6 +358,7 @@ function clearBondFlags(data) {
     data.put(DOWNED_Y_KEY, "");
     data.put(DOWNED_Z_KEY, "");
     data.put(FORCED_ABILITY_KEY, "");
+    data.put(LOST_AGGRO_SINCE_KEY, "0");
 }
 
 function ensureRole(npc, data) {
@@ -641,40 +663,218 @@ function getBondPressureAbility(role) {
 
 /**
  * При OnAttack=Ничего CNPC сам может не брать цель.
- * Берём ближайшего игрока в AGRO_RANGE и setAttackTarget.
+ * Агр только на игроков в AGRO_RANGE от NPC и в LEASH_RANGE от home.
+ * Каждый тик перехватывает цель — бой не рвётся из‑за RETALIATE_NONE.
  */
 function ensureCombatTarget(npc) {
     if (npc == null || isDowned(npc)) return null;
     var cur = null;
     try { cur = npc.getAttackTarget(); } catch (e) { cur = null; }
-    if (cur != null && cur.isAlive()) return cur;
+    if (cur != null && cur.isAlive()) {
+        if (distEntityToHome(npc, cur) > LEASH_RANGE) {
+            // Цель ушла с арены — сброс, ищем другую; домой не телепортируем здесь
+            try { npc.setAttackTarget(null); } catch (eDrop) {}
+        } else {
+            clearLostAggroTimer(npc);
+            return cur;
+        }
+    }
 
+    var best = findValidPlayer(npc, AGRO_RANGE, LEASH_RANGE);
+    if (best != null) {
+        try { npc.setAttackTarget(best); } catch (e3) {}
+        clearLostAggroTimer(npc);
+        return best;
+    }
+    markLostAggro(npc);
+    return null;
+}
+
+/** Живой survival/adventure игрок: dist к NPC <= maxNpcDist, к home <= maxHomeDist. */
+function findValidPlayer(npc, maxNpcDist, maxHomeDist) {
+    if (npc == null) return null;
     var world = npc.getWorld();
     var best = null;
-    var bestDist = AGRO_RANGE + 1;
+    var bestDist = maxNpcDist + 1;
     try {
         var players = world.getAllPlayers();
         for (var i = 0; i < players.length; i++) {
             var p = players[i];
-            if (p == null || !p.isAlive()) continue;
-            try {
-                if (typeof p.getGamemode == "function") {
-                    var gm = p.getGamemode();
-                    if (gm == 1 || gm == 3) continue; // creative / spectator
-                }
-            } catch (eGm) {}
+            if (!isValidCombatPlayer(p)) continue;
+            if (distEntityToHome(npc, p) > maxHomeDist) continue;
             var d = flatDistance(npc, p);
             if (d < bestDist) {
                 bestDist = d;
                 best = p;
             }
         }
+    } catch (e) {}
+    return best;
+}
+
+function isValidCombatPlayer(p) {
+    if (p == null || !p.isAlive()) return false;
+    try {
+        if (typeof p.getGamemode == "function") {
+            var gm = p.getGamemode();
+            if (gm == 1 || gm == 3) return false;
+        }
+    } catch (eGm) {}
+    return true;
+}
+
+/** Любой валидный игрок в радиусе арены от home (дистанция до NPC не важна). */
+function findPlayerInLeash(npc) {
+    if (npc == null) return null;
+    var best = null;
+    var bestDist = LEASH_RANGE + 1;
+    try {
+        var players = npc.getWorld().getAllPlayers();
+        for (var i = 0; i < players.length; i++) {
+            var p = players[i];
+            if (!isValidCombatPlayer(p)) continue;
+            var dh = distEntityToHome(npc, p);
+            if (dh > LEASH_RANGE) continue;
+            if (dh < bestDist) {
+                bestDist = dh;
+                best = p;
+            }
+        }
+    } catch (e) {}
+    return best;
+}
+
+function findPlayerInAgro(npc) {
+    return findValidPlayer(npc, AGRO_RANGE, LEASH_RANGE);
+}
+
+function isInActiveCombat(npc) {
+    if (npc == null) return false;
+    if (hasCombatTarget(npc)) return true;
+    return findPlayerInAgro(npc) != null;
+}
+
+function clearLostAggroTimer(npc) {
+    if (npc == null) return;
+    try { npc.getStoreddata().put(LOST_AGGRO_SINCE_KEY, "0"); } catch (e) {}
+}
+
+function markLostAggro(npc) {
+    if (npc == null) return;
+    var data = npc.getStoreddata();
+    if (getInt(data, LOST_AGGRO_SINCE_KEY) > 0) return;
+    try {
+        data.put(LOST_AGGRO_SINCE_KEY, String(npc.getWorld().getTotalTime()));
+    } catch (e) {}
+}
+
+function hasLostAggroLongEnough(npc) {
+    if (npc == null) return false;
+    var since = getInt(npc.getStoreddata(), LOST_AGGRO_SINCE_KEY);
+    if (since <= 0) return false;
+    return npc.getWorld().getTotalTime() - since >= HOME_RETURN_DELAY_TICKS;
+}
+
+function isInBondPhase(npc) {
+    if (npc == null) return false;
+    var data = npc.getStoreddata();
+    return String(data.get(PARTNER_DEAD_KEY)) == "1" || isDowned(npc);
+}
+
+function hasHome(data) {
+    return data != null && data.has(HOME_X_KEY) && String(data.get(HOME_X_KEY)).length > 0;
+}
+
+function distToHomeFlat(npc) {
+    var data = npc.getStoreddata();
+    if (!hasHome(data)) return 0;
+    var dx = npc.getX() - getFloat(data, HOME_X_KEY);
+    var dz = npc.getZ() - getFloat(data, HOME_Z_KEY);
+    return Math.sqrt(dx * dx + dz * dz);
+}
+
+function distEntityToHome(npc, ent) {
+    var data = npc.getStoreddata();
+    if (!hasHome(data) || ent == null) return 9999;
+    var dx = ent.getX() - getFloat(data, HOME_X_KEY);
+    var dz = ent.getZ() - getFloat(data, HOME_Z_KEY);
+    return Math.sqrt(dx * dx + dz * dz);
+}
+
+/** Телепорт на исходную позицию (home из init). Не вызывать во время боя. */
+function returnToHome(npc) {
+    if (npc == null || !npc.isAlive() || isDowned(npc)) return;
+    if (isInBondPhase(npc)) return;
+    // Жёсткий стоп: цель или игрок в агро — остаёмся драться
+    if (isInActiveCombat(npc)) return;
+    if (findPlayerInLeash(npc) != null) return;
+
+    var data = npc.getStoreddata();
+    if (!hasHome(data)) return;
+
+    var x = getFloat(data, HOME_X_KEY);
+    var y = getFloat(data, HOME_Y_KEY);
+    var z = getFloat(data, HOME_Z_KEY);
+    var role = getRole(data);
+
+    if (role == "spirit") {
+        var hoverY = y + 1.2;
+        data.put(HOVER_Y_KEY, String(hoverY));
+        y = hoverY;
+    }
+
+    AbilityAPI.cancel(npc);
+    data.put(KITE_UNTIL_KEY, "0");
+    data.put(FORCED_ABILITY_KEY, "");
+    data.put(NEXT_CAST_KEY, "0");
+    data.put(LOST_AGGRO_SINCE_KEY, "0");
+
+    try { npc.setAttackTarget(null); } catch (e) {}
+    try {
+        npc.setPosition(x, y, z);
+        npc.setMotionX(0);
+        npc.setMotionY(0);
+        npc.setMotionZ(0);
     } catch (e2) {}
 
-    if (best != null) {
-        try { npc.setAttackTarget(best); } catch (e3) {}
+    applyCasterStance(npc);
+
+    try {
+        var world = npc.getWorld();
+        world.spawnParticle("minecraft:soul_fire_flame", x, y + 0.5, z, 0.2, 0.3, 0.2, 0.02, 8);
+        try {
+            world.spawnParticle("wfm:fog", x, y + 0.2, z, 0.25, 0.05, 0.25, 0, 3);
+        } catch (fogErr) {}
+    } catch (e3) {}
+}
+
+/**
+ * Домой только если бой реально закончен: нет цели, нет игрока в leash,
+ * не busy/bond/downed, и пауза без агра >= HOME_RETURN_DELAY_TICKS.
+ */
+function tryReturnHomeIfIdle(npc) {
+    if (npc == null || !npc.isAlive() || isDowned(npc) || isInBondPhase(npc)) return;
+    if (AbilityAPI.isBusy(npc)) return;
+    if (hasCombatTarget(npc)) {
+        clearLostAggroTimer(npc);
+        return;
     }
-    return best;
+    // Игрок ещё на арене — не уходим; перехватим цель если в агро
+    if (findPlayerInLeash(npc) != null) {
+        ensureCombatTarget(npc);
+        return;
+    }
+    markLostAggro(npc);
+    if (!hasLostAggroLongEnough(npc)) return;
+
+    if (distToHomeFlat(npc) <= HOME_ARRIVE_DIST) {
+        clearLostAggroTimer(npc);
+        if (getRole(npc.getStoreddata()) == "spirit") {
+            tickSpiritHover(npc);
+        }
+        return;
+    }
+    returnToHome(npc);
 }
 
 /** Кастерская стойка: не преследует, стоит на месте; дух — летает. */
@@ -717,7 +917,7 @@ function isKiting(data, now) {
 
 /**
  * Держит дистанцию: слишком близко → краткий kite;
- * слишком далеко → forced shadow_step (скилловое сближение).
+ * слишком далеко → forced soul_seeker (punish), иначе shadow_step.
  */
 function manageSpacing(npc) {
     if (npc == null || !npc.isAlive() || isDowned(npc)) return;
@@ -753,9 +953,11 @@ function manageSpacing(npc) {
         return;
     }
 
-    if (dist > maxR && isCooldownReady(data, now, SHADOW_STEP_ID)) {
-        var forced = String(data.get(FORCED_ABILITY_KEY));
-        if (forced.length == 0) {
+    var forced = String(data.get(FORCED_ABILITY_KEY));
+    if (forced.length == 0 && dist > maxR) {
+        if (isCooldownReady(data, now, SOUL_SEEKER_ID)) {
+            data.put(FORCED_ABILITY_KEY, SOUL_SEEKER_ID);
+        } else if (isCooldownReady(data, now, SHADOW_STEP_ID)) {
             data.put(FORCED_ABILITY_KEY, SHADOW_STEP_ID);
         }
     }
@@ -954,13 +1156,28 @@ function tryCompleteRevive(npc) {
 
 function cleanupThrallsIfNoAggro(npc) {
     if (hasCombatTarget(npc)) return;
+    // Игрок на арене / в агро — ложный сброс цели, thralls не трогаем
+    if (findPlayerInLeash(npc) != null || isInActiveCombat(npc)) return;
     var partner = findPartner(npc);
-    if (partner != null && partner.isAlive() && !isDowned(partner) && hasCombatTarget(partner)) {
+    if (partner != null && partner.isAlive() && !isDowned(partner)) {
+        if (hasCombatTarget(partner) || findPlayerInLeash(partner) != null) {
+            return;
+        }
+    }
+    // Реальная потеря агра (после debounce) — despawn thralls
+    if (!hasLostAggroLongEnough(npc)) {
+        markLostAggro(npc);
         return;
     }
     despawnThrallsNear(npc);
     if (partner != null) {
         despawnThrallsNear(partner);
+    }
+    if (!isInBondPhase(npc)) {
+        tryReturnHomeIfIdle(npc);
+    }
+    if (partner != null && partner.isAlive() && !isDowned(partner) && !isInBondPhase(partner)) {
+        tryReturnHomeIfIdle(partner);
     }
 }
 
@@ -999,21 +1216,29 @@ function pickAbility(npc, target, phase, data, now) {
     var last = String(data.get(LAST_ABILITY_KEY));
     var minR = role == "spirit" ? SPIRIT_MIN_RANGE : BODY_MIN_RANGE;
     var maxR = role == "spirit" ? SPIRIT_MAX_RANGE : BODY_MAX_RANGE;
+    var far = dist > maxR || dist > PUNISH_RANGE;
 
-    // Слишком далеко — сначала скилловый рывок, не бег
+    // Слишком далеко — дальние soul-импульсы (punish), иначе shadow_step
+    if (far && isCooldownReady(data, now, SOUL_SEEKER_ID) && last != SOUL_SEEKER_ID) {
+        return SOUL_SEEKER_ID;
+    }
     if (dist > maxR && isCooldownReady(data, now, SHADOW_STEP_ID) && last != SHADOW_STEP_ID) {
         return SHADOW_STEP_ID;
     }
 
     if (phase == "bond") {
         if (role == "body") {
+            if (far && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
             if (dist < 5.0 && isCooldownReady(data, now, DARK_CLEAVE_ID)) return DARK_CLEAVE_ID;
             if (isCooldownReady(data, now, POISON_FEAST_ID)) return POISON_FEAST_ID;
+            if (isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
             if (isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
             if (isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
         } else {
+            if (far && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
             if (isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
             if (dist > 5 && isCooldownReady(data, now, SPIRIT_BARRAGE_ID)) return SPIRIT_BARRAGE_ID;
+            if (isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
             if (isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
             if (isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
         }
@@ -1021,6 +1246,7 @@ function pickAbility(npc, target, phase, data, now) {
     }
 
     if (role == "body") {
+        if (far && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
         if (phase == "2" && dist >= minR && dist < 6.5 && isCooldownReady(data, now, POISON_FEAST_ID) && Math.random() < 0.35) {
             return POISON_FEAST_ID;
         }
@@ -1033,12 +1259,14 @@ function pickAbility(npc, target, phase, data, now) {
         }
         if (dist < 7.0 && isCooldownReady(data, now, POISON_FEAST_ID)) return POISON_FEAST_ID;
         if (isCooldownReady(data, now, DARK_CLEAVE_ID)) return DARK_CLEAVE_ID;
+        if (isCooldownReady(data, now, SOUL_SEEKER_ID) && dist > 8.0) return SOUL_SEEKER_ID;
         if (isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
         if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
         return null;
     }
 
-    // spirit — держит дистанцию, бьёт ranged
+    // spirit — держит дистанцию, бьёт ranged; на дальняке — soul_seeker
+    if (far && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
     if (dist < minR && isCooldownReady(data, now, SHADOW_STEP_ID) && Math.random() < 0.35) {
         // Не dash в упор: kite уже отводит; shadow_step только если совсем прилипли и kite не справляется
         return null;
@@ -1048,11 +1276,13 @@ function pickAbility(npc, target, phase, data, now) {
     }
     if (dist >= minR && dist < 10.0 && isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
     if (dist > 6.0 && isCooldownReady(data, now, SPIRIT_BARRAGE_ID)) return SPIRIT_BARRAGE_ID;
+    if (dist > 10.0 && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
     if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID) && Math.random() < 0.28) {
         return RAISE_THRALLS_ID;
     }
     if (isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
     if (isCooldownReady(data, now, SPIRIT_BARRAGE_ID)) return SPIRIT_BARRAGE_ID;
+    if (isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
     if (dist > maxR && isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
     if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
     return null;
@@ -1111,6 +1341,21 @@ function buildParams(abilityId, phase, data) {
             "knockbackY", 0.15
         );
     }
+    if (abilityId == SOUL_SEEKER_ID) {
+        var role = getRole(data);
+        var spirit = role == "spirit";
+        return AbilityAPI.params(
+            "damage", p2 ? (spirit ? 12.0 : 11.0) : (spirit ? 10.0 : 9.0),
+            "shots", p2 ? (spirit ? 3 : 2) : (spirit ? 2 : 1),
+            "maxRange", p2 ? 44.0 : 40.0,
+            "distance", p2 ? 44.0 : 40.0,
+            "hitRadius", p2 ? 2.4 : 2.2,
+            "chargeTicks", bond ? 8 : (p2 ? 10 : 12),
+            "activeTicks", p2 ? 16 : 14,
+            "knockback", 0.7,
+            "knockbackY", 0.2
+        );
+    }
     if (abilityId == RAISE_THRALLS_ID) {
         return AbilityAPI.params(
             "chargeTicks", bond ? 8 : 12,
@@ -1165,6 +1410,8 @@ function getCooldownTicks(abilityId, phase) {
     if (abilityId == DARK_CLEAVE_ID) return bond ? 48 : (p2 ? 58 : 72);
     if (abilityId == SOUL_REND_ID) return bond ? 70 : (p2 ? 85 : 105);
     if (abilityId == SPIRIT_BARRAGE_ID) return p2 ? 100 : 130;
+    // Punish: заметный CD, не спам
+    if (abilityId == SOUL_SEEKER_ID) return bond ? 90 : (p2 ? 120 : 150);
     if (abilityId == RAISE_THRALLS_ID) return bond ? 140 : 180;
     if (abilityId == SHADOW_STEP_ID) return bond ? 55 : (p2 ? 65 : 80);
     return 80;

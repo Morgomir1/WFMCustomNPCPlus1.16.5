@@ -1,5 +1,6 @@
 package noppes.npcs.entity;
 
+import net.minecraft.block.material.PushReaction;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.player.PlayerEntity;
@@ -16,6 +17,7 @@ import net.minecraft.util.DamageSource;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.RayTraceResult;
+import net.minecraft.util.math.vector.Vector3d;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.GameType;
@@ -58,11 +60,15 @@ public class EntityCloneStructureSpawner extends Entity {
     @Override
     public void tick() {
         this.noPhysics = true;
-        this.spinO = this.spin;
-        this.spin += 1.0;
         super.tick();
+        this.noPhysics = true;
+        this.setNoGravity(true);
+        this.setDeltaMovement(Vector3d.ZERO);
+        this.setInvulnerable(true);
 
         if (this.level.isClientSide) {
+            this.spinO = this.spin;
+            this.spin = (this.spin + 0.1) % 360.0;
             return;
         }
         if (this.isManualPlacement() || this.hasSpawned() || this.failed) {
@@ -453,12 +459,27 @@ public class EntityCloneStructureSpawner extends Entity {
     }
 
     @Override
+    public boolean canCollideWith(final Entity entity) {
+        return false;
+    }
+
+    @Override
     public void push(final Entity entity) {
+    }
+
+    @Override
+    protected boolean canRide(final Entity entity) {
+        return false;
     }
 
     @Override
     public boolean isInvulnerable() {
         return true;
+    }
+
+    @Override
+    public PushReaction getPistonPushReaction() {
+        return PushReaction.IGNORE;
     }
 
     @Override

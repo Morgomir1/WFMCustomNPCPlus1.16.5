@@ -28,15 +28,16 @@ public class RenderCloneStructureSpawner extends EntityRenderer<EntityCloneStruc
     public RenderCloneStructureSpawner(final EntityRendererManager manager) {
         super(manager);
         this.plate = new ModelRenderer(20, 26, 0, 0);
-        this.plate.addBox(-5.0f, 0.0f, 0.0f, 10.0f, 26.0f, 0.0f);
+        // Same plate as WFM ExtendedStructureSpawnerModel (mirrored flat quad).
+        this.plate.mirror = true;
+        this.plate.addBox(-5.0f, 0.0f, 0.0f, 10.0f, 26.0f, 0.0f, 0.0f, true);
     }
 
     @Override
     public void render(final EntityCloneStructureSpawner entity, final float entityYaw, final float partialTicks,
                        final MatrixStack matrix, final IRenderTypeBuffer buffer, final int packedLight) {
         final Minecraft mc = Minecraft.getInstance();
-        final boolean hide = entity.isInvisibleTo(mc.player) || mc.options.hideGui;
-        if (hide) {
+        if (mc.player == null || entity.isInvisibleTo(mc.player) || mc.options.hideGui) {
             return;
         }
 

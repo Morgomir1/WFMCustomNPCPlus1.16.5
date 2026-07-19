@@ -36,6 +36,7 @@ public final class AbilityRegistry {
         register(new DrachenfelsSoulOrbsAbility());
         register(new DrachenfelsRaiseThrallsAbility());
         register(new DrachenfelsShadowStepAbility());
+        register(new ShieldBlockAbility());
     }
 
     private AbilityRegistry() {

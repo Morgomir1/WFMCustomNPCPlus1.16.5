@@ -19,7 +19,8 @@ var GUN_ITEM = "wfm:skaven_ratling_gun";
 var MAX_RANGE = 36.0;
 
 // Настройки урона и разброса (передаются в Java-абилку)
-var DAMAGE = 8.0;
+// По WFM-щиту (ShieldBlockData) урон = damage пули → 0.5 HP щита за попадание
+var DAMAGE = 0.5;
 var ACCURACY = 6;           // чем больше — тем шире разброс (inaccuracy = accuracy * 0.15)
 var BULLET_VELOCITY = 6.0;
 var ACTIVE_TICKS = 60;        // длительность залпа (3 сек)

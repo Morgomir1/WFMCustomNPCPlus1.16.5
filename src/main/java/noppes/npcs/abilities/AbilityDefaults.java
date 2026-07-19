@@ -357,4 +357,12 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
+
+    public static Map<String, Object> shieldBlock() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 20);
+        map.put(AbilityParamKeys.BLOCK_ANGLE, 90.0);
+        return map;
+    }
 }

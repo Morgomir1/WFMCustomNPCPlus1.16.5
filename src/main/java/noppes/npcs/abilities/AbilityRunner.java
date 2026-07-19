@@ -71,6 +71,18 @@ public final class AbilityRunner {
         return active == null ? "" : active.abilityId;
     }
 
+    public static ActiveAbility getActive(final UUID npcUuid) {
+        return npcUuid == null ? null : ACTIVE.get(npcUuid);
+    }
+
+    public static boolean isAbilityActive(final UUID npcUuid, final String abilityId) {
+        if (npcUuid == null || abilityId == null || abilityId.isEmpty()) {
+            return false;
+        }
+        final ActiveAbility active = ACTIVE.get(npcUuid);
+        return active != null && abilityId.equals(active.abilityId);
+    }
+
     public static void cancel(final ICustomNpc npc) {
         final UUID uuid = parseUuid(npc);
         if (uuid == null) {

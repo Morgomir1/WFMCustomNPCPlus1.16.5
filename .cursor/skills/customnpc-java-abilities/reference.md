@@ -256,6 +256,16 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 Дефолты — `AbilityDefaults.drachenfels*()`. Эффекты `poison` / `wither` — в `AbilityEffectType`.
 
+### `shield_block` — ShieldBlockAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `activeTicks` | int | 20 | Сколько держать щит |
+| `blockAngle` | double | 90.0 | Полный угол фронтального блока |
+| `telegraph` | int | 0 | Telegraph выключен |
+
+`requiresTarget = false`. Поднимает щит из left/right hand (`ShieldItem` / WFM). Фронтальный урон гасит `ShieldBlockDamageHandler`. JS: `scripts/utility/npc_shield_block.js`.
+
 ## Примеры скриптов
 
 | Файл | Назначение |
@@ -264,5 +274,6 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `scripts/boss_dash_jump/boss_dash_jump.js` | То же + бонус урона при низком HP |
 | `scripts/witch_hunter/witch_hunter_boss.js` | Охотник на ведьм: фазы, выбор по дистанции |
 | `scripts/drachenfels/drachenfels_boss.js` | Тело+дух, Immortal Bond revive, фазы 1/2/bond |
+| `scripts/utility/npc_shield_block.js` | Блок щитом: damaged → `shield_block` |
 
 После правки скрипта на NPC: `/script reload`.

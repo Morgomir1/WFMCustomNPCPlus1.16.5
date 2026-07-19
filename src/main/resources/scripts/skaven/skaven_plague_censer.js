@@ -1,12 +1,12 @@
 // =====================================================
 // Скавен чумной монах — "Кадило чумы"
-// 2 сек зарядка (партиклы) -> взрыв пердежа + яд врагам в радиусе. КД 10 сек.
+// Подбегает к игроку -> красный telegraph 2 сек -> пердеж + яд в радиусе.
+// Зона исчезает сразу после пердежа. Креатив / spectator не триггерят.
 // =====================================================
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
 var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
-var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
 
 // -------------------------
 // НАСТРОЙКИ
@@ -16,14 +16,13 @@ var CHARGE_TICKS = 40;    // 2 секунды
 var DETECT_RANGE = 6.0;
 var BURST_RADIUS = 3.5;
 var POISON_SECONDS = 3;
+var POISON_LVL = 1;
 // Великий нечистый: LOTRParticles.NURGLE_MIASMA + звуки BileBreathSpellGoal
 var FART_PARTICLE = "wfm:nurgle_miasma";
-var CHARGE_SOUND = "minecraft:entity.zombie_villager.cure";
 var BURST_SOUND = "minecraft:entity.slime.attack";
-var CHARGE_SOUND_VOL = 0.8;
-var CHARGE_SOUND_PITCH = 0.85;
 var BURST_SOUND_VOL = 1.2;
 var BURST_SOUND_PITCH = 0.75;
+var TELEGRAPH_COLOR = 0xC0FF3030;
 
 // -------------------------
 // storeddata keys
@@ -58,8 +57,10 @@ function tick(e) {
 function hasNearbyEnemy(npc, world, range) {
     var target = npc.getAttackTarget();
     if (target != null && target.isAlive() && flatDistance(npc, target) <= range) {
-        if (typeof npc.canSeeEntity != "function" || npc.canSeeEntity(target)) {
-            return true;
+        if (!isCreativeOrSpectator(target)) {
+            if (typeof npc.canSeeEntity != "function" || npc.canSeeEntity(target)) {
+                return true;
+            }
         }
     }
 
@@ -67,6 +68,7 @@ function hasNearbyEnemy(npc, world, range) {
     for (var i = 0; i < players.length; i++) {
         var player = players[i];
         if (player == null || !player.isAlive()) continue;
+        if (isCreativeOrSpectator(player)) continue;
         if (flatDistance(npc, player) > range) continue;
         if (typeof npc.canSeeEntity == "function" && !npc.canSeeEntity(player)) continue;
         return true;
@@ -78,12 +80,8 @@ function hasNearbyEnemy(npc, world, range) {
 function startCharge(npc, world, data, now) {
     data.put(CHARGING_KEY, "1");
     data.put(CHARGE_END_KEY, String(now + CHARGE_TICKS));
-    spawnChargeParticles(world, npc, 12);
     try {
-        world.playSoundAt(npc.getPos(), CHARGE_SOUND, CHARGE_SOUND_VOL, CHARGE_SOUND_PITCH);
-    } catch (e) {}
-    try {
-        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), BURST_RADIUS, CHARGE_TICKS, 0xC0FF3030);
+        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), BURST_RADIUS, CHARGE_TICKS, TELEGRAPH_COLOR);
         data.put(TELEGRAPH_KEY, String(tid));
         TelegraphAPI.followNpc(tid, npc);
     } catch (e2) {}
@@ -95,10 +93,7 @@ function doChargingTick(npc, world, data, now) {
         return;
     }
 
-    if (now < getInt(data, CHARGE_END_KEY)) {
-        spawnChargeParticles(world, npc, 6);
-        return;
-    }
+    if (now < getInt(data, CHARGE_END_KEY)) return;
 
     if (!hasNearbyEnemy(npc, world, DETECT_RANGE)) {
         clearState(data);
@@ -109,35 +104,43 @@ function doChargingTick(npc, world, data, now) {
 }
 
 function doBurst(npc, world, data) {
-    try {
-        var tid = String(data.get(TELEGRAPH_KEY));
-        if (tid && tid != "null" && tid != "") TelegraphAPI.remove(tid);
-        data.remove(TELEGRAPH_KEY);
-    } catch (te) {}
+    clearTelegraph(data);
+
+    applyPoisonBurst(npc, world);
 
     try {
-        var zone = ZoneAPI.hazardCircle(npc, npc.getX(), npc.getY(), npc.getZ(), BURST_RADIUS, POISON_SECONDS * 20, 0, 20);
-        if (zone != null) {
-            zone.setColor(0xC0FF3030);
-            zone.setEffect("minecraft:poison", POISON_SECONDS * 20, 0);
-        }
-    } catch (ze) {}
-
+        world.playSoundAt(npc.getPos(), BURST_SOUND, BURST_SOUND_VOL, BURST_SOUND_PITCH);
+    } catch (se) {}
     try {
         spawnBurstParticles(world, npc);
-        world.playSoundAt(npc.getPos(), BURST_SOUND, BURST_SOUND_VOL, BURST_SOUND_PITCH);
-    } catch (e2) {}
+    } catch (pe) {}
 
     var now = world.getTotalTime();
     data.put(CD_KEY, String(now + COOLDOWN_TICKS));
     clearState(data);
 }
 
-function spawnChargeParticles(world, npc, count) {
-    try {
-        world.spawnParticle(FART_PARTICLE, npc.getX(), npc.getY() + 0.9, npc.getZ(),
-            0.35, 0.2, 0.35, 0.04, count);
-    } catch (e) {}
+function applyPoisonBurst(npc, world) {
+    var pos = NpcAPI.getIPos(npc.getX(), npc.getY(), npc.getZ());
+    var list = world.getNearbyEntities(pos, BURST_RADIUS, EntitiesType.ANY);
+    for (var i = 0; i < list.length; i++) {
+        var ent = list[i];
+        if (!isValidVictim(npc, ent)) continue;
+        try {
+            ent.addPotionEffect(PotionEffectType_POISON, POISON_SECONDS, POISON_LVL, false);
+        } catch (e) {}
+    }
+}
+
+function isValidVictim(npc, ent) {
+    if (ent == null || !ent.isAlive()) return false;
+    if (String(ent.getUUID()) == String(npc.getUUID())) return false;
+    if (isCreativeOrSpectator(ent)) return false;
+    if (flatDistance(npc, ent) > BURST_RADIUS) return false;
+
+    var target = npc.getAttackTarget();
+    if (target != null && String(target.getUUID()) == String(ent.getUUID())) return true;
+    return isPlayerEntity(ent);
 }
 
 function spawnBurstParticles(world, npc) {
@@ -147,17 +150,6 @@ function spawnBurstParticles(world, npc) {
     world.spawnParticle(FART_PARTICLE, x, y, z, 0.6, 0.45, 0.6, 0.08, 40);
     world.spawnParticle(FART_PARTICLE, x, y + 0.5, z, 0.45, 0.3, 0.45, 0.06, 32);
     world.spawnParticle(FART_PARTICLE, x, y + 1.0, z, 0.3, 0.15, 0.3, 0.05, 20);
-}
-
-function isValidEnemy(npc, ent) {
-    if (ent == null || !ent.isAlive()) return false;
-    if (String(ent.getUUID()) == String(npc.getUUID())) return false;
-    if (flatDistance(npc, ent) > BURST_RADIUS) return false;
-
-    var target = npc.getAttackTarget();
-    if (target != null && String(target.getUUID()) == String(ent.getUUID())) return true;
-
-    return isPlayerEntity(ent);
 }
 
 function isPlayerEntity(entity) {
@@ -171,7 +163,28 @@ function isPlayerEntity(entity) {
     return String(entity.getClass().getName()).indexOf("ServerPlayerEntity") >= 0;
 }
 
+/** gamemode 1 = creative, 3 = spectator */
+function isCreativeOrSpectator(entity) {
+    if (entity == null) return false;
+    try {
+        if (typeof entity.getGamemode == "function") {
+            var gm = entity.getGamemode();
+            if (gm == 1 || gm == 3) return true;
+        }
+    } catch (e) {}
+    return false;
+}
+
+function clearTelegraph(data) {
+    try {
+        var tid = String(data.get(TELEGRAPH_KEY));
+        if (tid && tid != "null" && tid != "") TelegraphAPI.remove(tid);
+        data.remove(TELEGRAPH_KEY);
+    } catch (e) {}
+}
+
 function clearState(data) {
+    clearTelegraph(data);
     data.put(CHARGING_KEY, "0");
     data.put(CHARGE_END_KEY, "0");
 }

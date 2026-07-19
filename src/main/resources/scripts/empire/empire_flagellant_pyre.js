@@ -106,7 +106,7 @@ function startBurning(npc, world, data) {
     try {
         var zone = ZoneAPI.hazardCircle(npc, npc.getX(), npc.getY(), npc.getZ(), BURN_RADIUS, 20 * 60 * 20, BASE_PULSE_DAMAGE, PULSE_INTERVAL_TICKS);
         if (zone != null) {
-            zone.setColor(0x90FF5500);
+            zone.setColor(0xC0FF3030);
             data.put(ZONE_ID_KEY, String(zone.getId()));
         }
     } catch (zerr) {}

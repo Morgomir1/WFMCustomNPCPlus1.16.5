@@ -83,7 +83,7 @@ function startCharge(npc, world, data, now) {
         world.playSoundAt(npc.getPos(), CHARGE_SOUND, CHARGE_SOUND_VOL, CHARGE_SOUND_PITCH);
     } catch (e) {}
     try {
-        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), BURST_RADIUS, CHARGE_TICKS, 0x9040FF40);
+        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), BURST_RADIUS, CHARGE_TICKS, 0xC0FF3030);
         data.put(TELEGRAPH_KEY, String(tid));
         TelegraphAPI.followNpc(tid, npc);
     } catch (e2) {}
@@ -118,7 +118,7 @@ function doBurst(npc, world, data) {
     try {
         var zone = ZoneAPI.hazardCircle(npc, npc.getX(), npc.getY(), npc.getZ(), BURST_RADIUS, POISON_SECONDS * 20, 0, 20);
         if (zone != null) {
-            zone.setColor(0x8040A040);
+            zone.setColor(0xC0FF3030);
             zone.setEffect("minecraft:poison", POISON_SECONDS * 20, 0);
         }
     } catch (ze) {}

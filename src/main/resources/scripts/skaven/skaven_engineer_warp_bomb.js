@@ -90,10 +90,10 @@ function projectileImpact(event) {
 function doExplosion(world, x, y, z, npc) {
     try {
         if (npc != null) {
-            TelegraphAPI.circle(npc, x, y, z, RADIUS, 8, 0xA08040FF);
+            TelegraphAPI.circle(npc, x, y, z, RADIUS, 8, 0xC0FF3030);
             var zone = ZoneAPI.hazardCircle(npc, x, y, z, RADIUS, POISON_SECONDS * 20, DAMAGE, 10);
             if (zone != null) {
-                zone.setColor(0x908040FF);
+                zone.setColor(0xC0FF3030);
                 zone.setEffect("minecraft:poison", POISON_SECONDS * 20, 0);
             }
         } else {

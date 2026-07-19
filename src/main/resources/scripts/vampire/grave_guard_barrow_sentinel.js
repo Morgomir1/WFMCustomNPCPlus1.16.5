@@ -37,7 +37,7 @@ function timer(event) {
     var dist = flatDistance(npc, target);
     if (dist > 5.0) return;
 
-    var started = AbilityAPI.start(npc, ABILITY_ID, target, AbilityAPI.params("telegraphColor", 0xC0666688, 
+    var started = AbilityAPI.start(npc, ABILITY_ID, target, AbilityAPI.params("telegraphColor", 0xC0FF3030, 
         "distance", dist > 2.8 ? 2.2 : 1.6,
         "chargeTicks", dist < 2.2 ? 10 : 12,
         "activeTicks", 5,

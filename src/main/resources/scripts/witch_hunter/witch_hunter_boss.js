@@ -123,12 +123,12 @@ function pickAbility(npc, target, phase, data, now) {
 function buildParams(abilityId, phase) {
     if (abilityId == "pistol_shot") {
         var dmg = phase == "2" ? 11.0 : 9.0;
-        return AbilityAPI.params("telegraphColor", 0xC0FFE080, "damage", dmg, "accuracy", phase == "2" ? 3 : 4);
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "damage", dmg, "accuracy", phase == "2" ? 3 : 4);
     }
     if (abilityId == "net_throw") {
         // Круг warning → через 0.5 с (10 тиков) опутывает всех в зоне
         return AbilityAPI.params(
-            "telegraphColor", 0xC0FFE080,
+            "telegraphColor", 0xC0FF3030,
             "radius", 3.5,
             "chargeTicks", 10,
             "effectDuration", 60,
@@ -137,16 +137,16 @@ function buildParams(abilityId, phase) {
     }
     if (abilityId == "stake_thrust") {
         var thrustDmg = phase == "2" ? 18.0 : 16.0;
-        return AbilityAPI.params("telegraphColor", 0xC0FFE080, "damage", thrustDmg, "undeadBonusMultiplier", 1.5);
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "damage", thrustDmg, "undeadBonusMultiplier", 1.5);
     }
     if (abilityId == "holy_water_splash") {
-        return AbilityAPI.params("telegraphColor", 0xC0FFE080, "damage", 8.0, "undeadBonusMultiplier", 2.0);
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "damage", 8.0, "undeadBonusMultiplier", 2.0);
     }
     if (abilityId == "burning_brand") {
-        return AbilityAPI.params("telegraphColor", 0xC0FFE080, "damagePerTick", phase == "2" ? 4.0 : 3.0, "activeTicks", 12);
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "damagePerTick", phase == "2" ? 4.0 : 3.0, "activeTicks", 12);
     }
     if (abilityId == "retreat_dash") {
-        return AbilityAPI.params("telegraphColor", 0xC0FFE080, "distance", 6.0);
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "distance", 6.0);
     }
     return null;
 }

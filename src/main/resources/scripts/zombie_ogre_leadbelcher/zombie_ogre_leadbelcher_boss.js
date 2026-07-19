@@ -55,7 +55,7 @@ function timer(event) {
 
     // Периодический одиночный выстрел в ближайшего игрока (если рядом).
     if (now >= getInt(data, NEARSHOT_NEXT_CAST_KEY) && dist <= 16.0) {
-        AbilityAPI.start(npc, ARTILLERY_ID, target, AbilityAPI.params("telegraphColor", 0xC0FF6622, 
+        AbilityAPI.start(npc, ARTILLERY_ID, target, AbilityAPI.params("telegraphColor", 0xC0FF3030, 
             "projectileItem", GUN_ITEM_ID,
             "shots", 1,
             "distance", 0.0,
@@ -143,7 +143,7 @@ function isPlayerEntity(entity) {
 
 function buildParamsFor(abilityId, dist) {
     if (abilityId == SLAM_ID) {
-        return AbilityAPI.params("telegraphColor", 0xC0FF6622, 
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, 
             "damage", 12.0,
             "radius", SLAM_RADIUS,
             "knockback", 2.4,
@@ -155,7 +155,7 @@ function buildParamsFor(abilityId, dist) {
         );
     }
     if (abilityId == TRAMPLE_ID) {
-        return AbilityAPI.params("telegraphColor", 0xC0FF6622, 
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, 
             "damage", 4.0,
             "hitRadius", 1.9,
             "knockback", 1.15,
@@ -169,7 +169,7 @@ function buildParamsFor(abilityId, dist) {
         );
     }
     // ARTILLERY_ID
-    return AbilityAPI.params("telegraphColor", 0xC0FF6622, 
+    return AbilityAPI.params("telegraphColor", 0xC0FF3030, 
         "projectileItem", GUN_ITEM_ID,
         "shots", 6,
         "distance", 12.0,

@@ -178,7 +178,7 @@ function startCharge(npc, world, data, now) {
             var dz = target.getZ() - npc.getZ();
             yaw = Math.atan2(-dx, dz) * (180.0 / Math.PI);
         }
-        TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 3.5, 35, CHARGE_TICKS, 0xA0AAAAAA);
+        TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 3.5, 35, CHARGE_TICKS, 0xC0FF3030);
     } catch (te) {}
     data.put(CHARGE_END_KEY, String(now + CHARGE_TICKS));
     try {

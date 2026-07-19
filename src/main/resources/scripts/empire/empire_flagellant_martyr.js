@@ -113,7 +113,7 @@ function startCharge(npc, world, data) {
     } catch (err2) {}
 
     try {
-        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), EXPLOSION_RADIUS, CHARGE_TICKS, 0x90FF6600);
+        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), EXPLOSION_RADIUS, CHARGE_TICKS, 0xC0FF3030);
         data.put(TELEGRAPH_KEY, String(tid));
         TelegraphAPI.followNpc(tid, npc);
     } catch (err3) {}
@@ -171,7 +171,7 @@ function doExplosion(npc, world, data) {
     try {
         var zone = ZoneAPI.hazardCircle(npc, x, y, z, EXPLOSION_RADIUS, 20, EXPLOSION_DAMAGE * 0.25, 10);
         if (zone != null) {
-            zone.setColor(0xA0FF4400);
+            zone.setColor(0xC0FF3030);
             zone.setKnockback(KNOCKBACK * 0.5);
         }
     } catch (zerr) {}

@@ -9,6 +9,11 @@ import java.util.Map;
 import java.util.Set;
 
 public final class AbilityParams {
+    private static final Set<String> ALWAYS_ALLOWED = keys(
+            AbilityParamKeys.TELEGRAPH,
+            AbilityParamKeys.TELEGRAPH_COLOR,
+            AbilityParamKeys.TELEGRAPH_FORWARD);
+
     private final Map<String, Object> values;
 
     private AbilityParams(final Map<String, Object> values) {
@@ -26,7 +31,9 @@ public final class AbilityParams {
         if (overrides != null) {
             for (final Map.Entry<String, Object> entry : overrides.entrySet()) {
                 final String key = entry.getKey();
-                if (knownKeys != null && !knownKeys.isEmpty() && !knownKeys.contains(key)) {
+                if (knownKeys != null && !knownKeys.isEmpty()
+                        && !knownKeys.contains(key)
+                        && !ALWAYS_ALLOWED.contains(key)) {
                     LogWriter.info("AbilityParams: unknown key ignored: " + key);
                     continue;
                 }

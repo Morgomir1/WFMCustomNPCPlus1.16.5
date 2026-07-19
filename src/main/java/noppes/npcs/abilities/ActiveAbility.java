@@ -27,6 +27,7 @@ public final class ActiveAbility {
     public double ez;
     public float yaw;
     public boolean jumpStyle;
+    public String telegraphId;
 
     public ActiveAbility(
             final UUID npcUuid,

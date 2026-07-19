@@ -52,6 +52,7 @@ public final class AbilityRunner {
             LogWriter.info("AbilityRunner: onStart failed for ability: " + abilityId);
             return false;
         }
+        active.telegraphId = AbilityTelegraph.spawnFromCharge(active, ctx);
         ACTIVE.put(uuid, active);
         return true;
     }
@@ -77,6 +78,7 @@ public final class AbilityRunner {
         }
         final ActiveAbility active = ACTIVE.remove(uuid);
         if (active != null) {
+            AbilityTelegraph.clear(active, active.context);
             active.ability.onCancel(active, active.context);
         }
     }
@@ -118,6 +120,7 @@ public final class AbilityRunner {
             final TickResult result = active.ability.tick(active, ctx);
             if (result == TickResult.FINISHED) {
                 ACTIVE.remove(active.npcUuid);
+                AbilityTelegraph.clear(active, ctx);
                 active.ability.onEnd(active, ctx);
             }
         } catch (final Exception e) {
@@ -128,6 +131,7 @@ public final class AbilityRunner {
 
     private static void removeAndCancel(final ActiveAbility active) {
         ACTIVE.remove(active.npcUuid);
+        AbilityTelegraph.clear(active, active.context);
         active.ability.onCancel(active, active.context);
     }
 

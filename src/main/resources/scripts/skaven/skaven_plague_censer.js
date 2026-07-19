@@ -5,6 +5,8 @@
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
 
 // -------------------------
 // НАСТРОЙКИ
@@ -29,6 +31,7 @@ var BURST_SOUND_PITCH = 0.75;
 var CD_KEY = "sk_plague_cd";
 var CHARGING_KEY = "sk_plague_charging";
 var CHARGE_END_KEY = "sk_plague_charge_end";
+var TELEGRAPH_KEY = "sk_plague_telegraph";
 
 function tick(e) {
     var npc = e.npc;
@@ -79,6 +82,11 @@ function startCharge(npc, world, data, now) {
     try {
         world.playSoundAt(npc.getPos(), CHARGE_SOUND, CHARGE_SOUND_VOL, CHARGE_SOUND_PITCH);
     } catch (e) {}
+    try {
+        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), BURST_RADIUS, CHARGE_TICKS, 0x9040FF40);
+        data.put(TELEGRAPH_KEY, String(tid));
+        TelegraphAPI.followNpc(tid, npc);
+    } catch (e2) {}
 }
 
 function doChargingTick(npc, world, data, now) {
@@ -101,15 +109,19 @@ function doChargingTick(npc, world, data, now) {
 }
 
 function doBurst(npc, world, data) {
-    var pos = NpcAPI.getIPos(npc.getX(), npc.getY(), npc.getZ());
-    var list = world.getNearbyEntities(pos, BURST_RADIUS, EntitiesType.ANY);
-    for (var i = 0; i < list.length; i++) {
-        var ent = list[i];
-        if (!isValidEnemy(npc, ent)) continue;
-        try {
-            ent.addPotionEffect(PotionEffectType_POISON, POISON_SECONDS, 0, false);
-        } catch (e) {}
-    }
+    try {
+        var tid = String(data.get(TELEGRAPH_KEY));
+        if (tid && tid != "null" && tid != "") TelegraphAPI.remove(tid);
+        data.remove(TELEGRAPH_KEY);
+    } catch (te) {}
+
+    try {
+        var zone = ZoneAPI.hazardCircle(npc, npc.getX(), npc.getY(), npc.getZ(), BURST_RADIUS, POISON_SECONDS * 20, 0, 20);
+        if (zone != null) {
+            zone.setColor(0x8040A040);
+            zone.setEffect("minecraft:poison", POISON_SECONDS * 20, 0);
+        }
+    } catch (ze) {}
 
     try {
         spawnBurstParticles(world, npc);

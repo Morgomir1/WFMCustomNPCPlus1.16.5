@@ -6,6 +6,7 @@
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
 
 // CNPC OnAttack: 0=Мстить, 1=Паника, 2=Отступать, 3=Ничего
 var RETALIATE_REVENGE = 0;
@@ -28,6 +29,7 @@ var FART_SOUND_PITCH = 0.75;
 // -------------------------
 var ACTIVE_KEY = "eff_burn_active";
 var NEXT_PULSE_KEY = "eff_next_pulse";
+var ZONE_ID_KEY = "eff_zone_id";
 
 function init(e) {
     clearState(e.npc.getStoreddata());
@@ -66,6 +68,10 @@ function died(e) {
     try {
         npc.extinguish();
     } catch (err) {}
+    try {
+        var zone = findZone(npc.getWorld(), npc.getStoreddata());
+        if (zone != null) ZoneAPI.remove(zone);
+    } catch (zerr) {}
     clearState(npc.getStoreddata());
 }
 
@@ -96,18 +102,54 @@ function startBurning(npc, world, data) {
     } catch (err2) {}
 
     spawnFireFart(world, npc, 14);
+
+    try {
+        var zone = ZoneAPI.hazardCircle(npc, npc.getX(), npc.getY(), npc.getZ(), BURN_RADIUS, 20 * 60 * 20, BASE_PULSE_DAMAGE, PULSE_INTERVAL_TICKS);
+        if (zone != null) {
+            zone.setColor(0x90FF5500);
+            data.put(ZONE_ID_KEY, String(zone.getId()));
+        }
+    } catch (zerr) {}
 }
 
 function doBurningTick(npc, world, data) {
     refreshSelfFire(npc);
     spawnAmbientFlame(world, npc);
 
+    var zone = findZone(world, data);
+    if (zone != null) {
+        try {
+            zone.moveTo(npc.getX(), npc.getY(), npc.getZ(), 0, 0);
+            zone.setDamage(calcPulseDamage(npc));
+            zone.setLifetimeTicks(200);
+        } catch (ze) {}
+    }
+
     var now = world.getTotalTime();
     if (now < getInt(data, NEXT_PULSE_KEY)) return;
 
+    // VFX pulse; damage handled by Ability Zone
     var damage = calcPulseDamage(npc);
-    doFirePulse(npc, world, damage);
+    spawnFireFart(world, npc, 10);
+    try {
+        world.playSoundAt(npc.getPos(), FART_SOUND, FART_SOUND_VOL, FART_SOUND_PITCH);
+    } catch (err) {}
     data.put(NEXT_PULSE_KEY, String(now + PULSE_INTERVAL_TICKS));
+}
+
+function findZone(world, data) {
+    if (!data.has(ZONE_ID_KEY)) return null;
+    try {
+        var id = getInt(data, ZONE_ID_KEY);
+        if (id <= 0) return null;
+        var mcWorld = world.getMCWorld();
+        if (mcWorld == null) return null;
+        var ent = mcWorld.getEntity(id);
+        if (ent == null) return null;
+        return ent;
+    } catch (e) {
+        return null;
+    }
 }
 
 function calcPulseDamage(npc) {
@@ -218,6 +260,7 @@ function isValidBurnTarget(npc, ent, mcNpc) {
 }
 
 function clearState(data) {
+    data.remove(ZONE_ID_KEY);
     data.put(ACTIVE_KEY, "0");
     data.remove(NEXT_PULSE_KEY);
 }

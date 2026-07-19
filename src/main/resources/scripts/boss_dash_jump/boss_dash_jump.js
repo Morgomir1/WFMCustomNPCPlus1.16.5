@@ -70,12 +70,12 @@ function nextAbility(currentId) {
 
 function buildParams(abilityId, lowHp) {
     if (abilityId == "dash") {
-        return AbilityAPI.params(
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, 
             "damage", lowHp ? 14.0 : 10.0,
             "distance", 16.0
         );
     }
-    return AbilityAPI.params(
+    return AbilityAPI.params("telegraphColor", 0xC0FF3030, 
         "damage", lowHp ? 18.0 : 14.0,
         "arcHeight", lowHp ? 7.0 : 6.0
     );

@@ -95,6 +95,7 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.CHARGE_TICKS, 12);
         map.put(AbilityParamKeys.DAMAGE, 12.0);
         map.put(AbilityParamKeys.RADIUS, 3.0);
+        map.put(AbilityParamKeys.TELEGRAPH_FORWARD, 2.2);
         map.put(AbilityParamKeys.KNOCKBACK, 0.9);
         map.put(AbilityParamKeys.KNOCKBACK_Y, 0.15);
         map.put(AbilityParamKeys.EFFECT_TYPE, "blindness");

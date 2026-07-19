@@ -42,6 +42,8 @@ public class CustomEntities
     public static EntityType<? extends EntityCustomModel> entityCustomModel;
     @ObjectHolder("clone_structure_spawner")
     public static EntityType<?> entityCloneStructureSpawner;
+    @ObjectHolder("ability_zone")
+    public static EntityType<EntityAbilityZone> entityAbilityZone;
     private static List<EntityType> types;
 
     @SubscribeEvent
@@ -60,6 +62,7 @@ public class CustomEntities
         registerNewentity(event.getRegistry(), EntityProjectile.class, "customnpcprojectile", EntityProjectile::new, 64, 20, true, 0.5f, 0.5f);
         registerNewentity(event.getRegistry(), EntityCustomModel.class, "custommodelentity", EntityCustomModel::new, 64, 10, false, 0.7F, 2F);
         registerNewentity(event.getRegistry(), EntityCloneStructureSpawner.class, "clone_structure_spawner", EntityCloneStructureSpawner::new, 64, 10, false, 0.5f, 1.0f);
+        registerNewentity(event.getRegistry(), EntityAbilityZone.class, "ability_zone", EntityAbilityZone::new, 64, 3, false, 0.1f, 0.1f);
     }
 
     @SubscribeEvent

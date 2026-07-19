@@ -69,14 +69,14 @@ function nextAbility(currentId) {
 
 function buildParams(abilityId) {
     if (abilityId == "dash") {
-        return AbilityAPI.params(
+        return AbilityAPI.params("telegraphColor", 0xC0FF3030, 
             "damage", 10.0,
             "distance", 16.0,
             "chargeTicks", 10,
             "activeTicks", 7
         );
     }
-    return AbilityAPI.params(
+    return AbilityAPI.params("telegraphColor", 0xC0FF3030, 
         "damage", 14.0,
         "arcHeight", 6.0,
         "landRadius", 2.8,

@@ -6,6 +6,8 @@
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
 
 // CNPC OnAttack: 0=Мстить, 1=Паника, 2=Отступать, 3=Ничего
 var RETALIATE_REVENGE = 0;
@@ -39,6 +41,7 @@ var BASE_SPEED_KEY = "efm_base_speed";
 var CHARGING_KEY = "efm_charging";
 var CHARGE_START_KEY = "efm_charge_start";
 var CHARGE_END_KEY = "efm_charge_end";
+var TELEGRAPH_KEY = "efm_telegraph";
 
 function init(e) {
     storeBaseSpeed(e.npc.getStoreddata(), e.npc.getAi());
@@ -108,6 +111,12 @@ function startCharge(npc, world, data) {
             1.15
         );
     } catch (err2) {}
+
+    try {
+        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), EXPLOSION_RADIUS, CHARGE_TICKS, 0x90FF6600);
+        data.put(TELEGRAPH_KEY, String(tid));
+        TelegraphAPI.followNpc(tid, npc);
+    } catch (err3) {}
 }
 
 function doChargingTick(npc, world, data) {
@@ -158,6 +167,14 @@ function doExplosion(npc, world, data) {
     try {
         world.explode(x, y + 0.5, z, EXPLOSION_RADIUS, false, false);
     } catch (err) {}
+
+    try {
+        var zone = ZoneAPI.hazardCircle(npc, x, y, z, EXPLOSION_RADIUS, 20, EXPLOSION_DAMAGE * 0.25, 10);
+        if (zone != null) {
+            zone.setColor(0xA0FF4400);
+            zone.setKnockback(KNOCKBACK * 0.5);
+        }
+    } catch (zerr) {}
 
     var list = world.getNearbyEntities(pos, EXPLOSION_RADIUS, EntitiesType.ANY);
     var mcNpc = null;

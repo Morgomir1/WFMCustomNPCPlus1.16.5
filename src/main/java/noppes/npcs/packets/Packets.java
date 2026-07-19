@@ -162,6 +162,8 @@ public class Packets
         Packets.Channel.registerMessage(Packets.index++, SPacketNpRandomNameSet.class, SPacketNpRandomNameSet::encode, SPacketNpRandomNameSet::decode, PacketServerBasic::handle);
         Packets.Channel.registerMessage(Packets.index++, SPacketPlayerSoundPlays.class, SPacketPlayerSoundPlays::encode, SPacketPlayerSoundPlays::decode, PacketServerBasic::handle);
         Packets.Channel.registerMessage(Packets.index++, PacketSyncAnimation.class, PacketSyncAnimation::encode, PacketSyncAnimation::decode, PacketSyncAnimation::handle);
+        Packets.Channel.registerMessage(Packets.index++, PacketTelegraphSpawn.class, PacketTelegraphSpawn::encode, PacketTelegraphSpawn::decode, PacketBasic::handle);
+        Packets.Channel.registerMessage(Packets.index++, PacketTelegraphRemove.class, PacketTelegraphRemove::encode, PacketTelegraphRemove::decode, PacketBasic::handle);
         CNpcsNetworkHelper.addPacket(SPacketScriptSave.class, SPacketScriptSave::new);
         CNpcsNetworkHelper.addPacket(SPacketToolMobSpawner.class, SPacketToolMobSpawner::new);
         CNpcsNetworkHelper.addPacket(SPacketQuestSave.class, SPacketQuestSave::new);

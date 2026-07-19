@@ -6,6 +6,8 @@
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
 
 // -------------------------
 // НАСТРОЙКИ
@@ -77,20 +79,36 @@ function projectileImpact(event) {
         }
     }
 
-    doExplosion(world, x, y, z);
+    var shooter = null;
+    try { shooter = event.npc; } catch (e4) {}
+    if (shooter == null) {
+        try { shooter = event.projectile.getOwner(); } catch (e5) {}
+    }
+    doExplosion(world, x, y, z, shooter);
 }
 
-function doExplosion(world, x, y, z) {
-    var pos = NpcAPI.getIPos(x, y, z);
-    var list = world.getNearbyEntities(pos, RADIUS, EntitiesType.ANY);
-    for (var i = 0; i < list.length; i++) {
-        var ent = list[i];
-        if (!isPlayerEntity(ent)) continue;
-        try {
-            ent.damage(DAMAGE);
-            ent.addPotionEffect(PotionEffectType_POISON, POISON_SECONDS, 0, false);
-        } catch (e) {}
-    }
+function doExplosion(world, x, y, z, npc) {
+    try {
+        if (npc != null) {
+            TelegraphAPI.circle(npc, x, y, z, RADIUS, 8, 0xA08040FF);
+            var zone = ZoneAPI.hazardCircle(npc, x, y, z, RADIUS, POISON_SECONDS * 20, DAMAGE, 10);
+            if (zone != null) {
+                zone.setColor(0x908040FF);
+                zone.setEffect("minecraft:poison", POISON_SECONDS * 20, 0);
+            }
+        } else {
+            var pos = NpcAPI.getIPos(x, y, z);
+            var list = world.getNearbyEntities(pos, RADIUS, EntitiesType.ANY);
+            for (var i = 0; i < list.length; i++) {
+                var ent = list[i];
+                if (!isPlayerEntity(ent)) continue;
+                try {
+                    ent.damage(DAMAGE);
+                    ent.addPotionEffect(PotionEffectType_POISON, POISON_SECONDS, 0, false);
+                } catch (e) {}
+            }
+        }
+    } catch (ze) {}
     try {
         world.spawnParticle("minecraft:witch", x, y + 0.2, z, 0.4, 0.15, 0.4, 0.02, 16);
         world.playSoundAt(NpcAPI.getIPos(x, y, z), "minecraft:block.respawn_anchor.charge", 0.8, 1.2);

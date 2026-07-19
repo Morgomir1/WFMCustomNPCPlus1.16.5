@@ -196,3 +196,57 @@ AbilityTickHandler → AbilityRunner.tickAll → DashAbility / JumpSlamAbility
 ```
 
 Новые абилки: реализовать `CnpcAbility`, зарегистрировать в `AbilityRegistry`, добавить дефолты и ключи в `AbilityParamKeys` / `abilities-reference.md`.
+
+---
+
+## Telegraph + Ability Zone
+
+Визуальные warning-зоны (telegraph) и наносящие урон hazard-зоны для боссов.
+
+### Авто-телеграф (AbilityAPI)
+
+После успешного `onStart` `AbilityRunner` сам спавнит telegraph по параметрам:
+
+| Приоритет | Условие | Форма |
+|-----------|---------|--------|
+| 1 | `coneHalfAngle` > 0 | cone (`radius` / `hitRadius` = длина) |
+| 2 | `landRadius` > 0 | circle в точке ленда (`active.ex/ey/ez`) |
+| 3 | `distance` + `radius` | line-коридор (+ circle в impact, если есть) |
+| 4 | только `distance` | line (`hitRadius` = ширина) |
+| 5 | `radius` / `auraRadius` | circle (или `telegraphForward` / impact point) |
+
+Отключить: `"telegraph", 0`. Цвет: `"telegraphColor", 0xC0FF3030`.
+
+### JS API — Telegraph
+
+```javascript
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+
+var id = TelegraphAPI.circle(npc, x, y, z, radius, durationTicks, 0x80FF3030);
+TelegraphAPI.cone(npc, x, y, z, yaw, length, halfAngleDeg, durationTicks, color);
+TelegraphAPI.line(npc, x, y, z, yaw, length, width, durationTicks, color);
+TelegraphAPI.ring(npc, x, y, z, outerR, innerR, durationTicks, color);
+TelegraphAPI.follow(id, entity);      // или followNpc(id, npc)
+TelegraphAPI.remove(id);
+```
+
+### JS API — Zone (hazard entity)
+
+```javascript
+var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
+
+var zone = ZoneAPI.hazardCircle(npc, x, y, z, radius, durationTicks, damage, damageInterval);
+ZoneAPI.hazardRing(npc, x, y, z, outerR, innerR, duration, damage, interval);
+ZoneAPI.trapCircle(npc, x, y, z, radius, duration, damage);
+
+zone.setEffect("minecraft:poison", 60, 0);
+zone.setColor(0x80FF0000);
+zone.setKnockback(0.5);
+zone.setDamage(3.0);
+zone.moveTo(x, y, z, 0, 0);   // следовать за NPC
+ZoneAPI.remove(zone);
+```
+
+- Урон только врагам кастера (`AbilityCombatHelper.isHostileToBoss`).
+- `HAZARD` — тик урона; `TRAP` — один trigger при входе.
+- Клиент рисует заливку/бордер; пакеты telegraph не тянуть в серверный код абилок — только `TelegraphAPI` / `ZoneAPI`.

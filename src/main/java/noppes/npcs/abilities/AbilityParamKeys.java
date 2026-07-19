@@ -35,6 +35,9 @@ public final class AbilityParamKeys {
     public static final String CLONE_NAME = "cloneName";
     public static final String EXECUTE_HP_THRESHOLD = "executeHpThreshold";
     public static final String EXECUTE_BONUS_DAMAGE = "executeBonusDamage";
+    public static final String TELEGRAPH = "telegraph";
+    public static final String TELEGRAPH_COLOR = "telegraphColor";
+    public static final String TELEGRAPH_FORWARD = "telegraphForward";
 
     private AbilityParamKeys() {
     }

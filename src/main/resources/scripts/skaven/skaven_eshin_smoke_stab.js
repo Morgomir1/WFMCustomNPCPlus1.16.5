@@ -8,6 +8,7 @@
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
 
 // CNPC OnAttack: 0=Мстить, 1=Паника, 2=Отступать, 3=Ничего
 var RETALIATE_REVENGE = 0;
@@ -169,6 +170,16 @@ function teleportBehind(npc, target, world, withAttack) {
 
 function startCharge(npc, world, data, now) {
     data.put(CHARGING_KEY, "1");
+    try {
+        var target = npc.getAttackTarget();
+        var yaw = npc.getMCEntity().yRot;
+        if (target != null) {
+            var dx = target.getX() - npc.getX();
+            var dz = target.getZ() - npc.getZ();
+            yaw = Math.atan2(-dx, dz) * (180.0 / Math.PI);
+        }
+        TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 3.5, 35, CHARGE_TICKS, 0xA0AAAAAA);
+    } catch (te) {}
     data.put(CHARGE_END_KEY, String(now + CHARGE_TICKS));
     try {
         world.spawnParticle("minecraft:smoke", npc.getX(), npc.getY() + 1.0, npc.getZ(),

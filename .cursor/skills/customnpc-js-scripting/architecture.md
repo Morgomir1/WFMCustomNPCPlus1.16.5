@@ -9,6 +9,9 @@
 ```javascript
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+// Опционально — зоны атаки:
+// var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+// var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
 ```
 
 Если `EntitiesType` не резолвится в вашей сборке — подставьте числовые id:
@@ -31,9 +34,12 @@ var ENTITY_LIVING = 5;
 3. Ключи storeddata — ACTIVE_KEY, CHARGING_KEY, CD_KEY, ...
 4. function tick(e)           — диспетчер
 5. Фазы — startCharge, doChargingTick, doActiveTick, clearState
-6. VFX / урон — drawEffect, damageAlongPath, doFinisher
+6. VFX / урон — telegraph в startCharge, ZoneAPI для aura/burst, doFinisher
 7. Утилиты — getInt, getFloat, distance, findPlayerByUUID
 ```
+
+**Telegraph** — warning на время charge (`TelegraphAPI.circle/cone/line`).  
+**Zone** — hazard-entity с тик-уроном (`ZoneAPI.hazardCircle`); см. [abilities-reference.md](abilities-reference.md) § Telegraph + Ability Zone.
 
 ---
 

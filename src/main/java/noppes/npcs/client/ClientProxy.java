@@ -91,6 +91,9 @@ public class ClientProxy extends CommonProxy
         RenderingRegistry.registerEntityRenderingHandler(
                 (EntityType<EntityCloneStructureSpawner>) (EntityType<?>) CustomEntities.entityCloneStructureSpawner,
                 RenderCloneStructureSpawner::new);
+        RenderingRegistry.registerEntityRenderingHandler(
+                CustomEntities.entityAbilityZone,
+                RenderAbilityZone::new);
         ScreenManager.register(CustomContainer.container_carpentrybench, GuiNpcCarpentryBench::new);
         ScreenManager.register(CustomContainer.container_customgui, GuiCustom::new);
         ScreenManager.register(CustomContainer.container_mail, GuiMailmanWrite::new);
@@ -147,6 +150,7 @@ public class ClientProxy extends CommonProxy
     @Override
     public void postload() {
         MinecraftForge.EVENT_BUS.register(new ClientEventHandler());
+        MinecraftForge.EVENT_BUS.register(new noppes.npcs.client.telegraph.TelegraphWorldRenderer());
         if (CustomNpcs.InventoryGuiEnabled) {
             TabRegistry.registerEventListeners(MinecraftForge.EVENT_BUS);
             if (TabRegistry.getTabList().isEmpty()) {

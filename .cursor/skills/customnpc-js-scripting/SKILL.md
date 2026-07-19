@@ -25,7 +25,9 @@ var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
 
 ### Каркас файла
 
-1. Bootstrap → 2. **НАСТРОЙКИ** → 3. ключи storeddata → 4. **`function tick(e)`** → 5. фазы (`startCharge`, `doChargingTick`, `doActiveTick`, `clearState`) → 6. VFX/урон → 7. утилиты (`getInt`, `getFloat`, `distance`)
+1. Bootstrap → 2. **НАСТРОЙКИ** → 3. ключи storeddata → 4. **`function tick(e)`** → 5. фазы (`startCharge`, `doChargingTick`, `doActiveTick`, `clearState`) → 6. VFX/урон (TelegraphAPI / ZoneAPI) → 7. утилиты (`getInt`, `getFloat`, `distance`)
+
+Зоны атаки: `TelegraphAPI` (warning) + `ZoneAPI` (hazard). AbilityAPI сам рисует telegraph по `radius`/`landRadius`/`coneHalfAngle`/`distance`. Подробности — [abilities-reference.md](abilities-reference.md).
 
 ### Главный цикл
 

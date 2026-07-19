@@ -1358,6 +1358,7 @@ function buildParams(abilityId, phase, data) {
     }
     if (abilityId == RAISE_THRALLS_ID) {
         return AbilityAPI.params(
+            "telegraphColor", 0xC0408040,
             "chargeTicks", bond ? 8 : 12,
             "activeTicks", 16,
             "summonCount", bond ? 3 : 2,

@@ -36,11 +36,17 @@ public static boolean throwDwarfRangerNet(
         LivingEntity thrower,
         LivingEntity target,
         float inaccuracy)
+
+public static int ensnareAroundPoint(
+        LivingEntity source,
+        double x, double y, double z,
+        double radius,
+        int durationTicks)
 ```
 
-- Создаёт `DwarfRangerNetEntity` + `wfm:dwarf_ranger_net` item stack.
-- При попадании — `HUNTER_NET`, lock-анимация (логика entity).
-- Звук: `LOTRSoundEvents.ENSNARE_MISSIKE`.
+- `throwDwarfRangerNet` — летящая сеть в одну цель.
+- `ensnareAroundPoint` — мгновенно опутывает всех не-союзников в круге (`HUNTER_NET` + locked `DwarfRangerNetEntity`).
+- Звук: `LOTRSoundEvents.ENSNARE_MISSIKE` / `ENSNARE_TARGET`.
 
 ## CustomNpcGunHelper
 

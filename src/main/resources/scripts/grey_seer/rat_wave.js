@@ -4,58 +4,55 @@
 //
 // Способности:
 // 1) Полчища крыс — 15s CD, призыв 10 крыс-миньонов с таймером жизни
-// 2) Прыжок — 15s CD, телепорт в самую далёкую точку
-// 3) Волна проклятия — 5s CD, залп 10–15 снарядов, стаки проклятия в тегах игрока
-//    5 стаков: отравление I (5с), 10: слабость I (15с), 15: замедление I (10с) + сброс стаков
+// 2) Прыжок — 15s CD, телепорт в самую далёкую точку (реакция на урон)
+// 3) Варп-огнемёт — 10s CD, вытянутый конус 3с: 2 чистого урона / 0.5с,
+//    без движения и телепорта на время каста; VFX = wfm:warpfire_flame
 //
 // Clone Bank: tab=1, name="rat" (крысы-миньоны)
 //
 // Точки телепорта по умолчанию (если не заданы через trigger set_tp / clear_tp):
-//   var DEFAULT_TELEPORT_POINTS = [
-//       {x: 499888, y: 50, z: -600},
-//       {x: 499900, y: 50, z: -580},
-//       {x: 499870, y: 50, z: -610}
-//   ];
+//   var DEFAULT_TELEPORT_POINTS = [ ... ];
 // Настройка через команду:
 //   /script trigger set_tp 499888 50 -600 499900 50 -580 499870 50 -610
 //   /script trigger clear_tp
 // Принудительный каст:
 //   /script trigger cast rat_swarm
-//   /script trigger cast distortion_wave
+//   /script trigger cast warpfire_breath
 // =====================================================
+
+var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+var AbilityCombatHelper = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
+var DamageSource = Java.type("net.minecraft.util.DamageSource");
 
 var RAT_LIFETIME = 200;    // 10 секунд (20 тиков/сек)
 var MAX_RATS = 13;
 var CLONE_TAB = 1;
 var CLONE_NAME = "Крыса";
-var CURSE_PROJECTILE_ITEM = "wfm:warpstone";
-var CURSE_PROJECTILE_DAMAGE = 5;
-var CURSE_TAG_PREFIX = "grey_seer_curse_";
-var CURSE_VOLLEY_MIN = 10;
-var CURSE_VOLLEY_MAX = 15;
-var CURSE_THRESHOLD_POISON = 5;
-var CURSE_THRESHOLD_WEAKNESS = 10;
-var CURSE_THRESHOLD_SLOWNESS = 15;
-var CURSE_POISON_DURATION = 5;      // секунды (addPotionEffect умножает на 20 тиков сам)
-var CURSE_WEAKNESS_DURATION = 15; // секунды
-var CURSE_SLOWNESS_DURATION = 10;   // секунды
-var CURSE_TRAIL_STEPS = 5;
-var CURSE_TRAIL_SPREAD = 0.12;
-var CURSE_DEBUG = true;  // отладочные логи попаданий проклятия (выключить после теста)
 
-function curseDebug(msg) {
-    if (CURSE_DEBUG) log("grey_seer curse: " + msg);
-}
+// --- Варп-огнемёт ---
+var FLAME_CAST_TICKS = 60;          // 3 секунды
+var FLAME_DAMAGE = 2.0;             // чистый (MAGIC) урон
+var FLAME_DAMAGE_INTERVAL = 10;     // 0.5 секунды
+var FLAME_LENGTH = 14.0;            // вытянутый конус
+var FLAME_HALF_ANGLE = 18.0;        // узкий half-angle
+var FLAME_RANGE = 15.0;             // max дистанция для старта каста
+var FLAME_PARTICLE_COUNT = 96;      // плотность стрима за тик VFX
+var FLAME_PARTICLE_SPEED_MIN = 0.85; // скорость вылета от провидца
+var FLAME_PARTICLE_SPEED_MAX = 1.55;
+var FLAME_VFX_TIMER_TICKS = 5;      // чаще тик → непрерывная струя
+var FLAME_PARTICLE = "wfm:warpfire_flame";
+var FLAME_TELEGRAPH_COLOR = 0xC0FF3030; // warning red (стандарт attack-zones)
 
-function getEntityDebugName(entity) {
-    try {
-        if (entity == null) return "null";
-        if (typeof entity.getName == "function") return String(entity.getName());
-        return String(entity.getClass().getName());
-    } catch (e) {
-        return "?";
-    }
-}
+var FLAME_CASTING_KEY = "wf_casting";
+var FLAME_END_KEY = "wf_end";
+var FLAME_NEXT_DMG_KEY = "wf_next_dmg";
+var FLAME_LOCK_X = "wf_lock_x";
+var FLAME_LOCK_Y = "wf_lock_y";
+var FLAME_LOCK_Z = "wf_lock_z";
+var FLAME_YAW_KEY = "wf_yaw";
+var FLAME_TG_KEY = "wf_tg";
+var FLAME_BASE_SPEED_KEY = "wf_base_speed";
 
 // Точки телепортации по умолчанию (переопределяются через trigger set_tp)
 var DEFAULT_TELEPORT_POINTS = [
@@ -72,14 +69,15 @@ var SPELLS = {
     rat_swarm: {
         id: "rat_swarm",
         weight: 10,
-        cooldown: 300,          // 15 секунд
+        cooldown: 1200,          // 15 секунд
         enrageCooldown: 180,
         announce: "§cЧувствуете запах крыс?",
         count: 10,
         canCast: function(ctx) {
             return ctx.target != null
                 && ctx.target.isAlive()
-                && ctx.minions < MAX_RATS;
+                && ctx.minions < MAX_RATS
+                && !isWarpfireCasting(ctx.npc);
         },
         cast: function(ctx) {
             return spawnRatsAround(ctx, ctx.spell.count);
@@ -92,39 +90,56 @@ var SPELLS = {
         enrageCooldown: 180,
         announce: "§8*шорох*",
         canCast: function(ctx) {
-            return ctx.target != null && ctx.target.isAlive();
+            return ctx.target != null
+                && ctx.target.isAlive()
+                && !isWarpfireCasting(ctx.npc);
         },
         cast: function(ctx) {
             teleportBoss(ctx);
             return 1;
         }
     },
-    distortion_wave: {
-        id: "distortion_wave",
+    warpfire_breath: {
+        id: "warpfire_breath",
         weight: 10,
-        cooldown: 100,          // 5 секунд
-        enrageCooldown: 60,
-        announce: "§2Проклятие!",
+        cooldown: 200,          // 10 секунд
+        enrageCooldown: 120,
+        announce: "§aВарп-пламя!",
         canCast: function(ctx) {
-            return ctx.target != null && ctx.target.isAlive();
+            if (ctx.target == null || !ctx.target.isAlive()) return false;
+            if (isWarpfireCasting(ctx.npc)) return false;
+            var dx = ctx.target.getX() - ctx.npc.getX();
+            var dz = ctx.target.getZ() - ctx.npc.getZ();
+            return Math.sqrt(dx * dx + dz * dz) <= FLAME_RANGE;
         },
         cast: function(ctx) {
-            var count = CURSE_VOLLEY_MIN + Math.floor(
-                Math.random() * (CURSE_VOLLEY_MAX - CURSE_VOLLEY_MIN + 1));
-            return castCurseVolleyToward(ctx, ctx.target, count);
+            return startWarpfireBreath(ctx) ? 1 : 0;
         }
     }
 };
 
 // Заклинания, из которых босс выбирает случайное
-var SPELL_POOL = ["rat_swarm", "distortion_wave"];
+var SPELL_POOL = ["rat_swarm", "warpfire_breath"];
 
 // =====================================================
 // Утилиты босса
 // =====================================================
 
 function isBoss(npc) {
-    return npc.getStoreddata().get("grey_seer_boss") == 1;
+    try {
+        return npc != null && npc.getStoreddata().get("grey_seer_boss") == 1;
+    } catch (e) {
+        return false;
+    }
+}
+
+/** Скрипт-логика (ИИ/касты/тикеры) — только пока босс жив. */
+function canRunScript(npc) {
+    try {
+        return isBoss(npc) && npc.isAlive();
+    } catch (e) {
+        return false;
+    }
 }
 
 function isEnraged(npc) {
@@ -170,6 +185,20 @@ function buildCastContext(npc, spell) {
     };
 }
 
+function getFloat(data, key, fallback) {
+    var v = data.get(key);
+    if (v == null) return fallback;
+    var n = parseFloat(String(v));
+    return isNaN(n) ? fallback : n;
+}
+
+function getInt(data, key, fallback) {
+    var v = data.get(key);
+    if (v == null) return fallback;
+    var n = parseInt(String(v), 10);
+    return isNaN(n) ? fallback : n;
+}
+
 // =====================================================
 // Ядро ИИ: выбор и применение заклинания
 // =====================================================
@@ -203,6 +232,7 @@ function pickRandomSpell(npc) {
 }
 
 function castSpell(npc, spellId) {
+    if (!canRunScript(npc)) return false;
     var spell = SPELLS[spellId];
     if (spell == null) return false;
     if (!isSpellReady(npc, spell)) return false;
@@ -224,6 +254,9 @@ function castSpell(npc, spellId) {
 }
 
 function castRandomSpell(npc) {
+    if (!canRunScript(npc)) return false;
+    if (isWarpfireCasting(npc)) return false;
+
     var spell = pickRandomSpell(npc);
     if (spell == null) return false;
 
@@ -397,296 +430,258 @@ function despawnAllMinions(boss) {
 }
 
 // =====================================================
-// Волна проклятия — залп снарядов
+// Варп-огнемёт — вытянутый конус, channel 3с
 // =====================================================
 
-function isPlayerEntity(entity) {
+function isWarpfireCasting(npc) {
     try {
-        if (entity == null) return false;
-        // IPlayer / IEntity wrapper (CustomNPC type id = 1)
-        if (typeof entity.typeOf == "function" && entity.typeOf(1)) return true;
-        if (typeof entity.getType == "function" && entity.getType() == 1) return true;
-        // Сырой MC-Entity: getType() возвращает EntityType, не число
-        if (typeof entity.getMCEntity == "function") {
-            var mc = entity.getMCEntity();
-            return mc != null && String(mc.getClass().getName()).indexOf("ServerPlayerEntity") >= 0;
-        }
-        return String(entity.getClass().getName()).indexOf("ServerPlayerEntity") >= 0;
+        return String(npc.getStoreddata().get(FLAME_CASTING_KEY)) == "1";
     } catch (e) {
         return false;
     }
 }
 
-function isSameEntity(a, b) {
-    try {
-        return String(a.getUUID()) == String(b.getUUID());
-    } catch (e) {
-        return false;
-    }
-}
-
-function getCurseStacks(player) {
-    try {
-        var stored = player.getStoreddata().get("grey_seer_curse_stacks");
-        if (stored != null) {
-            var n = parseInt(stored, 10);
-            if (!isNaN(n) && n > 0) return n;
-        }
-        // Совместимость со старыми тегами
-        var tags = player.getTags();
-        for (var i = 0; i < tags.length; i++) {
-            var tag = String(tags[i]);
-            if (tag.indexOf(CURSE_TAG_PREFIX) == 0) {
-                var n2 = parseInt(tag.substring(CURSE_TAG_PREFIX.length), 10);
-                return isNaN(n2) ? 0 : n2;
-            }
-        }
-    } catch (e) {}
-    return 0;
-}
-
-function setCurseStacks(player, stacks) {
-    try {
-        var data = player.getStoreddata();
-        if (stacks > 0) {
-            data.put("grey_seer_curse_stacks", stacks);
-            player.addTag(CURSE_TAG_PREFIX + stacks);
-        } else {
-            data.remove("grey_seer_curse_stacks");
-        }
-        var tags = player.getTags();
-        for (var i = 0; i < tags.length; i++) {
-            var tag = String(tags[i]);
-            if (tag.indexOf(CURSE_TAG_PREFIX) == 0 && tag != CURSE_TAG_PREFIX + stacks) {
-                player.removeTag(tag);
-            }
-        }
-    } catch (e) {
-        log("grey_seer: setCurseStacks ERROR: " + e);
-    }
-}
-
-function applyCurseThresholdEffects(player, stacks) {
-    try {
-        if (stacks == CURSE_THRESHOLD_POISON) {
-            player.addPotionEffect(PotionEffectType_POISON, CURSE_POISON_DURATION, 0, false);
-            curseDebug("threshold POISON on " + getEntityDebugName(player) + " (stacks=" + stacks + ")");
-        }
-        if (stacks == CURSE_THRESHOLD_WEAKNESS) {
-            player.addPotionEffect(PotionEffectType_WEAKNESS, CURSE_WEAKNESS_DURATION, 0, false);
-            curseDebug("threshold WEAKNESS on " + getEntityDebugName(player) + " (stacks=" + stacks + ")");
-        }
-        if (stacks >= CURSE_THRESHOLD_SLOWNESS) {
-            player.addPotionEffect(PotionEffectType_SLOWNESS, CURSE_SLOWNESS_DURATION, 0, false);
-            curseDebug("threshold SLOWNESS + reset on " + getEntityDebugName(player) + " (stacks=" + stacks + ")");
-            setCurseStacks(player, 0);
+function computeYawToTarget(npc, target) {
+    if (target == null) {
+        try {
+            return npc.getMCEntity().yRot;
+        } catch (e) {
             return 0;
         }
-    } catch (e) {
-        log("grey_seer: applyCurseThresholdEffects ERROR: " + e);
     }
-    return stacks;
+    var dx = target.getX() - npc.getX();
+    var dz = target.getZ() - npc.getZ();
+    return AbilityCombatHelper.computeYaw(dx, dz);
 }
 
-function addCurseStack(player) {
-    var before = getCurseStacks(player);
-    var stacks = before + 1;
-    setCurseStacks(player, stacks);
-    var after = applyCurseThresholdEffects(player, stacks);
-    curseDebug("stack " + getEntityDebugName(player) + " " + before + " -> " + after
-        + ", storeddata=" + player.getStoreddata().get("grey_seer_curse_stacks"));
-    return after;
-}
-
-function spawnGreenCurseParticle(world, x, y, z, count) {
-    if (count == null) count = 1;
+function lockCastStance(npc, data) {
+    var ai = npc.getAi();
+    if (!data.has(FLAME_BASE_SPEED_KEY)) {
+        data.put(FLAME_BASE_SPEED_KEY, String(ai.getWalkingSpeed()));
+    }
+    // Не трогаем OnAttack/retaliate — только стоп движения + lock позиции
     try {
-        for (var i = 0; i < count; i++) {
-            var ox = (Math.random() - 0.5) * CURSE_TRAIL_SPREAD;
-            var oy = (Math.random() - 0.5) * CURSE_TRAIL_SPREAD;
-            var oz = (Math.random() - 0.5) * CURSE_TRAIL_SPREAD;
-            world.spawnParticle("minecraft:happy_villager",
-                x + ox, y + oy, z + oz, 0, 0, 0, 0, 2);
-            world.spawnParticle("minecraft:entity_effect",
-                x + ox, y + oy, z + oz, 0.15, 0.85, 0.2, 0, 2);
-        }
+        ai.setWalkingSpeed(0);
+    } catch (e2) {}
+    try {
+        AbilityCombatHelper.stopNavigation(npc);
+    } catch (e3) {}
+    try {
+        npc.setMotionX(0);
+        npc.setMotionY(0);
+        npc.setMotionZ(0);
+    } catch (e4) {}
+}
+
+function unlockCastStance(npc, data) {
+    var ai = npc.getAi();
+    var speed = getInt(data, FLAME_BASE_SPEED_KEY, 5);
+    try {
+        ai.setWalkingSpeed(speed);
     } catch (e) {}
 }
 
-function spawnCurseTrailParticles(world, x1, y1, z1, x2, y2, z2) {
-    for (var step = 1; step <= CURSE_TRAIL_STEPS; step++) {
-        var t = step / CURSE_TRAIL_STEPS;
-        spawnGreenCurseParticle(
-            world,
-            x1 + (x2 - x1) * t,
-            y1 + (y2 - y1) * t,
-            z1 + (z2 - z1) * t,
-            2
-        );
-    }
-}
-
-function bindProjectileOwner(mc, bossNpc) {
-    if (mc == null || bossNpc == null) return;
-
-    var bossMc = bossNpc.getMCEntity();
-    if (bossMc == null) return;
-
-    if (typeof mc.setOwner == "function") {
-        try {
-            mc.setOwner(bossMc);
-            return;
-        } catch (eSetOwner) {}
-    }
-
-    // Прямая запись полей в Nashorn часто read-only — не логируем ожидаемый отказ
-    try { mc.thrower = bossMc; } catch (eThrower) {}
-    try { mc.npc = bossMc; } catch (eNpc) {}
-}
-
-function configureCurseProjectile(proj, world, bossNpc) {
+function holdCastPosition(npc, data) {
+    var x = getFloat(data, FLAME_LOCK_X, npc.getX());
+    var y = getFloat(data, FLAME_LOCK_Y, npc.getY());
+    var z = getFloat(data, FLAME_LOCK_Z, npc.getZ());
+    var yaw = getFloat(data, FLAME_YAW_KEY, 0);
     try {
-        proj.enableEvents();
-        proj.getTempdata().put("grey_seer_curse_proj", 1);
-        if (bossNpc != null) {
-            proj.getTempdata().put("grey_seer_boss_uuid", String(bossNpc.getUUID()));
-        }
-
-        try {
-            proj.setItem(world.createItem(CURSE_PROJECTILE_ITEM, 1));
-        } catch (eItem) {
-            proj.setItem(world.createItem("minecraft:emerald", 1));
-        }
-
-        var mc = proj.getMCEntity();
-        if (mc != null) {
-            mc.effect = 0;
-            mc.duration = 0;
-            mc.amplify = 0;
-            mc.damage = CURSE_PROJECTILE_DAMAGE;
-            mc.explosiveDamage = false;
-            mc.setIs3D(false);
-            bindProjectileOwner(mc, bossNpc);
-        }
-    } catch (e) {
-        log("grey_seer: configureCurseProjectile ERROR: " + e);
-    }
-}
-
-function shootCurseAt(npc, world, target, spreadX, spreadZ, aimY) {
-    var item = world.createItem(CURSE_PROJECTILE_ITEM, 1);
-    var proj = null;
-
+        npc.setPosition(x, y, z);
+        npc.setRotation(yaw);
+    } catch (e) {}
     try {
-        proj = npc.shootItem(
-            target.getX() + spreadX,
-            aimY,
-            target.getZ() + spreadZ,
-            item,
-            16 + Math.floor(Math.random() * 3)
-        );
-    } catch (e) {
-        try {
-            proj = npc.shootItem(target, item, 16);
-        } catch (e2) {}
-    }
-
-    if (proj != null) {
-        configureCurseProjectile(proj, world, npc);
-    }
-    return proj;
+        npc.setMotionX(0);
+        npc.setMotionY(0);
+        npc.setMotionZ(0);
+    } catch (e2) {}
+    try {
+        AbilityCombatHelper.stopNavigation(npc);
+    } catch (e3) {}
 }
 
-function castCurseVolleyToward(ctx, target, count) {
+function clearWarpfireTelegraph(data) {
+    var tid = data.get(FLAME_TG_KEY);
+    if (tid != null && String(tid).length > 0) {
+        try {
+            TelegraphAPI.remove(String(tid));
+        } catch (e) {}
+    }
+    data.put(FLAME_TG_KEY, "");
+}
+
+function endWarpfireBreath(npc, data) {
+    if (String(data.get(FLAME_CASTING_KEY)) != "1") return;
+    clearWarpfireTelegraph(data);
+    unlockCastStance(npc, data);
+    data.put(FLAME_CASTING_KEY, "0");
+    data.put(FLAME_END_KEY, "0");
+    data.put(FLAME_NEXT_DMG_KEY, "0");
+}
+
+function startWarpfireBreath(ctx) {
     var npc = ctx.npc;
     var world = ctx.world;
-    var aimY = target.getY() + 1.2;
+    var target = ctx.target;
+    var data = npc.getStoreddata();
+    var now = npc.getAge();
+    var yaw = computeYawToTarget(npc, target);
+
+    data.put(FLAME_CASTING_KEY, "1");
+    data.put(FLAME_END_KEY, String(now + FLAME_CAST_TICKS));
+    data.put(FLAME_NEXT_DMG_KEY, String(now));
+    data.put(FLAME_LOCK_X, String(npc.getX()));
+    data.put(FLAME_LOCK_Y, String(npc.getY()));
+    data.put(FLAME_LOCK_Z, String(npc.getZ()));
+    data.put(FLAME_YAW_KEY, String(yaw));
+
+    lockCastStance(npc, data);
+    holdCastPosition(npc, data);
+
+    try {
+        var tid = TelegraphAPI.cone(
+            npc,
+            npc.getX(), npc.getY(), npc.getZ(),
+            yaw,
+            FLAME_LENGTH,
+            FLAME_HALF_ANGLE,
+            FLAME_CAST_TICKS,
+            FLAME_TELEGRAPH_COLOR
+        );
+        data.put(FLAME_TG_KEY, String(tid));
+    } catch (te) {
+        log("grey_seer warpfire telegraph ERROR: " + te);
+    }
+
+    try {
+        world.playSoundAt(npc.getPos(), "minecraft:item.firecharge.use", 1.0, 0.6);
+    } catch (e) {}
+
+    spawnWarpfireConeParticles(world, npc, yaw);
+    return true;
+}
+
+function isInWarpfireCone(npc, entity, yaw) {
+    var dx = entity.getX() - npc.getX();
+    var dz = entity.getZ() - npc.getZ();
+    var dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist > FLAME_LENGTH) return false;
+    if (dist < 0.15) return true;
+
+    var rad = (yaw + 90.0) * 0.0174532925;
+    var fwdX = Math.cos(rad);
+    var fwdZ = Math.sin(rad);
+    var toX = dx / dist;
+    var toZ = dz / dist;
+    var dot = fwdX * toX + fwdZ * toZ;
+    var angle = Math.acos(Math.max(-1.0, Math.min(1.0, dot))) * (180.0 / Math.PI);
+    return angle <= FLAME_HALF_ANGLE;
+}
+
+function dealPureDamage(entity, amount) {
+    try {
+        var mc = entity.getMCEntity();
+        if (mc != null) {
+            mc.hurt(DamageSource.MAGIC, amount);
+            return;
+        }
+    } catch (e) {}
+    try {
+        entity.damage(amount);
+    } catch (e2) {}
+}
+
+function damageWarpfireCone(npc, world, yaw) {
+    var list = world.getNearbyEntities(npc.getPos(), Math.ceil(FLAME_LENGTH + 1), 5);
+    var hits = 0;
+    for (var i = 0; i < list.length; i++) {
+        var ent = list[i];
+        if (ent == null || !ent.isAlive()) continue;
+        if (!AbilityCombatHelper.isHostileToBoss(npc, ent)) continue;
+        if (!isInWarpfireCone(npc, ent, yaw)) continue;
+        dealPureDamage(ent, FLAME_DAMAGE);
+        hits++;
+    }
+    return hits;
+}
+
+function spawnWarpfireConeParticles(world, npc, yaw) {
+    var rad = (yaw + 90.0) * 0.0174532925;
+    var fwdX = Math.cos(rad);
+    var fwdZ = Math.sin(rad);
+    var rightX = -fwdZ;
+    var rightZ = fwdX;
+
+    // Точка вылета — грудь/рот провидца, чуть вперёд
+    var ox = npc.getX() + fwdX * 0.55;
+    var oy = npc.getY() + 1.35;
+    var oz = npc.getZ() + fwdZ * 0.55;
+    var halfRad = FLAME_HALF_ANGLE * 0.0174532925;
+    var count = FLAME_PARTICLE_COUNT;
 
     for (var i = 0; i < count; i++) {
-        var spreadX = (Math.random() - 0.5) * 1.2;
-        var spreadZ = (Math.random() - 0.5) * 1.2;
+        // Спавн у источника (крошечный джиттер), полёт — скоростью наружу
+        var jx = (Math.random() - 0.5) * 0.22;
+        var jy = (Math.random() - 0.5) * 0.18;
+        var jz = (Math.random() - 0.5) * 0.22;
 
-        spawnGreenCurseParticle(world, npc.getX(), npc.getY() + 1.2, npc.getZ(), 2);
-        shootCurseAt(npc, world, target, spreadX, spreadZ, aimY);
+        // Направление внутри конуса (yaw ± halfAngle + лёгкий pitch)
+        var yawOff = (Math.random() - 0.5) * 2.0 * halfRad;
+        var pitchOff = (Math.random() - 0.25) * halfRad * 0.85;
+        var cosY = Math.cos(yawOff);
+        var sinY = Math.sin(yawOff);
+        var dirX = fwdX * cosY + rightX * sinY;
+        var dirZ = fwdZ * cosY + rightZ * sinY;
+        var dirY = Math.sin(pitchOff);
+
+        // Нормализация горизонтали + pitch
+        var flat = Math.sqrt(dirX * dirX + dirZ * dirZ);
+        if (flat < 0.001) flat = 0.001;
+        var cosP = Math.cos(pitchOff);
+        dirX = (dirX / flat) * cosP;
+        dirZ = (dirZ / flat) * cosP;
+
+        var speed = FLAME_PARTICLE_SPEED_MIN
+            + Math.random() * (FLAME_PARTICLE_SPEED_MAX - FLAME_PARTICLE_SPEED_MIN);
+
+        try {
+            // count=0: velocity = (dx,dy,dz) * speed — летят от провидца
+            world.spawnParticle(FLAME_PARTICLE,
+                ox + jx, oy + jy, oz + jz,
+                dirX, dirY, dirZ,
+                speed, 0);
+        } catch (e) {}
+    }
+}
+
+function tickWarpfireBreath(npc, world) {
+    var data = npc.getStoreddata();
+    if (String(data.get(FLAME_CASTING_KEY)) != "1") return;
+
+    if (!npc.isAlive()) {
+        endWarpfireBreath(npc, data);
+        return;
     }
 
-    try {
-        world.spawnParticle("minecraft:happy_villager",
-            npc.getX(), npc.getY() + 1.2, npc.getZ(),
-            0.3, 0.2, 0.3, 0, 25);
-        world.spawnParticle("minecraft:entity_effect",
-            npc.getX(), npc.getY() + 1.2, npc.getZ(),
-            0.15, 0.85, 0.2, 0, 15);
-    } catch (e3) {}
+    var now = npc.getAge();
+    var endAt = getInt(data, FLAME_END_KEY, 0);
+    var yaw = getFloat(data, FLAME_YAW_KEY, 0);
 
-    return count;
-}
+    lockCastStance(npc, data);
+    holdCastPosition(npc, data);
+    spawnWarpfireConeParticles(world, npc, yaw);
 
-function findBossNpcByUuid(world, uuidStr) {
-    if (uuidStr == null || String(uuidStr).length == 0) return null;
-    try {
-        var all = world.getAllEntities(2);
-        for (var i = 0; i < all.length; i++) {
-            if (String(all[i].getUUID()) == String(uuidStr)) return all[i];
-        }
-    } catch (e) {}
-    return null;
-}
-
-function wrapMcEntityBoss(event, mcEntity) {
-    if (mcEntity == null) return null;
-    try {
-        var boss = event.API.getIEntity(mcEntity);
-        if (boss != null && isBoss(boss)) return boss;
-    } catch (e) {}
-    return null;
-}
-
-function getProjectileBoss(event) {
-    try {
-        var mc = event.projectile.getMCEntity();
-        var world = event.projectile.getWorld();
-
-        // EntityProjectile.thrower — прямое поле (getOwner() для NPC часто null)
-        var fromThrower = wrapMcEntityBoss(event, mc.thrower);
-        if (fromThrower != null) return fromThrower;
-
-        // EntityProjectile.npc — выставляется при выстреле NPC
-        var fromNpc = wrapMcEntityBoss(event, mc.npc);
-        if (fromNpc != null) return fromNpc;
-
-        // throwerName у снаряда = UUID стрелка (NPC или игрок)
-        var throwerUuid = mc.throwerName;
-        if (throwerUuid != null && String(throwerUuid).length > 0) {
-            var fromName = findBossNpcByUuid(world, throwerUuid);
-            if (fromName != null && isBoss(fromName)) return fromName;
-        }
-
-        var bossUuid = event.projectile.getTempdata().get("grey_seer_boss_uuid");
-        if (bossUuid != null) {
-            var fromTemp = findBossNpcByUuid(world, bossUuid);
-            if (fromTemp != null && isBoss(fromTemp)) return fromTemp;
-        }
-
-        curseDebug("boss lookup failed: thrower=" + (mc.thrower == null ? "null" : "set")
-            + ", npc=" + (mc.npc == null ? "null" : "set")
-            + ", throwerName=" + throwerUuid
-            + ", tempUuid=" + bossUuid);
-    } catch (e) {
-        curseDebug("boss lookup ERROR: " + e);
+    if (now >= getInt(data, FLAME_NEXT_DMG_KEY, 0)) {
+        damageWarpfireCone(npc, world, yaw);
+        data.put(FLAME_NEXT_DMG_KEY, String(now + FLAME_DAMAGE_INTERVAL));
+        try {
+            world.playSoundAt(npc.getPos(), "minecraft:block.fire.ambient", 0.7, 1.4);
+        } catch (e) {}
     }
-    return null;
-}
 
-function wrapImpactTarget(event) {
-    var target = event.target;
-    if (target == null) return null;
-    try {
-        // IEntity wrapper имеет getMCEntity(); сырой MC-Entity — нет
-        if (typeof target.getMCEntity == "function") return target;
-        return event.API.getIEntity(target);
-    } catch (e) {
-        return null;
+    if (now >= endAt) {
+        endWarpfireBreath(npc, data);
+        log("grey_seer: warpfire_breath finished");
     }
 }
 
@@ -740,12 +735,12 @@ function teleportBoss(ctx) {
                 z: spawnZ + Math.cos(angle) * dist
             };
         } else {
-            var angle = Math.random() * Math.PI * 2;
-            var dist = 5 + Math.random() * 5;
+            var angle2 = Math.random() * Math.PI * 2;
+            var dist2 = 5 + Math.random() * 5;
             point = {
-                x: npc.getX() + Math.sin(angle) * dist,
+                x: npc.getX() + Math.sin(angle2) * dist2,
                 y: npc.getY(),
-                z: npc.getZ() + Math.cos(angle) * dist
+                z: npc.getZ() + Math.cos(angle2) * dist2
             };
         }
     }
@@ -820,10 +815,10 @@ function saveTeleportPoints(npc, points) {
     }
     // Сохраняем новые
     stored.put("tp_count", points.length);
-    for (var i = 0; i < points.length; i++) {
-        stored.put("tp_" + i + "_x", points[i].x);
-        stored.put("tp_" + i + "_y", points[i].y);
-        stored.put("tp_" + i + "_z", points[i].z);
+    for (var j = 0; j < points.length; j++) {
+        stored.put("tp_" + j + "_x", points[j].x);
+        stored.put("tp_" + j + "_y", points[j].y);
+        stored.put("tp_" + j + "_z", points[j].z);
     }
 }
 
@@ -831,10 +826,37 @@ function saveTeleportPoints(npc, points) {
 // События NPC
 // =====================================================
 
+function ensureTimers(npc) {
+    var timers = npc.getTimers();
+    try {
+        if (!timers.has(1)) timers.start(1, 20, true); // ИИ
+        if (!timers.has(2)) timers.start(2, 20, true); // миньоны
+        // VFX-таймер всегда перезапускаем — чтобы подтянуть новый интервал
+        try { timers.stop(3); } catch (eStop) {}
+        timers.start(3, FLAME_VFX_TIMER_TICKS, true);
+    } catch (e) {
+        timers.start(1, 20, true);
+        timers.start(2, 20, true);
+        timers.start(3, FLAME_VFX_TIMER_TICKS, true);
+    }
+}
+
+function stopScriptTimers(npc) {
+    try {
+        var timers = npc.getTimers();
+        timers.stop(1);
+        timers.stop(2);
+        timers.stop(3);
+    } catch (e) {}
+}
+
 function init(event) {
     try {
         var npc = event.npc;
+        if (npc == null || !npc.isAlive()) return;
+
         npc.getStoreddata().put("grey_seer_boss", 1);
+        ensureTimers(npc);
 
         if (npc.getStoreddata().get("_inited") == 1) return;
 
@@ -842,9 +864,6 @@ function init(event) {
         npc.getStoreddata().put("spawn_x", npc.getX());
         npc.getStoreddata().put("spawn_y", npc.getY());
         npc.getStoreddata().put("spawn_z", npc.getZ());
-
-        npc.getTimers().start(1, 20, true); // ИИ: выбор заклинания (каждую секунду)
-        npc.getTimers().start(2, 20, true); // очистка миньонов (каждую секунду)
         npc.getStoreddata().put("_inited", 1);
 
         log("grey_seer init OK, spells=" + SPELL_POOL.join(", ") +
@@ -855,10 +874,15 @@ function init(event) {
 }
 
 function tick(event) {
-    if (!isBoss(event.npc)) return;
+    if (!canRunScript(event.npc)) return;
 
     try {
         var npc = event.npc;
+        if (isWarpfireCasting(npc)) {
+            // страховка между timer-тиками
+            holdCastPosition(npc, npc.getStoreddata());
+            return;
+        }
         if (npc.getAge() % 20 != 0) return;
         if (Math.random() > 0.3) return;
         npc.getWorld().spawnParticle("minecraft:happy_villager",
@@ -869,93 +893,31 @@ function tick(event) {
     } catch (e) {}
 }
 
-function projectileTick(event) {
-    try {
-        var proj = event.projectile;
-        if (proj == null || proj.getTempdata().get("grey_seer_curse_proj") != 1) return;
-
-        var world = proj.getWorld();
-        var x = proj.getX();
-        var y = proj.getY();
-        var z = proj.getZ();
-        var data = proj.getTempdata();
-
-        var lx = data.get("trail_x");
-        var ly = data.get("trail_y");
-        var lz = data.get("trail_z");
-
-        if (lx != null && ly != null && lz != null) {
-            spawnCurseTrailParticles(world, lx, ly, lz, x, y, z);
-        } else {
-            spawnGreenCurseParticle(world, x, y, z, 3);
-        }
-
-        data.put("trail_x", x);
-        data.put("trail_y", y);
-        data.put("trail_z", z);
-    } catch (e) {}
-}
-
-function projectileImpact(event) {
-    try {
-        if (event.type != 0) return; // 0 = сущность, 1 = блок
-
-        var proj = event.projectile;
-        if (proj == null || proj.getTempdata().get("grey_seer_curse_proj") != 1) {
-            curseDebug("impact skip: not grey_seer curse projectile");
-            return;
-        }
-
-        curseDebug("impact entity hit, proj@" + proj.getX().toFixed(1) + "," + proj.getZ().toFixed(1));
-
-        var boss = getProjectileBoss(event);
-        if (boss == null) {
-            curseDebug("impact skip: boss not found");
-            return;
-        }
-        if (!isBoss(boss)) {
-            curseDebug("impact skip: owner " + getEntityDebugName(boss) + " is not grey_seer boss");
-            return;
-        }
-
-        var rawTarget = event.target;
-        var target = wrapImpactTarget(event);
-        if (target == null) {
-            curseDebug("impact skip: wrapImpactTarget failed, raw="
-                + (rawTarget == null ? "null" : rawTarget.getClass().getName()));
-            return;
-        }
-        if (!isPlayerEntity(target)) {
-            curseDebug("impact skip: not a player, wrapped="
-                + getEntityDebugName(target) + ", raw="
-                + (rawTarget == null ? "null" : rawTarget.getClass().getName()));
-            return;
-        }
-        if (isSameEntity(target, boss)) {
-            curseDebug("impact skip: target is boss");
-            return;
-        }
-
-        curseDebug("HIT player " + getEntityDebugName(target)
-            + " uuid=" + target.getUUID()
-            + " pos=" + target.getX().toFixed(1) + "," + target.getY().toFixed(1) + "," + target.getZ().toFixed(1));
-
-        addCurseStack(target);
-
-        try {
-            spawnGreenCurseParticle(boss.getWorld(), target.getX(), target.getY() + 1.0, target.getZ(), 4);
-        } catch (e) {}
-    } catch (e) {
-        log("grey_seer projectileImpact ERROR: " + e);
-    }
-}
-
 function timer(event) {
     var npc = event.npc;
-    if (!isBoss(npc)) return;
+    if (!canRunScript(npc)) {
+        if (isBoss(npc)) {
+            try { endWarpfireBreath(npc, npc.getStoreddata()); } catch (e0) {}
+            stopScriptTimers(npc);
+        }
+        return;
+    }
+
+    if (event.id == 3) {
+        try {
+            if (isWarpfireCasting(npc)) {
+                tickWarpfireBreath(npc, npc.getWorld());
+            }
+        } catch (e) {
+            log("grey_seer warpfire ERROR: " + e);
+        }
+        return;
+    }
 
     if (event.id == 1) {
         try {
+            if (isWarpfireCasting(npc)) return;
+
             // Если нет цели — деспавним всех крыс
             if (npc.getAttackTarget() == null || !npc.getAttackTarget().isAlive()) {
                 var allDespawned = despawnAllMinions(npc);
@@ -985,9 +947,10 @@ function timer(event) {
 }
 
 function damaged(event) {
-    if (!isBoss(event.npc)) return;
+    if (!canRunScript(event.npc)) return;
 
     try {
+        if (isWarpfireCasting(event.npc)) return; // во время огнемёта нельзя телепортироваться
         if (event.source == null || !event.source.isAlive()) return;
 
         var npc = event.npc;
@@ -1009,7 +972,7 @@ function damaged(event) {
 }
 
 function kill(event) {
-    if (!isBoss(event.npc)) return;
+    if (!canRunScript(event.npc)) return;
 
     try {
         var npc = event.npc;
@@ -1019,10 +982,13 @@ function kill(event) {
 }
 
 function targetLost(event) {
-    if (!isBoss(event.npc)) return;
+    if (!canRunScript(event.npc)) return;
 
     try {
         var npc = event.npc;
+        if (isWarpfireCasting(npc)) {
+            endWarpfireBreath(npc, npc.getStoreddata());
+        }
         var despawned = despawnAllMinions(npc);
         if (despawned > 0) {
             npc.say("§7Крысы, прочь!");
@@ -1037,17 +1003,20 @@ function died(event) {
     if (!isBoss(event.npc)) return;
 
     try {
-        var world = event.npc.getWorld();
+        var npc = event.npc;
+        var world = npc.getWorld();
+        endWarpfireBreath(npc, npc.getStoreddata());
+        stopScriptTimers(npc);
         world.broadcast("§c§lСерый Провидец повержен! Да сгинет проклятие!");
 
         // Убираем всех миньонов
         var types = [2, 3, 5];
         var despawned = 0;
         for (var t = 0; t < types.length; t++) {
-            var list = world.getNearbyEntities(event.npc.getPos(), 60, types[t]);
+            var list = world.getNearbyEntities(npc.getPos(), 60, types[t]);
             for (var i = 0; i < list.length; i++) {
-                if (isMinion(list[i], event.npc)) {
-                    removeMinion(list[i], event.npc, world);
+                if (isMinion(list[i], npc)) {
+                    removeMinion(list[i], npc, world);
                     despawned++;
                 }
             }
@@ -1059,7 +1028,7 @@ function died(event) {
 }
 
 function trigger(event) {
-    if (!isBoss(event.npc)) return;
+    if (!canRunScript(event.npc)) return;
 
     var npc = event.npc;
     var id = event.id;

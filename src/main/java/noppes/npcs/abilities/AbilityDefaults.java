@@ -43,12 +43,10 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> netThrow() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
-        map.put(AbilityParamKeys.RADIUS, 2.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 10); // 0.5 с warning
+        map.put(AbilityParamKeys.RADIUS, 3.5);
         map.put(AbilityParamKeys.EFFECT_DURATION, 60);
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
-        map.put(AbilityParamKeys.ACCURACY, 6);
-        map.put(AbilityParamKeys.PROJECTILE_ITEM, "wfm:dwarf_ranger_net");
         return map;
     }
 

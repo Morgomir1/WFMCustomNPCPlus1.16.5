@@ -109,14 +109,12 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 
 | Ключ | Тип | Дефолт | Описание |
 |------|-----|--------|----------|
-| `chargeTicks` | int | 10 | Замах |
-| `radius` | double | 2.0 | Радиус fallback-дебаффа (без WFM) |
-| `effectDuration` | int | 60 | Fallback Slowness, тики |
-| `effectAmplifier` | int | 3 | Fallback Slowness IV |
-| `accuracy` | int | 6 | Разброс броска (→ inaccuracy × 0.1) |
-| `projectileItem` | string | `wfm:dwarf_ranger_net` | Fallback-предмет без WFM |
+| `chargeTicks` | int | 10 | Warning круга (0.5 с) |
+| `radius` | double | 3.5 | Радиус зоны опутывания (+ авто-telegraph) |
+| `effectDuration` | int | 60 | Длительность `HUNTER_NET` / fallback Slowness |
+| `effectAmplifier` | int | 3 | Fallback Slowness IV (без WFM) |
 
-При загруженном **WFM** спавнит `DwarfRangerNetEntity` (`wfm:dwarf_ranger_net`) через `CustomNpcNetHelper`; при попадании — эффект `HUNTER_NET` и анимация сети. Без WFM — CNPC-снаряд + Slowness в точке цели.
+В `onStart` фиксирует точку у цели (`active.ex/ey/ez`). После charge опутывает **всех** врагов в круге через `CustomNpcNetHelper.ensnareAroundPoint` (`HUNTER_NET` + визуал сети). Без WFM — Slowness по площади. `cancelsOnTargetLost = false`.
 
 ### `stake_thrust` — StakeThrustAbility
 

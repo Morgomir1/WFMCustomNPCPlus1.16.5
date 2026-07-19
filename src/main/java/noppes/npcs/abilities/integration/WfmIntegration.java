@@ -11,6 +11,7 @@ public final class WfmIntegration {
     private static final String GUN_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcGunHelper";
     private static final String LEADBELCHER_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcLeadbelcherHelper";
     private static final String THROW_NET_METHOD = "throwDwarfRangerNet";
+    private static final String ENSNARE_AROUND_POINT_METHOD = "ensnareAroundPoint";
     private static final String EQUIP_PISTOL_METHOD = "equipPistolForShot";
     private static final String RESTORE_EQUIPMENT_METHOD = "restoreEquipment";
     private static final String PERFORM_PISTOL_SHOT_METHOD = "performPistolShot";
@@ -23,6 +24,7 @@ public final class WfmIntegration {
 
     private static Boolean netAvailable;
     private static Method throwNetMethod;
+    private static Method ensnareAroundPointMethod;
 
     private static Boolean gunAvailable;
     private static Method equipPistolMethod;
@@ -74,6 +76,39 @@ public final class WfmIntegration {
             return result instanceof Boolean && (Boolean) result;
         } catch (final Exception ignored) {
             return false;
+        }
+    }
+
+    /**
+     * @return число опутанных целей, или {@code -1} если WFM-хелпер недоступен
+     */
+    public static int ensnareAroundPoint(
+            final ICustomNpc npc,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final int durationTicks) {
+        ensureNetInitialized();
+        if (!isWfmNetAvailable() || npc == null || ensnareAroundPointMethod == null) {
+            return -1;
+        }
+        try {
+            final LivingEntity source = toLivingEntity(npc);
+            if (source == null) {
+                return -1;
+            }
+            final Object result = ensnareAroundPointMethod.invoke(
+                    null, source, x, y, z, radius, durationTicks);
+            if (result instanceof Integer) {
+                return (Integer) result;
+            }
+            if (result instanceof Number) {
+                return ((Number) result).intValue();
+            }
+            return 0;
+        } catch (final Exception ignored) {
+            return -1;
         }
     }
 
@@ -338,10 +373,23 @@ public final class WfmIntegration {
                     LivingEntity.class,
                     LivingEntity.class,
                     float.class);
+            try {
+                ensnareAroundPointMethod = helper.getMethod(
+                        ENSNARE_AROUND_POINT_METHOD,
+                        LivingEntity.class,
+                        double.class,
+                        double.class,
+                        double.class,
+                        double.class,
+                        int.class);
+            } catch (final Exception ignored) {
+                ensnareAroundPointMethod = null;
+            }
             netAvailable = true;
         } catch (final Exception e) {
             netAvailable = false;
             throwNetMethod = null;
+            ensnareAroundPointMethod = null;
         }
     }
 

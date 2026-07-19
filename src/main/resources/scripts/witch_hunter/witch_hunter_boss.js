@@ -126,7 +126,14 @@ function buildParams(abilityId, phase) {
         return AbilityAPI.params("telegraphColor", 0xC0FFE080, "damage", dmg, "accuracy", phase == "2" ? 3 : 4);
     }
     if (abilityId == "net_throw") {
-        return AbilityAPI.params("telegraphColor", 0xC0FFE080, "effectDuration", 60, "effectAmplifier", 3);
+        // Круг warning → через 0.5 с (10 тиков) опутывает всех в зоне
+        return AbilityAPI.params(
+            "telegraphColor", 0xC0FFE080,
+            "radius", 3.5,
+            "chargeTicks", 10,
+            "effectDuration", 60,
+            "effectAmplifier", 3
+        );
     }
     if (abilityId == "stake_thrust") {
         var thrustDmg = phase == "2" ? 18.0 : 16.0;

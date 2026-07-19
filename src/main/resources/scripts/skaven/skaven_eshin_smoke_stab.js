@@ -1,18 +1,25 @@
 // =====================================================
 // Скавен Эшин — "Дымовой укол"
-// Зарядка дымом -> телепорт к цели -> удар + слабость.
+// Зарядка (маленькая красная зона под ногами) ->
+// телепорт за спину -> WFM stun 1 сек.
 // Режимы CNPC: «Мстить» / «Отступать» с повышенной скоростью.
 // В мщении: если цель дальше 5 блоков — телепорт за спину.
 // При получении 5+ урона — отступление на 8 сек, затем снова мщение.
+// Каждый 3-й удар — уворот (как Acrobatics: green_oak_leaf + wood_elf_teleport).
 // =====================================================
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
 var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+var AbilityCombatHelper = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
+var EffectInstance = Java.type("net.minecraft.potion.EffectInstance");
+var ForgeRegistries = Java.type("net.minecraftforge.registries.ForgeRegistries");
+var ResourceLocation = Java.type("net.minecraft.util.ResourceLocation");
 
 // CNPC OnAttack: 0=Мстить, 1=Паника, 2=Отступать, 3=Ничего
 var RETALIATE_REVENGE = 0;
 var RETALIATE_RETREAT = 2;
+var RETALIATE_NONE = 3;
 
 // -------------------------
 // НАСТРОЙКИ
@@ -21,13 +28,21 @@ var COOLDOWN_TICKS = 160;         // 8 секунд
 var RANGE = 8.0;
 var CHARGE_TICKS = 20;            // 1 секунда
 var BACK_OFFSET = 1.8;
-var DAMAGE = 6.0;
-var DEBUFF_SECONDS = 4;
+var STUN_TICKS = 20;              // 1 секунда WFM stun
+var STUN_EFFECT_ID = "wfm:stun";
+var STUN_SOUND = "wfm:enchantment.pommel_strike_stun";
+var STUN_SOUND_VOLUME = 2.5;
+var TELEGRAPH_RADIUS = 1.0;       // маленькая красная зона под скавеном
+var TELEGRAPH_COLOR = 0xC0FF3030;
 var REVENGE_TICKS = 100;          // 5 сек мщения после укола, затем отступление
 var DAMAGE_RETREAT_TICKS = 160;   // 8 сек отступления после получения урона
 var DAMAGE_RETREAT_THRESHOLD = 5; // порог урона за один удар
 var CHASE_TELEPORT_RANGE = 5.0;   // дальше — телепорт за спину в режиме мщения
 var RETREAT_SPEED = 8;
+var DODGE_EVERY_HITS = 3;         // уворот от каждого N-го удара
+var DODGE_LEAF_PARTICLE = "wfm:green_oak_leaf";
+var DODGE_LEAF_COUNT = 16;
+var DODGE_SOUND = "wfm:elf.wood_elf_teleport";
 
 // -------------------------
 // storeddata keys
@@ -35,9 +50,12 @@ var RETREAT_SPEED = 8;
 var CD_KEY = "sk_eshin_cd";
 var CHARGING_KEY = "sk_eshin_charging";
 var CHARGE_END_KEY = "sk_eshin_charge_end";
+var TELEGRAPH_KEY = "sk_eshin_telegraph";
+var TARGET_UUID_KEY = "sk_eshin_target";
 var MODE_KEY = "sk_eshin_mode";           // "revenge" | "retreat"
 var MODE_END_KEY = "sk_eshin_mode_end";
 var BASE_SPEED_KEY = "sk_eshin_base_speed";
+var HIT_COUNT_KEY = "sk_eshin_hit_count";
 
 function init(e) {
     storeBaseSpeed(e.npc.getStoreddata(), e.npc.getAi());
@@ -77,17 +95,49 @@ function tick(e) {
     if (flatDistance(npc, target) > RANGE) return;
     if (typeof npc.canSeeEntity == "function" && !npc.canSeeEntity(target)) return;
 
-    startCharge(npc, world, data, now);
+    startCharge(npc, world, data, target, now);
 }
 
 function damaged(e) {
     var npc = e.npc;
     if (!npc.isAlive()) return;
-    if (parseFloat(String(e.damage)) < DAMAGE_RETREAT_THRESHOLD) return;
 
     var data = npc.getStoreddata();
+    var hits = getInt(data, HIT_COUNT_KEY) + 1;
+    if (hits >= DODGE_EVERY_HITS) {
+        data.put(HIT_COUNT_KEY, "0");
+        try { e.setCanceled(true); } catch (err) {}
+        spawnAcrobaticsDodgeFx(npc);
+        return;
+    }
+    data.put(HIT_COUNT_KEY, String(hits));
+
+    if (parseFloat(String(e.damage)) < DAMAGE_RETREAT_THRESHOLD) return;
+
     clearChargeState(data);
     applyRetreatMode(npc, data, npc.getWorld().getTotalTime(), true);
+}
+
+function spawnAcrobaticsDodgeFx(npc) {
+    try {
+        var world = npc.getWorld();
+        var x = npc.getX();
+        var y = npc.getY();
+        var z = npc.getZ();
+        var spreadW = 0.3;
+        var spreadH = 0.9;
+        try {
+            var mc = npc.getMCEntity();
+            if (mc != null) {
+                spreadW = mc.getBbWidth() * 0.5;
+                spreadH = mc.getBbHeight() * 0.5;
+            }
+        } catch (bbErr) {}
+
+        world.spawnParticle(DODGE_LEAF_PARTICLE, x, y + spreadH, z,
+            spreadW, spreadH, spreadW, 0.05, DODGE_LEAF_COUNT);
+        world.playSoundAt(NpcAPI.getIPos(x, y, z), DODGE_SOUND, 3.5, 0.5 + Math.random());
+    } catch (err) {}
 }
 
 function storeBaseSpeed(data, ai) {
@@ -123,6 +173,21 @@ function applyRetreatMode(npc, data, now, timed) {
     } catch (err) {}
 }
 
+function applyChargeStance(npc) {
+    try {
+        npc.getAi().setRetaliateType(RETALIATE_NONE);
+        npc.getAi().setWalkingSpeed(0);
+    } catch (err) {}
+    try {
+        AbilityCombatHelper.stopNavigation(npc);
+    } catch (err2) {}
+    try {
+        npc.setMotionX(0);
+        npc.setMotionY(0);
+        npc.setMotionZ(0);
+    } catch (err3) {}
+}
+
 function updateModeTransition(npc, data, now) {
     var mode = String(data.get(MODE_KEY));
     var end = getInt(data, MODE_END_KEY);
@@ -144,43 +209,135 @@ function tryRevengeChaseTeleport(npc, world) {
 }
 
 function teleportBehind(npc, target, world, withAttack) {
-    var yaw = target.getRotation();
-    var rad = yaw * 0.0174532925;
-    var bx = target.getX() - Math.sin(rad) * BACK_OFFSET;
-    var bz = target.getZ() + Math.cos(rad) * BACK_OFFSET;
+    var yaw = Number(target.getRotation());
+    var rad = yaw * Math.PI / 180.0;
+    // За спиной: opposite of look vector (-sin, cos)
+    var bx = target.getX() + Math.sin(rad) * BACK_OFFSET;
+    var bz = target.getZ() - Math.cos(rad) * BACK_OFFSET;
     var by = target.getY();
 
-    npc.setPosition(bx, by, bz);
-    npc.setRotation(yaw);
+    teleportNpc(npc, bx, by, bz, yaw);
 
     if (withAttack) {
         try {
-            target.damage(DAMAGE);
-            if (typeof target.addPotionEffect == "function") {
-                target.addPotionEffect(PotionEffectType_WEAKNESS, DEBUFF_SECONDS, 0, false);
+            if (typeof npc.setAttackTarget == "function") {
+                npc.setAttackTarget(target);
             }
         } catch (err) {}
+        applyWfmStun(target, world, bx, by, bz, STUN_TICKS);
     }
 
     try {
         world.spawnParticle("minecraft:poof", bx, by + 0.5, bz, 0.2, 0.1, 0.2, 0.02, 10);
         world.playSoundAt(NpcAPI.getIPos(bx, by, bz), "minecraft:entity.enderman.teleport", 0.6, 1.6);
-    } catch (err) {}
+    } catch (err2) {}
 }
 
-function startCharge(npc, world, data, now) {
-    data.put(CHARGING_KEY, "1");
+function teleportNpc(npc, x, y, z, yaw) {
     try {
-        var target = npc.getAttackTarget();
-        var yaw = npc.getMCEntity().yRot;
-        if (target != null) {
-            var dx = target.getX() - npc.getX();
-            var dz = target.getZ() - npc.getZ();
-            yaw = Math.atan2(-dx, dz) * (180.0 / Math.PI);
+        var mc = npc.getMCEntity();
+        if (mc != null) {
+            try {
+                mc.teleportTo(x, y, z);
+            } catch (tpErr) {
+                npc.setPosition(x, y, z);
+            }
+            try {
+                mc.yRot = yaw;
+                mc.yHeadRot = yaw;
+                mc.yBodyRot = yaw;
+            } catch (rotErr) {}
+        } else {
+            npc.setPosition(x, y, z);
         }
-        TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 3.5, 35, CHARGE_TICKS, 0xC0FF3030);
-    } catch (te) {}
+        npc.setRotation(yaw);
+    } catch (err) {
+        try {
+            npc.setPosition(x, y, z);
+            npc.setRotation(yaw);
+        } catch (err2) {}
+    }
+
+    try {
+        npc.setMotionX(0);
+        npc.setMotionY(0);
+        npc.setMotionZ(0);
+    } catch (err3) {}
+
+    try {
+        AbilityCombatHelper.stopNavigation(npc);
+    } catch (err4) {}
+}
+
+function resolveStunEffect() {
+    try {
+        var WFMEffects = Java.type("wfm.common.effect.WFMEffects");
+        var fromWfm = WFMEffects.STUN.get();
+        if (fromWfm != null) return fromWfm;
+    } catch (e1) {}
+
+    try {
+        return ForgeRegistries.POTIONS.getValue(new ResourceLocation("wfm", "stun"));
+    } catch (e2) {}
+
+    try {
+        return ForgeRegistries.POTIONS.getValue(new ResourceLocation(STUN_EFFECT_ID));
+    } catch (e3) {}
+
+    return null;
+}
+
+function applyWfmStun(target, world, x, y, z, ticks) {
+    try {
+        if (target == null) return;
+
+        var effect = resolveStunEffect();
+        if (effect == null) {
+            log("sk_eshin: stun effect not found: " + STUN_EFFECT_ID);
+            return;
+        }
+
+        // instanceof LivingEntity в Nashorn часто ложный — проверка в Java-хелпере
+        AbilityCombatHelper.applyEffect(target, effect, ticks, 0);
+
+        var living = target.getMCEntity();
+        if (living != null) {
+            try {
+                if (!living.hasEffect(effect)) {
+                    living.addEffect(new EffectInstance(effect, ticks, 0, false, true, true));
+                }
+            } catch (addErr) {
+                try {
+                    living.addEffect(new EffectInstance(effect, ticks, 0));
+                } catch (addErr2) {
+                    log("sk_eshin stun add fail: " + addErr2);
+                }
+            }
+        }
+
+        var pitch = (Math.random() - Math.random()) * 0.2 + 1.0;
+        world.playSoundAt(NpcAPI.getIPos(x, y, z), STUN_SOUND, STUN_SOUND_VOLUME, pitch);
+    } catch (err) {
+        try { log("sk_eshin stun fail: " + err); } catch (e2) {}
+    }
+}
+
+function startCharge(npc, world, data, target, now) {
+    data.put(CHARGING_KEY, "1");
     data.put(CHARGE_END_KEY, String(now + CHARGE_TICKS));
+    data.put(TARGET_UUID_KEY, String(target.getUUID()));
+    clearTelegraph(data);
+    applyChargeStance(npc);
+
+    try {
+        var tid = TelegraphAPI.circle(
+            npc, npc.getX(), npc.getY(), npc.getZ(),
+            TELEGRAPH_RADIUS, CHARGE_TICKS, TELEGRAPH_COLOR
+        );
+        data.put(TELEGRAPH_KEY, String(tid));
+        TelegraphAPI.followNpc(tid, npc);
+    } catch (te) {}
+
     try {
         world.spawnParticle("minecraft:smoke", npc.getX(), npc.getY() + 1.0, npc.getZ(),
             0.2, 0.05, 0.2, 0.02, 10);
@@ -188,6 +345,8 @@ function startCharge(npc, world, data, now) {
 }
 
 function doChargingTick(npc, world, data, now) {
+    applyChargeStance(npc);
+
     if (now < getInt(data, CHARGE_END_KEY)) {
         try {
             world.spawnParticle("minecraft:smoke", npc.getX(), npc.getY() + 0.9, npc.getZ(),
@@ -199,9 +358,10 @@ function doChargingTick(npc, world, data, now) {
 }
 
 function performStab(npc, world, data) {
-    var target = npc.getAttackTarget();
+    var target = resolveTarget(npc, world, data);
     if (target == null || !target.isAlive()) {
-        clearState(data);
+        clearChargeState(data);
+        applyRevengeMode(npc, data, world.getTotalTime(), false);
         return;
     }
 
@@ -213,15 +373,63 @@ function performStab(npc, world, data) {
     applyRevengeMode(npc, data, now, true);
 }
 
+function resolveTarget(npc, world, data) {
+    var uuid = "";
+    try {
+        if (data.has(TARGET_UUID_KEY)) uuid = String(data.get(TARGET_UUID_KEY));
+    } catch (err) {}
+
+    if (uuid && uuid != "" && uuid != "null") {
+        try {
+            var players = world.getAllPlayers();
+            for (var i = 0; i < players.length; i++) {
+                if (String(players[i].getUUID()) == uuid) return players[i];
+            }
+        } catch (err2) {}
+
+        try {
+            var near = world.getNearbyEntities(
+                NpcAPI.getIPos(npc.getX(), npc.getY(), npc.getZ()),
+                48,
+                EntitiesType.ANY
+            );
+            for (var j = 0; j < near.length; j++) {
+                if (String(near[j].getUUID()) == uuid) return near[j];
+            }
+        } catch (err3) {}
+    }
+
+    try {
+        return npc.getAttackTarget();
+    } catch (err4) {
+        return null;
+    }
+}
+
+function clearTelegraph(data) {
+    try {
+        if (data.has(TELEGRAPH_KEY)) {
+            var tid = String(data.get(TELEGRAPH_KEY));
+            if (tid && tid != "null" && tid != "" && tid != "0") {
+                TelegraphAPI.remove(tid);
+            }
+            data.remove(TELEGRAPH_KEY);
+        }
+    } catch (err) {}
+}
+
 function clearChargeState(data) {
     data.put(CHARGING_KEY, "0");
     data.put(CHARGE_END_KEY, "0");
+    data.put(TARGET_UUID_KEY, "");
+    clearTelegraph(data);
 }
 
 function clearState(data) {
     clearChargeState(data);
     data.put(MODE_KEY, "retreat");
     data.put(MODE_END_KEY, "0");
+    data.put(HIT_COUNT_KEY, "0");
 }
 
 function flatDistance(a, b) {

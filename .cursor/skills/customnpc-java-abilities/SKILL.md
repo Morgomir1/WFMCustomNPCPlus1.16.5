@@ -5,7 +5,7 @@ description: Добавляет серверные боевые абилки Cus
 
 # Java-абилки CustomNPC+
 
-> **Связанные skills:** `customnpc-js-scripting` — тонкий JS-оркестратор (`AbilityAPI.start`). `nashorn-customnpc-scripting` — Nashorn bootstrap. `wfm-cnpc-ability-bridge` — WFM-сущности/пули/сети через reflection-мост.
+> **Связанные skills:** `customnpc-js-scripting` — тонкий JS-оркестратор (`AbilityAPI.start`). `customnpc-attack-zones` — Telegraph / Zone. `nashorn-customnpc-scripting` — Nashorn bootstrap. `wfm-cnpc-ability-bridge` — WFM-сущности/пули/сети через reflection-мост.
 
 Код абилок — **только в `WFMCustomNPCPlus1.16.5`**, пакет `noppes.npcs.abilities`.
 

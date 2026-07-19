@@ -251,7 +251,7 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> drachenfelsPoisonFeast() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 14);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 36);
         map.put(AbilityParamKeys.DAMAGE, 14.0);
         map.put(AbilityParamKeys.RADIUS, 5.0);
         map.put(AbilityParamKeys.KNOCKBACK, 0.9);
@@ -265,7 +265,7 @@ public final class AbilityDefaults {
     public static Map<String, Object> drachenfelsDarkCleave() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.DISTANCE, 5.5);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 8);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 26);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
         map.put(AbilityParamKeys.DAMAGE, 13.0);
         map.put(AbilityParamKeys.RADIUS, 2.4);
@@ -277,7 +277,7 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> drachenfelsSoulRend() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 34);
         map.put(AbilityParamKeys.DAMAGE, 12.0);
         map.put(AbilityParamKeys.RADIUS, 6.0);
         map.put(AbilityParamKeys.CONE_HALF_ANGLE, 40.0);
@@ -291,7 +291,7 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> drachenfelsSpiritBarrage() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 28);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 16);
         map.put(AbilityParamKeys.SHOTS, 4);
         map.put(AbilityParamKeys.DISTANCE, 14.0);
@@ -304,7 +304,7 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> drachenfelsSoulSeeker() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 30);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 14);
         map.put(AbilityParamKeys.SHOTS, 2);
         map.put(AbilityParamKeys.DISTANCE, 40.0);
@@ -318,7 +318,7 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> drachenfelsRaiseThralls() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 32);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 18);
         map.put(AbilityParamKeys.RADIUS, 4.0);
         map.put(AbilityParamKeys.EFFECT_TYPE, "slowness");
@@ -335,12 +335,28 @@ public final class AbilityDefaults {
     public static Map<String, Object> drachenfelsShadowStep() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.DISTANCE, 10.0);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 6);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 18);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
         map.put(AbilityParamKeys.DAMAGE, 8.0);
         map.put(AbilityParamKeys.KNOCKBACK, 1.1);
         map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
         map.put(AbilityParamKeys.HIT_RADIUS, 1.5);
+        return map;
+    }
+
+    public static Map<String, Object> drachenfelsSoulOrbs() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.TELEGRAPH, 0); // circles spawned manually per landing
+        map.put(AbilityParamKeys.CHARGE_TICKS, 32);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 18);
+        map.put(AbilityParamKeys.SHOTS, 3);
+        map.put(AbilityParamKeys.DAMAGE, 9.0);
+        map.put(AbilityParamKeys.LAND_RADIUS, 2.5);
+        map.put(AbilityParamKeys.SPREAD_RADIUS, 4.5);
+        map.put(AbilityParamKeys.MAX_RANGE, 28.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.7);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.22);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
 }

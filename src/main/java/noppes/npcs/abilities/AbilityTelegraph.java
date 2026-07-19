@@ -94,15 +94,30 @@ public final class AbilityTelegraph {
     }
 
     public static void clear(final ActiveAbility active, final AbilityContext ctx) {
-        if (active == null || active.telegraphId == null || active.telegraphId.isEmpty()) {
+        if (active == null) {
             return;
         }
-        if (ctx != null && ctx.npc != null) {
-            TelegraphAPI.removeNear(ctx.npc, active.telegraphId);
-        } else {
-            TelegraphAPI.remove(active.telegraphId);
+        if (active.telegraphId != null && !active.telegraphId.isEmpty()) {
+            if (ctx != null && ctx.npc != null) {
+                TelegraphAPI.removeNear(ctx.npc, active.telegraphId);
+            } else {
+                TelegraphAPI.remove(active.telegraphId);
+            }
+            active.telegraphId = null;
         }
-        active.telegraphId = null;
+        if (!active.telegraphIds.isEmpty()) {
+            for (final String id : active.telegraphIds) {
+                if (id == null || id.isEmpty()) {
+                    continue;
+                }
+                if (ctx != null && ctx.npc != null) {
+                    TelegraphAPI.removeNear(ctx.npc, id);
+                } else {
+                    TelegraphAPI.remove(id);
+                }
+            }
+            active.telegraphIds.clear();
+        }
     }
 
     private static float resolveYaw(final ActiveAbility active, final AbilityContext ctx) {

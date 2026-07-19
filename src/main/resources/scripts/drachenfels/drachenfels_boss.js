@@ -97,9 +97,10 @@ var DARK_CLEAVE_ID = "drachenfels_dark_cleave";
 var SOUL_REND_ID = "drachenfels_soul_rend";
 var SPIRIT_BARRAGE_ID = "drachenfels_spirit_barrage";
 var SOUL_SEEKER_ID = "drachenfels_soul_seeker";
+var SOUL_ORBS_ID = "drachenfels_soul_orbs";
 var RAISE_THRALLS_ID = "drachenfels_raise_thralls";
 var SHADOW_STEP_ID = "drachenfels_shadow_step";
-// Дальше этой дистанции — punish soul_seeker (не дать убежать)
+// Дальше этой дистанции — punish soul_seeker (line) / soul_orbs (circles)
 var PUNISH_RANGE = 14.0;
 
 var QUOTES_BODY_1 = [
@@ -1218,9 +1219,11 @@ function pickAbility(npc, target, phase, data, now) {
     var maxR = role == "spirit" ? SPIRIT_MAX_RANGE : BODY_MAX_RANGE;
     var far = dist > maxR || dist > PUNISH_RANGE;
 
-    // Слишком далеко — дальние soul-импульсы (punish), иначе shadow_step
-    if (far && isCooldownReady(data, now, SOUL_SEEKER_ID) && last != SOUL_SEEKER_ID) {
-        return SOUL_SEEKER_ID;
+    // Слишком далеко — line-seeker или круглые soul_orbs (punish), иначе shadow_step
+    if (far && last != SOUL_ORBS_ID && last != SOUL_SEEKER_ID) {
+        if (isCooldownReady(data, now, SOUL_ORBS_ID) && Math.random() < 0.55) return SOUL_ORBS_ID;
+        if (isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
+        if (isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
     }
     if (dist > maxR && isCooldownReady(data, now, SHADOW_STEP_ID) && last != SHADOW_STEP_ID) {
         return SHADOW_STEP_ID;
@@ -1228,15 +1231,19 @@ function pickAbility(npc, target, phase, data, now) {
 
     if (phase == "bond") {
         if (role == "body") {
+            if (far && isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
             if (far && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
             if (dist < 5.0 && isCooldownReady(data, now, DARK_CLEAVE_ID)) return DARK_CLEAVE_ID;
             if (isCooldownReady(data, now, POISON_FEAST_ID)) return POISON_FEAST_ID;
+            if (dist > 7.0 && isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
             if (isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
             if (isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
             if (isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
         } else {
+            if (far && isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
             if (far && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
             if (isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
+            if (dist > 5 && isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
             if (dist > 5 && isCooldownReady(data, now, SPIRIT_BARRAGE_ID)) return SPIRIT_BARRAGE_ID;
             if (isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
             if (isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
@@ -1246,6 +1253,7 @@ function pickAbility(npc, target, phase, data, now) {
     }
 
     if (role == "body") {
+        if (far && isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
         if (far && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
         if (phase == "2" && dist >= minR && dist < 6.5 && isCooldownReady(data, now, POISON_FEAST_ID) && Math.random() < 0.35) {
             return POISON_FEAST_ID;
@@ -1259,28 +1267,34 @@ function pickAbility(npc, target, phase, data, now) {
         }
         if (dist < 7.0 && isCooldownReady(data, now, POISON_FEAST_ID)) return POISON_FEAST_ID;
         if (isCooldownReady(data, now, DARK_CLEAVE_ID)) return DARK_CLEAVE_ID;
+        if (dist > 8.0 && isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
         if (isCooldownReady(data, now, SOUL_SEEKER_ID) && dist > 8.0) return SOUL_SEEKER_ID;
         if (isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
         if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID)) return RAISE_THRALLS_ID;
         return null;
     }
 
-    // spirit — держит дистанцию, бьёт ranged; на дальняке — soul_seeker
+    // spirit — держит дистанцию; mid-range — круглые orbs, line barrage/seeker остаются
+    if (far && isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
     if (far && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
     if (dist < minR && isCooldownReady(data, now, SHADOW_STEP_ID) && Math.random() < 0.35) {
-        // Не dash в упор: kite уже отводит; shadow_step только если совсем прилипли и kite не справляется
         return null;
+    }
+    if (phase == "2" && isCooldownReady(data, now, SOUL_ORBS_ID) && Math.random() < 0.4) {
+        return SOUL_ORBS_ID;
     }
     if (phase == "2" && isCooldownReady(data, now, SPIRIT_BARRAGE_ID) && Math.random() < 0.32) {
         return SPIRIT_BARRAGE_ID;
     }
     if (dist >= minR && dist < 10.0 && isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
+    if (dist > 6.0 && isCooldownReady(data, now, SOUL_ORBS_ID) && last != SOUL_ORBS_ID) return SOUL_ORBS_ID;
     if (dist > 6.0 && isCooldownReady(data, now, SPIRIT_BARRAGE_ID)) return SPIRIT_BARRAGE_ID;
     if (dist > 10.0 && isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
     if (phase == "2" && isCooldownReady(data, now, RAISE_THRALLS_ID) && Math.random() < 0.28) {
         return RAISE_THRALLS_ID;
     }
     if (isCooldownReady(data, now, SOUL_REND_ID)) return SOUL_REND_ID;
+    if (isCooldownReady(data, now, SOUL_ORBS_ID)) return SOUL_ORBS_ID;
     if (isCooldownReady(data, now, SPIRIT_BARRAGE_ID)) return SPIRIT_BARRAGE_ID;
     if (isCooldownReady(data, now, SOUL_SEEKER_ID)) return SOUL_SEEKER_ID;
     if (dist > maxR && isCooldownReady(data, now, SHADOW_STEP_ID)) return SHADOW_STEP_ID;
@@ -1292,8 +1306,10 @@ function buildParams(abilityId, phase, data) {
     var bond = phase == "bond";
     var p2 = phase == "2" || bond;
 
+    // chargeTicks ≈ telegraph duration: big AoE ~1.5–1.8s, dash ~0.7–0.9s
     if (abilityId == POISON_FEAST_ID) {
         return AbilityAPI.params(
+            "telegraphColor", 0xC0FF3030,
             "damage", p2 ? 17.0 : 14.0,
             "radius", p2 ? 5.8 : 5.0,
             "knockback", 0.95,
@@ -1301,14 +1317,15 @@ function buildParams(abilityId, phase, data) {
             "effectType", "poison",
             "effectDuration", p2 ? 100 : 80,
             "effectAmplifier", 1,
-            "chargeTicks", bond ? 10 : (p2 ? 11 : 14)
+            "chargeTicks", bond ? 28 : (p2 ? 32 : 36)
         );
     }
     if (abilityId == DARK_CLEAVE_ID) {
         return AbilityAPI.params(
+            "telegraphColor", 0xC0FF3030,
             "damage", p2 ? 16.0 : 13.0,
             "distance", p2 ? 6.2 : 5.5,
-            "chargeTicks", bond ? 6 : (p2 ? 7 : 8),
+            "chargeTicks", bond ? 18 : (p2 ? 22 : 26),
             "activeTicks", 5,
             "radius", p2 ? 2.8 : 2.4,
             "coneHalfAngle", 65.0,
@@ -1318,6 +1335,7 @@ function buildParams(abilityId, phase, data) {
     }
     if (abilityId == SOUL_REND_ID) {
         return AbilityAPI.params(
+            "telegraphColor", 0xC0FF3030,
             "damage", p2 ? 15.0 : 12.0,
             "radius", p2 ? 7.0 : 6.0,
             "coneHalfAngle", 42.0,
@@ -1326,16 +1344,17 @@ function buildParams(abilityId, phase, data) {
             "effectType", "wither",
             "effectDuration", p2 ? 80 : 60,
             "effectAmplifier", 0,
-            "chargeTicks", bond ? 8 : (p2 ? 10 : 12)
+            "chargeTicks", bond ? 26 : (p2 ? 30 : 34)
         );
     }
     if (abilityId == SPIRIT_BARRAGE_ID) {
         return AbilityAPI.params(
+            "telegraphColor", 0xC0FF3030,
             "damage", p2 ? 9.0 : 7.0,
             "shots", p2 ? 5 : 4,
             "distance", 15.0,
             "hitRadius", 1.9,
-            "chargeTicks", p2 ? 8 : 10,
+            "chargeTicks", p2 ? 24 : 28,
             "activeTicks", p2 ? 18 : 16,
             "knockback", 0.55,
             "knockbackY", 0.15
@@ -1345,21 +1364,37 @@ function buildParams(abilityId, phase, data) {
         var role = getRole(data);
         var spirit = role == "spirit";
         return AbilityAPI.params(
+            "telegraphColor", 0xC0FF3030,
             "damage", p2 ? (spirit ? 12.0 : 11.0) : (spirit ? 10.0 : 9.0),
             "shots", p2 ? (spirit ? 3 : 2) : (spirit ? 2 : 1),
             "maxRange", p2 ? 44.0 : 40.0,
             "distance", p2 ? 44.0 : 40.0,
             "hitRadius", p2 ? 2.4 : 2.2,
-            "chargeTicks", bond ? 8 : (p2 ? 10 : 12),
+            "chargeTicks", bond ? 22 : (p2 ? 26 : 30),
             "activeTicks", p2 ? 16 : 14,
             "knockback", 0.7,
             "knockbackY", 0.2
         );
     }
+    if (abilityId == SOUL_ORBS_ID) {
+        return AbilityAPI.params(
+            "telegraph", 0,
+            "telegraphColor", 0xC0FF3030,
+            "damage", p2 ? 11.0 : 9.0,
+            "shots", bond ? 4 : (p2 ? 4 : 3),
+            "landRadius", p2 ? 2.8 : 2.5,
+            "spreadRadius", p2 ? 5.2 : 4.5,
+            "maxRange", p2 ? 32.0 : 28.0,
+            "chargeTicks", bond ? 28 : (p2 ? 30 : 34),
+            "activeTicks", p2 ? 20 : 18,
+            "knockback", 0.75,
+            "knockbackY", 0.24
+        );
+    }
     if (abilityId == RAISE_THRALLS_ID) {
         return AbilityAPI.params(
-            "telegraphColor", 0xC0408040,
-            "chargeTicks", bond ? 8 : 12,
+            "telegraphColor", 0xC0FF3030,
+            "chargeTicks", bond ? 28 : 32,
             "activeTicks", 16,
             "summonCount", bond ? 3 : 2,
             "summonRadius", 3.5,
@@ -1374,8 +1409,9 @@ function buildParams(abilityId, phase, data) {
     }
     if (abilityId == SHADOW_STEP_ID) {
         return AbilityAPI.params(
+            "telegraphColor", 0xC0FF3030,
             "distance", p2 ? 12.0 : 10.0,
-            "chargeTicks", bond ? 4 : 6,
+            "chargeTicks", bond ? 14 : 18,
             "activeTicks", 5,
             "damage", p2 ? 10.0 : 8.0,
             "knockback", 1.15,
@@ -1413,6 +1449,7 @@ function getCooldownTicks(abilityId, phase) {
     if (abilityId == SPIRIT_BARRAGE_ID) return p2 ? 100 : 130;
     // Punish: заметный CD, не спам
     if (abilityId == SOUL_SEEKER_ID) return bond ? 90 : (p2 ? 120 : 150);
+    if (abilityId == SOUL_ORBS_ID) return bond ? 85 : (p2 ? 110 : 140);
     if (abilityId == RAISE_THRALLS_ID) return bond ? 140 : 180;
     if (abilityId == SHADOW_STEP_ID) return bond ? 55 : (p2 ? 65 : 80);
     return 80;

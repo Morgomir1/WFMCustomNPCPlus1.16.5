@@ -1,6 +1,8 @@
 package noppes.npcs.abilities;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -18,6 +20,9 @@ public final class ActiveAbility {
     public int ticksLeft;
     public int elapsedTicks;
     public final Set<String> hitUuids = new HashSet<>();
+    /** Multi-point landings / markers: each entry is {x, y, z}. */
+    public final List<double[]> markers = new ArrayList<>();
+    public final List<String> telegraphIds = new ArrayList<>();
 
     public double sx;
     public double sy;

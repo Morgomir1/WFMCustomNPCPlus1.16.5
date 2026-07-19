@@ -42,7 +42,8 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `drachenfels_dark_cleave` | `DrachenfelsDarkCleaveAbility` | Короткий рывок-замах конусом |
 | `drachenfels_soul_rend` | `DrachenfelsSoulRendAbility` | Конус soul/wither (дух) |
 | `drachenfels_spirit_barrage` | `DrachenfelsSpiritBarrageAbility` | Серия импульсов к цели |
-| `drachenfels_soul_seeker` | `DrachenfelsSoulSeekerAbility` | Дальние soul-импульсы (punish kite) |
+| `drachenfels_soul_seeker` | `DrachenfelsSoulSeekerAbility` | Дальние soul-импульсы по линии (punish kite) |
+| `drachenfels_soul_orbs` | `DrachenfelsSoulOrbsAbility` | Несколько soul-шаров: круглые telegraph → AoE при приземлении |
 | `drachenfels_raise_thralls` | `DrachenfelsRaiseThrallsAbility` | Призыв thrall-клонов + aura |
 | `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
 

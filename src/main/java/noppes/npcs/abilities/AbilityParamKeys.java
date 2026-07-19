@@ -38,6 +38,7 @@ public final class AbilityParamKeys {
     public static final String TELEGRAPH = "telegraph";
     public static final String TELEGRAPH_COLOR = "telegraphColor";
     public static final String TELEGRAPH_FORWARD = "telegraphForward";
+    public static final String SPREAD_RADIUS = "spreadRadius";
 
     private AbilityParamKeys() {
     }

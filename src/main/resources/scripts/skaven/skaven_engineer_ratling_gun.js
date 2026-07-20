@@ -1,7 +1,8 @@
 // =====================================================
 // Скавен инженер — залп из ратлинг-гана (Java AbilityAPI).
 // Механика как у wfm RatlingGunEntity: ~3 сек стрельбы, пули SkavenBullet.
-// Режимы CNPC OnAttack: стрельба → «Ничего», после залпа → «Отступать» 8 сек → снова стрельба.
+// Режимы CNPC OnAttack: стрельба (Ничего) → отступление → снова стрельба.
+// Урон по WFM-щиту: 0.5 HP / пуля (ShieldBlockEventHandler.isSkavenBulletWeapon).
 // =====================================================
 
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
@@ -12,15 +13,15 @@ var RETALIATE_RETREAT = 2;
 var RETALIATE_NONE = 3;
 
 var TIMER_ID = 782;
-var RETREAT_TICKS = 160; // 8 секунд отступления после залпа
+var RETREAT_TICKS = 40; // 2 секунды отступления после залпа
 
 var ABILITY_ID = "ratling_gun_volley";
 var GUN_ITEM = "wfm:skaven_ratling_gun";
 var MAX_RANGE = 36.0;
 
 // Настройки урона и разброса (передаются в Java-абилку)
-// По WFM-щиту (ShieldBlockData) урон = damage пули → 0.5 HP щита за попадание
-var DAMAGE = 0.5;
+// Урон по телу; по WFM-щиту SkavenBullet всегда снимает 0.5 (см. WFM ShieldBlockEventHandler)
+var DAMAGE = 1.0;
 var ACCURACY = 6;           // чем больше — тем шире разброс (inaccuracy = accuracy * 0.15)
 var BULLET_VELOCITY = 6.0;
 var ACTIVE_TICKS = 60;        // длительность залпа (3 сек)
@@ -29,7 +30,7 @@ var SHOT_INTERVAL = 5;      // выстрел каждые 0.25 сек
 
 var RETREAT_SPEED = 6;
 
-var MODE_KEY = "sk_eng_mode";           // "shoot" | "retreat" | "normal"
+var MODE_KEY = "sk_eng_mode";           // "shoot" | "retreat" | "ready"
 var WAS_SHOOTING_KEY = "sk_eng_was_shoot";
 var RETREAT_END_KEY = "sk_eng_retreat_end";
 var BASE_SPEED_KEY = "sk_eng_base_speed";
@@ -38,7 +39,8 @@ function init(event) {
     var npc = event.npc;
     var data = npc.getStoreddata();
     storeBaseSpeed(data, npc.getAi());
-    applyNormalMode(npc, data);
+    data.put(WAS_SHOOTING_KEY, "0");
+    applyReadyMode(npc, data);
     startTimer(npc);
 }
 
@@ -74,13 +76,28 @@ function timer(event) {
     if (isRetreating(data, now)) return;
 
     var target = npc.getAttackTarget();
-    if (target == null || !target.isAlive()) return;
-    if (flatDistance(npc, target) > MAX_RANGE) return;
+    if (target == null || !target.isAlive()) {
+        // Нет цели — можно преследовать по фракции/агро
+        try { ai.setRetaliateType(RETALIATE_REVENGE); } catch (e) {}
+        return;
+    }
+
+    var dist = flatDistance(npc, target);
+    if (dist > MAX_RANGE) {
+        // Слишком далеко — подбегает, не стреляет
+        try {
+            ai.setRetaliateType(RETALIATE_REVENGE);
+            ai.setWalkingSpeed(getBaseSpeed(data, ai));
+        } catch (e) {}
+        return;
+    }
+
+    // В радиусе стрельбы — стоим и стреляем, без мили-преследования
     if (typeof npc.canSeeEntity == "function" && !npc.canSeeEntity(target)) return;
 
     applyShootingMode(npc, data, npc.getAi());
 
-    AbilityAPI.start(npc, ABILITY_ID, target, AbilityAPI.params(
+    var started = AbilityAPI.start(npc, ABILITY_ID, target, AbilityAPI.params(
         "projectileItem", GUN_ITEM,
         "damage", DAMAGE,
         "accuracy", ACCURACY,
@@ -91,7 +108,13 @@ function timer(event) {
         "shotInterval", SHOT_INTERVAL
     ));
 
-    data.put(WAS_SHOOTING_KEY, "1");
+    // Только успешный старт → иначе ложный retreat на RETREAT_TICKS без стрельбы
+    if (started) {
+        data.put(WAS_SHOOTING_KEY, "1");
+    } else {
+        data.put(WAS_SHOOTING_KEY, "0");
+        applyReadyMode(npc, data);
+    }
 }
 
 function targetLost(event) {
@@ -99,9 +122,11 @@ function targetLost(event) {
     var data = npc.getStoreddata();
     var wasShooting = isShooting(npc) || String(data.get(WAS_SHOOTING_KEY)) == "1";
     AbilityAPI.cancel(npc);
+    data.put(WAS_SHOOTING_KEY, "0");
     if (wasShooting) {
-        data.put(WAS_SHOOTING_KEY, "0");
         beginRetreat(npc, data, npc.getAi(), npc.getWorld().getTotalTime());
+    } else {
+        applyReadyMode(npc, data);
     }
 }
 
@@ -133,7 +158,13 @@ function updateShootingState(npc, data, ai, now) {
     }
 
     if (String(data.get(MODE_KEY)) == "retreat") {
-        applyNormalMode(npc, data);
+        applyReadyMode(npc, data);
+        return;
+    }
+
+    // Между залпами стоим (Ничего), не бегаем в мили
+    if (String(data.get(MODE_KEY)) != "shoot") {
+        applyReadyMode(npc, data);
     }
 }
 
@@ -182,12 +213,13 @@ function applyRetreatMode(npc, data, ai) {
     } catch (e) {}
 }
 
-function applyNormalMode(npc, data) {
-    data.put(MODE_KEY, "normal");
+/** Готов стрелять: не преследует в мили (раньше «Мстить» давало вечный бег). */
+function applyReadyMode(npc, data) {
+    data.put(MODE_KEY, "ready");
     data.put(RETREAT_END_KEY, "0");
     try {
         var ai = npc.getAi();
-        ai.setRetaliateType(RETALIATE_REVENGE);
+        ai.setRetaliateType(RETALIATE_NONE);
         ai.setWalkingSpeed(getBaseSpeed(data, ai));
     } catch (e) {}
 }

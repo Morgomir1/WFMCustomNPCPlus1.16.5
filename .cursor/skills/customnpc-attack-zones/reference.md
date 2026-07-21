@@ -1,8 +1,11 @@
 # Telegraph / Zone — reference
 
-## TelegraphAPI (`noppes.npcs.telegraph.TelegraphAPI`)
+## Telegraph (мод WFMTelegraph)
 
-| Метод | Аргументы |
+Ядро: `com.wfm.telegraph.*` в отдельном моде `wfmtelegraph`.  
+CNPC wrapper для JS/AbilityAPI: `noppes.npcs.telegraph.TelegraphAPI` → делегирует в lib (`World`/`Entity`).
+
+| Метод (wrapper, первый аргумент npc) | Аргументы |
 |-------|-----------|
 | `circle` | npc, x, y, z, radius, durationTicks, color |
 | `ring` | npc, x, y, z, outerR, innerR, durationTicks, color |
@@ -12,14 +15,22 @@
 | `follow` / `followNpc` | id, entity/npc |
 | `remove` / `removeNear` | id [, npc] |
 
-Константы: `DEFAULT_COLOR = 0x80FF3030`, `DEFAULT_WARNING = 0xC0FF0000`.
+Константы (из lib): `DEFAULT_COLOR = 0x80FF3030`, `DEFAULT_WARNING = 0xC0FF0000`.
 
 Формы: `CIRCLE`, `RING`, `LINE`, `CONE`, `SQUARE`.
 
-Сервер: `TelegraphServer` + tick в `AbilityTickHandler`.  
-Клиент: `ClientTelegraphManager` + `TelegraphWorldRenderer` (`RenderWorldLastEvent`).
+Sync/render/tick — внутри `WFMTelegraph` (свой `SimpleChannel`, `TelegraphWorldRenderer`).  
+**Не** регистрировать telegraph-пакеты в `Packets.register()` CNPC.
 
-Пакеты (append only): `PacketTelegraphSpawn`, `PacketTelegraphRemove`.
+Dependency CNPC:
+
+```gradle
+implementation fg.deobf('lib:wfmtelegraph:1.0.0-1.16.5')
+```
+
+Jar должен быть **Java 8** (class 52). Исходники lib: `c:\Waha\Waha1.16.5\WFMTelegraph\`.
+
+Native WFM-боссы зовут `com.wfm.telegraph.TelegraphAPI` напрямую — skill `wfm-attack-telegraphs`.
 
 ## ZoneAPI (`noppes.npcs.zone.ZoneAPI`)
 
@@ -62,14 +73,18 @@ Always-allowed keys в `AbilityParams`: `telegraph`, `telegraphColor`, `telegrap
 ## Java layout
 
 ```
-noppes.npcs.telegraph.*          — server + API
+# WFMTelegraph (отдельный мод)
+com.wfm.telegraph.*
+com.wfm.telegraph.network.*
+com.wfm.telegraph.client.*
+
+# CNPC
+noppes.npcs.telegraph.TelegraphAPI   — thin wrapper → lib
+noppes.npcs.abilities.AbilityTelegraph
 noppes.npcs.zone.ZoneAPI
 noppes.npcs.entity.EntityAbilityZone
-noppes.npcs.abilities.AbilityTelegraph
-noppes.npcs.packets.client.PacketTelegraph*
-noppes.npcs.client.telegraph.*   — client only
 noppes.npcs.client.renderer.RenderAbilityZone
 ```
 
-Регистрация entity: `CustomEntities` (`ability_zone`).  
-Рендер + event bus: `ClientProxy`.
+Регистрация entity zone: `CustomEntities` (`ability_zone`).  
+Рендер zone: `ClientProxy` → `RenderAbilityZone` (telegraph renderer регистрирует сам `wfmtelegraph`).

@@ -7,7 +7,7 @@ import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.api.wrapper.WorldWrapper;
 
 /**
- * JS/Java entry points for temporary attack telegraphs.
+ * JS/Java compatibility wrapper over {@link com.wfm.telegraph.TelegraphAPI}.
  *
  * <pre>
  * var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
@@ -19,8 +19,8 @@ import noppes.npcs.api.wrapper.WorldWrapper;
  * </pre>
  */
 public final class TelegraphAPI {
-    public static final int DEFAULT_COLOR = 0x80FF3030;
-    public static final int DEFAULT_WARNING = 0xC0FF0000;
+    public static final int DEFAULT_COLOR = com.wfm.telegraph.TelegraphAPI.DEFAULT_COLOR;
+    public static final int DEFAULT_WARNING = com.wfm.telegraph.TelegraphAPI.DEFAULT_WARNING;
 
     private TelegraphAPI() {
     }
@@ -33,16 +33,7 @@ public final class TelegraphAPI {
             final double radius,
             final int durationTicks,
             final int color) {
-        final World world = worldOf(npc);
-        if (world == null) {
-            return "";
-        }
-        final TelegraphInstance inst = new TelegraphInstance(
-                TelegraphType.CIRCLE, world, x, y, z, 0, durationTicks);
-        inst.radius = (float) Math.max(0.1, radius);
-        inst.color = color;
-        inst.warningColor = withAlpha(color, 0xC0);
-        return TelegraphServer.spawn(world, inst);
+        return com.wfm.telegraph.TelegraphAPI.circle(worldOf(npc), x, y, z, radius, durationTicks, color);
     }
 
     public static String ring(
@@ -54,17 +45,8 @@ public final class TelegraphAPI {
             final double innerRadius,
             final int durationTicks,
             final int color) {
-        final World world = worldOf(npc);
-        if (world == null) {
-            return "";
-        }
-        final TelegraphInstance inst = new TelegraphInstance(
-                TelegraphType.RING, world, x, y, z, 0, durationTicks);
-        inst.radius = (float) Math.max(0.1, outerRadius);
-        inst.innerRadius = (float) Math.max(0.0, Math.min(innerRadius, outerRadius - 0.05));
-        inst.color = color;
-        inst.warningColor = withAlpha(color, 0xC0);
-        return TelegraphServer.spawn(world, inst);
+        return com.wfm.telegraph.TelegraphAPI.ring(
+                worldOf(npc), x, y, z, outerRadius, innerRadius, durationTicks, color);
     }
 
     public static String square(
@@ -75,16 +57,7 @@ public final class TelegraphAPI {
             final double halfSize,
             final int durationTicks,
             final int color) {
-        final World world = worldOf(npc);
-        if (world == null) {
-            return "";
-        }
-        final TelegraphInstance inst = new TelegraphInstance(
-                TelegraphType.SQUARE, world, x, y, z, 0, durationTicks);
-        inst.radius = (float) Math.max(0.1, halfSize);
-        inst.color = color;
-        inst.warningColor = withAlpha(color, 0xC0);
-        return TelegraphServer.spawn(world, inst);
+        return com.wfm.telegraph.TelegraphAPI.square(worldOf(npc), x, y, z, halfSize, durationTicks, color);
     }
 
     public static String cone(
@@ -97,17 +70,8 @@ public final class TelegraphAPI {
             final double halfAngleDeg,
             final int durationTicks,
             final int color) {
-        final World world = worldOf(npc);
-        if (world == null) {
-            return "";
-        }
-        final TelegraphInstance inst = new TelegraphInstance(
-                TelegraphType.CONE, world, x, y, z, yaw, durationTicks);
-        inst.length = (float) Math.max(0.1, length);
-        inst.angle = (float) Math.max(1.0, halfAngleDeg * 2.0);
-        inst.color = color;
-        inst.warningColor = withAlpha(color, 0xC0);
-        return TelegraphServer.spawn(world, inst);
+        return com.wfm.telegraph.TelegraphAPI.cone(
+                worldOf(npc), x, y, z, yaw, length, halfAngleDeg, durationTicks, color);
     }
 
     public static String line(
@@ -120,17 +84,8 @@ public final class TelegraphAPI {
             final double width,
             final int durationTicks,
             final int color) {
-        final World world = worldOf(npc);
-        if (world == null) {
-            return "";
-        }
-        final TelegraphInstance inst = new TelegraphInstance(
-                TelegraphType.LINE, world, x, y, z, yaw, durationTicks);
-        inst.length = (float) Math.max(0.1, length);
-        inst.width = (float) Math.max(0.1, width);
-        inst.color = color;
-        inst.warningColor = withAlpha(color, 0xC0);
-        return TelegraphServer.spawn(world, inst);
+        return com.wfm.telegraph.TelegraphAPI.line(
+                worldOf(npc), x, y, z, yaw, length, width, durationTicks, color);
     }
 
     public static void follow(final String id, final IEntity entity) {
@@ -139,7 +94,7 @@ public final class TelegraphAPI {
         }
         try {
             final Entity mc = entity.getMCEntity();
-            TelegraphServer.follow(id, mc);
+            com.wfm.telegraph.TelegraphAPI.follow(id, mc);
         } catch (final Exception ignored) {
         }
     }
@@ -149,14 +104,14 @@ public final class TelegraphAPI {
     }
 
     public static void remove(final String id) {
-        TelegraphServer.remove(id);
+        com.wfm.telegraph.TelegraphAPI.remove(id);
     }
 
     public static void removeNear(final ICustomNpc npc, final String id) {
         try {
-            TelegraphServer.removeNear(npc == null ? null : npc.getMCEntity(), id);
+            com.wfm.telegraph.TelegraphAPI.removeNear(npc == null ? null : npc.getMCEntity(), id);
         } catch (final Exception e) {
-            TelegraphServer.remove(id);
+            com.wfm.telegraph.TelegraphAPI.remove(id);
         }
     }
 
@@ -173,9 +128,5 @@ public final class TelegraphAPI {
         } catch (final Exception e) {
             return null;
         }
-    }
-
-    private static int withAlpha(final int color, final int alpha) {
-        return (alpha << 24) | (color & 0x00FFFFFF);
     }
 }

@@ -1,7 +1,6 @@
 package noppes.npcs.abilities.event;
 
 import noppes.npcs.abilities.AbilityRunner;
-import noppes.npcs.telegraph.TelegraphServer;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -17,6 +16,5 @@ public final class AbilityTickHandler {
             return;
         }
         AbilityRunner.tickAll();
-        TelegraphServer.tickAll();
     }
 }

@@ -150,7 +150,6 @@ public class ClientProxy extends CommonProxy
     @Override
     public void postload() {
         MinecraftForge.EVENT_BUS.register(new ClientEventHandler());
-        MinecraftForge.EVENT_BUS.register(new noppes.npcs.client.telegraph.TelegraphWorldRenderer());
         if (CustomNpcs.InventoryGuiEnabled) {
             TabRegistry.registerEventListeners(MinecraftForge.EVENT_BUS);
             if (TabRegistry.getTabList().isEmpty()) {

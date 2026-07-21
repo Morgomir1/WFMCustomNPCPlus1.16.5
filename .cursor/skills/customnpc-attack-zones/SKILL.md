@@ -1,22 +1,24 @@
 ---
 name: customnpc-attack-zones
-description: Добавляет зоны атаки CustomNPC+ (Forge 1.16.5) — Telegraph (warning на charge) и Ability Zone (hazard с уроном) через TelegraphAPI/ZoneAPI и авто-телеграф AbilityAPI. Используй при telegraph, зоне атаки, warning circle/cone/line, hazard/trap зоне, telegraphColor, chargeTicks для читаемого dodge-window, или когда босс-абилка должна показывать AoE перед ударом.
+description: Добавляет зоны атаки CustomNPC+ (Forge 1.16.5) — Telegraph (warning на charge) через мод WFMTelegraph и Ability Zone (hazard с уроном) через ZoneAPI. Используй при telegraph, зоне атаки, warning circle/cone/line, hazard/trap зоне, telegraphColor, chargeTicks для читаемого dodge-window, или когда босс-абилка должна показывать AoE перед ударом.
 ---
 
 # Зоны атаки CustomNPC+ (Telegraph / Zone)
 
-> **Связанные skills:** `customnpc-js-scripting` — оркестраторы и tick SM. `customnpc-java-abilities` — `CnpcAbility` / `AbilityAPI`. Полный API: [reference.md](reference.md).
+> **Связанные skills:** `customnpc-js-scripting` — оркестраторы и tick SM. `customnpc-java-abilities` — `CnpcAbility` / `AbilityAPI`. WFM native-боссы: `wfm-attack-telegraphs`. Полный API: [reference.md](reference.md).
 
 Две системы:
 
 | | Telegraph | Ability Zone |
 |--|-----------|--------------|
 | Назначение | Warning на время charge | Persistent/trap hazard с уроном |
-| Sync | `PacketTelegraphSpawn/Remove` | `EntityAbilityZone` |
-| JS | `noppes.npcs.telegraph.TelegraphAPI` | `noppes.npcs.zone.ZoneAPI` |
+| Ядро | мод **`wfmtelegraph`** (`com.wfm.telegraph.TelegraphAPI`) | `EntityAbilityZone` в CNPC |
+| JS | `noppes.npcs.telegraph.TelegraphAPI` (thin wrapper) | `noppes.npcs.zone.ZoneAPI` |
 | Длительность | = `durationTicks` / `chargeTicks` | = lifetime зоны |
 
-**Клиентские пакеты/рендереры не импортировать в серверный код абилок** — только `TelegraphAPI` / `ZoneAPI`.
+**Клиентские пакеты/рендереры не импортировать в серверный код абилок** — только wrapper `TelegraphAPI` / `ZoneAPI`.
+
+Telegraph **не** живёт внутри CNPC: sync/render/tick — в `WFMTelegraph`. CNPC держит wrapper для JS и `AbilityTelegraph`. Runtime: jar `wfmtelegraph` в `mods/` + dependency в `build.gradle` / `mods.toml`.
 
 ---
 
@@ -95,7 +97,9 @@ zone.setColor(0xC0FF3030);
 
 ## Расширение Java (редко)
 
-Новая форма / пакет — см. [reference.md](reference.md#java-layout). Пакеты только **append** в конец `Packets.register()`. Рендер — client-only (`TelegraphWorldRenderer`, `RenderAbilityZone`).
+Новая форма / пакет telegraph — править **только** мод `WFMTelegraph`, не CNPC packets.  
+Ability Zone / entity — см. [reference.md](reference.md#java-layout).  
+Рендер Zone — client-only (`RenderAbilityZone`).
 
 Эталон скрипта с длинным charge: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.  
 JS SM с Zone: `empire_flagellant_pyre.js`, `skaven_plague_censer.js`, `empire_flagellant_martyr.js`.

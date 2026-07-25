@@ -41,10 +41,14 @@ public class DataDisplay implements INPCDisplay
     private int visible;
     public Availability availability;
     private int modelSize;
+    private float hitboxWidth;
+    private float hitboxHeight;
     private int showName;
     private int skinColor;
     private boolean disableLivingAnimation;
     private byte hitboxState;
+    private static final float HITBOX_MIN = 0.05f;
+    private static final float HITBOX_MAX = 20.0f;
     private byte showBossBar;
     private BossInfo.Color bossColor;
     public CustomModelData customModelData;
@@ -61,6 +65,8 @@ public class DataDisplay implements INPCDisplay
         this.visible = 0;
         this.availability = new Availability();
         this.modelSize = 5;
+        this.hitboxWidth = 0.6f;
+        this.hitboxHeight = 1.8f;
         this.showName = 0;
         this.skinColor = 16777215;
         this.disableLivingAnimation = false;
@@ -103,6 +109,8 @@ public class DataDisplay implements INPCDisplay
             nbttagcompound.put("SkinUsername", nbttagcompound2);
         }
         nbttagcompound.putInt("Size", this.modelSize);
+        nbttagcompound.putFloat("HitboxWidth", this.hitboxWidth);
+        nbttagcompound.putFloat("HitboxHeight", this.hitboxHeight);
         nbttagcompound.putInt("ShowName", this.showName);
         nbttagcompound.putInt("SkinColor", this.skinColor);
         nbttagcompound.putInt("NpcVisible", this.visible);
@@ -140,6 +148,18 @@ public class DataDisplay implements INPCDisplay
             this.loadProfile();
         }
         this.modelSize = ValueUtil.CorrectInt(nbttagcompound.getInt("Size"), 1, 30);
+        if (nbttagcompound.contains("HitboxWidth")) {
+            this.hitboxWidth = ValueUtil.correctFloat(nbttagcompound.getFloat("HitboxWidth"), HITBOX_MIN, HITBOX_MAX);
+        }
+        else {
+            this.hitboxWidth = ValueUtil.correctFloat(0.6f * this.modelSize * 0.2f, HITBOX_MIN, HITBOX_MAX);
+        }
+        if (nbttagcompound.contains("HitboxHeight")) {
+            this.hitboxHeight = ValueUtil.correctFloat(nbttagcompound.getFloat("HitboxHeight"), HITBOX_MIN, HITBOX_MAX);
+        }
+        else {
+            this.hitboxHeight = ValueUtil.correctFloat(1.8f * this.modelSize * 0.2f, HITBOX_MIN, HITBOX_MAX);
+        }
         this.showName = nbttagcompound.getInt("ShowName");
         if (nbttagcompound.contains("SkinColor")) {
             this.skinColor = nbttagcompound.getInt("SkinColor");
@@ -411,6 +431,38 @@ public class DataDisplay implements INPCDisplay
     }
 
     @Override
+    public float getHitboxWidth() {
+        return this.hitboxWidth;
+    }
+
+    @Override
+    public void setHitboxWidth(final float width) {
+        final float corrected = ValueUtil.correctFloat(width, HITBOX_MIN, HITBOX_MAX);
+        if (this.hitboxWidth == corrected) {
+            return;
+        }
+        this.hitboxWidth = corrected;
+        this.npc.updateClient = true;
+        this.npc.refreshDimensions();
+    }
+
+    @Override
+    public float getHitboxHeight() {
+        return this.hitboxHeight;
+    }
+
+    @Override
+    public void setHitboxHeight(final float height) {
+        final float corrected = ValueUtil.correctFloat(height, HITBOX_MIN, HITBOX_MAX);
+        if (this.hitboxHeight == corrected) {
+            return;
+        }
+        this.hitboxHeight = corrected;
+        this.npc.updateClient = true;
+        this.npc.refreshDimensions();
+    }
+
+    @Override
     public void setModelScale(final int part, final float x, final float y, final float z) {
         final ModelData modeldata = ((EntityCustomNpc)this.npc).modelData;
         ModelPartConfig model = null;
@@ -523,6 +575,7 @@ public class DataDisplay implements INPCDisplay
         }
         this.hitboxState = state;
         this.npc.updateClient = true;
+        this.npc.refreshDimensions();
     }
 
     @Override

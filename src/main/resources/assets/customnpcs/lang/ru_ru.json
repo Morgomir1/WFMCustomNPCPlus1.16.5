@@ -124,6 +124,8 @@
   "display.hide": "Спрятать",
   "display.showAttacking": "Показывать когда атакован",
   "display.size": "Разм.",
+  "display.hitboxWidth": "Хитбокс Ш",
+  "display.hitboxHeight": "Хитбокс В",
   "display.texture": "Текстура",
   "display.textureCape": "Текстура плаща",
   "display.cape": "Текстура плаща",

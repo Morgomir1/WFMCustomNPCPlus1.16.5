@@ -165,6 +165,8 @@
   "display.hide": "Hide",
   "display.showAttacking": "Show when attacking",
   "display.size": "Size",
+  "display.hitboxWidth": "Hitbox W",
+  "display.hitboxHeight": "Hitbox H",
   "display.texture": "Texture",
   "display.cape": "Cape",
   "display.overlay": "Overlay",

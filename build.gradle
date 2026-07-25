@@ -121,11 +121,17 @@ tasks.register('copyResourcesFromDeobf', Copy) {
     from(zipTree('lib/' + archivesBaseName + '-deobf.jar')){
         exclude "**/*.class"
         exclude "customnpcs.refmap.json"
+        exclude "customnpcs.mixins.json"
     }
     into layout.buildDirectory.dir("resources\\main");
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
-copyResourcesFromDeobf.finalizedBy('mergeMixinRefmap')
+copyResourcesFromDeobf.finalizedBy('mergeMixinRefmap', 'restoreMixinConfig')
+
+tasks.register('restoreMixinConfig', Copy) {
+    from('src/main/resources/customnpcs.mixins.json')
+    into layout.buildDirectory.dir('resources/main')
+}
 
 tasks.register('mergeMixinRefmap') {
     doLast {

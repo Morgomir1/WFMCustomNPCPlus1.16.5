@@ -1,6 +1,7 @@
 // =====================================================
 // Склеповый вурдалак — сила стаи
 // Чем больше других вурдалаков рядом, тем быстрее бег и сильнее удар.
+// Скорость — через эффект Speed (сам сбрасывается вне стаи).
 //
 // Настройка NPC: повесить скрипт в GUI. Тег crypt_ghoul
 // выставляется автоматически в init (можно задать и в Advanced).
@@ -9,6 +10,7 @@
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
 var CryptGhoulDeath = Java.type("noppes.npcs.script.vampire.CryptGhoulDeathHelper");
+var Effects = Java.type("net.minecraft.potion.Effects");
 
 // -------------------------
 // НАСТРОЙКИ
@@ -17,7 +19,8 @@ var PACK_TAG = "crypt_ghoul";
 var PACK_RADIUS = 12.0;
 
 var MAX_ALLIES_FOR_CAP = 5;       // бонус упирается в потолок при 5+ соседях
-var MAX_SPEED_MULT = 1.75;        // скорость при полной стае (×1.75 от базы)
+var MAX_SPEED_AMPLIFIER = 3;      // Speed IV при полной стае (0=I … 3=IV)
+var SPEED_EFFECT_SECONDS = 2;     // обновляется каждый tick (~0.5с)
 var MAX_MELEE_MULT = 1.6;         // урон ближнего боя при полной стае
 
 var PARTICLE_MIN_ALLIES = 2;      // партиклы, когда рядом ≥ N других вурдалаков
@@ -30,6 +33,7 @@ var BASE_SPEED_KEY = "cg_base_speed";
 var BASE_MELEE_KEY = "cg_base_melee";
 var LAST_ALLIES_KEY = "cg_last_allies";
 var PACK_TIER_KEY = "cg_pack_tier";
+var SPEED_BUFF_KEY = "cg_speed_buff";
 
 // Маркеры трупов — CryptGhoulDeathHelper (Java)
 
@@ -38,13 +42,16 @@ function init(e) {
     if (!npc.hasTag(PACK_TAG)) {
         npc.addTag(PACK_TAG);
     }
-    storeBaseStats(npc.getStoreddata(), npc);
+    var data = npc.getStoreddata();
+    storeBaseStats(data, npc);
+    restoreBaseSpeed(npc, data);
+    clearSpeedEffect(npc);
 }
 
 function tick(e) {
     var npc = e.npc;
     if (!npc.isAlive()) {
-        clearState(npc.getStoreddata());
+        clearState(npc);
         return;
     }
     updatePackFrenzy(npc);
@@ -52,7 +59,7 @@ function tick(e) {
 
 function died(e) {
     CryptGhoulDeath.onDeath(e.npc);
-    clearState(e.npc.getStoreddata());
+    clearState(e.npc);
 }
 
 function updatePackFrenzy(npc) {
@@ -94,15 +101,49 @@ function applyScaledStats(npc, ai, data, ratio) {
     var baseSpeed = getBaseSpeed(data, ai);
     var baseMelee = getBaseMelee(data, npc);
 
-    var speedMult = 1.0 + (MAX_SPEED_MULT - 1.0) * ratio;
     var meleeMult = 1.0 + (MAX_MELEE_MULT - 1.0) * ratio;
-
-    var speed = Math.max(1, Math.round(baseSpeed * speedMult));
     var melee = Math.max(1, Math.round(baseMelee * meleeMult * 10) / 10);
 
     try {
-        ai.setWalkingSpeed(speed);
+        // walking speed всегда база — бафф только через Speed-эффект
+        ai.setWalkingSpeed(baseSpeed);
         npc.getStats().getMelee().setStrength(melee);
+    } catch (err) {}
+
+    applySpeedEffect(npc, data, ratio);
+}
+
+function applySpeedEffect(npc, data, ratio) {
+    if (ratio <= 0) {
+        if (String(data.get(SPEED_BUFF_KEY)) == "1") {
+            clearSpeedEffect(npc);
+            data.put(SPEED_BUFF_KEY, "0");
+        }
+        return;
+    }
+
+    var amp = Math.floor(ratio * MAX_SPEED_AMPLIFIER);
+    if (amp < 0) amp = 0;
+    if (amp > MAX_SPEED_AMPLIFIER) amp = MAX_SPEED_AMPLIFIER;
+
+    try {
+        npc.addPotionEffect(PotionEffectType_SPEED, SPEED_EFFECT_SECONDS, amp, true);
+        data.put(SPEED_BUFF_KEY, "1");
+    } catch (err) {}
+}
+
+function clearSpeedEffect(npc) {
+    try {
+        var mc = npc.getMCEntity();
+        if (mc != null) {
+            mc.removeEffect(Effects.MOVEMENT_SPEED);
+        }
+    } catch (err) {}
+}
+
+function restoreBaseSpeed(npc, data) {
+    try {
+        npc.getAi().setWalkingSpeed(getBaseSpeed(data, npc.getAi()));
     } catch (err) {}
 }
 
@@ -146,7 +187,7 @@ function spawnPackParticles(npc, world, tier) {
             var oz = (Math.random() - 0.5) * 0.8;
             world.spawnParticle("smoke", x + ox, y + oy, z + oz, 0, 0.03, 0, 0.01, 1);
             if (tier >= 2) {
-                world.spawnParticle("soul_fire_flame", x + ox, y + oy + 0.15, z + oz, 0, 0.02, 0, 0.01, 1);
+                world.spawnParticle("wfm:warpfire_flame", x + ox, y + oy + 1.15, z + oz, 0, 0.02, 0, 0.01, 1);
             }
         }
     } catch (err) {}
@@ -186,9 +227,16 @@ function getBaseMelee(data, npc) {
     }
 }
 
-function clearState(data) {
+function clearState(npc) {
+    var data = npc.getStoreddata();
+    clearSpeedEffect(npc);
+    restoreBaseSpeed(npc, data);
+    try {
+        npc.getStats().getMelee().setStrength(getBaseMelee(data, npc));
+    } catch (err) {}
     data.remove(LAST_ALLIES_KEY);
     data.remove(PACK_TIER_KEY);
+    data.remove(SPEED_BUFF_KEY);
 }
 
 function getInt(data, key) {

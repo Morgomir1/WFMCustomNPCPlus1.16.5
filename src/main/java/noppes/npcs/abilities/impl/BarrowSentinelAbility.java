@@ -69,7 +69,8 @@ public final class BarrowSentinelAbility implements CnpcAbility {
         active.phase = ActiveAbility.PHASE_CHARGE;
         active.ticksLeft = ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 12);
         active.hitUuids.clear();
-        AbilityCombatHelper.stopNavigation(ctx.npc);
+        AbilityCombatHelper.freezeAiForCast(active, ctx.npc);
+        AbilityCombatHelper.holdInPlace(ctx.npc, active.sx, active.sy, active.sz);
         ctx.npc.setRotation(active.yaw);
         ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:item.shield.block", 0.8F, 0.75F);
         return true;
@@ -87,12 +88,8 @@ public final class BarrowSentinelAbility implements CnpcAbility {
     }
 
     private TickResult tickCharge(final ActiveAbility active, final AbilityContext ctx) {
-        AbilityCombatHelper.stopNavigation(ctx.npc);
-        if (ctx.target != null && ctx.target.isAlive()) {
-            final double dx = ctx.target.getX() - ctx.npc.getX();
-            final double dz = ctx.target.getZ() - ctx.npc.getZ();
-            active.yaw = AbilityCombatHelper.computeYaw(dx, dz);
-        }
+        // Keep yaw + position locked to telegraph spawn — AI chase would desync warning vs damage.
+        AbilityCombatHelper.holdInPlace(ctx.npc, active.sx, active.sy, active.sz);
         ctx.npc.setRotation(active.yaw);
 
         spawnChargeFx(ctx);
@@ -103,16 +100,7 @@ public final class BarrowSentinelAbility implements CnpcAbility {
                     ctx.params.getString(AbilityParamKeys.EFFECT_TYPE, AbilityEffectType.SLOWNESS.getId()));
             final int duration = ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 10);
             final int amplifier = ctx.params.getInt(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
-            AbilityCombatHelper.applyPotionInCone(
-                    ctx,
-                    ctx.npc.getX(),
-                    ctx.npc.getY() + 0.7,
-                    ctx.npc.getZ(),
-                    radius,
-                    halfAngle,
-                    effectType,
-                    duration,
-                    amplifier);
+            applyPotionInTelegraphCone(active, ctx, radius, halfAngle, effectType, duration, amplifier);
         }
 
         active.ticksLeft--;
@@ -120,16 +108,19 @@ public final class BarrowSentinelAbility implements CnpcAbility {
             return TickResult.CONTINUE;
         }
 
-        if (!AbilityCombatHelper.computeDashEndPoints(active, ctx)) {
-            return TickResult.FINISHED;
-        }
-
+        // Do not recompute yaw/endpoints — damage must match the charge telegraph cone.
         active.phase = ActiveAbility.PHASE_ACTIVE;
         active.ticksLeft = ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 5);
         active.hitUuids.clear();
-        AbilityVfx.spawnLandBurst(ctx.world, ctx.npc.getX(), ctx.npc.getY(), ctx.npc.getZ(), false);
-        safeSpawn(ctx, "minecraft:sweep_attack", ctx.npc.getX(), ctx.npc.getY() + 1.0, ctx.npc.getZ(), 0, 0, 0, 0, 1);
-        ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.player.attack.sweep", 0.9F, 0.7F);
+
+        AbilityVfx.spawnSwordSweep(ctx.world, active.sx, active.sy, active.sz, active.yaw);
+        ctx.world.playSoundAt(
+                NpcAPI.Instance().getIPos(active.sx, active.sy, active.sz),
+                "minecraft:entity.player.attack.sweep",
+                1.0F,
+                0.85F);
+        // One strike in the telegraph cone (not along the lunge path).
+        damageInCone(active, ctx);
         return TickResult.CONTINUE;
     }
 
@@ -146,21 +137,22 @@ public final class BarrowSentinelAbility implements CnpcAbility {
         final double cy = AbilityCombatHelper.findGroundY(ctx.world, cx, cz, active.sy);
 
         AbilityCombatHelper.stopNavigation(ctx.npc);
+        AbilityCombatHelper.zeroHorizontalMotion(ctx.npc);
         ctx.npc.setPosition(cx, cy, cz);
         ctx.npc.setRotation(active.yaw);
 
-        damageInCone(active, ctx, cx, cy + 0.8, cz);
-        AbilityVfx.spawnDashTrail(ctx.world, cx, cy, cz);
+        // Extra sweeps during lunge (visual only — damage already applied).
+        if (active.ticksLeft == total || active.ticksLeft == Math.max(1, total / 2)) {
+            AbilityVfx.spawnSwordSweep(ctx.world, cx, cy, cz, active.yaw);
+        }
         active.ticksLeft--;
         return TickResult.CONTINUE;
     }
 
-    private void damageInCone(
-            final ActiveAbility active,
-            final AbilityContext ctx,
-            final double x,
-            final double y,
-            final double z) {
+    private void damageInCone(final ActiveAbility active, final AbilityContext ctx) {
+        final double x = active.sx;
+        final double y = active.sy + 0.8;
+        final double z = active.sz;
         final double radius = ctx.params.getDouble(AbilityParamKeys.RADIUS, 3.2);
         final double halfAngle = ctx.params.getDouble(AbilityParamKeys.CONE_HALF_ANGLE, 52.0);
         final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 11.0);
@@ -179,7 +171,7 @@ public final class BarrowSentinelAbility implements CnpcAbility {
             if (!AbilityCombatHelper.isHostileToBoss(ctx.npc, ent)) {
                 continue;
             }
-            if (!AbilityCombatHelper.isInFrontCone(ctx.npc, ent, halfAngle)) {
+            if (!AbilityCombatHelper.isInFrontCone(x, z, active.yaw, ent, halfAngle)) {
                 continue;
             }
             final String uuid = String.valueOf(ent.getUUID());
@@ -205,6 +197,36 @@ public final class BarrowSentinelAbility implements CnpcAbility {
                 spawnExecuteFx(ctx, ent);
             }
             active.hitUuids.add(uuid);
+        }
+    }
+
+    private void applyPotionInTelegraphCone(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double radius,
+            final double halfAngle,
+            final AbilityEffectType effectType,
+            final int duration,
+            final int amplifier) {
+        final double x = active.sx;
+        final double y = active.sy + 0.7;
+        final double z = active.sz;
+        final int range = (int) Math.ceil(radius + 0.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(x, y, z),
+                range,
+                -1);
+        for (final IEntity ent : list) {
+            if (!AbilityCombatHelper.isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            if (!AbilityCombatHelper.isInFrontCone(x, z, active.yaw, ent, halfAngle)) {
+                continue;
+            }
+            if (AbilityCombatHelper.flatDistance(ent.getX(), ent.getZ(), x, z) > radius) {
+                continue;
+            }
+            AbilityCombatHelper.applyEffect(ent, effectType.toMcEffect(), duration, amplifier);
         }
     }
 
@@ -246,7 +268,6 @@ public final class BarrowSentinelAbility implements CnpcAbility {
     private void finishSweep(final ActiveAbility active, final AbilityContext ctx) {
         final double ey = AbilityCombatHelper.findGroundY(ctx.world, active.ex, active.ez, active.sy);
         ctx.npc.setPosition(active.ex, ey, active.ez);
-        AbilityVfx.spawnLandBurst(ctx.world, active.ex, ey, active.ez, false);
         ctx.world.playSoundAt(
                 NpcAPI.Instance().getIPos(active.ex, ey, active.ez),
                 "minecraft:entity.zombie.attack_iron_door",
@@ -265,7 +286,7 @@ public final class BarrowSentinelAbility implements CnpcAbility {
 
     private void spawnExecuteFx(final AbilityContext ctx, final IEntity ent) {
         safeSpawn(ctx, "minecraft:damage_indicator", ent.getX(), ent.getY() + 1.0, ent.getZ(), 0.15, 0.2, 0.15, 0.02, 4);
-        safeSpawn(ctx, "minecraft:sweep_attack", ent.getX(), ent.getY() + 0.9, ent.getZ(), 0, 0, 0, 0, 1);
+        safeSpawn(ctx, "minecraft:sweep_attack", ent.getX(), ent.getY() + 0.9, ent.getZ(), 0, 0, 0, 0, 0);
     }
 
     private void safeSpawn(
@@ -287,10 +308,12 @@ public final class BarrowSentinelAbility implements CnpcAbility {
 
     @Override
     public void onEnd(final ActiveAbility active, final AbilityContext ctx) {
+        AbilityCombatHelper.unfreezeAi(active, ctx.npc);
     }
 
     @Override
     public void onCancel(final ActiveAbility active, final AbilityContext ctx) {
+        AbilityCombatHelper.unfreezeAi(active, ctx.npc);
         AbilityCombatHelper.stopNavigation(ctx.npc);
     }
 }

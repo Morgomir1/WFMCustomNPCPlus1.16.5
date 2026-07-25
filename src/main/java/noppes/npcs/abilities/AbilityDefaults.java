@@ -199,7 +199,7 @@ public final class AbilityDefaults {
     public static Map<String, Object> barrowSentinel() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.DISTANCE, 2.0);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 12);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 26);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
         map.put(AbilityParamKeys.DAMAGE, 11.0);
         map.put(AbilityParamKeys.RADIUS, 3.2);

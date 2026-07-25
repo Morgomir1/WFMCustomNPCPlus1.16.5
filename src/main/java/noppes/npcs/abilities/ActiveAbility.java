@@ -34,6 +34,11 @@ public final class ActiveAbility {
     public boolean jumpStyle;
     public String telegraphId;
 
+    /** Saved AI while cast freeze is active (−1 = not frozen). */
+    public boolean aiFrozen;
+    public int savedWalkingSpeed = -1;
+    public int savedRetaliateType = -1;
+
     public ActiveAbility(
             final UUID npcUuid,
             final String abilityId,

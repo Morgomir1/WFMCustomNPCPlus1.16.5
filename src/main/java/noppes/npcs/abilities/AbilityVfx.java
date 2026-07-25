@@ -409,6 +409,33 @@ public final class AbilityVfx {
         }
     }
 
+    /**
+     * Vanilla charged sword sweeps: several arcs slightly forward (count=0 = oriented).
+     */
+    public static void spawnSwordSweep(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final float yaw) {
+        final double rad = yaw * 0.0174532925;
+        final double fx = -Math.sin(rad);
+        final double fz = Math.cos(rad);
+        final double rx = -fz;
+        final double rz = fx;
+        // Three arcs along the swing: near / mid / far
+        final double[] forward = {0.45, 0.95, 1.45};
+        final double[] side = {-0.35, 0.0, 0.35};
+        final double[] height = {0.85, 1.0, 1.15};
+        for (int i = 0; i < forward.length; i++) {
+            final double px = x + fx * forward[i] + rx * side[i];
+            final double pz = z + fz * forward[i] + rz * side[i];
+            safeSpawn(world, "minecraft:sweep_attack",
+                    px, y + height[i], pz,
+                    fx, 0.0, fz, 0.0, 0);
+        }
+    }
+
     private static void safeSpawn(
             final IWorld world,
             final String particle,

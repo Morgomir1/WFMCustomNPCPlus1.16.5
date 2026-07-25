@@ -121,14 +121,15 @@ public final class AbilityTelegraph {
     }
 
     private static float resolveYaw(final ActiveAbility active, final AbilityContext ctx) {
-        if (active.yaw != 0) {
+        // Prefer cast yaw from onStart. Do not use `active.yaw != 0` — 0 is valid (south).
+        if (active != null) {
             return active.yaw;
         }
         final IEntityLiving target = ctx.target;
         if (target != null) {
             final double dx = target.getX() - ctx.npc.getX();
             final double dz = target.getZ() - ctx.npc.getZ();
-            return (float) (Math.atan2(-dx, dz) * (180.0 / Math.PI));
+            return AbilityCombatHelper.computeYaw(dx, dz);
         }
         try {
             return ctx.npc.getMCEntity().yRot;

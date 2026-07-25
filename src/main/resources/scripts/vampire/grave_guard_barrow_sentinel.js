@@ -37,9 +37,12 @@ function timer(event) {
     var dist = flatDistance(npc, target);
     if (dist > 5.0) return;
 
-    var started = AbilityAPI.start(npc, ABILITY_ID, target, AbilityAPI.params("telegraphColor", 0xC0FF3030, 
+    // Telegraph cone = damage cone: radius + coneHalfAngle at cast origin (yaw locked in Java).
+    // chargeTicks ~1.2–1.4s for readable dodge; distance only affects visual lunge.
+    var started = AbilityAPI.start(npc, ABILITY_ID, target, AbilityAPI.params(
+        "telegraphColor", 0xC0FF3030,
         "distance", dist > 2.8 ? 2.2 : 1.6,
-        "chargeTicks", dist < 2.2 ? 10 : 12,
+        "chargeTicks", dist < 2.2 ? 24 : 28,
         "activeTicks", 5,
         "damage", 11.0,
         "radius", 3.2,
@@ -68,6 +71,15 @@ function targetLost(event) {
 
 function died(event) {
     AbilityAPI.cancel(event.npc);
+}
+
+/** Пока идёт barrow_sentinel — без обычных мили-ударов. */
+function meleeAttack(event) {
+    if (AbilityAPI.isBusy(event.npc)) {
+        try {
+            event.setCanceled(true);
+        } catch (err) {}
+    }
 }
 
 function startTimer(npc) {

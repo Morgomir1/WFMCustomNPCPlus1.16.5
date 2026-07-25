@@ -18,9 +18,9 @@ var RETALIATE_REVENGE = 0;
 // НАСТРОЙКИ
 // -------------------------
 var CHARGE_TICKS = 100;           // 5 секунд до взрыва
-var MAX_CHARGE_SPEED = 14;
+var MAX_CHARGE_SPEED = 8;
 var NORMAL_SPEED = 5;             // скорость после взрыва / сброса
-var EXPLOSION_RADIUS = 4.5;
+var EXPLOSION_RADIUS = 4.0;
 var EXPLOSION_DAMAGE = 14.0;
 var KNOCKBACK = 1.1;
 // Как у Keeper: DEFAULT_COLOR (signed int, без Nashorn-hex проблем)

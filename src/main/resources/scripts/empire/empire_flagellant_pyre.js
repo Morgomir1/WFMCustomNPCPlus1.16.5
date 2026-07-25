@@ -2,11 +2,13 @@
 // Имперский флагеллянт — «Живое кадило»
 // Погнался за целью -> поджигает себя -> периодический огненный
 // урон вокруг; чем меньше HP, тем больнее «пердеж».
+// Telegraph: circleFollow как у martyr (зона вокруг бегущего NPC).
+// Урон: JS-пульс (doFirePulse) — Ability Zone здесь не используем.
 // =====================================================
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
-var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
 
 // CNPC OnAttack: 0=Мстить, 1=Паника, 2=Отступать, 3=Ничего
 var RETALIATE_REVENGE = 0;
@@ -23,22 +25,28 @@ var FART_PARTICLE = "flame";      // обычный огонь, не soul_fire_f
 var FART_SOUND = "minecraft:entity.blaze.burn";
 var FART_SOUND_VOL = 0.45;
 var FART_SOUND_PITCH = 0.75;
+// Как у martyr/Keeper: DEFAULT_COLOR (signed int, без Nashorn-hex проблем)
+var TELEGRAPH_COLOR = TelegraphAPI.DEFAULT_COLOR;
+// Долгий follow; перед истечением переспавниваем без щели
+var TELEGRAPH_DURATION = 200;     // 10 сек
+var TELEGRAPH_REFRESH_SLACK = 10; // переспавн за N тиков до конца
 
 // -------------------------
 // storeddata keys
 // -------------------------
 var ACTIVE_KEY = "eff_burn_active";
 var NEXT_PULSE_KEY = "eff_next_pulse";
-var ZONE_ID_KEY = "eff_zone_id";
+var TELEGRAPH_KEY = "eff_telegraph";
+var TELEGRAPH_END_KEY = "eff_telegraph_end";
 
 function init(e) {
-    clearState(e.npc.getStoreddata());
+    clearState(e.npc, e.npc.getStoreddata());
 }
 
 function tick(e) {
     var npc = e.npc;
     if (!npc.isAlive()) {
-        clearState(npc.getStoreddata());
+        clearState(npc, npc.getStoreddata());
         return;
     }
 
@@ -68,11 +76,7 @@ function died(e) {
     try {
         npc.extinguish();
     } catch (err) {}
-    try {
-        var zone = findZone(npc.getWorld(), npc.getStoreddata());
-        if (zone != null) ZoneAPI.remove(zone);
-    } catch (zerr) {}
-    clearState(npc.getStoreddata());
+    clearState(npc, npc.getStoreddata());
 }
 
 function tryActivate(npc, world, data) {
@@ -102,54 +106,46 @@ function startBurning(npc, world, data) {
     } catch (err2) {}
 
     spawnFireFart(world, npc, 14);
+    spawnBurnTelegraph(npc, world, data);
+}
 
+function spawnBurnTelegraph(npc, world, data) {
+    clearTelegraph(npc, data);
     try {
-        var zone = ZoneAPI.hazardCircle(npc, npc.getX(), npc.getY(), npc.getZ(), BURN_RADIUS, 20 * 60 * 20, BASE_PULSE_DAMAGE, PULSE_INTERVAL_TICKS);
-        if (zone != null) {
-            zone.setColor(0xC0FF3030);
-            data.put(ZONE_ID_KEY, String(zone.getId()));
+        // circleFollow: ground Y + followEntityId до broadcast (как martyr / Keeper)
+        var tid = TelegraphAPI.circleFollow(
+            npc,
+            npc.getX(),
+            npc.getY(),
+            npc.getZ(),
+            BURN_RADIUS,
+            TELEGRAPH_DURATION,
+            TELEGRAPH_COLOR
+        );
+        if (tid != null && String(tid) != "") {
+            data.put(TELEGRAPH_KEY, String(tid));
+            data.put(TELEGRAPH_END_KEY, String(world.getTotalTime() + TELEGRAPH_DURATION));
         }
-    } catch (zerr) {}
+    } catch (err) {
+        try { log("eff telegraph fail: " + err); } catch (e2) {}
+    }
 }
 
 function doBurningTick(npc, world, data) {
     refreshSelfFire(npc);
     spawnAmbientFlame(world, npc);
 
-    var zone = findZone(world, data);
-    if (zone != null) {
-        try {
-            zone.moveTo(npc.getX(), npc.getY(), npc.getZ(), 0, 0);
-            zone.setDamage(calcPulseDamage(npc));
-            zone.setLifetimeTicks(200);
-        } catch (ze) {}
+    var now = world.getTotalTime();
+    var tgEnd = getInt(data, TELEGRAPH_END_KEY);
+    if (!data.has(TELEGRAPH_KEY) || tgEnd <= 0 || now >= tgEnd - TELEGRAPH_REFRESH_SLACK) {
+        spawnBurnTelegraph(npc, world, data);
     }
 
-    var now = world.getTotalTime();
     if (now < getInt(data, NEXT_PULSE_KEY)) return;
 
-    // VFX pulse; damage handled by Ability Zone
     var damage = calcPulseDamage(npc);
-    spawnFireFart(world, npc, 10);
-    try {
-        world.playSoundAt(npc.getPos(), FART_SOUND, FART_SOUND_VOL, FART_SOUND_PITCH);
-    } catch (err) {}
+    doFirePulse(npc, world, damage);
     data.put(NEXT_PULSE_KEY, String(now + PULSE_INTERVAL_TICKS));
-}
-
-function findZone(world, data) {
-    if (!data.has(ZONE_ID_KEY)) return null;
-    try {
-        var id = getInt(data, ZONE_ID_KEY);
-        if (id <= 0) return null;
-        var mcWorld = world.getMCWorld();
-        if (mcWorld == null) return null;
-        var ent = mcWorld.getEntity(id);
-        if (ent == null) return null;
-        return ent;
-    } catch (e) {
-        return null;
-    }
 }
 
 function calcPulseDamage(npc) {
@@ -259,8 +255,29 @@ function isValidBurnTarget(npc, ent, mcNpc) {
     return false;
 }
 
-function clearState(data) {
-    data.remove(ZONE_ID_KEY);
+function clearTelegraph(npc, data) {
+    if (!data.has(TELEGRAPH_KEY)) {
+        data.remove(TELEGRAPH_END_KEY);
+        return;
+    }
+    var tid = String(data.get(TELEGRAPH_KEY));
+    try {
+        if (npc != null) {
+            TelegraphAPI.removeNear(npc, tid);
+        } else {
+            TelegraphAPI.remove(tid);
+        }
+    } catch (te) {
+        try {
+            TelegraphAPI.remove(tid);
+        } catch (te2) {}
+    }
+    data.remove(TELEGRAPH_KEY);
+    data.remove(TELEGRAPH_END_KEY);
+}
+
+function clearState(npc, data) {
+    clearTelegraph(npc, data);
     data.put(ACTIVE_KEY, "0");
     data.remove(NEXT_PULSE_KEY);
 }

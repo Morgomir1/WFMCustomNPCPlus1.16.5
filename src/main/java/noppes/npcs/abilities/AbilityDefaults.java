@@ -365,4 +365,21 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.BLOCK_ANGLE, 90.0);
         return map;
     }
+
+    public static Map<String, Object> crimsonBlob() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 14);
+        map.put(AbilityParamKeys.ARC_HEIGHT, 5.0);
+        map.put(AbilityParamKeys.LAND_RADIUS, 2.0);
+        map.put(AbilityParamKeys.DAMAGE, 3.0);
+        map.put(AbilityParamKeys.MAX_RANGE, 20.0);
+        map.put(AbilityParamKeys.ZONE_TICKS, 160);
+        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 20);
+        map.put(AbilityParamKeys.EFFECT_DURATION, 40);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0801010);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
 }

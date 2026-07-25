@@ -436,6 +436,53 @@ public final class AbilityVfx {
         }
     }
 
+    /** Плотный красно-чёрный сгусток (полёт crimson_blob). */
+    public static void spawnCrimsonBlob(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z) {
+        final Random r = AbilityCombatHelper.random();
+        safeSpawn(world, "minecraft:flame", x, y, z, 0.12, 0.12, 0.12, 0.01, 18);
+        safeSpawn(world, "minecraft:smoke", x, y, z, 0.15, 0.15, 0.15, 0.02, 14);
+        safeSpawn(world, "minecraft:large_smoke", x, y, z, 0.08, 0.08, 0.08, 0.01, 8);
+        safeSpawn(world, "minecraft:ash", x, y, z, 0.2, 0.2, 0.2, 0.01, 12);
+        for (int i = 0; i < 10; i++) {
+            safeSpawn(world, "minecraft:entity_effect",
+                    x + (r.nextDouble() - 0.5) * 0.35,
+                    y + (r.nextDouble() - 0.5) * 0.35,
+                    z + (r.nextDouble() - 0.5) * 0.35,
+                    0.85, 0.05, 0.08, 0, 1);
+        }
+        safeSpawn(world, "minecraft:crit", x, y, z, 0.1, 0.1, 0.1, 0.15, 6);
+        safeSpawn(world, "minecraft:damage_indicator", x, y, z, 0.05, 0.05, 0.05, 0, 3);
+    }
+
+    /** Burst приземления crimson_blob. */
+    public static void spawnCrimsonBlobLand(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius) {
+        final Random r = AbilityCombatHelper.random();
+        final double rClamp = Math.max(0.8, radius);
+        safeSpawn(world, "minecraft:large_smoke", x, y, z, rClamp * 0.4, 0.25, rClamp * 0.4, 0.04, 20);
+        safeSpawn(world, "minecraft:smoke", x, y, z, rClamp * 0.5, 0.2, rClamp * 0.5, 0.03, 28);
+        safeSpawn(world, "minecraft:flame", x, y, z, rClamp * 0.35, 0.15, rClamp * 0.35, 0.02, 22);
+        safeSpawn(world, "minecraft:ash", x, y, z, rClamp * 0.55, 0.3, rClamp * 0.55, 0.02, 24);
+        for (int i = 0; i < 16; i++) {
+            final double a = (i / 16.0) * Math.PI * 2;
+            final double dist = rClamp * (0.4 + r.nextDouble() * 0.6);
+            safeSpawn(world, "minecraft:entity_effect",
+                    x + Math.cos(a) * dist,
+                    y + 0.15 + r.nextDouble() * 0.4,
+                    z + Math.sin(a) * dist,
+                    0.9, 0.05, 0.05, 0, 1);
+        }
+        safeSpawn(world, "minecraft:explosion", x, y + 0.2, z, 0, 0, 0, 0, 1);
+    }
+
     private static void safeSpawn(
             final IWorld world,
             final String particle,

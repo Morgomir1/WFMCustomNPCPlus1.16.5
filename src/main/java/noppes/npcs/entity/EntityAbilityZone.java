@@ -102,6 +102,14 @@ public class EntityAbilityZone extends Entity {
     }
 
     @Override
+    public void onSyncedDataUpdated(final DataParameter<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_RADIUS.equals(key) || DATA_HEIGHT.equals(key)) {
+            refreshZoneDimensions();
+        }
+    }
+
+    @Override
     public void tick() {
         this.noPhysics = true;
         super.tick();
@@ -295,6 +303,7 @@ public class EntityAbilityZone extends Entity {
         setVisible(true);
         setGroundFill(true);
         setBorder(true);
+        refreshZoneDimensions();
     }
 
     public void configureTrap(
@@ -330,6 +339,7 @@ public class EntityAbilityZone extends Entity {
 
     public void setRadius(final float radius) {
         this.entityData.set(DATA_RADIUS, Math.max(0.1f, radius));
+        refreshZoneDimensions();
     }
 
     public float getInnerRadius() {
@@ -346,6 +356,37 @@ public class EntityAbilityZone extends Entity {
 
     public void setZoneHeight(final float height) {
         this.entityData.set(DATA_HEIGHT, Math.max(0.5f, height));
+        refreshZoneDimensions();
+    }
+
+    /**
+     * Ваниль считает дистанцию рендера от размера AABB (для 0.1×0.1 ≈ 6 блоков).
+     * Зона рисуется с радиусом до нескольких блоков — расширяем лимит.
+     */
+    @Override
+    public boolean shouldRenderAtSqrDistance(final double distance) {
+        final double range = Math.max(64.0, getRadius() * 2.0 + 48.0);
+        return distance < range * range;
+    }
+
+    @Override
+    public net.minecraft.entity.EntitySize getDimensions(final net.minecraft.entity.Pose pose) {
+        final float diameter = Math.max(1.0f, getRadius() * 2.0f);
+        final float height = Math.max(1.0f, getZoneHeight());
+        return net.minecraft.entity.EntitySize.scalable(diameter, height);
+    }
+
+    private void refreshZoneDimensions() {
+        this.refreshDimensions();
+        final float diameter = Math.max(1.0f, getRadius() * 2.0f);
+        final float height = Math.max(1.0f, getZoneHeight());
+        final double half = diameter * 0.5;
+        final double x = this.getX();
+        final double y = this.getY();
+        final double z = this.getZ();
+        this.setBoundingBox(new AxisAlignedBB(
+                x - half, y, z - half,
+                x + half, y + height, z + half));
     }
 
     public int getColor() {

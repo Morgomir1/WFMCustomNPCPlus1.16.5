@@ -266,6 +266,22 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 `requiresTarget = false`. Поднимает щит из left/right hand (`ShieldItem` / WFM). Фронтальный урон гасит `ShieldBlockDamageHandler`. JS: `scripts/utility/npc_shield_block.js`.
 
+### `crimson_blob` — CrimsonBlobAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 20 / 14 | Зарядка + полёт VFX-сгустка |
+| `arcHeight` | double | 5.0 | Высота навеса |
+| `landRadius` | double | 2.0 | Радиус зоны / telegraph |
+| `damage` | double | 3.0 | MAGIC DPS зоны (за хит) |
+| `damageInterval` | int | 20 | Тики между хитами зоны |
+| `zoneTicks` | int | 160 | Lifetime зоны |
+| `effectDuration` / `effectAmplifier` | int | 40 / 0 | Blindness на каждом хите |
+| `zoneColor` | int | `0xC0801010` | Цвет Ability Zone |
+| `maxRange` | double | 20.0 | Дальность каста |
+
+Навес красно-чёрных партиклов → `ZoneAPI.hazardCircle` (слепота + чистый MAGIC-урон). JS: `scripts/utility/crimson_blob.js` (КД 4 с).
+
 ## Примеры скриптов
 
 | Файл | Назначение |
@@ -275,5 +291,6 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `scripts/witch_hunter/witch_hunter_boss.js` | Охотник на ведьм: фазы, выбор по дистанции |
 | `scripts/drachenfels/drachenfels_boss.js` | Тело+дух, Immortal Bond revive, фазы 1/2/bond |
 | `scripts/utility/npc_shield_block.js` | Блок щитом: damaged → `shield_block` |
+| `scripts/utility/crimson_blob.js` | Навес сгустка → слепая лужа |
 
 После правки скрипта на NPC: `/script reload`.

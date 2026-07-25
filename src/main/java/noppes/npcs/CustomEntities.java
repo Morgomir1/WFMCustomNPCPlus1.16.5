@@ -62,7 +62,7 @@ public class CustomEntities
         registerNewentity(event.getRegistry(), EntityProjectile.class, "customnpcprojectile", EntityProjectile::new, 64, 20, true, 0.5f, 0.5f);
         registerNewentity(event.getRegistry(), EntityCustomModel.class, "custommodelentity", EntityCustomModel::new, 64, 10, false, 0.7F, 2F);
         registerNewentity(event.getRegistry(), EntityCloneStructureSpawner.class, "clone_structure_spawner", EntityCloneStructureSpawner::new, 64, 10, false, 0.5f, 1.0f);
-        registerNewentity(event.getRegistry(), EntityAbilityZone.class, "ability_zone", EntityAbilityZone::new, 64, 3, false, 0.1f, 0.1f);
+        registerNewentity(event.getRegistry(), EntityAbilityZone.class, "ability_zone", EntityAbilityZone::new, 96, 3, false, 4.0f, 2.0f, 96);
     }
 
     @SubscribeEvent
@@ -91,12 +91,16 @@ public class CustomEntities
     }
 
     private static <T extends Entity> void registerNewentity(final IForgeRegistry<EntityType<?>> registry, final Class<? extends Entity> c, final String name, final EntityType.IFactory<T> factoryIn, final int range, final int update, final boolean velocity, final float width, final float height) {
+        registerNewentity(registry, c, name, factoryIn, range, update, velocity, width, height, 4);
+    }
+
+    private static <T extends Entity> void registerNewentity(final IForgeRegistry<EntityType<?>> registry, final Class<? extends Entity> c, final String name, final EntityType.IFactory<T> factoryIn, final int range, final int update, final boolean velocity, final float width, final float height, final int clientTrackingRange) {
         final EntityType.Builder<?> builder = (EntityType.Builder<?>)EntityType.Builder.of((EntityType.IFactory)factoryIn, EntityClassification.MISC);
         builder.setTrackingRange(range);
         builder.setUpdateInterval(update);
         builder.setShouldReceiveVelocityUpdates(velocity);
         builder.sized(width, height);
-        builder.clientTrackingRange(4);
+        builder.clientTrackingRange(Math.max(4, clientTrackingRange));
         final ResourceLocation registryName = new ResourceLocation("customnpcs", name);
         registry.register(builder.build(registryName.toString()).setRegistryName(registryName));
     }

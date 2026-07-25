@@ -46,8 +46,10 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `drachenfels_soul_orbs` | `DrachenfelsSoulOrbsAbility` | Несколько soul-шаров: круглые telegraph → AoE при приземлении |
 | `drachenfels_raise_thralls` | `DrachenfelsRaiseThrallsAbility` | Призыв thrall-клонов + aura |
 | `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
+| `crimson_blob` | `CrimsonBlobAbility` | Навес сгустка → hazard-зона слепоты + MAGIC DPS |
 
 Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
+Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
 
 ---
 
@@ -157,6 +159,22 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `damage` | double | 8.0 | Урон по пути |
 | `hitRadius` | double | 1.5 | Радиус хита |
 | `knockback` / `knockbackY` | double | 1.1 / 0.25 | Отбрасывание |
+
+### `crimson_blob`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 20 / 14 | Зарядка + полёт навесом |
+| `arcHeight` | double | 5.0 | Высота дуги |
+| `landRadius` | double | 2.0 | Радиус hazard-зоны / telegraph |
+| `damage` | double | 3.0 | MAGIC-урон зоны за хит |
+| `damageInterval` | int | 20 | Интервал урона зоны (тики) |
+| `zoneTicks` | int | 160 | Lifetime зоны (8 с) |
+| `effectDuration` / `effectAmplifier` | int | 40 / 0 | Blindness при каждом хите |
+| `zoneColor` | int | `0xC0801010` | ARGB цвет зоны |
+| `maxRange` | double | 20.0 | Макс. дальность каста |
+
+Приземление: `ZoneAPI.hazardCircle` + `minecraft:blindness`. КД — в JS (`scripts/utility/crimson_blob.js`, 80 тиков).
 
 **Кулдауны босса** — не в Java; хранятся в JS `storeddata`.
 

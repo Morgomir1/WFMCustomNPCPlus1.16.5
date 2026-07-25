@@ -37,6 +37,7 @@ public final class AbilityRegistry {
         register(new DrachenfelsRaiseThrallsAbility());
         register(new DrachenfelsShadowStepAbility());
         register(new ShieldBlockAbility());
+        register(new CrimsonBlobAbility());
     }
 
     private AbilityRegistry() {

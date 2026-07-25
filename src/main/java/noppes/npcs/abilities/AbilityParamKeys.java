@@ -41,6 +41,12 @@ public final class AbilityParamKeys {
     public static final String SPREAD_RADIUS = "spreadRadius";
     /** Полный угол фронтального блока щитом (градусы). */
     public static final String BLOCK_ANGLE = "blockAngle";
+    /** Lifetime hazard-зоны (тики). */
+    public static final String ZONE_TICKS = "zoneTicks";
+    /** Интервал урона hazard-зоны (тики между хитами). */
+    public static final String DAMAGE_INTERVAL = "damageInterval";
+    /** ARGB цвет Ability Zone. */
+    public static final String ZONE_COLOR = "zoneColor";
 
     private AbilityParamKeys() {
     }

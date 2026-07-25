@@ -170,11 +170,14 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `damage` | double | 3.0 | MAGIC-урон зоны за хит |
 | `damageInterval` | int | 20 | Интервал урона зоны (тики) |
 | `zoneTicks` | int | 160 | Lifetime зоны (8 с) |
-| `effectDuration` / `effectAmplifier` | int | 40 / 0 | Blindness при каждом хите |
+| `effectId` | string | `minecraft:blindness` | Дебаффы через `;` |
+| `effectDuration` / `effectAmplifier` | int | 40 / 0 | Длительность/уровень при каждом хите |
+| `blobParticles` / `landParticles` | string | flame,smoke,… | Партиклы через `,` |
+| `particleCount` | int | 12 | Плотность партиклов |
 | `zoneColor` | int | `0xC0801010` | ARGB цвет зоны |
 | `maxRange` | double | 20.0 | Макс. дальность каста |
 
-Приземление: `ZoneAPI.hazardCircle` + `minecraft:blindness`. КД — в JS (`scripts/utility/crimson_blob.js`, 80 тиков).
+Приземление: `ZoneAPI.hazardCircle` + эффекты из `effectId`. Тюнинг — в JS (`scripts/utility/crimson_blob.js`).
 
 **Кулдауны босса** — не в Java; хранятся в JS `storeddata`.
 

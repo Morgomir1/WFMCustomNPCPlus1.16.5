@@ -376,10 +376,16 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.MAX_RANGE, 20.0);
         map.put(AbilityParamKeys.ZONE_TICKS, 160);
         map.put(AbilityParamKeys.DAMAGE_INTERVAL, 20);
+        map.put(AbilityParamKeys.EFFECT_ID, "minecraft:blindness");
         map.put(AbilityParamKeys.EFFECT_DURATION, 40);
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
         map.put(AbilityParamKeys.ZONE_COLOR, 0xC0801010);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.BLOB_PARTICLES,
+                "minecraft:flame,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:crit");
+        map.put(AbilityParamKeys.LAND_PARTICLES,
+                "minecraft:large_smoke,minecraft:smoke,minecraft:flame,minecraft:ash,minecraft:explosion");
+        map.put(AbilityParamKeys.PARTICLE_COUNT, 12);
         return map;
     }
 }

@@ -47,6 +47,14 @@ public final class AbilityParamKeys {
     public static final String DAMAGE_INTERVAL = "damageInterval";
     /** ARGB цвет Ability Zone. */
     public static final String ZONE_COLOR = "zoneColor";
+    /** Registry id эффекта зоны (несколько через `;`). */
+    public static final String EFFECT_ID = "effectId";
+    /** Партиклы полёта сгустка (через `,`). */
+    public static final String BLOB_PARTICLES = "blobParticles";
+    /** Партиклы приземления (через `,`). */
+    public static final String LAND_PARTICLES = "landParticles";
+    /** Сколько партиклов каждого типа на тик полёта. */
+    public static final String PARTICLE_COUNT = "particleCount";
 
     private AbilityParamKeys() {
     }

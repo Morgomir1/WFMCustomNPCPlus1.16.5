@@ -227,8 +227,19 @@ public class EntityAbilityZone extends Entity {
             }
         }
         if (this.effectId != null && !this.effectId.isEmpty() && this.effectDuration > 0) {
-            final Effect effect = ForgeRegistries.POTIONS.getValue(new ResourceLocation(this.effectId));
-            if (effect != null) {
+            final String[] ids = this.effectId.split("[;|]");
+            for (int i = 0; i < ids.length; i++) {
+                String id = ids[i].trim();
+                if (id.isEmpty()) {
+                    continue;
+                }
+                if (id.indexOf(':') < 0) {
+                    id = "minecraft:" + id;
+                }
+                final Effect effect = ForgeRegistries.POTIONS.getValue(new ResourceLocation(id));
+                if (effect == null) {
+                    continue;
+                }
                 try {
                     living.addEffect(new EffectInstance(effect, this.effectDuration, this.effectAmplifier));
                 } catch (final Exception ignored) {

@@ -276,11 +276,14 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `damage` | double | 3.0 | MAGIC DPS зоны (за хит) |
 | `damageInterval` | int | 20 | Тики между хитами зоны |
 | `zoneTicks` | int | 160 | Lifetime зоны |
-| `effectDuration` / `effectAmplifier` | int | 40 / 0 | Blindness на каждом хите |
+| `effectId` | string | `minecraft:blindness` | Дебаффы через `;` |
+| `effectDuration` / `effectAmplifier` | int | 40 / 0 | На каждом хите зоны |
+| `blobParticles` / `landParticles` | string | csv | Партиклы полёта / ленда |
+| `particleCount` | int | 12 | Плотность |
 | `zoneColor` | int | `0xC0801010` | Цвет Ability Zone |
 | `maxRange` | double | 20.0 | Дальность каста |
 
-Навес красно-чёрных партиклов → `ZoneAPI.hazardCircle` (слепота + чистый MAGIC-урон). JS: `scripts/utility/crimson_blob.js` (КД 4 с).
+Навес партиклов → `ZoneAPI.hazardCircle`. JS: `scripts/utility/crimson_blob.js`.
 
 ## Примеры скриптов
 

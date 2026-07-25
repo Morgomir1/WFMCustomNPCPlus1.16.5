@@ -436,51 +436,87 @@ public final class AbilityVfx {
         }
     }
 
-    /** Плотный красно-чёрный сгусток (полёт crimson_blob). */
+    /** Плотный сгусток (полёт). particlesCsv пустой → дефолтный набор crimson. */
     public static void spawnCrimsonBlob(
             final IWorld world,
             final double x,
             final double y,
             final double z) {
-        final Random r = AbilityCombatHelper.random();
-        safeSpawn(world, "minecraft:flame", x, y, z, 0.12, 0.12, 0.12, 0.01, 18);
-        safeSpawn(world, "minecraft:smoke", x, y, z, 0.15, 0.15, 0.15, 0.02, 14);
-        safeSpawn(world, "minecraft:large_smoke", x, y, z, 0.08, 0.08, 0.08, 0.01, 8);
-        safeSpawn(world, "minecraft:ash", x, y, z, 0.2, 0.2, 0.2, 0.01, 12);
-        for (int i = 0; i < 10; i++) {
-            safeSpawn(world, "minecraft:entity_effect",
-                    x + (r.nextDouble() - 0.5) * 0.35,
-                    y + (r.nextDouble() - 0.5) * 0.35,
-                    z + (r.nextDouble() - 0.5) * 0.35,
-                    0.85, 0.05, 0.08, 0, 1);
-        }
-        safeSpawn(world, "minecraft:crit", x, y, z, 0.1, 0.1, 0.1, 0.15, 6);
-        safeSpawn(world, "minecraft:damage_indicator", x, y, z, 0.05, 0.05, 0.05, 0, 3);
+        spawnCrimsonBlob(world, x, y, z, null, 12);
     }
 
-    /** Burst приземления crimson_blob. */
+    public static void spawnCrimsonBlob(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final String particlesCsv,
+            final int countPerType) {
+        final String[] particles = parseParticles(particlesCsv, DEFAULT_BLOB_PARTICLES);
+        final int count = Math.max(1, Math.min(40, countPerType));
+        final double spread = 0.14;
+        for (int i = 0; i < particles.length; i++) {
+            safeSpawn(world, particles[i], x, y, z, spread, spread, spread, 0.02, count);
+        }
+    }
+
+    /** Burst приземления. */
     public static void spawnCrimsonBlobLand(
             final IWorld world,
             final double x,
             final double y,
             final double z,
             final double radius) {
-        final Random r = AbilityCombatHelper.random();
+        spawnCrimsonBlobLand(world, x, y, z, radius, null, 18);
+    }
+
+    public static void spawnCrimsonBlobLand(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final String particlesCsv,
+            final int countPerType) {
+        final String[] particles = parseParticles(particlesCsv, DEFAULT_LAND_PARTICLES);
+        final int count = Math.max(1, Math.min(48, countPerType));
         final double rClamp = Math.max(0.8, radius);
-        safeSpawn(world, "minecraft:large_smoke", x, y, z, rClamp * 0.4, 0.25, rClamp * 0.4, 0.04, 20);
-        safeSpawn(world, "minecraft:smoke", x, y, z, rClamp * 0.5, 0.2, rClamp * 0.5, 0.03, 28);
-        safeSpawn(world, "minecraft:flame", x, y, z, rClamp * 0.35, 0.15, rClamp * 0.35, 0.02, 22);
-        safeSpawn(world, "minecraft:ash", x, y, z, rClamp * 0.55, 0.3, rClamp * 0.55, 0.02, 24);
-        for (int i = 0; i < 16; i++) {
-            final double a = (i / 16.0) * Math.PI * 2;
-            final double dist = rClamp * (0.4 + r.nextDouble() * 0.6);
-            safeSpawn(world, "minecraft:entity_effect",
-                    x + Math.cos(a) * dist,
-                    y + 0.15 + r.nextDouble() * 0.4,
-                    z + Math.sin(a) * dist,
-                    0.9, 0.05, 0.05, 0, 1);
+        for (int i = 0; i < particles.length; i++) {
+            safeSpawn(world, particles[i], x, y, z,
+                    rClamp * 0.45, 0.25, rClamp * 0.45, 0.03, count);
         }
-        safeSpawn(world, "minecraft:explosion", x, y + 0.2, z, 0, 0, 0, 0, 1);
+    }
+
+    private static final String[] DEFAULT_BLOB_PARTICLES = {
+            "minecraft:flame", "minecraft:smoke", "minecraft:large_smoke",
+            "minecraft:ash", "minecraft:crit"
+    };
+
+    private static final String[] DEFAULT_LAND_PARTICLES = {
+            "minecraft:large_smoke", "minecraft:smoke", "minecraft:flame",
+            "minecraft:ash", "minecraft:explosion"
+    };
+
+    private static String[] parseParticles(final String csv, final String[] fallback) {
+        if (csv == null || csv.trim().isEmpty()) {
+            return fallback;
+        }
+        final String[] raw = csv.split(",");
+        final java.util.ArrayList<String> list = new java.util.ArrayList<>();
+        for (int i = 0; i < raw.length; i++) {
+            String p = raw[i].trim();
+            if (p.isEmpty()) {
+                continue;
+            }
+            if (p.indexOf(':') < 0) {
+                p = "minecraft:" + p;
+            }
+            list.add(p);
+        }
+        if (list.isEmpty()) {
+            return fallback;
+        }
+        return list.toArray(new String[0]);
     }
 
     private static void safeSpawn(

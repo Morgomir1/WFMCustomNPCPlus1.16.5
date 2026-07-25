@@ -9,13 +9,13 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Навесной красно-чёрный сгусток партиклов: charge → пролёт по дуге → hazard-зона
- * (слепота + MAGIC DPS) в точке приземления.
+ * Навесной сгусток партиклов: charge → пролёт по дуге → hazard-зона
+ * (настраиваемые дебаффы + MAGIC DPS) в точке приземления.
  */
 public final class CrimsonBlobAbility implements CnpcAbility {
     public static final String ID = "crimson_blob";
     private static final int DEFAULT_ZONE_COLOR = 0xC0801010;
-    private static final String BLINDNESS_EFFECT = "minecraft:blindness";
+    private static final String DEFAULT_EFFECT = "minecraft:blindness";
 
     @Override
     public String getId() {
@@ -48,9 +48,13 @@ public final class CrimsonBlobAbility implements CnpcAbility {
                 AbilityParamKeys.MAX_RANGE,
                 AbilityParamKeys.ZONE_TICKS,
                 AbilityParamKeys.DAMAGE_INTERVAL,
+                AbilityParamKeys.EFFECT_ID,
                 AbilityParamKeys.EFFECT_DURATION,
                 AbilityParamKeys.EFFECT_AMPLIFIER,
                 AbilityParamKeys.ZONE_COLOR,
+                AbilityParamKeys.BLOB_PARTICLES,
+                AbilityParamKeys.LAND_PARTICLES,
+                AbilityParamKeys.PARTICLE_COUNT,
                 AbilityParamKeys.TELEGRAPH,
                 AbilityParamKeys.TELEGRAPH_COLOR);
     }
@@ -107,7 +111,7 @@ public final class CrimsonBlobAbility implements CnpcAbility {
         AbilityCombatHelper.stopNavigation(ctx.npc);
         ctx.npc.setRotation(active.yaw);
         if (active.ticksLeft % 3 == 0) {
-            AbilityVfx.spawnCrimsonBlob(ctx.world, active.sx, active.sy, active.sz);
+            spawnBlobVfx(ctx, active.sx, active.sy, active.sz);
         }
         active.ticksLeft--;
         if (active.ticksLeft > 0) {
@@ -115,7 +119,7 @@ public final class CrimsonBlobAbility implements CnpcAbility {
         }
         active.phase = ActiveAbility.PHASE_ACTIVE;
         active.ticksLeft = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 14));
-        AbilityVfx.spawnCrimsonBlob(ctx.world, active.sx, active.sy, active.sz);
+        spawnBlobVfx(ctx, active.sx, active.sy, active.sz);
         ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.wither.shoot", 0.75F, 0.7F);
         return TickResult.CONTINUE;
     }
@@ -137,7 +141,7 @@ public final class CrimsonBlobAbility implements CnpcAbility {
         final double arcHeight = ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 5.0);
         final double cy = baseY + arcHeight * 4.0 * t * (1.0 - t);
 
-        AbilityVfx.spawnCrimsonBlob(ctx.world, cx, cy, cz);
+        spawnBlobVfx(ctx, cx, cy, cz);
         active.ticksLeft--;
         if (active.ticksLeft <= 0) {
             land(active, ctx);
@@ -147,7 +151,6 @@ public final class CrimsonBlobAbility implements CnpcAbility {
     }
 
     private void land(final ActiveAbility active, final AbilityContext ctx) {
-        // Точка, зафиксированная в onStart (куда летел сгусток), не текущая позиция цели.
         final double x = active.ex;
         final double y = active.ey;
         final double z = active.ez;
@@ -157,11 +160,15 @@ public final class CrimsonBlobAbility implements CnpcAbility {
         final int zoneTicks = ctx.params.getInt(AbilityParamKeys.ZONE_TICKS, 160);
         final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 3.0);
         final int damageInterval = ctx.params.getInt(AbilityParamKeys.DAMAGE_INTERVAL, 20);
+        final String effectId = ctx.params.getString(AbilityParamKeys.EFFECT_ID, DEFAULT_EFFECT);
         final int effectDuration = ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 40);
         final int effectAmplifier = ctx.params.getInt(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
         final int zoneColor = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, DEFAULT_ZONE_COLOR);
+        final String landParticles = ctx.params.getString(AbilityParamKeys.LAND_PARTICLES, "");
+        final int particleCount = ctx.params.getInt(AbilityParamKeys.PARTICLE_COUNT, 12);
 
-        AbilityVfx.spawnCrimsonBlobLand(ctx.world, x, zoneY + 0.25, z, radius);
+        AbilityVfx.spawnCrimsonBlobLand(
+                ctx.world, x, zoneY + 0.25, z, radius, landParticles, Math.max(particleCount, 16));
         ctx.world.playSoundAt(
                 NpcAPI.Instance().getIPos(x, zoneY, z),
                 "minecraft:entity.generic.explode",
@@ -178,11 +185,17 @@ public final class CrimsonBlobAbility implements CnpcAbility {
         if (zone != null) {
             zone.setColor(zoneColor);
             zone.setZoneHeight(3.0f);
-            zone.setEffect(BLINDNESS_EFFECT, effectDuration, effectAmplifier);
+            zone.setEffect(effectId, effectDuration, effectAmplifier);
             zone.setVisible(true);
             zone.setGroundFill(true);
             zone.setBorder(true);
         }
+    }
+
+    private static void spawnBlobVfx(final AbilityContext ctx, final double x, final double y, final double z) {
+        final String particles = ctx.params.getString(AbilityParamKeys.BLOB_PARTICLES, "");
+        final int count = ctx.params.getInt(AbilityParamKeys.PARTICLE_COUNT, 12);
+        AbilityVfx.spawnCrimsonBlob(ctx.world, x, y, z, particles, count);
     }
 
     @Override

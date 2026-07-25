@@ -1,7 +1,9 @@
 // =====================================================
 // Имперский флагеллянт — «Мученический натиск»
-// Увидел цель (агро) -> 5 сек разгон -> взрыв по врагам рядом.
+// Увидел цель (агро) -> бег + telegraph follow -> 5 сек -> взрыв.
 // NPC погибает при детонации.
+// Паттерн как KeeperOfSecretsEntity.spawnBladestormTelegraph:
+// один circleFollow на всю длительность (follow в первом пакете).
 // =====================================================
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
@@ -16,10 +18,13 @@ var RETALIATE_REVENGE = 0;
 // НАСТРОЙКИ
 // -------------------------
 var CHARGE_TICKS = 100;           // 5 секунд до взрыва
-var MAX_CHARGE_SPEED = 14;        // скорость ходьбы в конце разгона
+var MAX_CHARGE_SPEED = 14;
+var NORMAL_SPEED = 5;             // скорость после взрыва / сброса
 var EXPLOSION_RADIUS = 4.5;
 var EXPLOSION_DAMAGE = 14.0;
 var KNOCKBACK = 1.1;
+// Как у Keeper: DEFAULT_COLOR (signed int, без Nashorn-hex проблем)
+var TELEGRAPH_COLOR = TelegraphAPI.DEFAULT_COLOR;
 
 var MARTYR_LINES = [
     "§6§lЗа Сигмара! Пусть пламя смоет грех!",
@@ -50,7 +55,7 @@ function init(e) {
 function tick(e) {
     var npc = e.npc;
     if (!npc.isAlive()) {
-        clearState(npc.getStoreddata());
+        clearState(npc, npc.getStoreddata());
         return;
     }
 
@@ -75,7 +80,7 @@ function targetLost(e) {
 }
 
 function died(e) {
-    clearState(e.npc.getStoreddata());
+    clearState(e.npc, e.npc.getStoreddata());
 }
 
 function tryStartCharge(npc, data) {
@@ -112,11 +117,29 @@ function startCharge(npc, world, data) {
         );
     } catch (err2) {}
 
+    // Keeper: один circle на всю длительность + follow с первого пакета.
+    spawnChargeTelegraph(npc, data);
+}
+
+function spawnChargeTelegraph(npc, data) {
+    clearTelegraph(npc, data);
     try {
-        var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), EXPLOSION_RADIUS, CHARGE_TICKS, 0xC0FF3030);
-        data.put(TELEGRAPH_KEY, String(tid));
-        TelegraphAPI.followNpc(tid, npc);
-    } catch (err3) {}
+        // circleFollow: ground Y + followEntityId до broadcast (не circle+follow отдельно)
+        var tid = TelegraphAPI.circleFollow(
+            npc,
+            npc.getX(),
+            npc.getY(),
+            npc.getZ(),
+            EXPLOSION_RADIUS,
+            CHARGE_TICKS,
+            TELEGRAPH_COLOR
+        );
+        if (tid != null && String(tid) != "") {
+            data.put(TELEGRAPH_KEY, String(tid));
+        }
+    } catch (err) {
+        try { log("efm telegraph fail: " + err); } catch (e2) {}
+    }
 }
 
 function doChargingTick(npc, world, data) {
@@ -124,7 +147,7 @@ function doChargingTick(npc, world, data) {
     var start = getInt(data, CHARGE_START_KEY);
     var end = getInt(data, CHARGE_END_KEY);
     if (start <= 0 || end <= start) {
-        clearState(data);
+        clearState(npc, data);
         return;
     }
 
@@ -162,6 +185,7 @@ function doExplosion(npc, world, data) {
     var z = npc.getZ();
     var pos = NpcAPI.getIPos(x, y + 0.5, z);
 
+    clearTelegraph(npc, data);
     sayRandomMartyrLine(npc);
 
     try {
@@ -171,7 +195,7 @@ function doExplosion(npc, world, data) {
     try {
         var zone = ZoneAPI.hazardCircle(npc, x, y, z, EXPLOSION_RADIUS, 20, EXPLOSION_DAMAGE * 0.25, 10);
         if (zone != null) {
-            zone.setColor(0xC0FF3030);
+            zone.setColor(0xC0FF3030 | 0);
             zone.setKnockback(KNOCKBACK * 0.5);
         }
     } catch (zerr) {}
@@ -199,7 +223,8 @@ function doExplosion(npc, world, data) {
         world.playSoundAt(pos, "minecraft:entity.generic.explode", 1.0, 0.85);
     } catch (err4) {}
 
-    clearState(data);
+    clearState(npc, data);
+    restoreNormalSpeed(npc);
 
     try {
         npc.kill();
@@ -225,7 +250,7 @@ function isValidExplosionTarget(npc, ent, mcNpc) {
     if (target != null && String(target.getUUID()) == String(ent.getUUID())) return true;
     if (isPlayerEntity(ent)) return true;
 
-    if (typeof ent.typeOf == "function" && ent.typeOf(3)) return true; // монстр
+    if (typeof ent.typeOf == "function" && ent.typeOf(3)) return true;
     if (typeof ent.getType == "function" && ent.getType() == 3) return true;
 
     return false;
@@ -284,21 +309,53 @@ function spawnChargeParticles(npc, world, progress) {
 
 function storeBaseSpeed(data, ai) {
     if (!data.has(BASE_SPEED_KEY)) {
-        data.put(BASE_SPEED_KEY, String(ai.getWalkingSpeed()));
+        var speed = ai.getWalkingSpeed();
+        if (speed <= 0) speed = NORMAL_SPEED;
+        data.put(BASE_SPEED_KEY, String(speed));
     }
 }
 
 function getBaseSpeed(data, ai) {
     if (data.has(BASE_SPEED_KEY)) {
-        return getInt(data, BASE_SPEED_KEY);
+        var stored = getInt(data, BASE_SPEED_KEY);
+        if (stored > 0) return stored;
     }
-    return ai.getWalkingSpeed();
+    try {
+        var cur = ai.getWalkingSpeed();
+        if (cur > 0) return cur;
+    } catch (err) {}
+    return NORMAL_SPEED;
 }
 
-function clearState(data) {
+function clearTelegraph(npc, data) {
+    if (!data.has(TELEGRAPH_KEY)) return;
+    var tid = String(data.get(TELEGRAPH_KEY));
+    try {
+        if (npc != null) {
+            TelegraphAPI.removeNear(npc, tid);
+        } else {
+            TelegraphAPI.remove(tid);
+        }
+    } catch (te) {
+        try {
+            TelegraphAPI.remove(tid);
+        } catch (te2) {}
+    }
+    data.remove(TELEGRAPH_KEY);
+}
+
+function restoreNormalSpeed(npc) {
+    try {
+        npc.getAi().setWalkingSpeed(NORMAL_SPEED);
+    } catch (err) {}
+}
+
+function clearState(npc, data) {
+    clearTelegraph(npc, data);
     data.put(CHARGING_KEY, "0");
     data.remove(CHARGE_START_KEY);
     data.remove(CHARGE_END_KEY);
+    if (npc != null) restoreNormalSpeed(npc);
 }
 
 function isPlayerEntity(entity) {

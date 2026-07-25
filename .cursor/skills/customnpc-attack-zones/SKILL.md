@@ -64,8 +64,8 @@ AbilityAPI.start(npc, "drachenfels_poison_feast", target, AbilityAPI.params(
 
 ```
 - [ ] Bootstrap TelegraphAPI / ZoneAPI
-- [ ] startCharge → spawn telegraph (duration = CHARGE_TICKS)
-- [ ] followNpc, если зона у ног NPC
+- [ ] startCharge → spawn telegraph (duration = CHARGE_TICKS); для бегущего NPC — `circleFollow`
+- [ ] Y только над solid+collision (траву/цветы игнорировать) — см. секцию ниже
 - [ ] clearState / burst → TelegraphAPI.remove(id)
 - [ ] Aura: ZoneAPI + moveTo каждый тик; не дублировать damage в JS
 ```
@@ -74,15 +74,34 @@ AbilityAPI.start(npc, "drachenfels_poison_feast", target, AbilityAPI.params(
 var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
 var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
 
-// charge warning
-var tid = TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), RADIUS, CHARGE_TICKS, 0xC0FF3030);
-TelegraphAPI.followNpc(tid, npc);
+// charge warning (Keeper: один circleFollow на весь charge)
+var tid = TelegraphAPI.circleFollow(npc, npc.getX(), npc.getY(), npc.getZ(), RADIUS, CHARGE_TICKS, TelegraphAPI.DEFAULT_COLOR);
 data.put("tg_id", String(tid));
 
 // burst / aura
 var zone = ZoneAPI.hazardCircle(npc, x, y, z, RADIUS, 60, 2.0, 20);
 zone.setEffect("minecraft:poison", 60, 0);
 zone.setColor(0xC0FF3030);
+```
+
+---
+
+## Y / отрисовка на земле (игнор травы)
+
+При спавне и follow **любой** ground-зоны (`circle` / `cone` / `line` / `ring` / `square`):
+
+- **Нельзя** ставить Y над травой, цветами, кустами, снежным слоем и прочим non-solid.
+- Искать вниз первый блок с `material.isSolid()` **и** непустым `getCollisionShape`.
+- Y зоны = `solidBlockY + 1.05` (чуть над верхней гранью).
+- В lib это делает `TelegraphInstance.findGroundY` (follow каждый тик) и CNPC `TelegraphAPI.resolveGroundY` / `circleFollow`.
+
+| Неверно | Верно |
+|---------|--------|
+| Y над tall grass / цветами | Y над dirt / stone / grass_block под ними |
+
+```
+- [ ] spawn / circleFollow — Y через solid ground (не сырой getY() в траве)
+- [ ] follow — lib сам поджимает Y через findGroundY (solid only)
 ```
 
 ---

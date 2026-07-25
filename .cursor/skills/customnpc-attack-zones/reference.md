@@ -8,6 +8,7 @@ CNPC wrapper для JS/AbilityAPI: `noppes.npcs.telegraph.TelegraphAPI` → де
 | Метод (wrapper, первый аргумент npc) | Аргументы |
 |-------|-----------|
 | `circle` | npc, x, y, z, radius, durationTicks, color |
+| `circleFollow` | npc, x, y, z, radius, durationTicks, color — follow с первого пакета (Keeper) |
 | `ring` | npc, x, y, z, outerR, innerR, durationTicks, color |
 | `square` | npc, x, y, z, halfSize, durationTicks, color |
 | `cone` | npc, x, y, z, yaw, length, halfAngleDeg, durationTicks, color |
@@ -18,6 +19,17 @@ CNPC wrapper для JS/AbilityAPI: `noppes.npcs.telegraph.TelegraphAPI` → де
 Константы (из lib): `DEFAULT_COLOR = 0x80FF3030`, `DEFAULT_WARNING = 0xC0FF0000`.
 
 Формы: `CIRCLE`, `RING`, `LINE`, `CONE`, `SQUARE`.
+
+### Ground Y (обязательно для зон на земле)
+
+При отрисовке/спавне игнорить растения и «пустые» коллизии — только цельные блоки:
+
+- критерий: `state.getMaterial().isSolid() && !state.getCollisionShape(world, pos).isEmpty()`
+- примеры **игнора**: tall grass, flowers, ferns, snow layer, saplings
+- примеры **опоры**: dirt, grass_block, stone, planks, slabs (у slab — верхняя грань коллизии)
+
+Lib: `TelegraphInstance.findGroundY` (каждый тик follow).  
+CNPC wrapper: `TelegraphAPI.resolveGroundY` / `circleFollow` уже резолвит solid Y.
 
 Sync/render/tick — внутри `WFMTelegraph` (свой `SimpleChannel`, `TelegraphWorldRenderer`).  
 **Не** регистрировать telegraph-пакеты в `Packets.register()` CNPC.

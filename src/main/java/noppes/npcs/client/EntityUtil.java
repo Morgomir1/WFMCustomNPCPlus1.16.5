@@ -60,6 +60,7 @@ public class EntityUtil
         entity.swimAmountO = copied.swimAmountO;
         entity.swinging = copied.swinging;
         entity.swingTime = copied.swingTime;
+        entity.swingingArm = copied.swingingArm != null ? copied.swingingArm : Hand.MAIN_HAND;
         entity.animationSpeed = copied.animationSpeed;
         entity.animationSpeedOld = copied.animationSpeedOld;
         entity.attackAnim = copied.attackAnim;

@@ -229,7 +229,11 @@ public class EntityAbilityZone extends Entity {
         if (this.effectId != null && !this.effectId.isEmpty() && this.effectDuration > 0) {
             final Effect effect = ForgeRegistries.POTIONS.getValue(new ResourceLocation(this.effectId));
             if (effect != null) {
-                living.addEffect(new EffectInstance(effect, this.effectDuration, this.effectAmplifier));
+                try {
+                    living.addEffect(new EffectInstance(effect, this.effectDuration, this.effectAmplifier));
+                } catch (final Exception ignored) {
+                    // WFM/other mods may throw from PotionApplicableEvent handlers (e.g. bad setCanceled).
+                }
             }
         }
     }

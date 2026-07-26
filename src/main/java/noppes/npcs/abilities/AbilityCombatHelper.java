@@ -627,7 +627,8 @@ public final class AbilityCombatHelper {
         try {
             final Entity mc = entity.getMCEntity();
             if (mc instanceof LivingEntity) {
-                ((LivingEntity) mc).addEffect(new EffectInstance(effect, duration, amplifier));
+                ((LivingEntity) mc).addEffect(
+                        new EffectInstance(effect, duration, amplifier, false, true, true));
             }
         } catch (final Exception ignored) {
         }

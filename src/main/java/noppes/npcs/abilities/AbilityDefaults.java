@@ -433,9 +433,8 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.RADIUS, 0.7);
         map.put(AbilityParamKeys.MAX_RANGE, 24.0);
         map.put(AbilityParamKeys.ACCURACY, 3);
-        map.put(AbilityParamKeys.FIRE_SECONDS, 5);
-        map.put(AbilityParamKeys.PROJECTILE_ITEM, "minecraft:fire_charge");
-        map.put(AbilityParamKeys.RANGED_ITEM, "minecraft:crossbow");
+        map.put(AbilityParamKeys.FIRE_SECONDS, 0);
+        map.put(AbilityParamKeys.RANGED_ITEM, "wfm:empire_pistol");
         map.put(AbilityParamKeys.MELEE_ITEM, "wfm:empire_witch_hunter_rapier");
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;

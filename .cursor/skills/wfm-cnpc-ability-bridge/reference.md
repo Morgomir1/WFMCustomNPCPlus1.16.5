@@ -29,6 +29,7 @@ WFMCustomNPCPlus1.16.5/
 | `equipPistolForShot(npc, gunItemId)` | `equipPistolForShot` | Пистолет в руке на charge |
 | `restorePistolEquipment(npc)` | `restoreEquipment` | Вернуть руки |
 | `performPistolShot(npc, target, gunItemId, inaccuracy, damage)` | `performPistolShot` | BulletEntity + GUN_LAUNCH |
+| `performPistolShotTowardPoint(npc, x,y,z, gunItemId, inaccuracy, damage)` | `performPistolShotTowardPoint` | Пуля в точку (telegraph) |
 | `isWfmMineAvailable()` | `CustomNpcMineHelper` | WFM в classpath |
 | `spawnVisualMine(npc, x,y,z)` | `spawnVisualMine` | Модель мины без детонации |
 | `moveVisualMine(mine, x,y,z)` | `moveVisualMine` | Двигать visual mine |

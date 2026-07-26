@@ -321,17 +321,19 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 `cancelsOnTargetLost = false`. После каста JS обычно форсит `wh_flaming_strike`.
 
-### `wh_flaming_crossbow` — WhFlamingCrossbowAbility
+### `wh_flaming_crossbow` — WhFlamingCrossbowAbility (пистолет)
 
 | Ключ | Тип | Дефолт | Описание |
 |------|-----|--------|----------|
-| `chargeTicks` | int | 10 | 0.5 с, swap на арбалет |
+| `chargeTicks` | int | 10 | Прицел: пистолет в левой руке, рука поднята |
 | `distance` / `radius` | double | 18 / 0.7 | Узкий line telegraph |
-| `damage` | double | 10.0 | Урон коридора + снаряд |
-| `fireSeconds` | int | 5 | Поджог |
-| `rangedItem` | string | `minecraft:crossbow` | Оружие на charge |
-| `meleeItem` | string | `wfm:empire_witch_hunter_rapier` | Restore после выстрела |
-| `projectileItem` | string | `minecraft:fire_charge` | Визуальный снаряд |
+| `damage` | double | 10.0 | Урон WFM-пули |
+| `rangedItem` | string | `wfm:empire_pistol` | Пистолет в offhand |
+| `meleeItem` | string | `wfm:empire_witch_hunter_rapier` | Restore правой руки |
+| `accuracy` | int | 3 | Разброс пули |
+| `fireSeconds` | int | 0 | Опциональный hitscan+поджог по коридору |
+
+Звук выстрела: `WFMGunpowderGunItem.getLaunchSound()` через `CustomNpcGunHelper`.
 
 ### `wh_fire_bomb` — WhFireBombAbility
 

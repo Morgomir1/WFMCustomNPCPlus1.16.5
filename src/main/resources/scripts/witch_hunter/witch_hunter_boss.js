@@ -4,9 +4,9 @@
  *
  * Кит:
  *   wh_flaming_strike  — огненный удар (усечённый конус)
- *   net_throw          — сеть → FORCED wh_flaming_crossbow
+ *   net_throw          — сеть → FORCED wh_flaming_crossbow (пистолет)
  *   wh_lunge           — рывок+стан → FORCED wh_flaming_strike
- *   wh_flaming_crossbow — арбалет (swap оружия)
+ *   wh_flaming_crossbow — пистолет в левой руке (прицел → выстрел WFM)
  *   wh_fire_bomb       — ульт (фаза 2, HP ≤ 50%)
  */
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
@@ -93,7 +93,7 @@ function timer(event) {
     data.put(LAST_ABILITY_KEY, abilityId);
     data.put(CD_PREFIX + abilityId, String(now + getCooldown(abilityId)));
 
-    // Цепочки: сеть → арбалет; рывок → огненный удар
+    // Цепочки: сеть → пистолет; рывок → огненный удар
     if (abilityId == NET_ID) {
         data.put(FORCED_ABILITY_KEY, CROSSBOW_ID);
         data.put(NEXT_CAST_KEY, String(now + 5));
@@ -201,10 +201,8 @@ function buildParams(abilityId, phase, npc, target) {
             "distance", shotDist,
             "radius", 0.7,
             "damage", phase == "2" ? 12.0 : 10.0,
-            "fireSeconds", 5,
             "accuracy", 3,
-            "projectileItem", "minecraft:fire_charge",
-            "rangedItem", "minecraft:crossbow",
+            "rangedItem", "wfm:empire_pistol",
             "meleeItem", "wfm:empire_witch_hunter_rapier"
         );
     }

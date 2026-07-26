@@ -219,6 +219,9 @@ public class RenderCustomNpc<T extends EntityCustomNpc, M extends BipedModel<T>>
             if (enumaction == UseAction.BOW) {
                 return BipedModel.ArmPose.BOW_AND_ARROW;
             }
+            if (enumaction == UseAction.CROSSBOW) {
+                return BipedModel.ArmPose.CROSSBOW_HOLD;
+            }
         }
         return BipedModel.ArmPose.ITEM;
     }

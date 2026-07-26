@@ -19,6 +19,7 @@ public final class WfmIntegration {
     private static final String EQUIP_PISTOL_METHOD = "equipPistolForShot";
     private static final String RESTORE_EQUIPMENT_METHOD = "restoreEquipment";
     private static final String PERFORM_PISTOL_SHOT_METHOD = "performPistolShot";
+    private static final String PERFORM_PISTOL_SHOT_TOWARD_POINT_METHOD = "performPistolShotTowardPoint";
     private static final String EQUIP_RATLING_METHOD = "equipRatlingGunForShot";
     private static final String PERFORM_RATLING_SHOT_METHOD = "performRatlingShot";
     private static final String EQUIP_LEADBELCHER_METHOD = "equipLeadbelcherForShot";
@@ -39,6 +40,7 @@ public final class WfmIntegration {
     private static Method equipPistolMethod;
     private static Method restoreEquipmentMethod;
     private static Method performPistolShotMethod;
+    private static Method performPistolShotTowardPointMethod;
     private static Method equipRatlingMethod;
     private static Method performRatlingShotMethod;
 
@@ -285,6 +287,38 @@ public final class WfmIntegration {
                     null,
                     shooter,
                     targetEntity,
+                    gunItemId,
+                    inaccuracy,
+                    damage);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (final Exception ignored) {
+            return false;
+        }
+    }
+
+    public static boolean performPistolShotTowardPoint(
+            final ICustomNpc npc,
+            final double aimX,
+            final double aimY,
+            final double aimZ,
+            final String gunItemId,
+            final float inaccuracy,
+            final float damage) {
+        ensureGunInitialized();
+        if (!isWfmGunAvailable() || npc == null || performPistolShotTowardPointMethod == null) {
+            return false;
+        }
+        try {
+            final LivingEntity shooter = toLivingEntity(npc);
+            if (shooter == null) {
+                return false;
+            }
+            final Object result = performPistolShotTowardPointMethod.invoke(
+                    null,
+                    shooter,
+                    aimX,
+                    aimY,
+                    aimZ,
                     gunItemId,
                     inaccuracy,
                     damage);
@@ -548,6 +582,19 @@ public final class WfmIntegration {
                     float.class,
                     float.class);
             try {
+                performPistolShotTowardPointMethod = helper.getMethod(
+                        PERFORM_PISTOL_SHOT_TOWARD_POINT_METHOD,
+                        LivingEntity.class,
+                        double.class,
+                        double.class,
+                        double.class,
+                        String.class,
+                        float.class,
+                        float.class);
+            } catch (final Exception ignored) {
+                performPistolShotTowardPointMethod = null;
+            }
+            try {
                 equipRatlingMethod = helper.getMethod(
                         EQUIP_RATLING_METHOD,
                         LivingEntity.class,
@@ -569,6 +616,7 @@ public final class WfmIntegration {
             equipPistolMethod = null;
             restoreEquipmentMethod = null;
             performPistolShotMethod = null;
+            performPistolShotTowardPointMethod = null;
             equipRatlingMethod = null;
             performRatlingShotMethod = null;
         }

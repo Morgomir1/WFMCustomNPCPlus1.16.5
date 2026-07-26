@@ -5,6 +5,7 @@ import noppes.npcs.api.NpcAPI;
 import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.telegraph.TelegraphAPI;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -201,55 +202,101 @@ public final class WhLungeAbility implements CnpcAbility {
                 "minecraft:entity.player.attack.crit",
                 1.0F,
                 0.95F);
-        applyLandingStun(active, ctx);
+        applyLandingStun(active, ctx, point[0], point[1], point[2]);
     }
 
-    private void applyLandingStun(final ActiveAbility active, final AbilityContext ctx) {
-        if (active.markers.isEmpty()) {
-            return;
-        }
+    /**
+     * Стан в конце рывка: по попаданию (hitUuids) и/или по кругу приземления.
+     * Важно станть hitUuids — knockback во время dash выталкивает из круга.
+     */
+    private void applyLandingStun(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double landX,
+            final double landY,
+            final double landZ) {
         final int stunTicks = ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 20);
         if (stunTicks <= 0) {
             return;
         }
 
-        final double[] lock = active.markers.get(0);
-        final double lx = lock[0];
-        final double ly = lock[1];
-        final double lz = lock[2];
         final double landRadius = ctx.params.getDouble(AbilityParamKeys.LAND_RADIUS, 1.75);
-        final int range = (int) Math.ceil(landRadius + 0.5);
-        final IEntity[] list = ctx.world.getNearbyEntities(
-                NpcAPI.Instance().getIPos(lx, ly, lz),
-                range,
-                -1);
+        final double lx;
+        final double ly;
+        final double lz;
+        if (!active.markers.isEmpty()) {
+            final double[] lock = active.markers.get(0);
+            lx = lock[0];
+            ly = lock[1];
+            lz = lock[2];
+        } else {
+            lx = landX;
+            ly = landY;
+            lz = landZ;
+        }
 
-        boolean stunned = false;
+        // Широкий поиск: круг телеграфа + точка приземления NPC (после knockback цель уезжает).
+        final int range = (int) Math.ceil(Math.max(landRadius, 4.0) + 2.0);
+        final IEntity[] nearLock = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(lx, ly, lz), range, -1);
+        final IEntity[] nearLand = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(landX, landY, landZ), range, -1);
+
+        final Set<String> stunned = new HashSet<>();
+        stunCandidates(active, ctx, nearLock, landRadius, lx, lz, stunTicks, stunned);
+        stunCandidates(active, ctx, nearLand, landRadius, landX, landZ, stunTicks, stunned);
+
+        // Цель атаки: если её задел рывок — стан гарантированно.
+        if (ctx.target != null && ctx.target.isAlive()) {
+            final String tid = String.valueOf(ctx.target.getUUID());
+            if (active.hitUuids.contains(tid) && !stunned.contains(tid)) {
+                applyStun(ctx, ctx.target, stunTicks);
+            }
+        }
+    }
+
+    private void stunCandidates(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final IEntity[] list,
+            final double landRadius,
+            final double cx,
+            final double cz,
+            final int stunTicks,
+            final Set<String> stunned) {
+        if (list == null) {
+            return;
+        }
         for (final IEntity ent : list) {
             if (!AbilityCombatHelper.isHostileToBoss(ctx.npc, ent)) {
                 continue;
             }
-            if (AbilityCombatHelper.flatDistance(ent.getX(), ent.getZ(), lx, lz) > landRadius) {
+            final String id = String.valueOf(ent.getUUID());
+            if (stunned.contains(id)) {
                 continue;
             }
-            AbilityCombatHelper.applyNamedEffect(ent, STUN_EFFECT, stunTicks, 0);
+            final boolean hitByDash = active.hitUuids.contains(id);
+            final boolean inCircle =
+                    AbilityCombatHelper.flatDistance(ent.getX(), ent.getZ(), cx, cz) <= landRadius;
+            if (!hitByDash && !inCircle) {
+                continue;
+            }
+            if (applyStun(ctx, ent, stunTicks)) {
+                stunned.add(id);
+            }
+        }
+    }
+
+    private boolean applyStun(final AbilityContext ctx, final IEntity ent, final int stunTicks) {
+        final boolean ok = AbilityCombatHelper.applyNamedEffect(ent, STUN_EFFECT, stunTicks, 0);
+        if (ok) {
             ctx.world.playSoundAt(
                     NpcAPI.Instance().getIPos(ent.getX(), ent.getY(), ent.getZ()),
                     "wfm:enchantment.pommel_strike_stun",
                     1.2F,
                     1.0F);
-            stunned = true;
         }
-        if (!stunned && ctx.target != null && ctx.target.isAlive()
-                && AbilityCombatHelper.flatDistance(
-                        ctx.target.getX(), ctx.target.getZ(), lx, lz) <= landRadius) {
-            AbilityCombatHelper.applyNamedEffect(ctx.target, STUN_EFFECT, stunTicks, 0);
-            ctx.world.playSoundAt(
-                    NpcAPI.Instance().getIPos(ctx.target.getX(), ctx.target.getY(), ctx.target.getZ()),
-                    "wfm:enchantment.pommel_strike_stun",
-                    1.2F,
-                    1.0F);
-        }
+        return ok;
     }
 
     @Override

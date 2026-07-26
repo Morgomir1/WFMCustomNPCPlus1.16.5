@@ -28,6 +28,7 @@ public final class WfmIntegration {
     private static final String SPAWN_VISUAL_MINE_METHOD = "spawnVisualMine";
     private static final String MOVE_VISUAL_MINE_METHOD = "moveVisualMine";
     private static final String REMOVE_VISUAL_MINE_METHOD = "removeVisualMine";
+    private static final String THROW_MINE_TOWARD_POINT_METHOD = "throwMineTowardPoint";
 
     private static Boolean netAvailable;
     private static Method throwNetMethod;
@@ -52,6 +53,7 @@ public final class WfmIntegration {
     private static Method spawnVisualMineMethod;
     private static Method moveVisualMineMethod;
     private static Method removeVisualMineMethod;
+    private static Method throwMineTowardPointMethod;
 
     private WfmIntegration() {
     }
@@ -117,6 +119,33 @@ public final class WfmIntegration {
         try {
             removeVisualMineMethod.invoke(null, mine);
         } catch (final Exception ignored) {
+        }
+    }
+
+    /**
+     * Летящая мина ({@code ThrownMineEntity}) в точку зоны.
+     */
+    public static boolean throwMineTowardPoint(
+            final ICustomNpc npc,
+            final double x,
+            final double y,
+            final double z,
+            final float velocity,
+            final float inaccuracy) {
+        ensureMineInitialized();
+        if (!isWfmMineAvailable() || npc == null || throwMineTowardPointMethod == null) {
+            return false;
+        }
+        try {
+            final LivingEntity thrower = toLivingEntity(npc);
+            if (thrower == null) {
+                return false;
+            }
+            final Object result = throwMineTowardPointMethod.invoke(
+                    null, thrower, x, y, z, velocity, inaccuracy);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (final Exception ignored) {
+            return false;
         }
     }
 
@@ -617,12 +646,25 @@ public final class WfmIntegration {
             removeVisualMineMethod = helper.getMethod(
                     REMOVE_VISUAL_MINE_METHOD,
                     Entity.class);
+            try {
+                throwMineTowardPointMethod = helper.getMethod(
+                        THROW_MINE_TOWARD_POINT_METHOD,
+                        LivingEntity.class,
+                        double.class,
+                        double.class,
+                        double.class,
+                        float.class,
+                        float.class);
+            } catch (final Exception ignored) {
+                throwMineTowardPointMethod = null;
+            }
             mineAvailable = true;
         } catch (final Exception e) {
             mineAvailable = false;
             spawnVisualMineMethod = null;
             moveVisualMineMethod = null;
             removeVisualMineMethod = null;
+            throwMineTowardPointMethod = null;
         }
     }
 }

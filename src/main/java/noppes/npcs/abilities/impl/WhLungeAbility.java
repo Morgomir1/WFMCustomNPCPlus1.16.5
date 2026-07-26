@@ -3,8 +3,8 @@ package noppes.npcs.abilities.impl;
 import noppes.npcs.abilities.*;
 import noppes.npcs.api.NpcAPI;
 import noppes.npcs.api.entity.IEntity;
+import noppes.npcs.telegraph.TelegraphAPI;
 
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,6 +45,7 @@ public final class WhLungeAbility implements CnpcAbility {
                 AbilityParamKeys.KNOCKBACK,
                 AbilityParamKeys.KNOCKBACK_Y,
                 AbilityParamKeys.HIT_RADIUS,
+                AbilityParamKeys.LAND_RADIUS,
                 AbilityParamKeys.ARC_HEIGHT,
                 AbilityParamKeys.EFFECT_DURATION,
                 AbilityParamKeys.TELEGRAPH,
@@ -53,10 +54,25 @@ public final class WhLungeAbility implements CnpcAbility {
 
     @Override
     public boolean onStart(final ActiveAbility active, final AbilityContext ctx) {
+        if (ctx.target == null || !ctx.target.isAlive()) {
+            return false;
+        }
+
         active.jumpStyle = true;
+        active.markers.clear();
+        active.telegraphIds.clear();
+
         if (!AbilityCombatHelper.computeDashEndPoints(active, ctx)) {
             return false;
         }
+
+        final double tx = ctx.target.getX();
+        final double tz = ctx.target.getZ();
+        final double ty = AbilityCombatHelper.findGroundY(ctx.world, tx, tz, ctx.target.getY());
+        active.markers.add(new double[]{tx, ty, tz});
+
+        spawnChargeTelegraphs(active, ctx);
+
         active.phase = ActiveAbility.PHASE_CHARGE;
         active.ticksLeft = ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 20);
         active.hitUuids.clear();
@@ -64,6 +80,45 @@ public final class WhLungeAbility implements CnpcAbility {
         ctx.npc.setRotation(active.yaw);
         ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.ravager.roar", 0.55F, 1.45F);
         return true;
+    }
+
+    private void spawnChargeTelegraphs(final ActiveAbility active, final AbilityContext ctx) {
+        final int chargeTicks = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 20));
+        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, TelegraphAPI.DEFAULT_COLOR);
+        final double hitRadius = ctx.params.getDouble(AbilityParamKeys.HIT_RADIUS, 1.5);
+        final double landRadius = ctx.params.getDouble(AbilityParamKeys.LAND_RADIUS, 1.75);
+        final double dashLen = Math.sqrt(
+                (active.ex - active.sx) * (active.ex - active.sx)
+                        + (active.ez - active.sz) * (active.ez - active.sz));
+        if (dashLen < 0.5 || active.markers.isEmpty()) {
+            return;
+        }
+
+        final double[] lock = active.markers.get(0);
+        final String lineId = TelegraphAPI.line(
+                ctx.npc,
+                active.sx,
+                active.sy,
+                active.sz,
+                active.yaw,
+                dashLen,
+                hitRadius,
+                chargeTicks,
+                color);
+        if (lineId != null && !lineId.isEmpty()) {
+            active.telegraphIds.add(lineId);
+        }
+        final String circleId = TelegraphAPI.circle(
+                ctx.npc,
+                lock[0],
+                lock[1],
+                lock[2],
+                landRadius,
+                chargeTicks,
+                color);
+        if (circleId != null && !circleId.isEmpty()) {
+            active.telegraphIds.add(circleId);
+        }
     }
 
     @Override
@@ -126,44 +181,14 @@ public final class WhLungeAbility implements CnpcAbility {
         final double knockback = ctx.params.getDouble(AbilityParamKeys.KNOCKBACK, 1.4);
         final double knockbackY = ctx.params.getDouble(AbilityParamKeys.KNOCKBACK_Y, 0.4);
         final double hitRadius = ctx.params.getDouble(AbilityParamKeys.HIT_RADIUS, 1.5);
-        final int stunTicks = ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 20);
 
-        final Set<String> before = new HashSet<>(active.hitUuids);
         AbilityCombatHelper.damageNearby(
                 active, ctx, cx, cy + 0.5, cz,
                 hitRadius, damage, knockDirX, knockDirZ, knockback, knockbackY, true);
 
-        applyStunToNewHits(active, ctx, before, stunTicks);
         AbilityVfx.spawnDashTrail(ctx.world, cx, cy, cz);
         active.ticksLeft--;
         return TickResult.CONTINUE;
-    }
-
-    private void applyStunToNewHits(
-            final ActiveAbility active,
-            final AbilityContext ctx,
-            final Set<String> before,
-            final int stunTicks) {
-        if (stunTicks <= 0) {
-            return;
-        }
-        final double hitRadius = ctx.params.getDouble(AbilityParamKeys.HIT_RADIUS, 1.5) + 2.0;
-        final IEntity[] list = ctx.world.getNearbyEntities(
-                NpcAPI.Instance().getIPos(ctx.npc.getX(), ctx.npc.getY(), ctx.npc.getZ()),
-                (int) Math.ceil(hitRadius),
-                -1);
-        for (final IEntity ent : list) {
-            final String id = String.valueOf(ent.getUUID());
-            if (!active.hitUuids.contains(id) || before.contains(id)) {
-                continue;
-            }
-            AbilityCombatHelper.applyNamedEffect(ent, STUN_EFFECT, stunTicks, 0);
-            ctx.world.playSoundAt(
-                    NpcAPI.Instance().getIPos(ent.getX(), ent.getY(), ent.getZ()),
-                    "wfm:enchantment.pommel_strike_stun",
-                    1.2F,
-                    1.0F);
-        }
     }
 
     private void finishLunge(final ActiveAbility active, final AbilityContext ctx) {
@@ -176,6 +201,55 @@ public final class WhLungeAbility implements CnpcAbility {
                 "minecraft:entity.player.attack.crit",
                 1.0F,
                 0.95F);
+        applyLandingStun(active, ctx);
+    }
+
+    private void applyLandingStun(final ActiveAbility active, final AbilityContext ctx) {
+        if (active.markers.isEmpty()) {
+            return;
+        }
+        final int stunTicks = ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 20);
+        if (stunTicks <= 0) {
+            return;
+        }
+
+        final double[] lock = active.markers.get(0);
+        final double lx = lock[0];
+        final double ly = lock[1];
+        final double lz = lock[2];
+        final double landRadius = ctx.params.getDouble(AbilityParamKeys.LAND_RADIUS, 1.75);
+        final int range = (int) Math.ceil(landRadius + 0.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(lx, ly, lz),
+                range,
+                -1);
+
+        boolean stunned = false;
+        for (final IEntity ent : list) {
+            if (!AbilityCombatHelper.isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            if (AbilityCombatHelper.flatDistance(ent.getX(), ent.getZ(), lx, lz) > landRadius) {
+                continue;
+            }
+            AbilityCombatHelper.applyNamedEffect(ent, STUN_EFFECT, stunTicks, 0);
+            ctx.world.playSoundAt(
+                    NpcAPI.Instance().getIPos(ent.getX(), ent.getY(), ent.getZ()),
+                    "wfm:enchantment.pommel_strike_stun",
+                    1.2F,
+                    1.0F);
+            stunned = true;
+        }
+        if (!stunned && ctx.target != null && ctx.target.isAlive()
+                && AbilityCombatHelper.flatDistance(
+                        ctx.target.getX(), ctx.target.getZ(), lx, lz) <= landRadius) {
+            AbilityCombatHelper.applyNamedEffect(ctx.target, STUN_EFFECT, stunTicks, 0);
+            ctx.world.playSoundAt(
+                    NpcAPI.Instance().getIPos(ctx.target.getX(), ctx.target.getY(), ctx.target.getZ()),
+                    "wfm:enchantment.pommel_strike_stun",
+                    1.2F,
+                    1.0F);
+        }
     }
 
     @Override

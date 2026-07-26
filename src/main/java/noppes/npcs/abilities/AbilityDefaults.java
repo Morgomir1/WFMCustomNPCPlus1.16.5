@@ -417,8 +417,10 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.KNOCKBACK, 1.4);
         map.put(AbilityParamKeys.KNOCKBACK_Y, 0.4);
         map.put(AbilityParamKeys.HIT_RADIUS, 1.5);
+        map.put(AbilityParamKeys.LAND_RADIUS, 1.75);
         map.put(AbilityParamKeys.ARC_HEIGHT, 1.8);
         map.put(AbilityParamKeys.EFFECT_DURATION, 20);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }

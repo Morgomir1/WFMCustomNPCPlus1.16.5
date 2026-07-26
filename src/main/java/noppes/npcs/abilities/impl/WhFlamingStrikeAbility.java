@@ -87,20 +87,23 @@ public final class WhFlamingStrikeAbility implements CnpcAbility {
         final double apexX = active.sx - nx * apexBack;
         final double apexZ = active.sz - nz * apexBack;
         final double apexY = active.sy;
-        final double coneLength = apexBack + distance;
 
         active.ex = active.sx + nx * distance;
         active.ez = active.sz + nz * distance;
         active.ey = AbilityCombatHelper.findGroundY(ctx.world, active.ex, active.ez, active.sy);
 
-        // markers[0] = apex + apexBack (для урона/телеграфа)
-        active.markers.add(new double[]{apexX, apexY, apexZ, apexBack, coneLength});
+        final double minDist = apexBack * 0.55;
+        final double maxDist = apexBack + distance;
+
+        // markers[0] = apex + дистанции урона/телеграфа
+        active.markers.add(new double[]{apexX, apexY, apexZ, apexBack, minDist, maxDist});
 
         final int chargeTicks = ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 20);
         final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, TelegraphAPI.DEFAULT_COLOR);
-        // Ручной telegraph: вершина сзади → усечённый конус (не точка у босса)
-        final String tid = TelegraphAPI.cone(
-                ctx.npc, apexX, apexY, apexZ, active.yaw, coneLength, halfAngle, chargeTicks, color);
+        // Ручной telegraph: кольцевой сектор [minDist, maxDist] от вершины — без острия у босса
+        final String tid = TelegraphAPI.coneTruncated(
+                ctx.npc, apexX, apexY, apexZ, active.yaw,
+                minDist, maxDist, halfAngle, chargeTicks, color);
         if (tid != null && !tid.isEmpty()) {
             active.telegraphIds.add(tid);
         }
@@ -157,20 +160,28 @@ public final class WhFlamingStrikeAbility implements CnpcAbility {
         double apexX = active.sx;
         double apexY = active.sy;
         double apexZ = active.sz;
-        double apexBack = nearHalfWidth / Math.max(0.05, Math.tan(Math.toRadians(Math.max(5.0, halfAngle))));
-        apexBack = Math.max(0.8, apexBack);
+        double minDist = 0.0;
+        double maxDist = distance;
         if (!active.markers.isEmpty()) {
             final double[] m = active.markers.get(0);
             apexX = m[0];
             apexY = m[1];
             apexZ = m[2];
-            if (m.length > 3) {
-                apexBack = m[3];
+            if (m.length > 5) {
+                minDist = m[4];
+                maxDist = m[5];
+            } else {
+                final double apexBack = m.length > 3 ? m[3] : nearHalfWidth / Math.max(0.05,
+                        Math.tan(Math.toRadians(Math.max(5.0, halfAngle))));
+                minDist = apexBack * 0.55;
+                maxDist = apexBack + distance;
             }
+        } else {
+            final double apexBack = Math.max(0.8, nearHalfWidth / Math.max(0.05,
+                    Math.tan(Math.toRadians(Math.max(5.0, halfAngle)))));
+            minDist = apexBack * 0.55;
+            maxDist = apexBack + distance;
         }
-
-        final double minDist = apexBack * 0.55; // чуть перед кастером / у широкого основания
-        final double maxDist = apexBack + distance;
 
         AbilityCombatHelper.damageInTruncatedCone(
                 active, ctx,

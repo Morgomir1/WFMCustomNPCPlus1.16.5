@@ -18,6 +18,7 @@ import noppes.npcs.api.wrapper.WorldWrapper;
  * // Moving caster (Keeper pattern): follow baked into first spawn packet
  * var id2 = TelegraphAPI.circleFollow(npc, x, y, z, radius, durationTicks, TelegraphAPI.DEFAULT_COLOR);
  * TelegraphAPI.cone(npc, x, y, z, yaw, length, halfAngleDeg, durationTicks, color);
+ * TelegraphAPI.coneTruncated(npc, x, y, z, yaw, innerRadius, outerRadius, halfAngleDeg, durationTicks, color);
  * TelegraphAPI.line(npc, x, y, z, yaw, length, width, durationTicks, color);
  * TelegraphAPI.follow(id, entity);
  * TelegraphAPI.remove(id);
@@ -103,6 +104,26 @@ public final class TelegraphAPI {
         final double groundY = resolveGroundY(world, x, y, z);
         return com.wfm.telegraph.TelegraphAPI.cone(
                 world, x, groundY, z, yaw, length, halfAngleDeg, durationTicks, color);
+    }
+
+    /**
+     * Усечённый конус (кольцевой сектор): заливка между inner/outer радиусами от вершины, без острия.
+     */
+    public static String coneTruncated(
+            final ICustomNpc npc,
+            final double x,
+            final double y,
+            final double z,
+            final float yaw,
+            final double innerRadius,
+            final double outerRadius,
+            final double halfAngleDeg,
+            final int durationTicks,
+            final int color) {
+        final World world = worldOf(npc);
+        final double groundY = resolveGroundY(world, x, y, z);
+        return com.wfm.telegraph.TelegraphAPI.coneTruncated(
+                world, x, groundY, z, yaw, innerRadius, outerRadius, halfAngleDeg, durationTicks, color);
     }
 
     public static String line(

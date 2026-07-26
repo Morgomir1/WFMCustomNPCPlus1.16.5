@@ -178,10 +178,12 @@ function buildParams(abilityId, phase, npc, target) {
     if (abilityId == LUNGE_ID) {
         return AbilityAPI.params(
             "telegraphColor", tg,
+            "telegraph", 0,
             "chargeTicks", 20,
             "activeTicks", 6,
             "distance", 5.5,
             "hitRadius", 1.5,
+            "landRadius", 1.75,
             "damage", phase == "2" ? 18.0 : 16.0,
             "arcHeight", 1.8,
             "effectDuration", 20

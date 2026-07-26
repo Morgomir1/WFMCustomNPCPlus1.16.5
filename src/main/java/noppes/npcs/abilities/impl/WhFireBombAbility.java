@@ -9,19 +9,15 @@ import noppes.npcs.zone.ZoneAPI;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Огненная бомба: charge → полёт мины → AoE → scatter telegraphs → огненные лужи.
+ * Огненная бомба: charge → летящая ThrownMine → AoE → scatter → огненные лужи.
  */
 public final class WhFireBombAbility implements CnpcAbility {
     public static final String ID = "wh_fire_bomb";
 
     private static final int PHASE_FLIGHT = ActiveAbility.PHASE_ACTIVE;
     private static final int PHASE_SCATTER = 3;
-
-    private static final ConcurrentHashMap<UUID, Object> FLIGHT_MINES = new ConcurrentHashMap<>();
 
     @Override
     public String getId() {
@@ -130,17 +126,18 @@ public final class WhFireBombAbility implements CnpcAbility {
         active.phase = PHASE_FLIGHT;
         active.ticksLeft = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 14));
 
-        // Визуальный снаряд: CNPC land_mine + WFM GunMine на дуге
-        shootBombProjectile(ctx, active.ex, active.ey + 0.5, active.ez);
-        final Object mine = WfmIntegration.spawnVisualMine(ctx.npc, active.sx, active.sy, active.sz);
-        if (mine != null) {
-            FLIGHT_MINES.put(active.npcUuid, mine);
+        // Настоящий летящий снаряд WFM (ThrownMineEntity)
+        final boolean thrown = WfmIntegration.throwMineTowardPoint(
+                ctx.npc, active.ex, active.ey + 0.4, active.ez, 1.35F, 0.8F);
+        if (!thrown) {
+            // Fallback без WFM
+            shootBombProjectileFallback(ctx, active.ex, active.ey + 0.5, active.ez);
         }
         ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.blaze.shoot", 0.85F, 0.7F);
         return TickResult.CONTINUE;
     }
 
-    private void shootBombProjectile(
+    private void shootBombProjectileFallback(
             final AbilityContext ctx,
             final double x,
             final double y,
@@ -162,6 +159,7 @@ public final class WhFireBombAbility implements CnpcAbility {
         AbilityCombatHelper.stopNavigation(ctx.npc);
         ctx.npc.setRotation(active.yaw);
 
+        // Лёгкий VFX-трейл по расчётной дуге (снаряд летит сам)
         final int total = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 14));
         final double t = 1.0 - (active.ticksLeft - 1) / (double) total;
         final double cx = active.sx + (active.ex - active.sx) * t;
@@ -169,12 +167,8 @@ public final class WhFireBombAbility implements CnpcAbility {
         final double baseY = active.sy + (active.ey + 0.3 - active.sy) * t;
         final double arcHeight = ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 6.0);
         final double cy = baseY + arcHeight * 4.0 * t * (1.0 - t);
-
-        final Object mine = FLIGHT_MINES.get(active.npcUuid);
-        if (mine != null) {
-            WfmIntegration.moveVisualMine(mine, cx, cy, cz);
-        } else {
-            AbilityVfx.spawnFireRing(ctx.world, cx, cy, cz, 0.5);
+        if (active.ticksLeft % 2 == 0) {
+            AbilityVfx.spawnFireRing(ctx.world, cx, cy, cz, 0.35);
         }
 
         active.ticksLeft--;
@@ -182,15 +176,16 @@ public final class WhFireBombAbility implements CnpcAbility {
             return TickResult.CONTINUE;
         }
 
-        // Primary impact
         detonatePrimary(active, ctx);
-        clearFlightMine(active);
 
         pickScatterMarkers(active, ctx);
         spawnScatterTelegraphs(active, ctx);
-        // Малые бомбы летят в точки разлёта
         for (final double[] m : active.markers) {
-            shootBombProjectile(ctx, m[0], m[1] + 0.6, m[2]);
+            final boolean ok = WfmIntegration.throwMineTowardPoint(
+                    ctx.npc, m[0], m[1] + 0.5, m[2], 0.95F, 1.2F);
+            if (!ok) {
+                shootBombProjectileFallback(ctx, m[0], m[1] + 0.6, m[2]);
+            }
         }
 
         active.phase = PHASE_SCATTER;
@@ -352,22 +347,13 @@ public final class WhFireBombAbility implements CnpcAbility {
         }
     }
 
-    private void clearFlightMine(final ActiveAbility active) {
-        final Object mine = FLIGHT_MINES.remove(active.npcUuid);
-        if (mine != null) {
-            WfmIntegration.removeVisualMine(mine);
-        }
-    }
-
     @Override
     public void onEnd(final ActiveAbility active, final AbilityContext ctx) {
-        clearFlightMine(active);
         AbilityTelegraph.clear(active, ctx);
     }
 
     @Override
     public void onCancel(final ActiveAbility active, final AbilityContext ctx) {
-        clearFlightMine(active);
         AbilityTelegraph.clear(active, ctx);
         AbilityCombatHelper.stopNavigation(ctx.npc);
     }

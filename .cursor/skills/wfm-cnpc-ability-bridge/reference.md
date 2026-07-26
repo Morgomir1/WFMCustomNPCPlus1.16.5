@@ -33,6 +33,7 @@ WFMCustomNPCPlus1.16.5/
 | `spawnVisualMine(npc, x,y,z)` | `spawnVisualMine` | Модель мины без детонации |
 | `moveVisualMine(mine, x,y,z)` | `moveVisualMine` | Двигать visual mine |
 | `removeVisualMine(mine)` | `removeVisualMine` | Удалить visual mine |
+| `throwMineTowardPoint(npc, x,y,z, vel, inacc)` | `throwMineTowardPoint` | Летящая `ThrownMineEntity` |
 
 Все методы — **server-only**; на клиенте возвращают `false` / `null` / no-op.
 

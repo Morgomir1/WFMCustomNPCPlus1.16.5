@@ -134,36 +134,53 @@ public final class WhFlamingCrossbowAbility implements CnpcAbility {
         final double halfWidth = ctx.params.getDouble(AbilityParamKeys.RADIUS, 0.7);
         final int fireSeconds = ctx.params.getInt(AbilityParamKeys.FIRE_SECONDS, 0);
         final int accuracy = ctx.params.getInt(AbilityParamKeys.ACCURACY, 3);
-        final float inaccuracy = Math.max(0.05F, accuracy * 0.15F);
+        final float inaccuracy = Math.max(0.05F, accuracy * 0.12F);
         final String gunId = ctx.params.getString(AbilityParamKeys.RANGED_ITEM, DEFAULT_PISTOL);
 
         final double ox = ctx.npc.getX();
         final double oy = ctx.npc.getY() + 1.0;
         final double oz = ctx.npc.getZ();
-        final double aimX = active.ex;
-        final double aimY = active.ey + 1.0;
-        final double aimZ = active.ez;
+
+        // Точка прицела: живая цель (глаза), иначе конец telegraph на высоте глаз NPC
+        final double aimX;
+        final double aimY;
+        final double aimZ;
+        if (ctx.target != null && ctx.target.isAlive()) {
+            aimX = ctx.target.getX();
+            aimY = ctx.target.getY() + ctx.target.getEyeHeight() * 0.9;
+            aimZ = ctx.target.getZ();
+        } else {
+            aimX = active.ex;
+            aimY = ctx.npc.getY() + 1.4;
+            aimZ = active.ez;
+        }
 
         stopRaisingArm(ctx);
         swingLeftArm(ctx);
         AbilityVfx.spawnMuzzleFlash(ctx.world, ox, oy + 0.2, oz);
 
-        boolean shot = WfmIntegration.performPistolShotTowardPoint(
-                ctx.npc, aimX, aimY, aimZ, gunId, inaccuracy, (float) damage);
-        if (!shot && ctx.target != null && ctx.target.isAlive()) {
+        // Сначала в цель (надёжнее), затем в точку telegraph
+        boolean shot = false;
+        if (ctx.target != null && ctx.target.isAlive()) {
             shot = WfmIntegration.performPistolShot(
                     ctx.npc, ctx.target, gunId, inaccuracy, (float) damage);
         }
+        if (!shot) {
+            shot = WfmIntegration.performPistolShotTowardPoint(
+                    ctx.npc, aimX, aimY, aimZ, gunId, inaccuracy, (float) damage);
+        }
 
-        // Доп. hitscan по коридору telegraph (поджог), если задан fireSeconds
-        if (fireSeconds > 0) {
-            active.hitUuids.clear();
-            AbilityCombatHelper.damageInCorridor(
-                    active, ctx,
-                    ox, oy, oz,
-                    aimX, aimY, aimZ,
-                    halfWidth, damage * 0.35, 0.25, 0.05,
-                    fireSeconds, null, 0, 0);
+        // Hitscan по коридору telegraph — основной урон (пуля может мимо / faction cancel)
+        active.hitUuids.clear();
+        AbilityCombatHelper.damageInCorridor(
+                active, ctx,
+                ox, oy, oz,
+                aimX, aimY, aimZ,
+                halfWidth, damage, 0.35, 0.08,
+                fireSeconds, null, 0, 0);
+
+        if (!shot) {
+            ctx.world.playSoundAt(ctx.npc.getPos(), "wfm:item.gunpowder_gun_launch", 1.0F, 1.0F);
         }
 
         restoreLeftHand(ctx);

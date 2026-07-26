@@ -179,8 +179,8 @@ public final class WhLungeAbility implements CnpcAbility {
         final double knockDirX = Math.cos(rad);
         final double knockDirZ = Math.sin(rad);
         final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 16.0);
-        final double knockback = ctx.params.getDouble(AbilityParamKeys.KNOCKBACK, 1.4);
-        final double knockbackY = ctx.params.getDouble(AbilityParamKeys.KNOCKBACK_Y, 0.4);
+        final double knockback = ctx.params.getDouble(AbilityParamKeys.KNOCKBACK, 0.0);
+        final double knockbackY = ctx.params.getDouble(AbilityParamKeys.KNOCKBACK_Y, 0.0);
         final double hitRadius = ctx.params.getDouble(AbilityParamKeys.HIT_RADIUS, 1.5);
 
         AbilityCombatHelper.damageNearby(

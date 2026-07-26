@@ -186,6 +186,8 @@ function buildParams(abilityId, phase, npc, target) {
             "landRadius", 1.75,
             "damage", phase == "2" ? 18.0 : 16.0,
             "arcHeight", 1.8,
+            "knockback", 0,
+            "knockbackY", 0,
             "effectDuration", 20
         );
     }

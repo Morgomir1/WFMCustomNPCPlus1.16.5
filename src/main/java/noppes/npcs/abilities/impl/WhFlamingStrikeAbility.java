@@ -92,7 +92,8 @@ public final class WhFlamingStrikeAbility implements CnpcAbility {
         active.ez = active.sz + nz * distance;
         active.ey = AbilityCombatHelper.findGroundY(ctx.world, active.ex, active.ez, active.sy);
 
-        final double minDist = apexBack * 0.55;
+        // Внутренний радиус за боссом + зазор (~1 блок), чтобы NPC не стоял в зоне
+        final double minDist = apexBack + 1.0;
         final double maxDist = apexBack + distance;
 
         // markers[0] = apex + дистанции урона/телеграфа
@@ -173,13 +174,13 @@ public final class WhFlamingStrikeAbility implements CnpcAbility {
             } else {
                 final double apexBack = m.length > 3 ? m[3] : nearHalfWidth / Math.max(0.05,
                         Math.tan(Math.toRadians(Math.max(5.0, halfAngle))));
-                minDist = apexBack * 0.55;
+                minDist = apexBack + 1.0;
                 maxDist = apexBack + distance;
             }
         } else {
             final double apexBack = Math.max(0.8, nearHalfWidth / Math.max(0.05,
                     Math.tan(Math.toRadians(Math.max(5.0, halfAngle)))));
-            minDist = apexBack * 0.55;
+            minDist = apexBack + 1.0;
             maxDist = apexBack + distance;
         }
 

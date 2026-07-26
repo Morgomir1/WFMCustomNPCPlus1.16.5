@@ -300,13 +300,14 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 | Ключ | Тип | Дефолт | Описание |
 |------|-----|--------|----------|
-| `chargeTicks` | int | 20 | 1 с warning (line telegraph) |
-| `distance` | double | 4.5 | Длина коридора |
-| `radius` | double | 1.35 | Полуширина коридора |
+| `chargeTicks` | int | 20 | 1 с warning (усечённый конус) |
+| `distance` | double | 4.5 | Длина сектора впереди босса |
+| `radius` | double | 1.35 | Полуширина у ног (задаёт apexBack) |
+| `coneHalfAngle` | double | 38 | Половина угла конуса |
 | `damage` | double | 14.0 | Урон удара |
 | `fireSeconds` | int | 4 | Поджог цели |
 
-`cancelsOnTargetLost = false`.
+Зона: `coneTruncated` с `minDist = apexBack + 1.0` (босс вне зоны). `cancelsOnTargetLost = false`.
 
 ### `wh_lunge` — WhLungeAbility
 
@@ -316,6 +317,7 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `distance` | double | 5.5 | Длина рывка |
 | `hitRadius` | double | 1.5 | Радиус хита |
 | `damage` | double | 16.0 | Урон |
+| `knockback` / `knockbackY` | double | 0 / 0 | Без откидывания |
 | `arcHeight` | double | 1.8 | Высота прыжка |
 | `effectDuration` | int | 20 | Длительность `wfm:stun` |
 

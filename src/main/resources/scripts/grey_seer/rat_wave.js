@@ -3,10 +3,12 @@
 // CustomNPC+ JS-скрипт для WFM 1.16.5
 //
 // Способности:
-// 1) Полчища крыс — 15s CD, призыв 10 крыс-миньонов с таймером жизни
-// 2) Прыжок — 15s CD, телепорт в самую далёкую точку (реакция на урон)
-// 3) Варп-огнемёт — 10s CD, вытянутый конус 3с: 2 чистого урона / 0.5с,
-//    без движения и телепорта на время каста; VFX = wfm:warpfire_flame
+// 1) Прыжок — телепорт после 3-го удара; на старом месте спавнятся крысы
+// 2) Варп-огнемёт — 10s CD, charge 1с → вытянутый конус 3с: 2 чистого урона / 0.5с,
+//    стоит на месте, конус медленно доворачивает за целью каста;
+//    VFX = wfm:warpfire_flame
+// 3) Варп-сгусток — 10s CD, crimson_blob: навес → hazard-лужа,
+//    партиклы полёта/приземления = wfm:warpfire_flame
 //
 // Clone Bank: tab=1, name="rat" (крысы-миньоны)
 //
@@ -16,22 +18,26 @@
 //   /script trigger set_tp 499888 50 -600 499900 50 -580 499870 50 -610
 //   /script trigger clear_tp
 // Принудительный каст:
-//   /script trigger cast rat_swarm
+//   /script trigger cast leap
 //   /script trigger cast warpfire_breath
+//   /script trigger cast warpfire_blob
 // =====================================================
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var AbilityCombatHelper = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
 var DamageSource = Java.type("net.minecraft.util.DamageSource");
 
 var RAT_LIFETIME = 200;    // 10 секунд (20 тиков/сек)
-var MAX_RATS = 13;
+var MAX_RATS = 4;
+var RAT_SPAWN_ON_LEAP = 4; // сколько крыс оставлять на месте телепорта
 var CLONE_TAB = 1;
 var CLONE_NAME = "Крыса";
 
 // --- Варп-огнемёт ---
-var FLAME_CAST_TICKS = 60;          // 3 секунды
+var FLAME_CHARGE_TICKS = 20;        // 1 секунда warning перед струёй
+var FLAME_CAST_TICKS = 60;          // 3 секунды активной струи
 var FLAME_DAMAGE = 2.0;             // чистый (MAGIC) урон
 var FLAME_DAMAGE_INTERVAL = 10;     // 0.5 секунды
 var FLAME_LENGTH = 14.0;            // вытянутый конус
@@ -40,11 +46,27 @@ var FLAME_RANGE = 15.0;             // max дистанция для старт�
 var FLAME_PARTICLE_COUNT = 96;      // плотность стрима за тик VFX
 var FLAME_PARTICLE_SPEED_MIN = 0.85; // скорость вылета от провидца
 var FLAME_PARTICLE_SPEED_MAX = 1.55;
-var FLAME_VFX_TIMER_TICKS = 5;      // чаще тик → непрерывная струя
+var FLAME_VFX_TIMER_TICKS = 1;      // каждый тик — плавный поворот конуса
+var FLAME_PARTICLE_INTERVAL = 5;    // плотность струи (не каждый тик)
 var FLAME_PARTICLE = "wfm:warpfire_flame";
 var FLAME_TELEGRAPH_COLOR = 0xC0FF3030; // warning red (стандарт attack-zones)
+var FLAME_TURN_RATE = 1.2;              // град/тик — медленный трекинг за игроком
+var FLAME_TG_RESYNC_DEG = 1.5;          // порог пересоздания telegraph
+
+// --- Варп-сгусток (crimson_blob + warpfire VFX) ---
+var BLOB_MAX_RANGE = 40.0;
+var BLOB_ZONE_RADIUS = 2.0;
+var BLOB_ZONE_SECONDS = 8;
+var BLOB_DAMAGE_PER_SECOND = 3.0;
+var BLOB_EFFECTS = "minecraft:blindness";
+var BLOB_EFFECT_SECONDS = 2;
+var BLOB_EFFECT_AMPLIFIER = 0;
+var BLOB_PARTICLES = "wfm:warpfire_flame";
+var BLOB_LAND_PARTICLES = "wfm:warpfire_flame";
+var BLOB_PARTICLE_COUNT = 12;
 
 var FLAME_CASTING_KEY = "wf_casting";
+var FLAME_ACTIVE_KEY = "wf_active";     // когда начинается струя (после charge)
 var FLAME_END_KEY = "wf_end";
 var FLAME_NEXT_DMG_KEY = "wf_next_dmg";
 var FLAME_LOCK_X = "wf_lock_x";
@@ -52,14 +74,17 @@ var FLAME_LOCK_Y = "wf_lock_y";
 var FLAME_LOCK_Z = "wf_lock_z";
 var FLAME_YAW_KEY = "wf_yaw";
 var FLAME_TG_KEY = "wf_tg";
+var FLAME_TG_YAW_KEY = "wf_tg_yaw";
 var FLAME_BASE_SPEED_KEY = "wf_base_speed";
+var FLAME_FIRED_KEY = "wf_fired";       // звук старта струи один раз
+var LEAP_HIT_KEY = "leap_hits";
 
 // Точки телепортации по умолчанию (переопределяются через trigger set_tp)
 var DEFAULT_TELEPORT_POINTS = [
-    {x: 500171, y: 81, z: -1055},
-    {x: 500160, y:88, z:-1050},
-    {x: 500163, y:87, z:-1034},
-    {x:500153, y: 87, z:-1037}
+    {x: 500159, y: 80, z:-1046},
+    {x: 500170, y:80, z:-1034},
+    {x: 500172, y:80, z:-1054},
+    {x: 500168, y:80, z:-1044}
 ];
 
 // --- Реестр заклинаний ---
@@ -68,46 +93,47 @@ var DEFAULT_TELEPORT_POINTS = [
 var SPELLS = {
     rat_swarm: {
         id: "rat_swarm",
-        weight: 10,
-        cooldown: 1200,          // 15 секунд
-        enrageCooldown: 180,
+        weight: 0,               // только вместе с телепортом (или trigger)
+        cooldown: 0,
+        enrageCooldown: 0,
         announce: "§cЧувствуете запах крыс?",
-        count: 10,
+        count: RAT_SPAWN_ON_LEAP,
         canCast: function(ctx) {
-            return ctx.target != null
-                && ctx.target.isAlive()
-                && ctx.minions < MAX_RATS
-                && !isWarpfireCasting(ctx.npc);
+            return !isCastingBlocked(ctx.npc) && ctx.minions < MAX_RATS;
         },
         cast: function(ctx) {
-            return spawnRatsAround(ctx, ctx.spell.count);
+            // Форс-каст: вокруг текущей позиции (обычный телепорт сам зовёт spawnRatsAt)
+            return spawnRatsAt(ctx, ctx.spell.count, ctx.npc.getX(), ctx.npc.getY(), ctx.npc.getZ());
         }
     },
     leap: {
         id: "leap",
-        weight: 0,              // только реакция на урон
-        cooldown: 300,          // 15 секунд
+        weight: 0,              // только реакция на урон (после N ударов)
+        cooldown: 0,
         enrageCooldown: 180,
         announce: "§8*шорох*",
+        hitsNeeded: 3,
         canCast: function(ctx) {
-            return ctx.target != null
-                && ctx.target.isAlive()
-                && !isWarpfireCasting(ctx.npc);
+            // Телепорт по хитам — цель не обязательна (точка из tp-листа)
+            return !isCastingBlocked(ctx.npc);
         },
         cast: function(ctx) {
             teleportBoss(ctx);
+            try {
+                ctx.npc.getStoreddata().put(LEAP_HIT_KEY, "0");
+            } catch (e) {}
             return 1;
         }
     },
     warpfire_breath: {
         id: "warpfire_breath",
         weight: 10,
-        cooldown: 200,          // 10 секунд
+        cooldown: 300,          // 10 секунд
         enrageCooldown: 120,
         announce: "§aВарп-пламя!",
         canCast: function(ctx) {
             if (ctx.target == null || !ctx.target.isAlive()) return false;
-            if (isWarpfireCasting(ctx.npc)) return false;
+            if (isCastingBlocked(ctx.npc)) return false;
             var dx = ctx.target.getX() - ctx.npc.getX();
             var dz = ctx.target.getZ() - ctx.npc.getZ();
             return Math.sqrt(dx * dx + dz * dz) <= FLAME_RANGE;
@@ -115,11 +141,27 @@ var SPELLS = {
         cast: function(ctx) {
             return startWarpfireBreath(ctx) ? 1 : 0;
         }
+    },
+    warpfire_blob: {
+        id: "warpfire_blob",
+        weight: 10,
+        cooldown: 30,          // 10 секунд
+        enrageCooldown: 100,
+        canCast: function(ctx) {
+            if (ctx.target == null || !ctx.target.isAlive()) return false;
+            if (isCastingBlocked(ctx.npc)) return false;
+            var dx = ctx.target.getX() - ctx.npc.getX();
+            var dz = ctx.target.getZ() - ctx.npc.getZ();
+            return Math.sqrt(dx * dx + dz * dz) <= BLOB_MAX_RANGE;
+        },
+        cast: function(ctx) {
+            return startWarpfireBlob(ctx) ? 1 : 0;
+        }
     }
 };
 
-// Заклинания, из которых босс выбирает случайное
-var SPELL_POOL = ["rat_swarm", "warpfire_breath"];
+// Заклинания, из которых босс выбирает случайное (крысы — только при телепорте)
+var SPELL_POOL = ["warpfire_breath", "warpfire_blob"];
 
 // =====================================================
 // Утилиты босса
@@ -255,7 +297,7 @@ function castSpell(npc, spellId) {
 
 function castRandomSpell(npc) {
     if (!canRunScript(npc)) return false;
-    if (isWarpfireCasting(npc)) return false;
+    if (isCastingBlocked(npc)) return false;
 
     var spell = pickRandomSpell(npc);
     if (spell == null) return false;
@@ -363,7 +405,7 @@ function spawnRat(ctx, sx, sy, sz) {
     return rat;
 }
 
-function spawnRatsAround(ctx, count) {
+function spawnRatsAt(ctx, count, cx, cy, cz) {
     cleanupMinions(ctx.world, ctx.npc.getPos(), ctx.npc);
 
     var active = countMinions(ctx.world, ctx.npc.getPos(), ctx.npc);
@@ -371,18 +413,21 @@ function spawnRatsAround(ctx, count) {
 
     var toSpawn = Math.min(count, MAX_RATS - active);
     var spawned = 0;
-    var npc = ctx.npc;
 
     for (var i = 0; i < toSpawn; i++) {
         var angle = (2 * Math.PI / toSpawn) * i + (Math.random() - 0.5) * 0.5;
-        var dist = 2 + Math.random() * 3;
-        var sx = npc.getX() + Math.sin(angle) * dist;
-        var sz = npc.getZ() + Math.cos(angle) * dist;
-        if (spawnRat(ctx, sx, npc.getY() + 0.5, sz) != null) {
+        var dist = 0.6 + Math.random() * 1.4; // плотнее вокруг точки ухода
+        var sx = cx + Math.sin(angle) * dist;
+        var sz = cz + Math.cos(angle) * dist;
+        if (spawnRat(ctx, sx, cy + 0.5, sz) != null) {
             spawned++;
         }
     }
     return spawned;
+}
+
+function spawnRatsAround(ctx, count) {
+    return spawnRatsAt(ctx, count, ctx.npc.getX(), ctx.npc.getY(), ctx.npc.getZ());
 }
 
 function cleanupMinions(world, bossPos, boss) {
@@ -441,6 +486,45 @@ function isWarpfireCasting(npc) {
     }
 }
 
+function isAbilityBusy(npc) {
+    try {
+        return AbilityAPI.isBusy(npc);
+    } catch (e) {
+        return false;
+    }
+}
+
+/** Огнемёт или Java-абилка (сгусток) — нельзя стартовать другое. */
+function isCastingBlocked(npc) {
+    return isWarpfireCasting(npc) || isAbilityBusy(npc);
+}
+
+function startWarpfireBlob(ctx) {
+    var npc = ctx.npc;
+    var target = ctx.target;
+    if (target == null || !target.isAlive()) return false;
+    if (isCastingBlocked(npc)) return false;
+
+    try {
+        return AbilityAPI.start(npc, "crimson_blob", target, AbilityAPI.params(
+            "maxRange", BLOB_MAX_RANGE,
+            "landRadius", BLOB_ZONE_RADIUS,
+            "zoneTicks", Math.floor(BLOB_ZONE_SECONDS * 20),
+            "damage", BLOB_DAMAGE_PER_SECOND,
+            "damageInterval", 20,
+            "effectId", BLOB_EFFECTS,
+            "effectDuration", Math.floor(BLOB_EFFECT_SECONDS * 20),
+            "effectAmplifier", BLOB_EFFECT_AMPLIFIER,
+            "blobParticles", BLOB_PARTICLES,
+            "landParticles", BLOB_LAND_PARTICLES,
+            "particleCount", BLOB_PARTICLE_COUNT
+        ));
+    } catch (e) {
+        log("grey_seer warpfire_blob ERROR: " + e);
+        return false;
+    }
+}
+
 function computeYawToTarget(npc, target) {
     if (target == null) {
         try {
@@ -452,6 +536,34 @@ function computeYawToTarget(npc, target) {
     var dx = target.getX() - npc.getX();
     var dz = target.getZ() - npc.getZ();
     return AbilityCombatHelper.computeYaw(dx, dz);
+}
+
+function normalizeYawDelta(delta) {
+    while (delta > 180.0) delta -= 360.0;
+    while (delta < -180.0) delta += 360.0;
+    return delta;
+}
+
+/** Плавно приближает текущий yaw к desired, не быстрее maxStep град. */
+function approachYaw(current, desired, maxStep) {
+    var delta = normalizeYawDelta(desired - current);
+    if (delta > maxStep) delta = maxStep;
+    if (delta < -maxStep) delta = -maxStep;
+    return current + delta;
+}
+
+/** Медленно доворачивает конус к attack-target; возвращает актуальный yaw. */
+function trackWarpfireYaw(npc, data, yaw) {
+    var target = null;
+    try {
+        target = npc.getAttackTarget();
+    } catch (e) {}
+    if (target == null || !target.isAlive()) return yaw;
+
+    var desired = computeYawToTarget(npc, target);
+    var next = approachYaw(yaw, desired, FLAME_TURN_RATE);
+    data.put(FLAME_YAW_KEY, String(next));
+    return next;
 }
 
 function lockCastStance(npc, data) {
@@ -490,6 +602,16 @@ function holdCastPosition(npc, data) {
         npc.setPosition(x, y, z);
         npc.setRotation(yaw);
     } catch (e) {}
+    // Жёстко фиксируем MC-поворот — AI иначе мгновенно смотрит на цель
+    try {
+        var mc = npc.getMCEntity();
+        if (mc != null) {
+            mc.yRot = yaw;
+            mc.yRotO = yaw;
+            mc.yHeadRot = yaw;
+            mc.yBodyRot = yaw;
+        }
+    } catch (eMc) {}
     try {
         npc.setMotionX(0);
         npc.setMotionY(0);
@@ -510,13 +632,42 @@ function clearWarpfireTelegraph(data) {
     data.put(FLAME_TG_KEY, "");
 }
 
+/** Пересоздаёт cone-telegraph с текущим yaw (без follow — follow = мгновенный snap к AI yRot). */
+function syncWarpfireTelegraph(npc, data, yaw, remainingTicks) {
+    var hasTg = data.get(FLAME_TG_KEY) != null && String(data.get(FLAME_TG_KEY)).length > 0;
+    var lastYaw = getFloat(data, FLAME_TG_YAW_KEY, yaw);
+    var delta = Math.abs(normalizeYawDelta(yaw - lastYaw));
+    if (hasTg && delta < FLAME_TG_RESYNC_DEG) return;
+
+    clearWarpfireTelegraph(data);
+    var life = Math.max(1, remainingTicks | 0);
+    try {
+        var tid = TelegraphAPI.cone(
+            npc,
+            npc.getX(), npc.getY(), npc.getZ(),
+            yaw,
+            FLAME_LENGTH,
+            FLAME_HALF_ANGLE,
+            life,
+            FLAME_TELEGRAPH_COLOR
+        );
+        data.put(FLAME_TG_KEY, String(tid));
+        data.put(FLAME_TG_YAW_KEY, String(yaw));
+    } catch (te) {
+        log("grey_seer warpfire telegraph sync ERROR: " + te);
+    }
+}
+
 function endWarpfireBreath(npc, data) {
     if (String(data.get(FLAME_CASTING_KEY)) != "1") return;
     clearWarpfireTelegraph(data);
     unlockCastStance(npc, data);
     data.put(FLAME_CASTING_KEY, "0");
+    data.put(FLAME_ACTIVE_KEY, "0");
     data.put(FLAME_END_KEY, "0");
     data.put(FLAME_NEXT_DMG_KEY, "0");
+    data.put(FLAME_TG_YAW_KEY, "0");
+    data.put(FLAME_FIRED_KEY, "0");
 }
 
 function startWarpfireBreath(ctx) {
@@ -526,18 +677,24 @@ function startWarpfireBreath(ctx) {
     var data = npc.getStoreddata();
     var now = npc.getAge();
     var yaw = computeYawToTarget(npc, target);
+    var activeAt = now + FLAME_CHARGE_TICKS;
+    var totalTicks = FLAME_CHARGE_TICKS + FLAME_CAST_TICKS;
 
     data.put(FLAME_CASTING_KEY, "1");
-    data.put(FLAME_END_KEY, String(now + FLAME_CAST_TICKS));
-    data.put(FLAME_NEXT_DMG_KEY, String(now));
+    data.put(FLAME_ACTIVE_KEY, String(activeAt));
+    data.put(FLAME_END_KEY, String(activeAt + FLAME_CAST_TICKS));
+    data.put(FLAME_NEXT_DMG_KEY, String(activeAt));
     data.put(FLAME_LOCK_X, String(npc.getX()));
     data.put(FLAME_LOCK_Y, String(npc.getY()));
     data.put(FLAME_LOCK_Z, String(npc.getZ()));
     data.put(FLAME_YAW_KEY, String(yaw));
+    data.put(FLAME_TG_YAW_KEY, String(yaw));
+    data.put(FLAME_FIRED_KEY, "0");
 
     lockCastStance(npc, data);
     holdCastPosition(npc, data);
 
+    // Telegraph на charge + active — видимое окно уворота перед струёй
     try {
         var tid = TelegraphAPI.cone(
             npc,
@@ -545,7 +702,7 @@ function startWarpfireBreath(ctx) {
             yaw,
             FLAME_LENGTH,
             FLAME_HALF_ANGLE,
-            FLAME_CAST_TICKS,
+            totalTicks,
             FLAME_TELEGRAPH_COLOR
         );
         data.put(FLAME_TG_KEY, String(tid));
@@ -554,10 +711,9 @@ function startWarpfireBreath(ctx) {
     }
 
     try {
-        world.playSoundAt(npc.getPos(), "minecraft:item.firecharge.use", 1.0, 0.6);
+        world.playSoundAt(npc.getPos(), "minecraft:block.fire.ambient", 0.8, 0.5);
     } catch (e) {}
 
-    spawnWarpfireConeParticles(world, npc, yaw);
     return true;
 }
 
@@ -664,12 +820,28 @@ function tickWarpfireBreath(npc, world) {
     }
 
     var now = npc.getAge();
+    var activeAt = getInt(data, FLAME_ACTIVE_KEY, 0);
     var endAt = getInt(data, FLAME_END_KEY, 0);
-    var yaw = getFloat(data, FLAME_YAW_KEY, 0);
+    var remaining = endAt - now;
+    var yaw = trackWarpfireYaw(npc, data, getFloat(data, FLAME_YAW_KEY, 0));
 
     lockCastStance(npc, data);
     holdCastPosition(npc, data);
-    spawnWarpfireConeParticles(world, npc, yaw);
+    syncWarpfireTelegraph(npc, data, yaw, remaining);
+
+    // Charge: только telegraph + поворот, без урона и струи
+    if (now < activeAt) return;
+
+    if (String(data.get(FLAME_FIRED_KEY)) != "1") {
+        data.put(FLAME_FIRED_KEY, "1");
+        try {
+            world.playSoundAt(npc.getPos(), "minecraft:item.firecharge.use", 1.0, 0.6);
+        } catch (eFire) {}
+    }
+
+    if (now % FLAME_PARTICLE_INTERVAL == 0) {
+        spawnWarpfireConeParticles(world, npc, yaw);
+    }
 
     if (now >= getInt(data, FLAME_NEXT_DMG_KEY, 0)) {
         damageWarpfireCone(npc, world, yaw);
@@ -686,41 +858,86 @@ function tickWarpfireBreath(npc, world) {
 }
 
 // =====================================================
-// Телепорт
+// Телепорт (после N ударов)
 // =====================================================
 
-function pickFarthestTeleportPoint(npc, points) {
-    if (points == null || points.length == 0) return null;
-
-    var curX = npc.getX();
-    var curY = npc.getY();
-    var curZ = npc.getZ();
-    var best = points[0];
-    var bestDistSq = -1;
-
-    for (var i = 0; i < points.length; i++) {
-        var p = points[i];
-        var dx = p.x - curX;
-        var dy = p.y - curY;
-        var dz = p.z - curZ;
-        var distSq = dx * dx + dy * dy + dz * dz;
-        if (distSq > bestDistSq) {
-            bestDistSq = distSq;
-            best = p;
+function resolveDamageAttacker(event) {
+    try {
+        var src = event.source;
+        if (src != null) {
+            if (typeof src.isAlive == "function") {
+                if (src.isAlive()) return src;
+            } else {
+                return src;
+            }
         }
+    } catch (e0) {}
+    try {
+        var ds = event.damageSource;
+        if (ds != null) {
+            if (typeof ds.getImmediateEntity == "function") {
+                var imm = ds.getImmediateEntity();
+                if (imm != null) return imm;
+            }
+            if (typeof ds.getTrueSource == "function") {
+                var tru = ds.getTrueSource();
+                if (tru != null) return tru;
+            }
+        }
+    } catch (e1) {}
+    try {
+        return event.npc.getAttackTarget();
+    } catch (e2) {}
+    return null;
+}
+
+/** Телепорт, если набрано hitsNeeded и босс не занят кастом / не на CD. */
+function tryPendingLeap(npc, attacker) {
+    if (npc == null || !canRunScript(npc)) return false;
+    if (isCastingBlocked(npc)) return false;
+    if (!isSpellReady(npc, SPELLS.leap)) return false;
+
+    var data = npc.getStoreddata();
+    var needed = SPELLS.leap.hitsNeeded || 3;
+    var hits = getInt(data, LEAP_HIT_KEY, 0);
+    if (hits < needed) return false;
+
+    var ctx = buildCastContext(npc, SPELLS.leap);
+    if (attacker != null) {
+        ctx.target = attacker;
+    } else if (ctx.target == null || !ctx.target.isAlive()) {
+        try {
+            ctx.target = npc.getAttackTarget();
+        } catch (e) {}
     }
-    return best;
+
+    npc.say(SPELLS.leap.announce);
+    teleportBoss(ctx);
+    data.put(LEAP_HIT_KEY, "0");
+    setSpellCooldown(npc, SPELLS.leap);
+    log("grey_seer: leap after " + needed + " hits");
+    return true;
+}
+
+function pickRandomTeleportPoint(npc, points) {
+    if (points == null || points.length == 0) return null;
+    var idx = Math.floor(Math.random() * points.length);
+    if (idx >= points.length) idx = points.length - 1;
+    return points[idx];
 }
 
 function teleportBoss(ctx) {
     var npc = ctx.npc;
     var world = ctx.world;
+    var oldX = npc.getX();
+    var oldY = npc.getY();
+    var oldZ = npc.getZ();
     var point = null;
     var points = getTeleportPoints(npc);
 
-    // Используем заранее заданные точки, если есть
+    // Случайная точка из списка (если задан)
     if (points.length > 0) {
-        point = pickFarthestTeleportPoint(npc, points);
+        point = pickRandomTeleportPoint(npc, points);
     } else {
         // Fallback: случайная позиция рядом с точкой спавна
         var spawnX = npc.getStoreddata().get("spawn_x");
@@ -738,11 +955,21 @@ function teleportBoss(ctx) {
             var angle2 = Math.random() * Math.PI * 2;
             var dist2 = 5 + Math.random() * 5;
             point = {
-                x: npc.getX() + Math.sin(angle2) * dist2,
-                y: npc.getY(),
-                z: npc.getZ() + Math.cos(angle2) * dist2
+                x: oldX + Math.sin(angle2) * dist2,
+                y: oldY,
+                z: oldZ + Math.cos(angle2) * dist2
             };
         }
+    }
+
+    // Крысы остаются на месте ухода провидца
+    var ratCount = SPELLS.rat_swarm.count || RAT_SPAWN_ON_LEAP;
+    var spawned = spawnRatsAt(ctx, ratCount, oldX, oldY, oldZ);
+    if (spawned > 0) {
+        try {
+            npc.say(SPELLS.rat_swarm.announce);
+        } catch (eSay) {}
+        log("grey_seer: spawned " + spawned + " rats at leap origin");
     }
 
     npc.setPosition(point.x, point.y, point.z);
@@ -898,6 +1125,7 @@ function timer(event) {
     if (!canRunScript(npc)) {
         if (isBoss(npc)) {
             try { endWarpfireBreath(npc, npc.getStoreddata()); } catch (e0) {}
+            try { AbilityAPI.cancel(npc); } catch (e1) {}
             stopScriptTimers(npc);
         }
         return;
@@ -916,7 +1144,10 @@ function timer(event) {
 
     if (event.id == 1) {
         try {
-            if (isWarpfireCasting(npc)) return;
+            if (isCastingBlocked(npc)) return;
+
+            // Если хиты уже набраны во время каста — телепорт сразу, как освободился
+            tryPendingLeap(npc, npc.getAttackTarget());
 
             // Если нет цели — деспавним всех крыс
             if (npc.getAttackTarget() == null || !npc.getAttackTarget().isAlive()) {
@@ -950,22 +1181,25 @@ function damaged(event) {
     if (!canRunScript(event.npc)) return;
 
     try {
-        if (isWarpfireCasting(event.npc)) return; // во время огнемёта нельзя телепортироваться
-        if (event.source == null || !event.source.isAlive()) return;
-
         var npc = event.npc;
-        if (!isSpellReady(npc, SPELLS.leap)) return;
-
-        var ctx = buildCastContext(npc, SPELLS.leap);
-        ctx.target = event.source; // атакующий
-        if (!SPELLS.leap.canCast(ctx)) return;
-
-        npc.say(SPELLS.leap.announce);
-        var result = SPELLS.leap.cast(ctx);
-        if (result > 0) {
-            setSpellCooldown(npc, SPELLS.leap);
-            log("grey_seer: leap triggered by " + event.source.getName());
+        var dmg = 0;
+        try {
+            dmg = parseFloat(String(event.damage));
+        } catch (eDmg) {
+            dmg = 0;
         }
+        // Считаем любой реальный удар — не зависим от source/каста/CD
+        if (!(dmg > 0)) return;
+
+        var data = npc.getStoreddata();
+        var needed = SPELLS.leap.hitsNeeded || 3;
+        var hits = getInt(data, LEAP_HIT_KEY, 0) + 1;
+        if (hits > needed) hits = needed;
+        data.put(LEAP_HIT_KEY, String(hits));
+        log("grey_seer: leap hits " + hits + "/" + needed);
+
+        var attacker = resolveDamageAttacker(event);
+        tryPendingLeap(npc, attacker);
     } catch (e) {
         log("grey_seer damaged ERROR: " + e);
     }
@@ -1006,6 +1240,7 @@ function died(event) {
         var npc = event.npc;
         var world = npc.getWorld();
         endWarpfireBreath(npc, npc.getStoreddata());
+        try { AbilityAPI.cancel(npc); } catch (eCancel) {}
         stopScriptTimers(npc);
         world.broadcast("§c§lСерый Провидец повержен! Да сгинет проклятие!");
 

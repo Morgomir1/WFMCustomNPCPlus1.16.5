@@ -133,44 +133,27 @@ public final class WhFlamingCrossbowAbility implements CnpcAbility {
         final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 10.0);
         final double halfWidth = ctx.params.getDouble(AbilityParamKeys.RADIUS, 0.7);
         final int fireSeconds = ctx.params.getInt(AbilityParamKeys.FIRE_SECONDS, 0);
-        final int accuracy = ctx.params.getInt(AbilityParamKeys.ACCURACY, 3);
-        final float inaccuracy = Math.max(0.05F, accuracy * 0.12F);
         final String gunId = ctx.params.getString(AbilityParamKeys.RANGED_ITEM, DEFAULT_PISTOL);
 
-        final double ox = ctx.npc.getX();
-        final double oy = ctx.npc.getY() + 1.0;
-        final double oz = ctx.npc.getZ();
-
-        // Точка прицела: живая цель (глаза), иначе конец telegraph на высоте глаз NPC
-        final double aimX;
-        final double aimY;
-        final double aimZ;
-        if (ctx.target != null && ctx.target.isAlive()) {
-            aimX = ctx.target.getX();
-            aimY = ctx.target.getY() + ctx.target.getEyeHeight() * 0.9;
-            aimZ = ctx.target.getZ();
-        } else {
-            aimX = active.ex;
-            aimY = ctx.npc.getY() + 1.4;
-            aimZ = active.ez;
-        }
+        // Фиксированная линия telegraph из onStart — без слежения за целью
+        final double ox = active.sx;
+        final double oy = active.sy + 1.2;
+        final double oz = active.sz;
+        final double aimX = active.ex;
+        final double aimY = active.sy + 1.2;
+        final double aimZ = active.ez;
 
         stopRaisingArm(ctx);
         swingLeftArm(ctx);
-        AbilityVfx.spawnMuzzleFlash(ctx.world, ox, oy + 0.2, oz);
+        AbilityVfx.spawnMuzzleFlash(ctx.world, ctx.npc.getX(), ctx.npc.getY() + 1.2, ctx.npc.getZ());
 
-        // Сначала в цель (надёжнее), затем в точку telegraph
-        boolean shot = false;
-        if (ctx.target != null && ctx.target.isAlive()) {
-            shot = WfmIntegration.performPistolShot(
-                    ctx.npc, ctx.target, gunId, inaccuracy, (float) damage);
-        }
+        final boolean shot = WfmIntegration.performPistolShotTowardPoint(
+                ctx.npc, aimX, aimY, aimZ, gunId, 0.05F, (float) damage);
         if (!shot) {
-            shot = WfmIntegration.performPistolShotTowardPoint(
-                    ctx.npc, aimX, aimY, aimZ, gunId, inaccuracy, (float) damage);
+            ctx.world.playSoundAt(ctx.npc.getPos(), "wfm:item.gunpowder_gun_launch", 1.0F, 1.0F);
         }
 
-        // Hitscan по коридору telegraph — основной урон (пуля может мимо / faction cancel)
+        // Урон строго по коридору telegraph
         active.hitUuids.clear();
         AbilityCombatHelper.damageInCorridor(
                 active, ctx,
@@ -178,10 +161,6 @@ public final class WhFlamingCrossbowAbility implements CnpcAbility {
                 aimX, aimY, aimZ,
                 halfWidth, damage, 0.35, 0.08,
                 fireSeconds, null, 0, 0);
-
-        if (!shot) {
-            ctx.world.playSoundAt(ctx.npc.getPos(), "wfm:item.gunpowder_gun_launch", 1.0F, 1.0F);
-        }
 
         restoreLeftHand(ctx);
         return TickResult.FINISHED;

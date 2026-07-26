@@ -90,8 +90,9 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `knockbackY` | double | 0.55 | Подброс |
 | `landRadius` | double | 2.8 | AoE при приземлении |
 | `arcHeight` | double | 6.0 | Высота дуги |
+| `maxRange` | double | 16.0 | Макс. дальность прыжка (блоки) |
 
-Конечная точка — позиция цели (`computeEndPoints(..., false)`).
+Конечная точка — позиция цели, обрезанная до `maxRange` (`computeEndPoints(..., false)`).
 
 ### `pistol_shot` — PistolShotAbility
 
@@ -172,6 +173,12 @@ findGroundY(world, x, z, startY) → double
 computeDashEndPoints(active, ctx) → boolean
 computeRetreatEndPoints(active, ctx) → boolean
 computeEndPoints(active, ctx, dashStyle)
+```
+
+Jump-стиль (`dashStyle=false`): точка приземления = позиция цели, обрезанная по `maxRange` (> 0).
+Dash-стиль — см. `computeDashEndPoints` (`distance`).
+
+```
 distanceToTarget(ctx) → double
 isUndead(entity) → boolean
 isInFrontCone(npc, entity, halfAngleDeg) → boolean

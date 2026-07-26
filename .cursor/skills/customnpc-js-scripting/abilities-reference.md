@@ -80,6 +80,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `knockbackY` | double | 0.55 | Вертикальный импульс |
 | `landRadius` | double | 2.8 | Радиус AoE при приземлении |
 | `arcHeight` | double | 6.0 | Высота дуги |
+| `maxRange` | double | 16.0 | Макс. дальность прыжка |
 
 ### `drachenfels_poison_feast`
 
@@ -198,7 +199,8 @@ AbilityAPI.start(npc, "dash", target, AbilityAPI.params("damage", damage));
 AbilityAPI.start(npc, "jump_slam", target, AbilityAPI.params(
     "damage", 18.0,
     "arcHeight", 7.0,
-    "landRadius", 3.0
+    "landRadius", 3.0,
+    "maxRange", 16.0
 ));
 
 // в timer/tick оркестратора

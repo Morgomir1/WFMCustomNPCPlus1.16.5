@@ -33,7 +33,8 @@ public final class JumpSlamAbility implements CnpcAbility {
                 AbilityParamKeys.KNOCKBACK,
                 AbilityParamKeys.KNOCKBACK_Y,
                 AbilityParamKeys.LAND_RADIUS,
-                AbilityParamKeys.ARC_HEIGHT);
+                AbilityParamKeys.ARC_HEIGHT,
+                AbilityParamKeys.MAX_RANGE);
     }
 
     @Override

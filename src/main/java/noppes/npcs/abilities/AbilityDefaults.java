@@ -28,6 +28,7 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.KNOCKBACK_Y, 0.55);
         map.put(AbilityParamKeys.LAND_RADIUS, 2.8);
         map.put(AbilityParamKeys.ARC_HEIGHT, 6.0);
+        map.put(AbilityParamKeys.MAX_RANGE, 16.0);
         return map;
     }
 

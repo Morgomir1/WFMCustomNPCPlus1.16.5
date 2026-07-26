@@ -728,8 +728,17 @@ public final class AbilityCombatHelper {
         active.sx = sx;
         active.sy = sy;
         active.sz = sz;
-        active.ex = tx;
-        active.ez = tz;
+
+        // Clamp landing distance so a far/teleported target cannot pull the NPC across the map.
+        final double maxRange = ctx.params.getDouble(AbilityParamKeys.MAX_RANGE, -1.0);
+        if (maxRange > 0.0 && len > maxRange) {
+            final double scale = maxRange / len;
+            active.ex = sx + dx * scale;
+            active.ez = sz + dz * scale;
+        } else {
+            active.ex = tx;
+            active.ez = tz;
+        }
         active.ey = findGroundY(ctx.world, active.ex, active.ez, ty);
         return true;
     }

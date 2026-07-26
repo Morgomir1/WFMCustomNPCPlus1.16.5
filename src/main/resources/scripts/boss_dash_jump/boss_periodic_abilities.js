@@ -81,7 +81,8 @@ function buildParams(abilityId) {
         "arcHeight", 6.0,
         "landRadius", 2.8,
         "chargeTicks", 12,
-        "activeTicks", 9
+        "activeTicks", 9,
+        "maxRange", 16.0
     );
 }
 

@@ -8,11 +8,13 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.potion.Effect;
 import net.minecraft.potion.EffectInstance;
 import net.minecraft.util.Direction;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.world.World;
+import net.minecraftforge.registries.ForgeRegistries;
 import noppes.npcs.api.NpcAPI;
 import noppes.npcs.api.block.IBlock;
 import noppes.npcs.api.entity.IEntity;
@@ -525,6 +527,70 @@ public final class AbilityCombatHelper {
         return angle <= halfAngleDeg;
     }
 
+    /**
+     * Усечённый конус: вершина сзади, урон только в кольце дистанций от вершины
+     * [{@code minDist}, {@code maxDist}] — у «основания» у кастера уже есть ширина.
+     *
+     * @return число попаданий
+     */
+    public static int damageInTruncatedCone(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double apexX,
+            final double apexY,
+            final double apexZ,
+            final float yaw,
+            final double halfAngleDeg,
+            final double minDist,
+            final double maxDist,
+            final double damage,
+            final double knockback,
+            final double lift,
+            final int fireSeconds) {
+        final double rad = (yaw + 90.0) * 0.0174532925;
+        final double fwdX = Math.cos(rad);
+        final double fwdZ = Math.sin(rad);
+        final double midX = apexX + fwdX * ((minDist + maxDist) * 0.5);
+        final double midZ = apexZ + fwdZ * ((minDist + maxDist) * 0.5);
+        final int range = (int) Math.ceil(maxDist + 1.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(midX, apexY, midZ),
+                range,
+                -1);
+
+        int hits = 0;
+        for (final IEntity ent : list) {
+            if (!isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            final String id = String.valueOf(ent.getUUID());
+            if (active.hitUuids.contains(id)) {
+                continue;
+            }
+            final double dist = flatDistance(ent.getX(), ent.getZ(), apexX, apexZ);
+            if (dist < minDist || dist > maxDist) {
+                continue;
+            }
+            if (!isInFrontCone(apexX, apexZ, yaw, ent, halfAngleDeg)) {
+                continue;
+            }
+            ent.damage((float) damage);
+            if (ent instanceof IEntityLiving) {
+                final IEntityLiving living = (IEntityLiving) ent;
+                living.setMotionX(fwdX * knockback);
+                living.setMotionY(lift);
+                living.setMotionZ(fwdZ * knockback);
+            }
+            if (fireSeconds > 0) {
+                igniteEntity(ent, fireSeconds);
+            }
+            AbilityVfx.spawnHitParticle(ctx.world, ent);
+            active.hitUuids.add(id);
+            hits++;
+        }
+        return hits;
+    }
+
     public static void applyPotionNearby(
             final ActiveAbility active,
             final AbilityContext ctx,
@@ -797,6 +863,138 @@ public final class AbilityCombatHelper {
             }
             AbilityVfx.spawnHitParticle(ctx.world, ent);
             active.hitUuids.add(id);
+        }
+    }
+
+    /**
+     * Урон по прямоугольному коридору от (sx,sz) до (ex,ez) шириной {@code halfWidth * 2}.
+     *
+     * @return число поражённых целей
+     */
+    public static int damageInCorridor(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double sx,
+            final double sy,
+            final double sz,
+            final double ex,
+            final double ey,
+            final double ez,
+            final double halfWidth,
+            final double damage,
+            final double knockback,
+            final double lift,
+            final int fireSeconds,
+            final String effectId,
+            final int effectTicks,
+            final int effectAmplifier) {
+        final double dx = ex - sx;
+        final double dz = ez - sz;
+        final double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.05) {
+            return 0;
+        }
+        final double nx = dx / len;
+        final double nz = dz / len;
+        final double midX = (sx + ex) * 0.5;
+        final double midZ = (sz + ez) * 0.5;
+        final double midY = (sy + ey) * 0.5;
+        final int range = (int) Math.ceil(len * 0.5 + halfWidth + 1.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(midX, midY, midZ),
+                range,
+                -1);
+
+        int hits = 0;
+        for (final IEntity ent : list) {
+            if (!isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            final String id = String.valueOf(ent.getUUID());
+            if (active.hitUuids.contains(id)) {
+                continue;
+            }
+            if (!isInCorridor(ent.getX(), ent.getZ(), sx, sz, ex, ez, halfWidth)) {
+                continue;
+            }
+            ent.damage((float) damage);
+            if (ent instanceof IEntityLiving) {
+                final IEntityLiving living = (IEntityLiving) ent;
+                living.setMotionX(nx * knockback);
+                living.setMotionY(lift);
+                living.setMotionZ(nz * knockback);
+            }
+            if (fireSeconds > 0) {
+                igniteEntity(ent, fireSeconds);
+            }
+            if (effectId != null && !effectId.isEmpty() && effectTicks > 0) {
+                applyNamedEffect(ent, effectId, effectTicks, effectAmplifier);
+            }
+            AbilityVfx.spawnHitParticle(ctx.world, ent);
+            active.hitUuids.add(id);
+            hits++;
+        }
+        return hits;
+    }
+
+    public static boolean isInCorridor(
+            final double px,
+            final double pz,
+            final double sx,
+            final double sz,
+            final double ex,
+            final double ez,
+            final double halfWidth) {
+        final double dx = ex - sx;
+        final double dz = ez - sz;
+        final double lenSq = dx * dx + dz * dz;
+        if (lenSq < 0.0001) {
+            return flatDistance(px, pz, sx, sz) <= halfWidth;
+        }
+        double t = ((px - sx) * dx + (pz - sz) * dz) / lenSq;
+        if (t < 0.0) {
+            t = 0.0;
+        } else if (t > 1.0) {
+            t = 1.0;
+        }
+        final double closestX = sx + t * dx;
+        final double closestZ = sz + t * dz;
+        return flatDistance(px, pz, closestX, closestZ) <= halfWidth;
+    }
+
+    public static void igniteEntity(final IEntity entity, final int seconds) {
+        if (entity == null || seconds <= 0) {
+            return;
+        }
+        try {
+            final Entity mc = entity.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                mc.setSecondsOnFire(seconds);
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    /**
+     * Вешает эффект по registry id ({@code "wfm:stun"}, {@code "minecraft:slowness"}, …).
+     */
+    public static boolean applyNamedEffect(
+            final IEntity entity,
+            final String effectId,
+            final int durationTicks,
+            final int amplifier) {
+        if (entity == null || effectId == null || effectId.isEmpty() || durationTicks <= 0) {
+            return false;
+        }
+        try {
+            final Effect effect = ForgeRegistries.POTIONS.getValue(new ResourceLocation(effectId));
+            if (effect == null) {
+                return false;
+            }
+            applyEffect(entity, effect, durationTicks, amplifier);
+            return true;
+        } catch (final Exception ignored) {
+            return false;
         }
     }
 

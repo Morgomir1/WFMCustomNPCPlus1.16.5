@@ -32,7 +32,11 @@ noppes.npcs.abilities/
     ├── DrachenfelsSpiritBarrageAbility.java # id: drachenfels_spirit_barrage
     ├── DrachenfelsSoulSeekerAbility.java    # id: drachenfels_soul_seeker
     ├── DrachenfelsRaiseThrallsAbility.java # id: drachenfels_raise_thralls
-    └── DrachenfelsShadowStepAbility.java   # id: drachenfels_shadow_step
+    ├── DrachenfelsShadowStepAbility.java   # id: drachenfels_shadow_step
+    ├── WhFlamingStrikeAbility.java         # id: wh_flaming_strike
+    ├── WhLungeAbility.java                 # id: wh_lunge
+    ├── WhFlamingCrossbowAbility.java       # id: wh_flaming_crossbow
+    └── WhFireBombAbility.java              # id: wh_fire_bomb
 ```
 
 ## CnpcAbility — контракт
@@ -292,13 +296,64 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 Навес партиклов → `ZoneAPI.hazardCircle`. JS: `scripts/utility/crimson_blob.js`.
 
+### `wh_flaming_strike` — WhFlamingStrikeAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 20 | 1 с warning (line telegraph) |
+| `distance` | double | 4.5 | Длина коридора |
+| `radius` | double | 1.35 | Полуширина коридора |
+| `damage` | double | 14.0 | Урон удара |
+| `fireSeconds` | int | 4 | Поджог цели |
+
+`cancelsOnTargetLost = false`.
+
+### `wh_lunge` — WhLungeAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 20 / 6 | Зарядка + выпад |
+| `distance` | double | 5.5 | Длина рывка |
+| `hitRadius` | double | 1.5 | Радиус хита |
+| `damage` | double | 16.0 | Урон |
+| `arcHeight` | double | 1.8 | Высота прыжка |
+| `effectDuration` | int | 20 | Длительность `wfm:stun` |
+
+`cancelsOnTargetLost = false`. После каста JS обычно форсит `wh_flaming_strike`.
+
+### `wh_flaming_crossbow` — WhFlamingCrossbowAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 10 | 0.5 с, swap на арбалет |
+| `distance` / `radius` | double | 18 / 0.7 | Узкий line telegraph |
+| `damage` | double | 10.0 | Урон коридора + снаряд |
+| `fireSeconds` | int | 5 | Поджог |
+| `rangedItem` | string | `minecraft:crossbow` | Оружие на charge |
+| `meleeItem` | string | `wfm:empire_witch_hunter_rapier` | Restore после выстрела |
+| `projectileItem` | string | `minecraft:fire_charge` | Визуальный снаряд |
+
+### `wh_fire_bomb` — WhFireBombAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` / `scatterTicks` | int | 20 / 14 / 20 | Charge → полёт → разлёт |
+| `landRadius` | double | 3.5 | Первичный AoE / telegraph |
+| `damage` | double | 12.0 | Урон первичного взрыва |
+| `shots` / `spreadRadius` | int/double | 5 / 5.0 | Малые бомбы |
+| `hitRadius` | double | 1.8 | Радиус луж |
+| `zoneTicks` / `damagePerTick` | int/double | 70 / 2.5 | Hazard-лужи |
+| `fireSeconds` | int | 3 | Поджог |
+
+Визуал полёта: `GunMineEntity` через `WfmIntegration.spawnVisualMine` (без детонации).
+
 ## Примеры скриптов
 
 | Файл | Назначение |
 |------|------------|
 | `scripts/boss_dash_jump/boss_periodic_abilities.js` | Чередование dash/jump, фикс. params |
 | `scripts/boss_dash_jump/boss_dash_jump.js` | То же + бонус урона при низком HP |
-| `scripts/witch_hunter/witch_hunter_boss.js` | Охотник на ведьм: фазы, выбор по дистанции |
+| `scripts/witch_hunter/witch_hunter_boss.js` | Охотник: strike/net/lunge/crossbow/fire_bomb + цепочки |
 | `scripts/drachenfels/drachenfels_boss.js` | Тело+дух, Immortal Bond revive, фазы 1/2/bond |
 | `scripts/utility/npc_shield_block.js` | Блок щитом: damaged → `shield_block` |
 | `scripts/utility/crimson_blob.js` | Навес сгустка → слепая лужа |

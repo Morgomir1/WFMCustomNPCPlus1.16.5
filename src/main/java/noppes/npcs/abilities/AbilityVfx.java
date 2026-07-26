@@ -436,6 +436,71 @@ public final class AbilityVfx {
         }
     }
 
+    /**
+     * Огненный взмах мечом по всему прямоугольному коридору удара.
+     */
+    public static void spawnFlamingStrikeSweep(
+            final IWorld world,
+            final double sx,
+            final double sy,
+            final double sz,
+            final double ex,
+            final double ey,
+            final double ez,
+            final double halfWidth) {
+        final double dx = ex - sx;
+        final double dz = ez - sz;
+        final double len = Math.sqrt(dx * dx + dz * dz);
+        final double fx;
+        final double fz;
+        if (len < 0.05) {
+            fx = 0.0;
+            fz = 1.0;
+        } else {
+            fx = dx / len;
+            fz = dz / len;
+        }
+        final double rx = -fz;
+        final double rz = fx;
+        final double useLen = Math.max(1.0, len);
+        final double width = Math.max(0.6, halfWidth);
+        final int steps = Math.max(4, (int) Math.ceil(useLen / 0.55));
+        final Random r = AbilityCombatHelper.random();
+
+        for (int i = 0; i <= steps; i++) {
+            final double t = i / (double) steps;
+            final double cx = sx + dx * t;
+            final double cz = sz + dz * t;
+            final double cy = sy + (ey - sy) * t + 0.95;
+
+            // Дуга взмаха (sweep) — по центру коридора
+            safeSpawn(world, "minecraft:sweep_attack",
+                    cx, cy, cz,
+                    fx, 0.0, fz, 0.0, 0);
+
+            // Огонь по ширине зоны
+            final int sideSamples = Math.max(2, (int) Math.ceil(width * 2.0));
+            for (int s = -sideSamples; s <= sideSamples; s++) {
+                final double side = (s / (double) sideSamples) * width;
+                final double px = cx + rx * side + (r.nextDouble() - 0.5) * 0.15;
+                final double pz = cz + rz * side + (r.nextDouble() - 0.5) * 0.15;
+                final double py = cy - 0.15 + r.nextDouble() * 0.35;
+                safeSpawn(world, "minecraft:flame", px, py, pz, 0, 0.04, 0, 0.015, 1);
+                if (s == 0 || (i + s) % 2 == 0) {
+                    safeSpawn(world, "minecraft:crit", px, py + 0.1, pz, 0, 0.05, 0, 0.01, 1);
+                }
+            }
+        }
+
+        // Доп. дуги ближе к боссу / к концу удара
+        safeSpawn(world, "minecraft:sweep_attack",
+                sx + fx * 0.6, sy + 1.05, sz + fz * 0.6,
+                fx, 0.0, fz, 0.0, 0);
+        safeSpawn(world, "minecraft:sweep_attack",
+                ex, ey + 1.1, ez,
+                fx, 0.0, fz, 0.0, 0);
+    }
+
     /** Плотный сгусток (полёт). particlesCsv пустой → дефолтный набор crimson. */
     public static void spawnCrimsonBlob(
             final IWorld world,

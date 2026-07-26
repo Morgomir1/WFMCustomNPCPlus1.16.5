@@ -55,6 +55,14 @@ public final class AbilityParamKeys {
     public static final String LAND_PARTICLES = "landParticles";
     /** Сколько партиклов каждого типа на тик полёта. */
     public static final String PARTICLE_COUNT = "particleCount";
+    /** Секунды горения цели после попадания. */
+    public static final String FIRE_SECONDS = "fireSeconds";
+    /** Длительность фазы разлёта (тики), напр. fire bomb scatter. */
+    public static final String SCATTER_TICKS = "scatterTicks";
+    /** Item id основного оружия (рапира) для restore после swap. */
+    public static final String MELEE_ITEM = "meleeItem";
+    /** Item id оружия дальнего боя (арбалет). */
+    public static final String RANGED_ITEM = "rangedItem";
 
     private AbilityParamKeys() {
     }

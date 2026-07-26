@@ -38,6 +38,10 @@ public final class AbilityRegistry {
         register(new DrachenfelsShadowStepAbility());
         register(new ShieldBlockAbility());
         register(new CrimsonBlobAbility());
+        register(new WhFlamingStrikeAbility());
+        register(new WhLungeAbility());
+        register(new WhFlamingCrossbowAbility());
+        register(new WhFireBombAbility());
     }
 
     private AbilityRegistry() {

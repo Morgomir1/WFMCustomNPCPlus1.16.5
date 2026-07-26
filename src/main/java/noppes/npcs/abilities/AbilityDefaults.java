@@ -44,10 +44,13 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> netThrow() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 10); // 0.5 с warning
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 12); // полёт сети до зоны
         map.put(AbilityParamKeys.RADIUS, 3.5);
         map.put(AbilityParamKeys.EFFECT_DURATION, 60);
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
+        map.put(AbilityParamKeys.PROJECTILE_ITEM, "wfm:dwarf_ranger_net");
+        map.put(AbilityParamKeys.ACCURACY, 2);
         return map;
     }
 
@@ -387,6 +390,73 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.LAND_PARTICLES,
                 "minecraft:large_smoke,minecraft:smoke,minecraft:flame,minecraft:ash,minecraft:explosion");
         map.put(AbilityParamKeys.PARTICLE_COUNT, 12);
+        return map;
+    }
+
+    public static Map<String, Object> whFlamingStrike() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 4.5);
+        map.put(AbilityParamKeys.RADIUS, 1.35); // полуширина у босса (основание)
+        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 38.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.DAMAGE, 14.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.9);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.2);
+        map.put(AbilityParamKeys.FIRE_SECONDS, 4);
+        map.put(AbilityParamKeys.TELEGRAPH, 0); // конус спавнится вручную (усечённый)
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
+    public static Map<String, Object> whLunge() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 5.5);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 6);
+        map.put(AbilityParamKeys.DAMAGE, 16.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.4);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.4);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.5);
+        map.put(AbilityParamKeys.ARC_HEIGHT, 1.8);
+        map.put(AbilityParamKeys.EFFECT_DURATION, 20);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
+    public static Map<String, Object> whFlamingCrossbow() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.DAMAGE, 10.0);
+        map.put(AbilityParamKeys.DISTANCE, 18.0);
+        map.put(AbilityParamKeys.RADIUS, 0.7);
+        map.put(AbilityParamKeys.MAX_RANGE, 24.0);
+        map.put(AbilityParamKeys.ACCURACY, 3);
+        map.put(AbilityParamKeys.FIRE_SECONDS, 5);
+        map.put(AbilityParamKeys.PROJECTILE_ITEM, "minecraft:fire_charge");
+        map.put(AbilityParamKeys.RANGED_ITEM, "minecraft:crossbow");
+        map.put(AbilityParamKeys.MELEE_ITEM, "wfm:empire_witch_hunter_rapier");
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
+    public static Map<String, Object> whFireBomb() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 14);
+        map.put(AbilityParamKeys.SCATTER_TICKS, 20);
+        map.put(AbilityParamKeys.ARC_HEIGHT, 6.0);
+        map.put(AbilityParamKeys.LAND_RADIUS, 3.5);
+        map.put(AbilityParamKeys.DAMAGE, 12.0);
+        map.put(AbilityParamKeys.MAX_RANGE, 22.0);
+        map.put(AbilityParamKeys.SHOTS, 5);
+        map.put(AbilityParamKeys.SPREAD_RADIUS, 5.0);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.8);
+        map.put(AbilityParamKeys.ZONE_TICKS, 70);
+        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 15);
+        map.put(AbilityParamKeys.DAMAGE_PER_TICK, 2.5);
+        map.put(AbilityParamKeys.FIRE_SECONDS, 3);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0FF6020);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
 }

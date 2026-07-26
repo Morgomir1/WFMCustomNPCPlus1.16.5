@@ -1,18 +1,32 @@
 /**
  * Босс: охотник на ведьм (Warhammer Fantasy).
- * Механика — Java AbilityAPI. Скрипт выбирает скилл по дистанции и фазе.
+ * Механика — Java AbilityAPI. Скрипт: дистанция, фазы, цепочки.
+ *
+ * Кит:
+ *   wh_flaming_strike  — огненный удар (усечённый конус)
+ *   net_throw          — сеть → FORCED wh_flaming_crossbow
+ *   wh_lunge           — рывок+стан → FORCED wh_flaming_strike
+ *   wh_flaming_crossbow — арбалет (swap оружия)
+ *   wh_fire_bomb       — ульт (фаза 2, HP ≤ 50%)
  */
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 
 var TIMER_ID = 703;
 var PHASE_CHECK_ID = 704;
-var CAST_INTERVAL_PHASE1 = 80;
-var CAST_INTERVAL_PHASE2 = 55;
+var CAST_INTERVAL_PHASE1 = 70;
+var CAST_INTERVAL_PHASE2 = 50;
 
 var PHASE_KEY = "wh_phase";
 var NEXT_CAST_KEY = "wh_next_cast";
 var LAST_ABILITY_KEY = "wh_last_ability";
+var FORCED_ABILITY_KEY = "wh_forced_ability";
 var CD_PREFIX = "wh_cd_";
+
+var STRIKE_ID = "wh_flaming_strike";
+var NET_ID = "net_throw";
+var LUNGE_ID = "wh_lunge";
+var CROSSBOW_ID = "wh_flaming_crossbow";
+var BOMB_ID = "wh_fire_bomb";
 
 var QUOTES_PHASE1 = [
     "Еретик!",
@@ -25,19 +39,18 @@ var QUOTES_PHASE2 = [
     "Огонь очистит твою душу!"
 ];
 
-var COOLDOWNS = {
-    pistol_shot: 40,
-    net_throw: 120,
-    stake_thrust: 60,
-    holy_water_splash: 160,
-    burning_brand: 140,
-    retreat_dash: 100
-};
+var COOLDOWNS = {};
+COOLDOWNS[STRIKE_ID] = 55;
+COOLDOWNS[NET_ID] = 130;
+COOLDOWNS[LUNGE_ID] = 90;
+COOLDOWNS[CROSSBOW_ID] = 45;
+COOLDOWNS[BOMB_ID] = 220;
 
 function init(event) {
     var data = event.npc.getStoreddata();
     data.put(PHASE_KEY, "1");
     data.put(LAST_ABILITY_KEY, "");
+    data.put(FORCED_ABILITY_KEY, "");
     startTimers(event.npc);
 }
 
@@ -63,18 +76,36 @@ function timer(event) {
     if (target == null || !target.isAlive()) return;
 
     var phase = String(data.get(PHASE_KEY));
-    var abilityId = pickAbility(npc, target, phase, data, now);
+    var forced = String(data.get(FORCED_ABILITY_KEY));
+    var abilityId = null;
+
+    if (forced.length > 0 && isCooldownReady(data, now, forced)) {
+        abilityId = forced;
+    } else {
+        abilityId = pickAbility(npc, target, phase, data, now);
+    }
     if (abilityId == null) return;
 
-    var started = AbilityAPI.start(npc, abilityId, target, buildParams(abilityId, phase));
+    var started = AbilityAPI.start(npc, abilityId, target, buildParams(abilityId, phase, npc, target));
     if (!started) return;
 
-    var interval = phase == "2" ? CAST_INTERVAL_PHASE2 : CAST_INTERVAL_PHASE1;
-    data.put(NEXT_CAST_KEY, String(now + interval));
+    data.put(FORCED_ABILITY_KEY, "");
     data.put(LAST_ABILITY_KEY, abilityId);
-    data.put(CD_PREFIX + abilityId, String(now + COOLDOWNS[abilityId]));
+    data.put(CD_PREFIX + abilityId, String(now + getCooldown(abilityId)));
 
-    if (Math.random() < 0.35) {
+    // Цепочки: сеть → арбалет; рывок → огненный удар
+    if (abilityId == NET_ID) {
+        data.put(FORCED_ABILITY_KEY, CROSSBOW_ID);
+        data.put(NEXT_CAST_KEY, String(now + 5));
+    } else if (abilityId == LUNGE_ID) {
+        data.put(FORCED_ABILITY_KEY, STRIKE_ID);
+        data.put(NEXT_CAST_KEY, String(now + 5));
+    } else {
+        var interval = phase == "2" ? CAST_INTERVAL_PHASE2 : CAST_INTERVAL_PHASE1;
+        data.put(NEXT_CAST_KEY, String(now + interval));
+    }
+
+    if (Math.random() < (phase == "2" ? 0.4 : 0.3)) {
         sayQuote(npc, phase);
     }
 }
@@ -83,70 +114,116 @@ function pickAbility(npc, target, phase, data, now) {
     var dist = flatDistance(npc, target);
     var last = String(data.get(LAST_ABILITY_KEY));
 
-    if (dist < 3.0 && isCooldownReady(data, now, "retreat_dash")
-            && (last == "stake_thrust" || last == "burning_brand")) {
-        return "retreat_dash";
-    }
-
-    if (dist < 4.0) {
-        if (phase == "2" && isCooldownReady(data, now, "burning_brand")) {
-            return "burning_brand";
-        }
-        if (isCooldownReady(data, now, "stake_thrust")) {
-            return "stake_thrust";
+    if (phase == "2" && isCooldownReady(data, now, BOMB_ID) && dist <= 18.0) {
+        if (last != BOMB_ID && Math.random() < 0.35) {
+            return BOMB_ID;
         }
     }
 
-    if (phase == "2" && isCooldownReady(data, now, "holy_water_splash") && Math.random() < 0.45) {
-        return "holy_water_splash";
-    }
-
-    if (dist >= 5.0 && dist <= 12.0 && isCooldownReady(data, now, "net_throw")) {
-        return "net_throw";
-    }
-
-    if (dist > 10.0 || !isCooldownReady(data, now, "net_throw")) {
-        if (isCooldownReady(data, now, "pistol_shot")) {
-            return "pistol_shot";
+    if (dist < 5.0) {
+        if (isCooldownReady(data, now, LUNGE_ID) && last != LUNGE_ID && Math.random() < 0.45) {
+            return LUNGE_ID;
+        }
+        if (isCooldownReady(data, now, STRIKE_ID)) {
+            return STRIKE_ID;
+        }
+        if (isCooldownReady(data, now, LUNGE_ID)) {
+            return LUNGE_ID;
         }
     }
 
-    if (isCooldownReady(data, now, "net_throw")) return "net_throw";
-    if (isCooldownReady(data, now, "pistol_shot")) return "pistol_shot";
-    if (isCooldownReady(data, now, "stake_thrust")) return "stake_thrust";
-    if (phase == "2" && isCooldownReady(data, now, "holy_water_splash")) return "holy_water_splash";
-    if (phase == "2" && isCooldownReady(data, now, "burning_brand")) return "burning_brand";
+    if (dist >= 5.0 && dist <= 12.0 && isCooldownReady(data, now, NET_ID) && last != NET_ID) {
+        return NET_ID;
+    }
+
+    if (dist > 8.0 && isCooldownReady(data, now, CROSSBOW_ID)) {
+        return CROSSBOW_ID;
+    }
+
+    if (isCooldownReady(data, now, NET_ID)) return NET_ID;
+    if (isCooldownReady(data, now, CROSSBOW_ID)) return CROSSBOW_ID;
+    if (isCooldownReady(data, now, STRIKE_ID)) return STRIKE_ID;
+    if (isCooldownReady(data, now, LUNGE_ID)) return LUNGE_ID;
+    if (phase == "2" && isCooldownReady(data, now, BOMB_ID)) return BOMB_ID;
 
     return null;
 }
 
-function buildParams(abilityId, phase) {
-    if (abilityId == "pistol_shot") {
-        var dmg = phase == "2" ? 11.0 : 9.0;
-        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "damage", dmg, "accuracy", phase == "2" ? 3 : 4);
-    }
-    if (abilityId == "net_throw") {
-        // Круг warning → через 0.5 с (10 тиков) опутывает всех в зоне
+function buildParams(abilityId, phase, npc, target) {
+    var tg = 0xC0FF3030;
+    if (abilityId == STRIKE_ID) {
         return AbilityAPI.params(
-            "telegraphColor", 0xC0FF3030,
-            "radius", 3.5,
-            "chargeTicks", 10,
-            "effectDuration", 60,
-            "effectAmplifier", 3
+            "telegraphColor", tg,
+            "telegraph", 0,
+            "chargeTicks", 20,
+            "distance", 4.5,
+            "radius", 1.35,
+            "coneHalfAngle", 38.0,
+            "damage", phase == "2" ? 16.0 : 14.0,
+            "fireSeconds", 4
         );
     }
-    if (abilityId == "stake_thrust") {
-        var thrustDmg = phase == "2" ? 18.0 : 16.0;
-        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "damage", thrustDmg, "undeadBonusMultiplier", 1.5);
+    if (abilityId == NET_ID) {
+        return AbilityAPI.params(
+            "telegraphColor", tg,
+            "radius", 2.5,
+            "chargeTicks", 20,
+            "activeTicks", 12,
+            "effectDuration", 40,
+            "effectAmplifier", 3,
+            "projectileItem", "wfm:dwarf_ranger_net",
+            "accuracy", 2
+        );
     }
-    if (abilityId == "holy_water_splash") {
-        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "damage", 8.0, "undeadBonusMultiplier", 2.0);
+    if (abilityId == LUNGE_ID) {
+        return AbilityAPI.params(
+            "telegraphColor", tg,
+            "chargeTicks", 20,
+            "activeTicks", 6,
+            "distance", 5.5,
+            "hitRadius", 1.5,
+            "damage", phase == "2" ? 18.0 : 16.0,
+            "arcHeight", 1.8,
+            "effectDuration", 20
+        );
     }
-    if (abilityId == "burning_brand") {
-        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "damagePerTick", phase == "2" ? 4.0 : 3.0, "activeTicks", 12);
+    if (abilityId == CROSSBOW_ID) {
+        var shotDist = 18.0;
+        if (npc != null && target != null) {
+            var d = flatDistance(npc, target);
+            if (d > 2.0) shotDist = Math.min(24.0, Math.max(6.0, d + 1.0));
+        }
+        return AbilityAPI.params(
+            "telegraphColor", tg,
+            "chargeTicks", 10,
+            "distance", shotDist,
+            "radius", 0.7,
+            "damage", phase == "2" ? 12.0 : 10.0,
+            "fireSeconds", 5,
+            "accuracy", 3,
+            "projectileItem", "minecraft:fire_charge",
+            "rangedItem", "minecraft:crossbow",
+            "meleeItem", "wfm:empire_witch_hunter_rapier"
+        );
     }
-    if (abilityId == "retreat_dash") {
-        return AbilityAPI.params("telegraphColor", 0xC0FF3030, "distance", 6.0);
+    if (abilityId == BOMB_ID) {
+        return AbilityAPI.params(
+            "telegraphColor", tg,
+            "chargeTicks", 20,
+            "activeTicks", 14,
+            "scatterTicks", 20,
+            "landRadius", 3.5,
+            "damage", phase == "2" ? 14.0 : 12.0,
+            "shots", 5,
+            "spreadRadius", 5.0,
+            "hitRadius", 1.8,
+            "zoneTicks", 70,
+            "damagePerTick", 2.5,
+            "damageInterval", 15,
+            "fireSeconds", 3,
+            "zoneColor", 0xC0FF6020,
+            "arcHeight", 6.0
+        );
     }
     return null;
 }
@@ -162,20 +239,26 @@ function updatePhase(npc) {
     var oldPhase = String(data.get(PHASE_KEY));
     if (newPhase != oldPhase) {
         data.put(PHASE_KEY, newPhase);
-        npc.say("§c§lЗа Сигмара! Ни пощады еретикам!");
-        try {
-            npc.getWorld().spawnParticle("minecraft:explosion_emitter",
-                npc.getX(), npc.getY() + 1.5, npc.getZ(), 0, 0, 0, 0, 1);
-        } catch (e) {}
+        if (newPhase == "2") {
+            npc.say("§c§lЗа Сигмара! Ни пощады еретикам!");
+            data.put(FORCED_ABILITY_KEY, BOMB_ID);
+            data.put(NEXT_CAST_KEY, String(npc.getWorld().getTotalTime() + 10));
+            try {
+                npc.getWorld().spawnParticle("minecraft:explosion_emitter",
+                    npc.getX(), npc.getY() + 1.5, npc.getZ(), 0, 0, 0, 0, 1);
+            } catch (e) {}
+        }
     }
 }
 
 function targetLost(event) {
     AbilityAPI.cancel(event.npc);
+    event.npc.getStoreddata().put(FORCED_ABILITY_KEY, "");
 }
 
 function died(event) {
     AbilityAPI.cancel(event.npc);
+    event.npc.getStoreddata().put(FORCED_ABILITY_KEY, "");
 }
 
 function startTimers(npc) {
@@ -188,6 +271,11 @@ function startTimers(npc) {
         timers.start(TIMER_ID, 1, true);
         timers.start(PHASE_CHECK_ID, 20, true);
     }
+}
+
+function getCooldown(abilityId) {
+    if (COOLDOWNS[abilityId] != null) return COOLDOWNS[abilityId];
+    return 80;
 }
 
 function isCooldownReady(data, now, abilityId) {

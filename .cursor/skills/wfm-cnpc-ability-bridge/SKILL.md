@@ -148,6 +148,7 @@ public void onCancel(...) { WfmIntegration.restoreEquipment(ctx.npc); }
 |------|-----|--------------|
 | Сеть | `CustomNpcNetHelper` | `NetThrowAbility` |
 | Пистолет | `CustomNpcGunHelper` | `PistolShotAbility` |
+| Мина (visual) | `CustomNpcMineHelper` | `WhFireBombAbility` |
 | Оркестратор | — | `scripts/witch_hunter/witch_hunter_boss.js` |
 
 ## Антипаттерны

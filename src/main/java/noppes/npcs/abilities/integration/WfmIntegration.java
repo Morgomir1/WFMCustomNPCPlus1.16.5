@@ -1,6 +1,8 @@
 package noppes.npcs.abilities.integration;
 
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.world.World;
 import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntityLiving;
 
@@ -10,7 +12,9 @@ public final class WfmIntegration {
     private static final String NET_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcNetHelper";
     private static final String GUN_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcGunHelper";
     private static final String LEADBELCHER_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcLeadbelcherHelper";
+    private static final String MINE_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcMineHelper";
     private static final String THROW_NET_METHOD = "throwDwarfRangerNet";
+    private static final String THROW_NET_TOWARD_POINT_METHOD = "throwNetTowardPoint";
     private static final String ENSNARE_AROUND_POINT_METHOD = "ensnareAroundPoint";
     private static final String EQUIP_PISTOL_METHOD = "equipPistolForShot";
     private static final String RESTORE_EQUIPMENT_METHOD = "restoreEquipment";
@@ -21,9 +25,13 @@ public final class WfmIntegration {
     private static final String PERFORM_LEADBELCHER_SHOT_TO_POINT_METHOD = "performLeadbelcherShotTowardPoint";
     private static final String PERFORM_LEADBELCHER_SHOT_AT_TARGET_METHOD = "performLeadbelcherShotAtTarget";
     private static final String PERFORM_LEADBELCHER_ARTILLERY_STRIKE_METHOD = "performLeadbelcherArtilleryStrike";
+    private static final String SPAWN_VISUAL_MINE_METHOD = "spawnVisualMine";
+    private static final String MOVE_VISUAL_MINE_METHOD = "moveVisualMine";
+    private static final String REMOVE_VISUAL_MINE_METHOD = "removeVisualMine";
 
     private static Boolean netAvailable;
     private static Method throwNetMethod;
+    private static Method throwNetTowardPointMethod;
     private static Method ensnareAroundPointMethod;
 
     private static Boolean gunAvailable;
@@ -39,6 +47,11 @@ public final class WfmIntegration {
     private static Method performLeadbelcherShotToPointMethod;
     private static Method performLeadbelcherShotAtTargetMethod;
     private static Method performLeadbelcherArtilleryStrikeMethod;
+
+    private static Boolean mineAvailable;
+    private static Method spawnVisualMineMethod;
+    private static Method moveVisualMineMethod;
+    private static Method removeVisualMineMethod;
 
     private WfmIntegration() {
     }
@@ -58,6 +71,55 @@ public final class WfmIntegration {
         return Boolean.TRUE.equals(leadbelcherAvailable);
     }
 
+    public static boolean isWfmMineAvailable() {
+        ensureMineInitialized();
+        return Boolean.TRUE.equals(mineAvailable);
+    }
+
+    /**
+     * Спавнит визуальную GunMine без детонации.
+     *
+     * @return MC Entity или {@code null}
+     */
+    public static Object spawnVisualMine(final ICustomNpc npc, final double x, final double y, final double z) {
+        ensureMineInitialized();
+        if (!isWfmMineAvailable() || npc == null || spawnVisualMineMethod == null) {
+            return null;
+        }
+        try {
+            final LivingEntity living = toLivingEntity(npc);
+            if (living == null) {
+                return null;
+            }
+            final World world = living.level;
+            return spawnVisualMineMethod.invoke(null, world, x, y, z);
+        } catch (final Exception ignored) {
+            return null;
+        }
+    }
+
+    public static void moveVisualMine(final Object mine, final double x, final double y, final double z) {
+        ensureMineInitialized();
+        if (!isWfmMineAvailable() || mine == null || moveVisualMineMethod == null) {
+            return;
+        }
+        try {
+            moveVisualMineMethod.invoke(null, mine, x, y, z);
+        } catch (final Exception ignored) {
+        }
+    }
+
+    public static void removeVisualMine(final Object mine) {
+        ensureMineInitialized();
+        if (!isWfmMineAvailable() || mine == null || removeVisualMineMethod == null) {
+            return;
+        }
+        try {
+            removeVisualMineMethod.invoke(null, mine);
+        } catch (final Exception ignored) {
+        }
+    }
+
     public static boolean throwDwarfRangerNet(
             final ICustomNpc npc,
             final IEntityLiving target,
@@ -74,6 +136,36 @@ public final class WfmIntegration {
             }
             final Object result = throwNetMethod.invoke(null, thrower, targetEntity, inaccuracy);
             return result instanceof Boolean && (Boolean) result;
+        } catch (final Exception ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Летящая сеть в точку зоны (telegraph).
+     */
+    public static boolean throwNetTowardPoint(
+            final ICustomNpc npc,
+            final double x,
+            final double y,
+            final double z,
+            final float velocity,
+            final float inaccuracy) {
+        ensureNetInitialized();
+        if (!isWfmNetAvailable() || npc == null) {
+            return false;
+        }
+        try {
+            final LivingEntity thrower = toLivingEntity(npc);
+            if (thrower == null) {
+                return false;
+            }
+            if (throwNetTowardPointMethod != null) {
+                final Object result = throwNetTowardPointMethod.invoke(
+                        null, thrower, x, y, z, velocity, inaccuracy);
+                return result instanceof Boolean && (Boolean) result;
+            }
+            return false;
         } catch (final Exception ignored) {
             return false;
         }
@@ -374,6 +466,18 @@ public final class WfmIntegration {
                     LivingEntity.class,
                     float.class);
             try {
+                throwNetTowardPointMethod = helper.getMethod(
+                        THROW_NET_TOWARD_POINT_METHOD,
+                        LivingEntity.class,
+                        double.class,
+                        double.class,
+                        double.class,
+                        float.class,
+                        float.class);
+            } catch (final Exception ignored) {
+                throwNetTowardPointMethod = null;
+            }
+            try {
                 ensnareAroundPointMethod = helper.getMethod(
                         ENSNARE_AROUND_POINT_METHOD,
                         LivingEntity.class,
@@ -389,6 +493,7 @@ public final class WfmIntegration {
         } catch (final Exception e) {
             netAvailable = false;
             throwNetMethod = null;
+            throwNetTowardPointMethod = null;
             ensnareAroundPointMethod = null;
         }
     }
@@ -488,6 +593,36 @@ public final class WfmIntegration {
             performLeadbelcherShotToPointMethod = null;
             performLeadbelcherShotAtTargetMethod = null;
             performLeadbelcherArtilleryStrikeMethod = null;
+        }
+    }
+
+    private static void ensureMineInitialized() {
+        if (mineAvailable != null) {
+            return;
+        }
+        try {
+            final Class<?> helper = Class.forName(MINE_HELPER_CLASS);
+            spawnVisualMineMethod = helper.getMethod(
+                    SPAWN_VISUAL_MINE_METHOD,
+                    World.class,
+                    double.class,
+                    double.class,
+                    double.class);
+            moveVisualMineMethod = helper.getMethod(
+                    MOVE_VISUAL_MINE_METHOD,
+                    Entity.class,
+                    double.class,
+                    double.class,
+                    double.class);
+            removeVisualMineMethod = helper.getMethod(
+                    REMOVE_VISUAL_MINE_METHOD,
+                    Entity.class);
+            mineAvailable = true;
+        } catch (final Exception e) {
+            mineAvailable = false;
+            spawnVisualMineMethod = null;
+            moveVisualMineMethod = null;
+            removeVisualMineMethod = null;
         }
     }
 }

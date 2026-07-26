@@ -6,14 +6,16 @@
 WFM1.16.5/
 └── src/main/java/wfm/common/integration/customnpc/
     ├── CustomNpcNetHelper.java    # DwarfRangerNetEntity
-    └── CustomNpcGunHelper.java    # BulletEntity + equip pistol
+    ├── CustomNpcGunHelper.java    # BulletEntity + equip pistol
+    └── CustomNpcMineHelper.java   # visual GunMineEntity (no detonate)
 
 WFMCustomNPCPlus1.16.5/
 └── src/main/java/noppes/npcs/abilities/
     ├── integration/WfmIntegration.java
     └── impl/
         ├── NetThrowAbility.java
-        └── PistolShotAbility.java
+        ├── PistolShotAbility.java
+        └── WhFireBombAbility.java
 ```
 
 ## WfmIntegration API
@@ -22,12 +24,17 @@ WFMCustomNPCPlus1.16.5/
 |-------|------------|------------|
 | `isWfmNetAvailable()` | `CustomNpcNetHelper` | WFM в classpath |
 | `throwDwarfRangerNet(npc, target, inaccuracy)` | `throwDwarfRangerNet` | Бросок сети |
+| `ensnareAroundPoint(...)` | `ensnareAroundPoint` | AoE сеть |
 | `isWfmGunAvailable()` | `CustomNpcGunHelper` | WFM в classpath |
 | `equipPistolForShot(npc, gunItemId)` | `equipPistolForShot` | Пистолет в руке на charge |
 | `restorePistolEquipment(npc)` | `restoreEquipment` | Вернуть руки |
 | `performPistolShot(npc, target, gunItemId, inaccuracy, damage)` | `performPistolShot` | BulletEntity + GUN_LAUNCH |
+| `isWfmMineAvailable()` | `CustomNpcMineHelper` | WFM в classpath |
+| `spawnVisualMine(npc, x,y,z)` | `spawnVisualMine` | Модель мины без детонации |
+| `moveVisualMine(mine, x,y,z)` | `moveVisualMine` | Двигать visual mine |
+| `removeVisualMine(mine)` | `removeVisualMine` | Удалить visual mine |
 
-Все методы — **server-only**; на клиенте возвращают `false` / no-op.
+Все методы — **server-only**; на клиенте возвращают `false` / `null` / no-op.
 
 ## CustomNpcNetHelper
 
@@ -75,6 +82,17 @@ public static boolean performPistolShot(
 - Частицы: `ParticleTypes.POOF`.
 
 **gunItemId:** `"wfm:empire_pistol"` или `"empire_pistol"`.
+
+## CustomNpcMineHelper
+
+```java
+public static Entity spawnVisualMine(World world, double x, double y, double z)
+public static void moveVisualMine(Entity mine, double x, double y, double z)
+public static void removeVisualMine(Entity mine)
+```
+
+- Спавнит `GunMineEntity` **без** Player owner → нет детонации MineEnch.
+- Используется `wh_fire_bomb` для визуала летящей/лежащей бомбы.
 
 ## Шаблон нового хелпера
 

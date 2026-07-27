@@ -5,7 +5,7 @@
 ```
 noppes.npcs.abilities/
 ├── CnpcAbility.java          # интерфейс
-├── ActiveAbility.java        # runtime-состояние
+├── ActiveAbility.java        # runtime-состояние (+ meter)
 ├── AbilityContext.java       # npc, target, world, params
 ├── AbilityParams.java        # merge + getDouble/getInt
 ├── AbilityParamKeys.java     # ключи параметров
@@ -16,7 +16,10 @@ noppes.npcs.abilities/
 ├── AbilityCombatHelper.java  # бой, геометрия, земля
 ├── AbilityVfx.java           # партиклы
 ├── TickResult.java           # CONTINUE | FINISHED
-├── event/AbilityTickHandler.java  # ServerTickEvent END
+├── event/
+│   ├── AbilityTickHandler.java
+│   ├── ShieldBlockDamageHandler.java
+│   └── OtrodieCombatHandler.java   # front DR / vomit meter / devour
 └── impl/
     ├── DashAbility.java           # id: dash
     ├── JumpSlamAbility.java       # id: jump_slam
@@ -36,7 +39,11 @@ noppes.npcs.abilities/
     ├── WhFlamingStrikeAbility.java         # id: wh_flaming_strike
     ├── WhLungeAbility.java                 # id: wh_lunge
     ├── WhFlamingCrossbowAbility.java       # id: wh_flaming_crossbow
-    └── WhFireBombAbility.java              # id: wh_fire_bomb
+    ├── WhFireBombAbility.java              # id: wh_fire_bomb
+    ├── OtrodieHellVomitAbility.java        # id: otrodie_hell_vomit
+    ├── OtrodieFecalWaveAbility.java        # id: otrodie_fecal_wave
+    ├── OtrodieDevourDashAbility.java       # id: otrodie_devour_dash
+    └── OtrodieSpreadingFilthAbility.java   # id: otrodie_spreading_filth
 ```
 
 ## CnpcAbility — контракт
@@ -210,7 +217,14 @@ spawnMuzzleFlash(world, x, y, z)
 spawnHolySplash(world, x, y, z)
 spawnFireRing(world, x, y, z, radius)
 spawnNetTrail(world, x, y, z)
+// Отродье (nurgle_miasma + smoke/ash/witch)
+spawnOtrodieVomitStream(world, ox, oy, oz, dirX, dirY, dirZ, length, particlesCsv, countPerType)
+spawnOtrodieVomitCloud(world, x, y, z, particlesCsv, countPerType)
+spawnOtrodieFecalBurst(world, apexX, apexY, apexZ, yaw, halfAngleDeg, minDist, maxDist, particlesCsv, countPerType)
+spawnOtrodiePuddleSplash(world, x, y, z, radius, particlesCsv, countPerType)
 ```
+
+`ActiveAbility.meter` — общий float (урон в спину hell vomit, melee-хиты devour eat).
 
 ## AbilityRunner — условия отказа start()
 
@@ -296,6 +310,17 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 Навес партиклов → `ZoneAPI.hazardCircle`. JS: `scripts/utility/crimson_blob.js`.
 
+### `otrodie_*` — босс Отродье
+
+| id | Роль | Суть |
+|----|------|------|
+| `otrodie_hell_vomit` | cast | charge → continuous stream + moving red hazard; break по `meter`/`breakDamage` → force fecal_wave |
+| `otrodie_fecal_wave` | forced | rear truncated cone (yaw+180), poison+slowness |
+| `otrodie_devour_dash` | cast | line TG → dash grab → eat 5s; `hitCount` melee spit / `healOnFail` timeout |
+| `otrodie_spreading_filth` | reactive | зелёные лужи; основной путь `OtrodieSpreadingFilthAbility.trigger` (без AbilityRunner) |
+
+Дефолты — `AbilityDefaults.otrodie*()`. Ключи: `breakDamage`, `hitCount`, `healOnFail`, `zoneColor` (`0xC0FF3030` red / `0xC040A030` green). Пассивка DR — `OtrodieCombatHandler`. Полные params: `abilities-reference.md`. JS: `scripts/otrodie/otrodie_boss.js`.
+
 ### `wh_flaming_strike` — WhFlamingStrikeAbility
 
 | Ключ | Тип | Дефолт | Описание |
@@ -361,5 +386,6 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `scripts/drachenfels/drachenfels_boss.js` | Тело+дух, Immortal Bond revive, фазы 1/2/bond |
 | `scripts/utility/npc_shield_block.js` | Блок щитом: damaged → `shield_block` |
 | `scripts/utility/crimson_blob.js` | Навес сгустка → слепая лужа |
+| `scripts/otrodie/otrodie_boss.js` | Отродье: CD/forced chain + SpreadingFilth.trigger |
 
 После правки скрипта на NPC: `/script reload`.

@@ -519,4 +519,25 @@ public final class AbilityDefaults {
                 "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch");
         return map;
     }
+
+    public static Map<String, Object> otrodieSpreadingFilth() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.RADIUS, 4.0);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.6); // малые лужи
+        map.put(AbilityParamKeys.SPREAD_RADIUS, 4.5);
+        map.put(AbilityParamKeys.SUMMON_COUNT, 5);
+        map.put(AbilityParamKeys.ZONE_TICKS, 200);
+        map.put(AbilityParamKeys.DAMAGE, 3.0);
+        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC040A030);
+        map.put(AbilityParamKeys.EFFECT_ID, "minecraft:poison;minecraft:slowness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 60);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.PARTICLE_COUNT, 12);
+        map.put(AbilityParamKeys.BLOB_PARTICLES,
+                "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch");
+        map.put(AbilityParamKeys.LAND_PARTICLES,
+                "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch");
+        return map;
+    }
 }

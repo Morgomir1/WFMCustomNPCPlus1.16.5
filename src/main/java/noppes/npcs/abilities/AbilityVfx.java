@@ -630,6 +630,43 @@ public final class AbilityVfx {
                 particlesCsv, count);
     }
 
+    /** Splash лужи «Разлетающийся кал»: nurgle/smoke/ash кольцо + облако в центре. */
+    public static void spawnOtrodiePuddleSplash(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final String particlesCsv,
+            final int countPerType) {
+        if (world == null) {
+            return;
+        }
+        final String[] particles = parseParticles(particlesCsv, DEFAULT_OTRODIE_VOMIT_PARTICLES);
+        final int count = Math.max(1, Math.min(40, countPerType));
+        final double r = Math.max(0.8, radius);
+        final Random rnd = AbilityCombatHelper.random();
+
+        for (int i = 0; i < particles.length; i++) {
+            safeSpawn(world, particles[i], x, y, z,
+                    r * 0.4, 0.22, r * 0.4, 0.03, count);
+        }
+        spawnOtrodieVomitCloud(world, x, y + 0.15, z, particlesCsv, Math.max(6, count));
+
+        final int ringPoints = Math.max(6, (int) Math.ceil(r * 3.5));
+        for (int p = 0; p < ringPoints; p++) {
+            final double a = (Math.PI * 2.0 * p) / ringPoints + rnd.nextDouble() * 0.2;
+            final double dist = r * (0.45 + rnd.nextDouble() * 0.55);
+            final double px = x + Math.cos(a) * dist;
+            final double pz = z + Math.sin(a) * dist;
+            final double py = y + rnd.nextDouble() * 0.35;
+            for (int i = 0; i < Math.min(3, particles.length); i++) {
+                safeSpawn(world, particles[i], px, py, pz, 0.12, 0.18, 0.12, 0.02,
+                        Math.max(2, count / 4));
+            }
+        }
+    }
+
     /** Плотный сгусток (полёт). particlesCsv пустой → дефолтный набор crimson. */
     public static void spawnCrimsonBlob(
             final IWorld world,

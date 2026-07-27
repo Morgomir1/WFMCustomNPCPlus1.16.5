@@ -50,9 +50,11 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `otrodie_hell_vomit` | `OtrodieHellVomitAbility` | Струя + движущаяся red hazard; break по урону в спину → force fecal_wave |
 | `otrodie_fecal_wave` | `OtrodieFecalWaveAbility` | Усечённый конус назад (после vomit): урон + poison/slowness |
 | `otrodie_devour_dash` | `OtrodieDevourDashAbility` | Line TG → dash grab → eat 5s; 15 melee spit / timeout heal 200 |
+| `otrodie_spreading_filth` | `OtrodieSpreadingFilthAbility` | Зелёные лужи (крупная+малые); JS `trigger` по −200 HP / CD 20с |
 
 Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
 Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
+Оркестратор Отродья: `src/main/resources/scripts/otrodie/otrodie_boss.js`.
 
 ---
 
@@ -229,6 +231,22 @@ Yaw конуса = взгляд босса + 180 (атака в спину). С�
 | `telegraphColor` | int | `0xC0FF3030` | Красный ARGB |
 
 Фаза EAT (100 тиков): freeze+телепорт жертвы к пасти. Invuln + melee meter — `OtrodieCombatHandler`.
+
+### `otrodie_spreading_filth`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `radius` | double | 4.0 | Крупная лужа под боссом |
+| `hitRadius` | double | 1.6 | Радиус малых луж |
+| `spreadRadius` | double | 4.5 | Кольцо малых луж (clamp 3–6) |
+| `summonCount` | int | 5 | Число малых луж |
+| `zoneTicks` | int | 200 | Lifetime (10 с) |
+| `damage` / `damageInterval` | double / int | 3.0 / 10 | Урон hazard |
+| `zoneColor` | int | `0xC040A030` | Зелёный ARGB |
+| `effectId` | string | poison;slowness | Дебаффы зоны |
+| `particleCount` / `landParticles` | int / string | 12 / nurgle… | Puddle splash VFX |
+
+Основной путь: `OtrodieSpreadingFilthAbility.trigger(npc, params)` из JS (`otrodie_boss.js` damaged: −200 HP, CD 400 тиков). Не через AbilityRunner — не отменяет текущий каст. `AbilityAPI.start` делегирует в spawn и сразу FINISHED.
 
 **Кулдауны босса** — не в Java; хранятся в JS `storeddata`.
 

@@ -39,6 +39,9 @@ public final class ActiveAbility {
     public int savedWalkingSpeed = -1;
     public int savedRetaliateType = -1;
 
+    /** Shared combat meter (back-damage interrupt, melee hit count, etc.). */
+    public float meter;
+
     public ActiveAbility(
             final UUID npcUuid,
             final String abilityId,

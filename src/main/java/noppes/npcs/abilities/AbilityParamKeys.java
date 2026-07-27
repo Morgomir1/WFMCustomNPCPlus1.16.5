@@ -63,6 +63,10 @@ public final class AbilityParamKeys {
     public static final String MELEE_ITEM = "meleeItem";
     /** Item id оружия дальнего боя (арбалет). */
     public static final String RANGED_ITEM = "rangedItem";
+    /** Порог meter для прерывания абилки (напр. урон в спину). */
+    public static final String BREAK_DAMAGE = "breakDamage";
+    /** Порог melee-хитов для прерывания (напр. devour spit). */
+    public static final String HIT_COUNT = "hitCount";
 
     private AbilityParamKeys() {
     }

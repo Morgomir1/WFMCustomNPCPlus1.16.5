@@ -481,4 +481,24 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.MAX_RANGE, 28.0);
         return map;
     }
+
+    public static Map<String, Object> otrodieFecalWave() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 12.0); // maxDist усечённого конуса
+        map.put(AbilityParamKeys.HIT_RADIUS, 2.0); // minDist
+        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 55.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 24);
+        map.put(AbilityParamKeys.DAMAGE, 14.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.85);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
+        map.put(AbilityParamKeys.EFFECT_ID, "minecraft:poison;minecraft:slowness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 60);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.PARTICLE_COUNT, 12);
+        map.put(AbilityParamKeys.BLOB_PARTICLES,
+                "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch");
+        map.put(AbilityParamKeys.TELEGRAPH, 0); // truncated cone вручную
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
 }

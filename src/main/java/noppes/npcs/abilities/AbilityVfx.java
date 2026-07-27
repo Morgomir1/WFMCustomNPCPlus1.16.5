@@ -580,6 +580,56 @@ public final class AbilityVfx {
         }
     }
 
+    /** Burst по усечённому конусу (fecal wave): nurgle/ash облака вдоль сектора. */
+    public static void spawnOtrodieFecalBurst(
+            final IWorld world,
+            final double apexX,
+            final double apexY,
+            final double apexZ,
+            final float yaw,
+            final double halfAngleDeg,
+            final double minDist,
+            final double maxDist,
+            final String particlesCsv,
+            final int countPerType) {
+        if (world == null) {
+            return;
+        }
+        final String[] particles = parseParticles(particlesCsv, DEFAULT_OTRODIE_VOMIT_PARTICLES);
+        final int count = Math.max(1, Math.min(24, countPerType));
+        final Random r = AbilityCombatHelper.random();
+        final double rad = (yaw + 90.0) * 0.0174532925;
+        final double fwdX = Math.cos(rad);
+        final double fwdZ = Math.sin(rad);
+        final double halfRad = Math.toRadians(Math.max(5.0, halfAngleDeg));
+        final int rings = Math.max(3, (int) Math.ceil((maxDist - minDist) / 1.6));
+        final int rays = Math.max(5, (int) Math.ceil(halfAngleDeg / 8.0) * 2 + 1);
+
+        for (int ring = 0; ring <= rings; ring++) {
+            final double t = ring / (double) rings;
+            final double dist = minDist + (maxDist - minDist) * t;
+            for (int ray = 0; ray < rays; ray++) {
+                final double a = -halfRad + (2.0 * halfRad) * (ray / (double) Math.max(1, rays - 1));
+                final double cosA = Math.cos(a);
+                final double sinA = Math.sin(a);
+                final double dx = fwdX * cosA - fwdZ * sinA;
+                final double dz = fwdZ * cosA + fwdX * sinA;
+                final double px = apexX + dx * dist + (r.nextDouble() - 0.5) * 0.35;
+                final double py = apexY + 0.35 + (r.nextDouble() - 0.5) * 0.4;
+                final double pz = apexZ + dz * dist + (r.nextDouble() - 0.5) * 0.35;
+                for (int i = 0; i < particles.length; i++) {
+                    safeSpawn(world, particles[i], px, py, pz, 0.22, 0.18, 0.22, 0.03,
+                            Math.max(2, count / 3));
+                }
+            }
+        }
+        // Плотное облако у босса / у дальнего края
+        spawnOtrodieVomitCloud(world, apexX + fwdX * minDist, apexY + 0.5, apexZ + fwdZ * minDist,
+                particlesCsv, count);
+        spawnOtrodieVomitCloud(world, apexX + fwdX * maxDist, apexY + 0.45, apexZ + fwdZ * maxDist,
+                particlesCsv, count);
+    }
+
     /** Плотный сгусток (полёт). particlesCsv пустой → дефолтный набор crimson. */
     public static void spawnCrimsonBlob(
             final IWorld world,

@@ -48,6 +48,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
 | `crimson_blob` | `CrimsonBlobAbility` | Навес сгустка → hazard-зона слепоты + MAGIC DPS |
 | `otrodie_hell_vomit` | `OtrodieHellVomitAbility` | Струя + движущаяся red hazard; break по урону в спину → force fecal_wave |
+| `otrodie_fecal_wave` | `OtrodieFecalWaveAbility` | Усечённый конус назад (после vomit): урон + poison/slowness |
 
 Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
 Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
@@ -196,6 +197,23 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `maxRange` | double | 28.0 | Макс. дальность каста |
 
 onEnd пишет `storeddata ot_forced_ability=otrodie_fecal_wave`. Прерывание — `OtrodieCombatHandler` + `ActiveAbility.meter`.
+
+### `otrodie_fecal_wave`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 24 | Charge + red truncated cone telegraph |
+| `hitRadius` | double | 2.0 | minDist усечённого конуса |
+| `distance` | double | 12.0 | maxDist конуса |
+| `coneHalfAngle` | double | 55.0 | Полуугол сектора |
+| `damage` | double | 14.0 | Burst-урон |
+| `knockback` / `knockbackY` | double | 0.85 / 0.25 | Отбрасывание назад по конусу |
+| `effectId` | string | poison;slowness | Дебаффы через `;` |
+| `effectDuration` / `effectAmplifier` | int | 60 / 0 | Длительность/уровень |
+| `telegraphColor` | int | `0xC0FF3030` | Красный ARGB |
+| `particleCount` / `blobParticles` | int / string | 12 / nurgle… | Burst VFX |
+
+Yaw конуса = взгляд босса + 180 (атака в спину). Старт обычно forced после `otrodie_hell_vomit`.
 
 **Кулдауны босса** — не в Java; хранятся в JS `storeddata`.
 

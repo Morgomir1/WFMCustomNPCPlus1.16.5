@@ -501,4 +501,22 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
+
+    public static Map<String, Object> otrodieDevourDash() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 14.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 24);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 8);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.6);
+        map.put(AbilityParamKeys.HIT_COUNT, 15);
+        map.put(AbilityParamKeys.HEAL_ON_FAIL, 200.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.6);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.45);
+        map.put(AbilityParamKeys.TELEGRAPH, 0); // line вручную (width = hitRadius*2)
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.PARTICLE_COUNT, 12);
+        map.put(AbilityParamKeys.BLOB_PARTICLES,
+                "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch");
+        return map;
+    }
 }

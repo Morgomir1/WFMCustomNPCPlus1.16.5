@@ -67,6 +67,8 @@ public final class AbilityParamKeys {
     public static final String BREAK_DAMAGE = "breakDamage";
     /** Порог melee-хитов для прерывания (напр. devour spit). */
     public static final String HIT_COUNT = "hitCount";
+    /** Хилл при timeout фазы еды (без прерывания melee). */
+    public static final String HEAL_ON_FAIL = "healOnFail";
 
     private AbilityParamKeys() {
     }

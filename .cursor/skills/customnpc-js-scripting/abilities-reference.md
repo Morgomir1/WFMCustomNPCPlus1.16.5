@@ -49,6 +49,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `crimson_blob` | `CrimsonBlobAbility` | Навес сгустка → hazard-зона слепоты + MAGIC DPS |
 | `otrodie_hell_vomit` | `OtrodieHellVomitAbility` | Струя + движущаяся red hazard; break по урону в спину → force fecal_wave |
 | `otrodie_fecal_wave` | `OtrodieFecalWaveAbility` | Усечённый конус назад (после vomit): урон + poison/slowness |
+| `otrodie_devour_dash` | `OtrodieDevourDashAbility` | Line TG → dash grab → eat 5s; 15 melee spit / timeout heal 200 |
 
 Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
 Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
@@ -214,6 +215,20 @@ onEnd пишет `storeddata ot_forced_ability=otrodie_fecal_wave`. Прерыв
 | `particleCount` / `blobParticles` | int / string | 12 / nurgle… | Burst VFX |
 
 Yaw конуса = взгляд босса + 180 (атака в спину). Старт обычно forced после `otrodie_hell_vomit`.
+
+### `otrodie_devour_dash`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `distance` | double | 14.0 | Длина рывка / line telegraph |
+| `chargeTicks` / `activeTicks` | int | 24 / 8 | Charge + dash |
+| `hitRadius` | double | 1.6 | Half-width коридора; TG width = `hitRadius*2` |
+| `hitCount` | int | 15 | Melee-хиты для spit без хила |
+| `healOnFail` | double | 200.0 | Хилл босса при timeout eat |
+| `knockback` / `knockbackY` | double | 1.6 / 0.45 | Spit вперёд |
+| `telegraphColor` | int | `0xC0FF3030` | Красный ARGB |
+
+Фаза EAT (100 тиков): freeze+телепорт жертвы к пасти. Invuln + melee meter — `OtrodieCombatHandler`.
 
 **Кулдауны босса** — не в Java; хранятся в JS `storeddata`.
 

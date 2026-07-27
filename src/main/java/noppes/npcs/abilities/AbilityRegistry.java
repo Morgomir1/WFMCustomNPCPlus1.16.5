@@ -44,6 +44,7 @@ public final class AbilityRegistry {
         register(new WhFireBombAbility());
         register(new OtrodieHellVomitAbility());
         register(new OtrodieFecalWaveAbility());
+        register(new OtrodieDevourDashAbility());
     }
 
     private AbilityRegistry() {

@@ -37,7 +37,7 @@ public final class OtrodieHellVomitAbility implements CnpcAbility {
     private static final String DEFAULT_EFFECT =
             "minecraft:poison;minecraft:slowness";
     private static final double ZONE_SPAWN_OFFSET = 6.0;
-    private static final double ZONE_APPROACH_SPEED = 0.15;
+    private static final double ZONE_APPROACH_SPEED = 0.225; // 0.15 * 1.5
     private static final double MOUTH_FORWARD = 0.55;
     private static final double MOUTH_Y = 1.35;
 
@@ -79,6 +79,7 @@ public final class OtrodieHellVomitAbility implements CnpcAbility {
                 AbilityParamKeys.BREAK_DAMAGE,
                 AbilityParamKeys.PARTICLE_COUNT,
                 AbilityParamKeys.BLOB_PARTICLES,
+                AbilityParamKeys.ARC_HEIGHT,
                 AbilityParamKeys.TELEGRAPH,
                 AbilityParamKeys.TELEGRAPH_COLOR,
                 AbilityParamKeys.MAX_RANGE);
@@ -228,7 +229,7 @@ public final class OtrodieHellVomitAbility implements CnpcAbility {
     private void spawnHazardZone(final ActiveAbility active, final AbilityContext ctx) {
         clearZone(active, ctx);
 
-        final double radius = ctx.params.getDouble(AbilityParamKeys.RADIUS, 2.5);
+        final double radius = ctx.params.getDouble(AbilityParamKeys.RADIUS, 3.5);
         final int zoneTicks = ctx.params.getInt(AbilityParamKeys.ZONE_TICKS,
                 ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 280) + 20);
         final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 3.0);
@@ -288,33 +289,28 @@ public final class OtrodieHellVomitAbility implements CnpcAbility {
         final double oy = ctx.npc.getY() + MOUTH_Y;
         final double oz = ctx.npc.getZ() + fwdZ * MOUTH_FORWARD;
 
-        double aimX = active.ex - ox;
-        double aimY = (active.ey + 0.6) - oy;
-        double aimZ = active.ez - oz;
-        if (ctx.target != null && ctx.target.isAlive()) {
-            aimX = ctx.target.getX() - ox;
-            aimY = (ctx.target.getY() + 0.9) - oy;
-            aimZ = ctx.target.getZ() - oz;
-        }
-        final double len = Math.sqrt(aimX * aimX + aimY * aimY + aimZ * aimZ);
-        if (len < 0.05) {
-            aimX = fwdX;
-            aimY = 0.0;
-            aimZ = fwdZ;
-        } else {
-            aimX /= len;
-            aimY /= len;
-            aimZ /= len;
+        // Impact = moving hazard zone (or target feet) — lob like crimson_blob.
+        double ex = active.ex;
+        double ey = active.ey + 0.35;
+        double ez = active.ez;
+        final EntityAbilityZone zone = resolveZone(active, ctx);
+        if (zone != null) {
+            ex = zone.getX();
+            ey = zone.getY() + 0.35;
+            ez = zone.getZ();
+        } else if (ctx.target != null && ctx.target.isAlive()) {
+            ex = ctx.target.getX();
+            ey = ctx.target.getY() + 0.2;
+            ez = ctx.target.getZ();
         }
 
         final String particles = ctx.params.getString(AbilityParamKeys.BLOB_PARTICLES, "");
         final int count = ctx.params.getInt(AbilityParamKeys.PARTICLE_COUNT, 12);
-        final double streamLen = Math.min(14.0, Math.max(4.0, len));
+        final double arcHeight = ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 5.0);
 
         AbilityVfx.spawnOtrodieVomitStream(
-                ctx.world, ox, oy, oz, aimX, aimY, aimZ, streamLen, particles, count);
+                ctx.world, ox, oy, oz, ex, ey, ez, arcHeight, particles, count);
 
-        final EntityAbilityZone zone = resolveZone(active, ctx);
         if (zone != null) {
             AbilityVfx.spawnOtrodieVomitCloud(
                     ctx.world, zone.getX(), zone.getY() + 0.4, zone.getZ(), particles, count);

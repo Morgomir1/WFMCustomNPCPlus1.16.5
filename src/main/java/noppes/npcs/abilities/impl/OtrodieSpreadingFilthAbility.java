@@ -25,7 +25,7 @@ import java.util.Set;
 public final class OtrodieSpreadingFilthAbility implements CnpcAbility {
     public static final String ID = "otrodie_spreading_filth";
 
-    private static final int DEFAULT_ZONE_COLOR = 0xC040A030;
+    private static final int DEFAULT_ZONE_COLOR = 0xC0B8FF00;
     private static final String DEFAULT_EFFECT = "minecraft:poison;minecraft:slowness";
     private static final String DEFAULT_PARTICLES =
             "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch";

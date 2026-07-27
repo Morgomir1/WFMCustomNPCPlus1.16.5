@@ -507,17 +507,19 @@ public final class AbilityVfx {
     };
 
     /**
-     * Continuous vomit stream: directed particles from mouth (count=0) + dense clouds along the ray.
+     * Continuous vomit stream along a lobbed arc (same math as {@code crimson_blob}):
+     * lerp XZ/Y + {@code arcHeight * 4 * t * (1 - t)}. Dense clouds along the path +
+     * mouth burst with tangent velocity at t≈0.
      */
     public static void spawnOtrodieVomitStream(
             final IWorld world,
-            final double ox,
-            final double oy,
-            final double oz,
-            final double dirX,
-            final double dirY,
-            final double dirZ,
-            final double length,
+            final double sx,
+            final double sy,
+            final double sz,
+            final double ex,
+            final double ey,
+            final double ez,
+            final double arcHeight,
             final String particlesCsv,
             final int countPerType) {
         if (world == null) {
@@ -526,40 +528,50 @@ public final class AbilityVfx {
         final String[] particles = parseParticles(particlesCsv, DEFAULT_OTRODIE_VOMIT_PARTICLES);
         final int count = Math.max(1, Math.min(24, countPerType));
         final Random r = AbilityCombatHelper.random();
-        final double len = Math.max(2.0, length);
+        final double dx = ex - sx;
+        final double dy = ey - sy;
+        final double dz = ez - sz;
+        final double flat = Math.sqrt(dx * dx + dz * dz);
+        final double arc = Math.max(0.5, arcHeight);
+        final int samples = Math.max(4, (int) Math.ceil(Math.max(flat, 2.0) / 1.2));
 
-        // Directed burst from mouth (warpfire-style: count=0 → velocity = dx*speed).
+        // Mouth burst: tangent at t=0 → upward lob toward impact.
+        double tvx = dx;
+        double tvy = dy + 4.0 * arc;
+        double tvz = dz;
+        final double tlen = Math.sqrt(tvx * tvx + tvy * tvy + tvz * tvz);
+        if (tlen > 0.05) {
+            tvx /= tlen;
+            tvy /= tlen;
+            tvz /= tlen;
+        } else {
+            tvx = 0.0;
+            tvy = 1.0;
+            tvz = 0.0;
+        }
         for (int i = 0; i < particles.length; i++) {
             for (int n = 0; n < Math.max(3, count / 2); n++) {
                 final double jx = (r.nextDouble() - 0.5) * 0.22;
                 final double jy = (r.nextDouble() - 0.5) * 0.18;
                 final double jz = (r.nextDouble() - 0.5) * 0.22;
-                final double yawOff = (r.nextDouble() - 0.5) * 0.35;
-                final double pitchOff = (r.nextDouble() - 0.35) * 0.25;
+                final double yawOff = (r.nextDouble() - 0.5) * 0.28;
                 final double cosY = Math.cos(yawOff);
                 final double sinY = Math.sin(yawOff);
-                // Approximate horizontal swing around aim dir.
-                double vx = dirX * cosY - dirZ * sinY;
-                double vz = dirZ * cosY + dirX * sinY;
-                double vy = dirY + pitchOff;
-                final double flat = Math.sqrt(vx * vx + vz * vz);
-                if (flat > 0.001) {
-                    final double cosP = Math.cos(pitchOff);
-                    vx = (vx / flat) * cosP;
-                    vz = (vz / flat) * cosP;
-                }
-                final double speed = 0.35 + r.nextDouble() * 0.45;
-                safeSpawn(world, particles[i], ox + jx, oy + jy, oz + jz, vx, vy, vz, speed, 0);
+                final double vx = tvx * cosY - tvz * sinY;
+                final double vz = tvz * cosY + tvx * sinY;
+                final double vy = tvy + (r.nextDouble() - 0.35) * 0.2;
+                final double speed = 0.55 + r.nextDouble() * 0.55;
+                safeSpawn(world, particles[i], sx + jx, sy + jy, sz + jz, vx, vy, vz, speed, 0);
             }
         }
 
-        // Dense cloud samples along the stream toward the hazard.
-        final int samples = Math.max(3, (int) Math.ceil(len / 1.4));
-        for (int s = 1; s <= samples; s++) {
+        // Dense cloud samples along the parabolic arc (crimson_blob flight path).
+        for (int s = 0; s <= samples; s++) {
             final double t = s / (double) samples;
-            final double px = ox + dirX * len * t + (r.nextDouble() - 0.5) * 0.35;
-            final double py = oy + dirY * len * t + (r.nextDouble() - 0.5) * 0.25;
-            final double pz = oz + dirZ * len * t + (r.nextDouble() - 0.5) * 0.35;
+            final double px = sx + dx * t + (r.nextDouble() - 0.5) * 0.28;
+            final double pz = sz + dz * t + (r.nextDouble() - 0.5) * 0.28;
+            final double baseY = sy + dy * t;
+            final double py = baseY + arc * 4.0 * t * (1.0 - t) + (r.nextDouble() - 0.5) * 0.2;
             spawnOtrodieVomitCloud(world, px, py, pz, particlesCsv, Math.max(4, count / 2));
         }
     }

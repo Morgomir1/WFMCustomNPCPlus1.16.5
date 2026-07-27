@@ -465,7 +465,7 @@ public final class AbilityDefaults {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.CHARGE_TICKS, 28);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 280);
-        map.put(AbilityParamKeys.RADIUS, 2.5);
+        map.put(AbilityParamKeys.RADIUS, 3.5);
         map.put(AbilityParamKeys.DAMAGE, 3.0);
         map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
         map.put(AbilityParamKeys.ZONE_TICKS, 300);
@@ -478,6 +478,7 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.PARTICLE_COUNT, 12);
         map.put(AbilityParamKeys.BLOB_PARTICLES,
                 "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch");
+        map.put(AbilityParamKeys.ARC_HEIGHT, 5.0); // как crimson_blob — навес
         map.put(AbilityParamKeys.MAX_RANGE, 28.0);
         return map;
     }
@@ -522,14 +523,14 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> otrodieSpreadingFilth() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.RADIUS, 4.0);
-        map.put(AbilityParamKeys.HIT_RADIUS, 1.6); // малые лужи
+        map.put(AbilityParamKeys.RADIUS, 5.0);
+        map.put(AbilityParamKeys.HIT_RADIUS, 2.6); // малые лужи
         map.put(AbilityParamKeys.SPREAD_RADIUS, 4.5);
         map.put(AbilityParamKeys.SUMMON_COUNT, 5);
         map.put(AbilityParamKeys.ZONE_TICKS, 200);
         map.put(AbilityParamKeys.DAMAGE, 3.0);
         map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
-        map.put(AbilityParamKeys.ZONE_COLOR, 0xC040A030);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0B8FF00); // ярко-зелёный кислотный
         map.put(AbilityParamKeys.EFFECT_ID, "minecraft:poison;minecraft:slowness");
         map.put(AbilityParamKeys.EFFECT_DURATION, 60);
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);

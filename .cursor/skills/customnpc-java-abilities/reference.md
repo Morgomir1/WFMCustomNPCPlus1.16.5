@@ -218,7 +218,9 @@ spawnHolySplash(world, x, y, z)
 spawnFireRing(world, x, y, z, radius)
 spawnNetTrail(world, x, y, z)
 // Отродье (nurgle_miasma + smoke/ash/witch)
-spawnOtrodieVomitStream(world, ox, oy, oz, dirX, dirY, dirZ, length, particlesCsv, countPerType)
+spawnOtrodieVomitStream(world, sx, sy, sz, ex, ey, ez, arcHeight, particlesCsv, countPerType)
+// Навес как crimson_blob: lerp + arcHeight*4*t*(1-t); облака вдоль дуги + mouth burst по касательной
+
 spawnOtrodieVomitCloud(world, x, y, z, particlesCsv, countPerType)
 spawnOtrodieFecalBurst(world, apexX, apexY, apexZ, yaw, halfAngleDeg, minDist, maxDist, particlesCsv, countPerType)
 spawnOtrodiePuddleSplash(world, x, y, z, radius, particlesCsv, countPerType)

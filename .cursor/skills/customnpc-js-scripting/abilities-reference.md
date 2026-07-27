@@ -196,10 +196,11 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `zoneColor` / `telegraphColor` | int | `0xC0FF3030` | Красный ARGB |
 | `effectId` | string | poison;slowness | Дебаффы зоны |
 | `breakDamage` | double | 100.0 | Урон в спину для прерывания |
-| `particleCount` / `blobParticles` | int / string | 12 / nurgle… | Струя VFX |
+| `arcHeight` | double | 5.0 | Высота навеса струи (как `crimson_blob`) |
+| `particleCount` / `blobParticles` | int / string | 12 / nurgle… | Струя VFX по дуге |
 | `maxRange` | double | 28.0 | Макс. дальность каста |
 
-onEnd пишет `storeddata ot_forced_ability=otrodie_fecal_wave`. Прерывание — `OtrodieCombatHandler` + `ActiveAbility.meter`.
+Струя семплируется по параболе `baseY + arcHeight * 4 * t * (1-t)` от рта к hazard-зоне. onEnd пишет `storeddata ot_forced_ability=otrodie_fecal_wave`. Прерывание — `OtrodieCombatHandler` + `ActiveAbility.meter`.
 
 ### `otrodie_fecal_wave`
 

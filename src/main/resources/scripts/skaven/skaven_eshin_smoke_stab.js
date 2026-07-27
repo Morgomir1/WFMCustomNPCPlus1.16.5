@@ -28,6 +28,9 @@ var COOLDOWN_TICKS = 160;         // 8 секунд
 var RANGE = 8.0;
 var CHARGE_TICKS = 20;            // 1 секунда
 var BACK_OFFSET = 1.8;
+var BACK_MIN_OFFSET = 0.6;        // ближе к цели, если за спиной стена
+var BACK_CLIP_STEP = 0.25;
+var BACK_MAX_Y_DELTA = 2.0;       // не прыгать/падать слишком сильно при поиске пола
 var STUN_TICKS = 20;              // 1 секунда WFM stun
 var STUN_EFFECT_ID = "wfm:stun";
 var STUN_SOUND = "wfm:enchantment.pommel_strike_stun";
@@ -210,11 +213,12 @@ function tryRevengeChaseTeleport(npc, world) {
 
 function teleportBehind(npc, target, world, withAttack) {
     var yaw = Number(target.getRotation());
-    var rad = yaw * Math.PI / 180.0;
-    // За спиной: opposite of look vector (-sin, cos)
-    var bx = target.getX() + Math.sin(rad) * BACK_OFFSET;
-    var bz = target.getZ() - Math.cos(rad) * BACK_OFFSET;
-    var by = target.getY();
+    var pos = findSafeBehindPos(npc, target, world);
+    if (pos == null) return false;
+
+    var bx = pos.x;
+    var by = pos.y;
+    var bz = pos.z;
 
     teleportNpc(npc, bx, by, bz, yaw);
 
@@ -231,6 +235,175 @@ function teleportBehind(npc, target, world, withAttack) {
         world.spawnParticle("minecraft:poof", bx, by + 0.5, bz, 0.2, 0.1, 0.2, 0.02, 10);
         world.playSoundAt(NpcAPI.getIPos(bx, by, bz), "minecraft:entity.enderman.teleport", 0.6, 1.6);
     } catch (err2) {}
+    return true;
+}
+
+/**
+ * Ищет точку за спиной цели: клип по стенам + noCollision хитбокса NPC.
+ * Возвращает {x,y,z} или null, если безопасной точки нет.
+ */
+function findSafeBehindPos(npc, target, world) {
+    var yaw = Number(target.getRotation());
+    var rad = yaw * Math.PI / 180.0;
+    // За спиной: opposite of look vector
+    var dirX = Math.sin(rad);
+    var dirZ = -Math.cos(rad);
+    var tx = target.getX();
+    var ty = target.getY();
+    var tz = target.getZ();
+    var eyeY = ty + getEntityEyeHeight(target, 1.0);
+
+    var best = null;
+    var dist = BACK_MIN_OFFSET;
+    while (dist <= BACK_OFFSET + 0.001) {
+        var x = tx + dirX * dist;
+        var z = tz + dirZ * dist;
+        var y = resolveStandY(world, x, z, ty);
+        if (y == null || Math.abs(y - ty) > BACK_MAX_Y_DELTA) {
+            break;
+        }
+        if (!canNpcOccupy(npc, world, x, y, z)) {
+            break;
+        }
+        // Стена между целью и точкой = «за стену» — дальше не идём
+        if (!hasClearLine(npc, tx, eyeY, tz, x, y + getEntityEyeHeight(npc, 1.0), z)) {
+            break;
+        }
+        best = { x: x, y: y, z: z };
+        dist += BACK_CLIP_STEP;
+    }
+    return best;
+}
+
+function resolveStandY(world, x, z, preferY) {
+    try {
+        return AbilityCombatHelper.findGroundY(world, x, z, preferY);
+    } catch (err) {
+        return preferY;
+    }
+}
+
+function getEntityEyeHeight(entity, fallback) {
+    try {
+        var mc = entity.getMCEntity();
+        if (mc != null && typeof mc.getEyeHeight == "function") {
+            return mc.getEyeHeight();
+        }
+        if (mc != null && typeof mc.getBbHeight == "function") {
+            return mc.getBbHeight() * 0.85;
+        }
+    } catch (err) {}
+    return fallback;
+}
+
+function canNpcOccupy(npc, world, x, y, z) {
+    try {
+        var mc = npc.getMCEntity();
+        if (mc != null && mc.level != null) {
+            var moved = mc.getBoundingBox().move(
+                x - mc.getX(),
+                y - mc.getY(),
+                z - mc.getZ()
+            );
+            return mc.level.noCollision(mc, moved);
+        }
+    } catch (err) {}
+    return canStandAtBlocks(world, x, y, z);
+}
+
+function canStandAtBlocks(world, x, y, z) {
+    try {
+        var footY = Math.floor(y);
+        var fx = Math.floor(x);
+        var fz = Math.floor(z);
+        if (!isSolidBlockName(world.getBlock(fx, footY - 1, fz))) return false;
+        if (isSolidBlockName(world.getBlock(fx, footY, fz))) return false;
+        if (isSolidBlockName(world.getBlock(fx, footY + 1, fz))) return false;
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
+
+function isSolidBlockName(block) {
+    if (block == null) return false;
+    var name = "";
+    try { name = String(block.getName()); } catch (err) { return true; }
+    if (name == "minecraft:air" || name == "minecraft:cave_air" || name == "minecraft:void_air") {
+        return false;
+    }
+    // Явные полы — solid
+    if (name.indexOf("grass_block") >= 0 || name.indexOf("grass_path") >= 0
+        || name.indexOf("snow_block") >= 0 || name.indexOf("mycelium") >= 0
+        || name.indexOf("podzol") >= 0) {
+        return true;
+    }
+    // Типичный passable
+    if (name.indexOf("tall_grass") >= 0 || name.indexOf("fern") >= 0
+        || name.indexOf("flower") >= 0 || name.indexOf("torch") >= 0
+        || name.indexOf("carpet") >= 0 || name == "minecraft:snow"
+        || name.indexOf("button") >= 0 || name.indexOf("pressure_plate") >= 0
+        || name.indexOf("sign") >= 0 || name.indexOf("banner") >= 0
+        || name.indexOf("rail") >= 0 || name.indexOf("sapling") >= 0
+        || name.indexOf("mushroom") >= 0 || name.indexOf("vine") >= 0
+        || name.indexOf("ladder") >= 0 || name.indexOf("sugar_cane") >= 0
+        || name.indexOf("web") >= 0 || name.indexOf("fire") >= 0) {
+        return false;
+    }
+    return true;
+}
+
+/** Raycast COLLIDER: есть ли стена между двумя точками. */
+function hasClearLine(npc, x0, y0, z0, x1, y1, z1) {
+    try {
+        var mc = npc.getMCEntity();
+        if (mc == null || mc.level == null) return hasClearLineBlocks(npc.getWorld(), x0, y0, z0, x1, y1, z1);
+
+        var RayTraceContext = Java.type("net.minecraft.world.RayTraceContext");
+        var Vector3d = Java.type("net.minecraft.util.math.vector.Vector3d");
+        var RayTraceResult = Java.type("net.minecraft.util.math.RayTraceResult");
+
+        var from = new Vector3d(x0, y0, z0);
+        var to = new Vector3d(x1, y1, z1);
+        var ctx = new RayTraceContext(
+            from, to,
+            RayTraceContext.BlockMode.COLLIDER,
+            RayTraceContext.FluidMode.NONE,
+            mc
+        );
+        var result = mc.level.clip(ctx);
+        if (result == null || result.getType() == RayTraceResult.Type.MISS) return true;
+
+        var hit = result.getLocation();
+        var dx = hit.x - x1;
+        var dy = hit.y - y1;
+        var dz = hit.z - z1;
+        // Попадание почти в точку назначения — ок (пол/край)
+        return (dx * dx + dy * dy + dz * dz) < 0.36;
+    } catch (err) {
+        try {
+            return hasClearLineBlocks(npc.getWorld(), x0, y0, z0, x1, y1, z1);
+        } catch (err2) {
+            return false;
+        }
+    }
+}
+
+function hasClearLineBlocks(world, x0, y0, z0, x1, y1, z1) {
+    var dx = x1 - x0;
+    var dy = y1 - y0;
+    var dz = z1 - z0;
+    var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (dist < 0.01) return true;
+    var steps = Math.max(2, Math.ceil(dist / 0.25));
+    for (var i = 1; i < steps; i++) {
+        var t = i / steps;
+        var bx = Math.floor(x0 + dx * t);
+        var by = Math.floor(y0 + dy * t);
+        var bz = Math.floor(z0 + dz * t);
+        if (isSolidBlockName(world.getBlock(bx, by, bz))) return false;
+    }
+    return true;
 }
 
 function teleportNpc(npc, x, y, z, yaw) {
@@ -365,11 +538,16 @@ function performStab(npc, world, data) {
         return;
     }
 
-    teleportBehind(npc, target, world, true);
-
     var now = world.getTotalTime();
-    data.put(CD_KEY, String(now + COOLDOWN_TICKS));
+    var teleported = teleportBehind(npc, target, world, true);
     clearChargeState(data);
+    if (!teleported) {
+        // За спиной стена / нет места — без CD, чтобы можно было повторить
+        applyRevengeMode(npc, data, now, false);
+        return;
+    }
+
+    data.put(CD_KEY, String(now + COOLDOWN_TICKS));
     applyRevengeMode(npc, data, now, true);
 }
 

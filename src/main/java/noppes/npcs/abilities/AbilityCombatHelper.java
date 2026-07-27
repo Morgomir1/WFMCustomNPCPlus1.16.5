@@ -33,6 +33,9 @@ public final class AbilityCombatHelper {
     private static final double MIN_DASH_DISTANCE = 0.5;
     /** Dash may step onto / phase through obstacles up to this height. */
     private static final double DASH_MAX_STEP = 1.05;
+    private static final double JUMP_CLIP_STEP = 0.25;
+    private static final double JUMP_WALL_MARGIN = 0.35;
+    private static final double JUMP_HIT_EPSILON = 0.08;
 
     private AbilityCombatHelper() {
     }
@@ -807,7 +810,110 @@ public final class AbilityCombatHelper {
             active.ez = tz;
         }
         active.ey = findGroundY(ctx.world, active.ex, active.ez, ty);
-        return true;
+        return clipJumpLanding(active, ctx);
+    }
+
+    /**
+     * Point on the jump arc at {@code progress} (0..1), clipped so the NPC never
+     * occupies solid blocks. If the intended point is blocked, returns the last
+     * free point along the same arc.
+     */
+    public static double[] resolveJumpPointAtProgress(
+            final AbilityContext ctx,
+            final double sx,
+            final double sy,
+            final double sz,
+            final double ex,
+            final double ey,
+            final double ez,
+            final double arcHeight,
+            final double progress) {
+        final double t = Math.max(0.0, Math.min(1.0, progress));
+        final double[] intended = jumpPointAt(sx, sy, sz, ex, ey, ez, arcHeight, t);
+        if (canNpcOccupy(ctx, intended[0], intended[1], intended[2])) {
+            return intended;
+        }
+
+        double low = 0.0;
+        double high = t;
+        double[] best = new double[]{sx, sy, sz};
+        for (int i = 0; i < 10; i++) {
+            final double mid = (low + high) * 0.5;
+            final double[] midPoint = jumpPointAt(sx, sy, sz, ex, ey, ez, arcHeight, mid);
+            if (canNpcOccupy(ctx, midPoint[0], midPoint[1], midPoint[2])) {
+                low = mid;
+                best = midPoint;
+            } else {
+                high = mid;
+            }
+        }
+        return best;
+    }
+
+    public static boolean isJumpPointBlocked(
+            final double[] resolved,
+            final double[] intended) {
+        if (resolved == null || intended == null || resolved.length < 3 || intended.length < 3) {
+            return false;
+        }
+        return Math.abs(resolved[0] - intended[0]) > JUMP_HIT_EPSILON
+                || Math.abs(resolved[1] - intended[1]) > JUMP_HIT_EPSILON
+                || Math.abs(resolved[2] - intended[2]) > JUMP_HIT_EPSILON;
+    }
+
+    private static double[] jumpPointAt(
+            final double sx,
+            final double sy,
+            final double sz,
+            final double ex,
+            final double ey,
+            final double ez,
+            final double arcHeight,
+            final double t) {
+        final double cx = sx + (ex - sx) * t;
+        final double cz = sz + (ez - sz) * t;
+        final double baseY = sy + (ey - sy) * t;
+        final double cy = baseY + Math.sin(t * Math.PI) * arcHeight;
+        return new double[]{cx, cy, cz};
+    }
+
+    /**
+     * Pull landing XZ back toward start until the NPC can stand there (no walls).
+     * Does not require a clear ground path — the arc may clear obstacles mid-flight.
+     */
+    private static boolean clipJumpLanding(final ActiveAbility active, final AbilityContext ctx) {
+        final double dx = active.ex - active.sx;
+        final double dz = active.ez - active.sz;
+        final double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.05) {
+            return false;
+        }
+        final double dirX = dx / len;
+        final double dirZ = dz / len;
+
+        double distance = len;
+        while (distance >= MIN_DASH_DISTANCE) {
+            final double x = active.sx + dirX * distance;
+            final double z = active.sz + dirZ * distance;
+            final double y = findGroundY(ctx.world, x, z, active.sy);
+            if (canNpcOccupy(ctx, x, y, z)) {
+                if (distance < len) {
+                    distance = Math.max(MIN_DASH_DISTANCE, distance - JUMP_WALL_MARGIN);
+                    active.ex = active.sx + dirX * distance;
+                    active.ez = active.sz + dirZ * distance;
+                    active.ey = findGroundY(ctx.world, active.ex, active.ez, active.sy);
+                    if (canNpcOccupy(ctx, active.ex, active.ey, active.ez)) {
+                        return true;
+                    }
+                }
+                active.ex = x;
+                active.ez = z;
+                active.ey = y;
+                return true;
+            }
+            distance -= JUMP_CLIP_STEP;
+        }
+        return false;
     }
 
     private static float getNpcYaw(final ICustomNpc npc) {

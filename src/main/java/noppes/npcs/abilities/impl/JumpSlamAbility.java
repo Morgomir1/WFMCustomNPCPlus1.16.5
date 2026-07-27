@@ -88,7 +88,13 @@ public final class JumpSlamAbility implements CnpcAbility {
 
     private TickResult tickActive(final ActiveAbility active, final AbilityContext ctx) {
         final int total = ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 9);
+        final double arcHeight = ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 6.0);
+
         if (active.ticksLeft <= 0) {
+            final double[] end = AbilityCombatHelper.resolveJumpPointAtProgress(
+                    ctx, active.sx, active.sy, active.sz,
+                    active.ex, active.ey, active.ez, arcHeight, 1.0);
+            settleJumpLanding(active, ctx, end);
             ctx.npc.setPosition(active.ex, active.ey, active.ez);
             ctx.npc.setRotation(active.yaw);
             doLanding(active, ctx);
@@ -96,18 +102,39 @@ public final class JumpSlamAbility implements CnpcAbility {
         }
 
         final double t = 1.0 - (active.ticksLeft - 1) / (double) total;
-        final double cx = active.sx + (active.ex - active.sx) * t;
-        final double cz = active.sz + (active.ez - active.sz) * t;
+        final double intendedCx = active.sx + (active.ex - active.sx) * t;
+        final double intendedCz = active.sz + (active.ez - active.sz) * t;
         final double baseY = active.sy + (active.ey - active.sy) * t;
-        final double arcHeight = ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 6.0);
-        final double cy = baseY + Math.sin(t * Math.PI) * arcHeight;
+        final double intendedCy = baseY + Math.sin(t * Math.PI) * arcHeight;
+        final double[] intended = new double[]{intendedCx, intendedCy, intendedCz};
+        final double[] point = AbilityCombatHelper.resolveJumpPointAtProgress(
+                ctx, active.sx, active.sy, active.sz,
+                active.ex, active.ey, active.ez, arcHeight, t);
 
         AbilityCombatHelper.stopNavigation(ctx.npc);
-        ctx.npc.setPosition(cx, cy, cz);
+
+        if (AbilityCombatHelper.isJumpPointBlocked(point, intended)) {
+            settleJumpLanding(active, ctx, point);
+            ctx.npc.setPosition(active.ex, active.ey, active.ez);
+            ctx.npc.setRotation(active.yaw);
+            doLanding(active, ctx);
+            return TickResult.FINISHED;
+        }
+
+        ctx.npc.setPosition(point[0], point[1], point[2]);
         ctx.npc.setRotation(active.yaw);
-        AbilityVfx.spawnJumpTrail(ctx.world, cx, cy, cz);
+        AbilityVfx.spawnJumpTrail(ctx.world, point[0], point[1], point[2]);
         active.ticksLeft--;
         return TickResult.CONTINUE;
+    }
+
+    private void settleJumpLanding(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double[] point) {
+        active.ex = point[0];
+        active.ez = point[2];
+        active.ey = AbilityCombatHelper.findGroundY(ctx.world, point[0], point[2], point[1]);
     }
 
     private void doLanding(final ActiveAbility active, final AbilityContext ctx) {

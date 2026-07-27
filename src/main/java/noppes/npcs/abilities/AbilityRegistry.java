@@ -42,6 +42,7 @@ public final class AbilityRegistry {
         register(new WhLungeAbility());
         register(new WhFlamingCrossbowAbility());
         register(new WhFireBombAbility());
+        register(new OtrodieHellVomitAbility());
     }
 
     private AbilityRegistry() {

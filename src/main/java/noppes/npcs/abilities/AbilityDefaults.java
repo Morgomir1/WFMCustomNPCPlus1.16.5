@@ -460,4 +460,25 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
+
+    public static Map<String, Object> otrodieHellVomit() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 28);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 280);
+        map.put(AbilityParamKeys.RADIUS, 2.5);
+        map.put(AbilityParamKeys.DAMAGE, 3.0);
+        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
+        map.put(AbilityParamKeys.ZONE_TICKS, 300);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.EFFECT_ID, "minecraft:poison;minecraft:slowness");
+        map.put(AbilityParamKeys.EFFECT_DURATION, 60);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.BREAK_DAMAGE, 100.0);
+        map.put(AbilityParamKeys.PARTICLE_COUNT, 12);
+        map.put(AbilityParamKeys.BLOB_PARTICLES,
+                "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch");
+        map.put(AbilityParamKeys.MAX_RANGE, 28.0);
+        return map;
+    }
 }

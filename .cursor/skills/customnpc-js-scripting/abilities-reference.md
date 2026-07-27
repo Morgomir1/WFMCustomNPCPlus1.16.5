@@ -47,6 +47,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `drachenfels_raise_thralls` | `DrachenfelsRaiseThrallsAbility` | Призыв thrall-клонов + aura |
 | `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
 | `crimson_blob` | `CrimsonBlobAbility` | Навес сгустка → hazard-зона слепоты + MAGIC DPS |
+| `otrodie_hell_vomit` | `OtrodieHellVomitAbility` | Струя + движущаяся red hazard; break по урону в спину → force fecal_wave |
 
 Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
 Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
@@ -179,6 +180,22 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `maxRange` | double | 20.0 | Макс. дальность каста |
 
 Приземление: `ZoneAPI.hazardCircle` + эффекты из `effectId`. Тюнинг — в JS (`scripts/utility/crimson_blob.js`).
+
+### `otrodie_hell_vomit`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 28 / 280 | Charge + continuous vomit |
+| `radius` | double | 2.5 | Радиус moving hazard / telegraph |
+| `damage` / `damageInterval` | double / int | 3.0 / 10 | Урон hazard-зоны |
+| `zoneTicks` | int | 300 | Lifetime зоны |
+| `zoneColor` / `telegraphColor` | int | `0xC0FF3030` | Красный ARGB |
+| `effectId` | string | poison;slowness | Дебаффы зоны |
+| `breakDamage` | double | 100.0 | Урон в спину для прерывания |
+| `particleCount` / `blobParticles` | int / string | 12 / nurgle… | Струя VFX |
+| `maxRange` | double | 28.0 | Макс. дальность каста |
+
+onEnd пишет `storeddata ot_forced_ability=otrodie_fecal_wave`. Прерывание — `OtrodieCombatHandler` + `ActiveAbility.meter`.
 
 **Кулдауны босса** — не в Java; хранятся в JS `storeddata`.
 

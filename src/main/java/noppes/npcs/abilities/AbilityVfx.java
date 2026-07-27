@@ -501,6 +501,85 @@ public final class AbilityVfx {
                 fx, 0.0, fz, 0.0, 0);
     }
 
+    private static final String[] DEFAULT_OTRODIE_VOMIT_PARTICLES = {
+            "wfm:nurgle_miasma", "minecraft:smoke", "minecraft:large_smoke",
+            "minecraft:ash", "minecraft:witch"
+    };
+
+    /**
+     * Continuous vomit stream: directed particles from mouth (count=0) + dense clouds along the ray.
+     */
+    public static void spawnOtrodieVomitStream(
+            final IWorld world,
+            final double ox,
+            final double oy,
+            final double oz,
+            final double dirX,
+            final double dirY,
+            final double dirZ,
+            final double length,
+            final String particlesCsv,
+            final int countPerType) {
+        if (world == null) {
+            return;
+        }
+        final String[] particles = parseParticles(particlesCsv, DEFAULT_OTRODIE_VOMIT_PARTICLES);
+        final int count = Math.max(1, Math.min(24, countPerType));
+        final Random r = AbilityCombatHelper.random();
+        final double len = Math.max(2.0, length);
+
+        // Directed burst from mouth (warpfire-style: count=0 → velocity = dx*speed).
+        for (int i = 0; i < particles.length; i++) {
+            for (int n = 0; n < Math.max(3, count / 2); n++) {
+                final double jx = (r.nextDouble() - 0.5) * 0.22;
+                final double jy = (r.nextDouble() - 0.5) * 0.18;
+                final double jz = (r.nextDouble() - 0.5) * 0.22;
+                final double yawOff = (r.nextDouble() - 0.5) * 0.35;
+                final double pitchOff = (r.nextDouble() - 0.35) * 0.25;
+                final double cosY = Math.cos(yawOff);
+                final double sinY = Math.sin(yawOff);
+                // Approximate horizontal swing around aim dir.
+                double vx = dirX * cosY - dirZ * sinY;
+                double vz = dirZ * cosY + dirX * sinY;
+                double vy = dirY + pitchOff;
+                final double flat = Math.sqrt(vx * vx + vz * vz);
+                if (flat > 0.001) {
+                    final double cosP = Math.cos(pitchOff);
+                    vx = (vx / flat) * cosP;
+                    vz = (vz / flat) * cosP;
+                }
+                final double speed = 0.35 + r.nextDouble() * 0.45;
+                safeSpawn(world, particles[i], ox + jx, oy + jy, oz + jz, vx, vy, vz, speed, 0);
+            }
+        }
+
+        // Dense cloud samples along the stream toward the hazard.
+        final int samples = Math.max(3, (int) Math.ceil(len / 1.4));
+        for (int s = 1; s <= samples; s++) {
+            final double t = s / (double) samples;
+            final double px = ox + dirX * len * t + (r.nextDouble() - 0.5) * 0.35;
+            final double py = oy + dirY * len * t + (r.nextDouble() - 0.5) * 0.25;
+            final double pz = oz + dirZ * len * t + (r.nextDouble() - 0.5) * 0.35;
+            spawnOtrodieVomitCloud(world, px, py, pz, particlesCsv, Math.max(4, count / 2));
+        }
+    }
+
+    /** Dense nurgle/miasma cloud (blob intensity). */
+    public static void spawnOtrodieVomitCloud(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final String particlesCsv,
+            final int countPerType) {
+        final String[] particles = parseParticles(particlesCsv, DEFAULT_OTRODIE_VOMIT_PARTICLES);
+        final int count = Math.max(1, Math.min(40, countPerType));
+        final double spread = 0.16;
+        for (int i = 0; i < particles.length; i++) {
+            safeSpawn(world, particles[i], x, y, z, spread, spread, spread, 0.02, count);
+        }
+    }
+
     /** Плотный сгусток (полёт). particlesCsv пустой → дефолтный набор crimson. */
     public static void spawnCrimsonBlob(
             final IWorld world,

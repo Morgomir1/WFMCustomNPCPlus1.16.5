@@ -7,8 +7,8 @@
  *   2 — HP ≤ PHASE2_HP: только devour_dash без кулдауна / cast interval
  *       если HP снова > PHASE2_HP — возврат в фазу 1
  *
- * Лужи (разлетающийся кал): разовые пороги 1000/800/600/400/200 —
- * каждый порог срабатывает один раз за жизнь босса (хил не сбрасывает).
+ * Лужи (разлетающийся кал): пороги 1000/800/600/400/200 —
+ * срабатывают при пересечении сверху вниз; хил выше порога снова позволяет прок.
  * Windup: рык + ярко-красная telegraph-зона → затем зелёные лужи.
  *
  * Кит:
@@ -29,7 +29,6 @@ var NEXT_CAST_KEY = "ot_next_cast";
 var LAST_ABILITY_KEY = "ot_last_ability";
 var PHASE_KEY = "ot_phase";
 var CD_PREFIX = "ot_cd_";
-var PUDDLE_USED_KEY = "ot_puddle_used";
 var PUDDLE_PENDING_KEY = "ot_puddle_pending";
 var PUDDLE_READY_AT_KEY = "ot_puddle_ready";
 var PUDDLE_TG_KEY = "ot_puddle_tg";
@@ -64,7 +63,6 @@ function init(event) {
     data.put(PUDDLE_TG_KEY, "");
     data.put(HP_MARK_KEY, String(npc.getHealth()));
     data.put(PHASE_KEY, npc.getHealth() <= PHASE2_HP ? "2" : "1");
-    initUsedThresholds(data, npc.getHealth());
     startTimers(npc);
 }
 
@@ -188,6 +186,22 @@ function buildParams(abilityId, npc, target) {
             var d = flatDistance(npc, target);
             if (d > 2.0) dashDist = Math.min(16.0, Math.max(6.0, d + 1.0));
         }
+        var phase = "1";
+        try {
+            phase = String(npc.getStoreddata().get(PHASE_KEY));
+        } catch (e) {}
+        if (phase == "2") {
+            return AbilityAPI.params(
+                "telegraphColor", ZONE_RED,
+                "telegraph", 0,
+                "chargeTicks", 24,
+                "distance", dashDist,
+                "hitRadius", 1.6,
+                "hitCount", 15,
+                "healOnFail", 200.0,
+                "spawnPuddle", 1
+            );
+        }
         return AbilityAPI.params(
             "telegraphColor", ZONE_RED,
             "telegraph", 0,
@@ -231,20 +245,14 @@ function damaged(event) {
 function tryCrossPuddleThresholds(npc, data, prevHp, currentHp) {
     if (String(data.get(PUDDLE_PENDING_KEY)) == "1") return;
 
-    var crossed = [];
+    // Пересечение сверху вниз; после хила выше порога снова можно прокнуть.
     for (var i = 0; i < PUDDLE_THRESHOLDS.length; i++) {
         var t = PUDDLE_THRESHOLDS[i];
-        if (isThresholdUsed(data, t)) continue;
         if (prevHp > t && currentHp <= t) {
-            crossed.push(t);
+            startPuddleWindup(npc, data);
+            return;
         }
     }
-    if (crossed.length == 0) return;
-
-    for (var j = 0; j < crossed.length; j++) {
-        markThresholdUsed(data, crossed[j]);
-    }
-    startPuddleWindup(npc, data);
 }
 
 function startPuddleWindup(npc, data) {
@@ -306,39 +314,6 @@ function clearPuddleTelegraph(data) {
         try { TelegraphAPI.remove(tid); } catch (e) {}
     }
     data.put(PUDDLE_TG_KEY, "");
-}
-
-function initUsedThresholds(data, hp) {
-    var used = "";
-    for (var i = 0; i < PUDDLE_THRESHOLDS.length; i++) {
-        var t = PUDDLE_THRESHOLDS[i];
-        if (hp <= t) {
-            if (used.length > 0) used += ";";
-            used += String(t);
-        }
-    }
-    data.put(PUDDLE_USED_KEY, used);
-}
-
-function isThresholdUsed(data, threshold) {
-    var used = String(data.get(PUDDLE_USED_KEY));
-    if (used.length == 0) return false;
-    var parts = used.split(";");
-    var key = String(threshold);
-    for (var i = 0; i < parts.length; i++) {
-        if (parts[i] == key) return true;
-    }
-    return false;
-}
-
-function markThresholdUsed(data, threshold) {
-    if (isThresholdUsed(data, threshold)) return;
-    var used = String(data.get(PUDDLE_USED_KEY));
-    if (used.length == 0) {
-        data.put(PUDDLE_USED_KEY, String(threshold));
-    } else {
-        data.put(PUDDLE_USED_KEY, used + ";" + String(threshold));
-    }
 }
 
 function targetLost(event) {

@@ -69,6 +69,8 @@ public final class AbilityParamKeys {
     public static final String HIT_COUNT = "hitCount";
     /** Хилл при timeout фазы еды (без прерывания melee). */
     public static final String HEAL_ON_FAIL = "healOnFail";
+    /** 1 = после абилки спавнить маленькую hazard-лужу (фаза 2 devour). */
+    public static final String SPAWN_PUDDLE = "spawnPuddle";
 
     private AbilityParamKeys() {
     }

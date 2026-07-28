@@ -1,6 +1,7 @@
 package noppes.npcs.abilities.impl;
 
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.util.DamageSource;
 import noppes.npcs.abilities.AbilityCombatHelper;
 import noppes.npcs.abilities.AbilityContext;
 import noppes.npcs.abilities.AbilityDefaults;
@@ -31,6 +32,7 @@ public final class OtrodieDevourDashAbility implements CnpcAbility {
 
     private static final int DEFAULT_TELEGRAPH_COLOR = 0xC0FF3030;
     private static final int DEFAULT_EAT_TICKS = 100;
+    private static final float HEAL_SPIT_DAMAGE = 8.0F;
     private static final double MOUTH_FORWARD = 1.2;
     private static final double MOUTH_EYE_FACTOR = 0.3;
 
@@ -68,7 +70,8 @@ public final class OtrodieDevourDashAbility implements CnpcAbility {
                 AbilityParamKeys.TELEGRAPH,
                 AbilityParamKeys.TELEGRAPH_COLOR,
                 AbilityParamKeys.PARTICLE_COUNT,
-                AbilityParamKeys.BLOB_PARTICLES);
+                AbilityParamKeys.BLOB_PARTICLES,
+                AbilityParamKeys.SPAWN_PUDDLE);
     }
 
     @Override
@@ -272,6 +275,7 @@ public final class OtrodieDevourDashAbility implements CnpcAbility {
             final boolean healBoss) {
         if (healBoss) {
             healCaster(ctx, ctx.params.getDouble(AbilityParamKeys.HEAL_ON_FAIL, 200.0));
+            dealPureDamage(victim, HEAL_SPIT_DAMAGE);
         }
 
         final double rad = (active.yaw + 90.0) * 0.0174532925;
@@ -387,6 +391,25 @@ public final class OtrodieDevourDashAbility implements CnpcAbility {
         }
     }
 
+    /** Чистый MAGIC-урон (как Ability Zone / warpfire). */
+    private static void dealPureDamage(final IEntityLiving victim, final float amount) {
+        if (victim == null || !victim.isAlive() || amount <= 0.0F) {
+            return;
+        }
+        try {
+            final Object mc = victim.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                ((LivingEntity) mc).hurt(DamageSource.MAGIC, amount);
+                return;
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            victim.damage(amount);
+        } catch (final Exception ignored) {
+        }
+    }
+
     private static double resolveEyeHeight(final IEntityLiving entity) {
         try {
             return entity.getEyeHeight();
@@ -399,6 +422,7 @@ public final class OtrodieDevourDashAbility implements CnpcAbility {
     public void onEnd(final ActiveAbility active, final AbilityContext ctx) {
         AbilityTelegraph.clear(active, ctx);
         AbilityCombatHelper.unfreezeAi(active, ctx.npc);
+        maybeSpawnPhase2Puddle(ctx);
     }
 
     @Override
@@ -412,5 +436,14 @@ public final class OtrodieDevourDashAbility implements CnpcAbility {
         AbilityTelegraph.clear(active, ctx);
         AbilityCombatHelper.unfreezeAi(active, ctx.npc);
         AbilityCombatHelper.stopNavigation(ctx.npc);
+        maybeSpawnPhase2Puddle(ctx);
+    }
+
+    private static void maybeSpawnPhase2Puddle(final AbilityContext ctx) {
+        if (ctx.params.getInt(AbilityParamKeys.SPAWN_PUDDLE, 0) == 0) {
+            return;
+        }
+        // Маленькая кислотная лужа — как hitRadius у spreading filth
+        OtrodieSpreadingFilthAbility.spawnSingleUnderNpc(ctx.npc, 2.6);
     }
 }

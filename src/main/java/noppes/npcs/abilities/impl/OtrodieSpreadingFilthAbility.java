@@ -93,6 +93,40 @@ public final class OtrodieSpreadingFilthAbility implements CnpcAbility {
         spawnPuddles(npc, npc.getWorld(), params);
     }
 
+    /**
+     * Одна маленькая лужа под NPC (фаза 2 после devour dash).
+     */
+    public static void spawnSingleUnderNpc(final ICustomNpc npc, final double radius) {
+        if (npc == null || !npc.isAlive()) {
+            return;
+        }
+        final AbilityParams params = AbilityParams.merge(
+                AbilityDefaults.otrodieSpreadingFilth(),
+                null,
+                KNOWN_KEYS);
+        final IWorld world = npc.getWorld();
+        if (world == null) {
+            return;
+        }
+        final double r = Math.max(0.8, radius);
+        final int zoneTicks = Math.max(20, params.getInt(AbilityParamKeys.ZONE_TICKS, 200));
+        final double damage = Math.max(0.0, params.getDouble(AbilityParamKeys.DAMAGE, 3.0));
+        final int damageInterval = Math.max(1, params.getInt(AbilityParamKeys.DAMAGE_INTERVAL, 10));
+        final int zoneColor = params.getInt(AbilityParamKeys.ZONE_COLOR, DEFAULT_ZONE_COLOR);
+        final String effectId = params.getString(AbilityParamKeys.EFFECT_ID, DEFAULT_EFFECT);
+        final int effectDuration = Math.max(1, params.getInt(AbilityParamKeys.EFFECT_DURATION, 60));
+        final int effectAmplifier = Math.max(0, params.getInt(AbilityParamKeys.EFFECT_AMPLIFIER, 0));
+        final String particles = params.getString(AbilityParamKeys.BLOB_PARTICLES, DEFAULT_PARTICLES);
+        final int particleCount = Math.max(4, params.getInt(AbilityParamKeys.PARTICLE_COUNT, 12));
+
+        final double bx = npc.getX();
+        final double bz = npc.getZ();
+        final double by = AbilityCombatHelper.findGroundY(world, bx, bz, npc.getY());
+        spawnHazardPuddle(
+                npc, world, bx, by, bz, r, zoneTicks, damage, damageInterval,
+                zoneColor, effectId, effectDuration, effectAmplifier, particles, particleCount);
+    }
+
     @Override
     public boolean onStart(final ActiveAbility active, final AbilityContext ctx) {
         // Ручной AbilityAPI.start: один тик и FINISHED, зоны уже живут сами.

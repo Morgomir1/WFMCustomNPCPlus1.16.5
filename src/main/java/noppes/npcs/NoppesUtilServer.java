@@ -145,7 +145,13 @@ public class NoppesUtilServer
             }
         };
         final Commands icommandmanager = level.getServer().getCommands();
-        icommandmanager.performCommand(commandSource, command);
+        final String[] lines = command.split("\\r?\\n");
+        for (final String line : lines) {
+            final String trimmed = line.trim();
+            if (!trimmed.isEmpty()) {
+                icommandmanager.performCommand(commandSource, trimmed);
+            }
+        }
         if (output.getString().isEmpty()) {
             return null;
         }

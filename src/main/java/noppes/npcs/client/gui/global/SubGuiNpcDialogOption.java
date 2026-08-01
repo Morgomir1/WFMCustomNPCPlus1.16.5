@@ -5,6 +5,7 @@ import java.util.List;
 
 import net.minecraft.client.gui.screen.Screen;
 import noppes.npcs.client.gui.SubGuiColorSelector;
+import noppes.npcs.client.gui.SubGuiNpcAvailability;
 import noppes.npcs.client.gui.select.GuiDialogSelection;
 import noppes.npcs.client.gui.util.DialogCommandLines;
 import noppes.npcs.controllers.DialogController;
@@ -20,6 +21,7 @@ public class SubGuiNpcDialogOption extends GuiBasic implements ITextfieldListene
     private static final int CMD_FIELD_BASE = 100;
     private static final int CMD_REMOVE_BASE = 200;
     private static final int CMD_ADD_BUTTON = 50;
+    private static final int AVAILABILITY_BUTTON = 51;
 
     private final DialogOption option;
     private final List<String> commandLines = new ArrayList<String>();
@@ -38,7 +40,7 @@ public class SubGuiNpcDialogOption extends GuiBasic implements ITextfieldListene
         if (this.option.optionType == 4) {
             DialogCommandLines.ensureEditable(this.commandLines);
             final int extraRows = Math.max(0, this.commandLines.size() - 1);
-            this.imageHeight = 216 + extraRows * 22 + 24;
+            this.imageHeight = 216 + extraRows * 22 + 48;
         }
         else {
             this.imageHeight = 216;
@@ -89,6 +91,11 @@ public class SubGuiNpcDialogOption extends GuiBasic implements ITextfieldListene
             this.addLabel(new GuiLabel(7, "advMode.allPlayers", this.guiLeft + 4, y + 24));
             this.addLabel(new GuiLabel(8, "dialog.commandoptionplayer", this.guiLeft + 4, y + 36));
             doneY = y + 54;
+            this.addButton(new GuiButtonNop(this, AVAILABILITY_BUTTON, this.guiLeft + 53, doneY, 150, 20, "availability.available"));
+            doneY += 24;
+        }
+        else {
+            this.addButton(new GuiButtonNop(this, AVAILABILITY_BUTTON, this.guiLeft + 53, doneY - 24, 150, 20, "availability.available"));
         }
 
         this.addButton(new GuiButtonNop(this, 66, this.guiLeft + 82, doneY, 98, 20, "gui.done"));
@@ -112,6 +119,12 @@ public class SubGuiNpcDialogOption extends GuiBasic implements ITextfieldListene
         }
         if (id == 3) {
             this.setSubGui(new GuiDialogSelection(this.option.dialogId));
+            return;
+        }
+        if (id == AVAILABILITY_BUTTON) {
+            this.saveCommandsFromFields();
+            this.applyCommandsToOption();
+            this.setSubGui(new SubGuiNpcAvailability(this.option.availability));
             return;
         }
         if (id == CMD_ADD_BUTTON) {

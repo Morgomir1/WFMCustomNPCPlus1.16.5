@@ -120,3 +120,5 @@ run/
 /cnpc-dialog-helper-1.0.4/
 /--output-dir=build/tmp-decompile-src/noppes/npcs/client/gui/mainmenu/GuiNpcDisplay.java
 /--output-dir=build/
+/.tmp_dialog_src/
+/.tmp_cnpc_ai/

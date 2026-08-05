@@ -46,6 +46,7 @@ public final class AbilityRegistry {
         register(new OtrodieFecalWaveAbility());
         register(new OtrodieDevourDashAbility());
         register(new OtrodieSpreadingFilthAbility());
+        register(new GhostOrbitSlamAbility());
     }
 
     private AbilityRegistry() {

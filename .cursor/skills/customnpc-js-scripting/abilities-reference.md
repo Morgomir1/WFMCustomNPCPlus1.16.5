@@ -251,6 +251,22 @@ Yaw конуса = взгляд босса + 180 (атака в спину). С�
 
 **Кулдауны босса** — не в Java; хранятся в JS `storeddata`.
 
+### `ghost_orbit_slam`
+
+Подлёт сквозь блоки → орбита → врезание + knockback → смерть NPC.
+
+| Ключ | Дефолт | Описание |
+|------|--------|----------|
+| `approachSpeed` | 0.45 | Блоки/тик |
+| `radius` | 2.5 | Радиус орбиты |
+| `orbitTicks` | 60 | Кружение (~3 с) |
+| `orbitSpeed` | 8.0 | Градусы/тик |
+| `hoverOffset` | 1.0 | Высота над целью |
+| `slamTicks` | 6 | Врезание |
+| `damage` / `knockback` / `knockbackY` / `hitRadius` | 14 / 2.4 / 0.55 / 1.8 | Удар |
+
+Скрипт: `scripts/ghost/ghost_orbit_slam.js`. `cancelsOnTargetLost = false`.
+
 ---
 
 ## Примеры

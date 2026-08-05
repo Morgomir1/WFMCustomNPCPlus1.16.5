@@ -43,7 +43,8 @@ noppes.npcs.abilities/
     ├── OtrodieHellVomitAbility.java        # id: otrodie_hell_vomit
     ├── OtrodieFecalWaveAbility.java        # id: otrodie_fecal_wave
     ├── OtrodieDevourDashAbility.java       # id: otrodie_devour_dash
-    └── OtrodieSpreadingFilthAbility.java   # id: otrodie_spreading_filth
+    ├── OtrodieSpreadingFilthAbility.java   # id: otrodie_spreading_filth
+    └── GhostOrbitSlamAbility.java          # id: ghost_orbit_slam
 ```
 
 ## CnpcAbility — контракт
@@ -378,6 +379,24 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 Визуал полёта: `GunMineEntity` через `WfmIntegration.spawnVisualMine` (без детонации).
 
+### `ghost_orbit_slam` — GhostOrbitSlamAbility
+
+Камикадзе-призрак: подлёт сквозь блоки → орбита вокруг цели → врезание с knockback → `npc.kill()`.
+
+Движение — сырой `setPosition` + `noPhysics` (без clip стен из dash). `cancelsOnTargetLost = false`.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `approachSpeed` | double | 0.45 | Блоки/тик на подлёте |
+| `radius` | double | 2.5 | Радиус орбиты |
+| `orbitTicks` | int | 60 | Длительность кружения (~3 с) |
+| `orbitSpeed` | double | 8.0 | Градусы/тик |
+| `hoverOffset` | double | 1.0 | Высота над целью на орбите |
+| `slamTicks` | int | 6 | Длительность врезания |
+| `damage` | double | 14.0 | Урон удара |
+| `knockback` / `knockbackY` | double | 2.4 / 0.55 | Отбрасывание |
+| `hitRadius` | double | 1.8 | Радиус хита |
+
 ## Примеры скриптов
 
 | Файл | Назначение |
@@ -389,5 +408,6 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `scripts/utility/npc_shield_block.js` | Блок щитом: damaged → `shield_block` |
 | `scripts/utility/crimson_blob.js` | Навес сгустка → слепая лужа |
 | `scripts/otrodie/otrodie_boss.js` | Отродье: CD/forced chain + SpreadingFilth.trigger |
+| `scripts/ghost/ghost_orbit_slam.js` | Призрак: агро → `ghost_orbit_slam` → смерть |
 
 После правки скрипта на NPC: `/script reload`.

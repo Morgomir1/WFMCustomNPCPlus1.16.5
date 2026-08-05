@@ -541,4 +541,20 @@ public final class AbilityDefaults {
                 "wfm:nurgle_miasma,minecraft:smoke,minecraft:large_smoke,minecraft:ash,minecraft:witch");
         return map;
     }
+
+    public static Map<String, Object> ghostOrbitSlam() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.APPROACH_SPEED, 0.45);
+        map.put(AbilityParamKeys.RADIUS, 2.5);
+        map.put(AbilityParamKeys.ORBIT_TICKS, 60);
+        map.put(AbilityParamKeys.ORBIT_SPEED, 8.0);
+        map.put(AbilityParamKeys.HOVER_OFFSET, 1.0);
+        map.put(AbilityParamKeys.SLAM_TICKS, 6);
+        map.put(AbilityParamKeys.DAMAGE, 14.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 2.4);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.55);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.8);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        return map;
+    }
 }

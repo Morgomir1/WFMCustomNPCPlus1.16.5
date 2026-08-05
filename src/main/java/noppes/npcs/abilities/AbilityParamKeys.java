@@ -71,6 +71,16 @@ public final class AbilityParamKeys {
     public static final String HEAL_ON_FAIL = "healOnFail";
     /** 1 = после абилки спавнить маленькую hazard-лужу (фаза 2 devour). */
     public static final String SPAWN_PUDDLE = "spawnPuddle";
+    /** Скорость подлёта (блоки/тик), ghost_orbit_slam. */
+    public static final String APPROACH_SPEED = "approachSpeed";
+    /** Длительность орбиты вокруг цели (тики). */
+    public static final String ORBIT_TICKS = "orbitTicks";
+    /** Угловая скорость орбиты (градусы/тик). */
+    public static final String ORBIT_SPEED = "orbitSpeed";
+    /** Высота над целью на орбите / подлёте. */
+    public static final String HOVER_OFFSET = "hoverOffset";
+    /** Длительность фазы врезания (тики). */
+    public static final String SLAM_TICKS = "slamTicks";
 
     private AbilityParamKeys() {
     }

@@ -557,4 +557,25 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.TELEGRAPH, 0);
         return map;
     }
+
+    /** Навесной soul-болт призрака: дуга как crimson_blob, knockback при касании. */
+    public static Map<String, Object> ghostSoulBolt() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 24);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 14);
+        map.put(AbilityParamKeys.ARC_HEIGHT, 5.0);
+        map.put(AbilityParamKeys.LAND_RADIUS, 2.2);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.4);
+        map.put(AbilityParamKeys.DAMAGE, 0.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 2.2);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.5);
+        map.put(AbilityParamKeys.MAX_RANGE, 24.0);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.BLOB_PARTICLES,
+                "minecraft:soul_fire_flame,minecraft:soul,minecraft:end_rod,minecraft:smoke");
+        map.put(AbilityParamKeys.LAND_PARTICLES,
+                "minecraft:soul_fire_flame,minecraft:soul,minecraft:smoke,minecraft:cloud");
+        map.put(AbilityParamKeys.PARTICLE_COUNT, 10);
+        return map;
+    }
 }

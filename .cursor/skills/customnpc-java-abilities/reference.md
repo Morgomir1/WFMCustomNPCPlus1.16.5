@@ -44,7 +44,8 @@ noppes.npcs.abilities/
     ├── OtrodieFecalWaveAbility.java        # id: otrodie_fecal_wave
     ├── OtrodieDevourDashAbility.java       # id: otrodie_devour_dash
     ├── OtrodieSpreadingFilthAbility.java   # id: otrodie_spreading_filth
-    └── GhostOrbitSlamAbility.java          # id: ghost_orbit_slam
+    ├── GhostOrbitSlamAbility.java          # id: ghost_orbit_slam
+    └── GhostSoulBoltAbility.java           # id: ghost_soul_bolt
 ```
 
 ## CnpcAbility — контракт
@@ -397,6 +398,23 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `knockback` / `knockbackY` | double | 2.4 / 0.55 | Отбрасывание |
 | `hitRadius` | double | 1.8 | Радиус хита |
 
+### `ghost_soul_bolt` — GhostSoulBoltAbility
+
+Навесной soul-сгусток (дуга как `crimson_blob`): charge → полёт VFX → knockback при касании / приземлении. Без hazard-зоны. Авто-telegraph по `landRadius`. JS: `scripts/ghost/ghost_soul_bolt.js`.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 24 / 14 | Charge + полёт |
+| `arcHeight` | double | 5.0 | Высота навеса |
+| `landRadius` | double | 2.2 | AoE / telegraph |
+| `hitRadius` | double | 1.4 | Касание по пути |
+| `damage` | double | 0.0 | Урон (0 = только knockback) |
+| `knockback` / `knockbackY` | double | 2.2 / 0.5 | Отбрасывание |
+| `blobParticles` / `landParticles` | string | soul… | Партиклы через `,` |
+| `maxRange` | double | 24.0 | Дальность каста |
+
+`cancelsOnTargetLost = false`.
+
 ## Примеры скриптов
 
 | Файл | Назначение |
@@ -409,5 +427,6 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `scripts/utility/crimson_blob.js` | Навес сгустка → слепая лужа |
 | `scripts/otrodie/otrodie_boss.js` | Отродье: CD/forced chain + SpreadingFilth.trigger |
 | `scripts/ghost/ghost_orbit_slam.js` | Призрак: агро → `ghost_orbit_slam` → смерть |
+| `scripts/ghost/ghost_soul_bolt.js` | Летающий призрак: soul-болт раз в 10 с |
 
 После правки скрипта на NPC: `/script reload`.

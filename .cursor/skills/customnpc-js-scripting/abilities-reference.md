@@ -47,6 +47,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `drachenfels_raise_thralls` | `DrachenfelsRaiseThrallsAbility` | Призыв thrall-клонов + aura |
 | `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
 | `crimson_blob` | `CrimsonBlobAbility` | Навес сгустка → hazard-зона слепоты + MAGIC DPS |
+| `ghost_soul_bolt` | `GhostSoulBoltAbility` | Навес soul-болта (как crimson_blob) → knockback |
 | `otrodie_hell_vomit` | `OtrodieHellVomitAbility` | Струя + движущаяся red hazard; break по урону в спину → force fecal_wave |
 | `otrodie_fecal_wave` | `OtrodieFecalWaveAbility` | Усечённый конус назад (после vomit): урон + poison/slowness |
 | `otrodie_devour_dash` | `OtrodieDevourDashAbility` | Line TG → dash grab → eat 5s; 15 melee spit / timeout heal 200 |
@@ -266,6 +267,23 @@ Yaw конуса = взгляд босса + 180 (атака в спину). С�
 | `damage` / `knockback` / `knockbackY` / `hitRadius` | 14 / 2.4 / 0.55 / 1.8 | Удар |
 
 Скрипт: `scripts/ghost/ghost_orbit_slam.js`. `cancelsOnTargetLost = false`.
+
+### `ghost_soul_bolt`
+
+Навесной soul-сгусток (дуга как `crimson_blob`) → knockback при касании по пути и в точке падения. Без hazard-зоны.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 24 / 14 | Charge + полёт |
+| `arcHeight` | double | 5.0 | Высота навеса |
+| `landRadius` | double | 2.2 | AoE / telegraph на земле |
+| `hitRadius` | double | 1.4 | Касание по траектории |
+| `damage` | double | 0.0 | Урон (0 = только откидывание) |
+| `knockback` / `knockbackY` | double | 2.2 / 0.5 | Отбрасывание |
+| `blobParticles` / `landParticles` | string | soul… | Партиклы через `,` |
+| `maxRange` | double | 24.0 | Дальность каста |
+
+Скрипт: `scripts/ghost/ghost_soul_bolt.js` (CD 10 с). `cancelsOnTargetLost = false`.
 
 ---
 

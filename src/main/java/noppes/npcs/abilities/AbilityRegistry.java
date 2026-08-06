@@ -47,6 +47,7 @@ public final class AbilityRegistry {
         register(new OtrodieDevourDashAbility());
         register(new OtrodieSpreadingFilthAbility());
         register(new GhostOrbitSlamAbility());
+        register(new GhostSoulBoltAbility());
     }
 
     private AbilityRegistry() {

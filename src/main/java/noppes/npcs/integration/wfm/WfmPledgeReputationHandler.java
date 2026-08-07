@@ -32,13 +32,24 @@ public final class WfmPledgeReputationHandler {
 
 		final Allegiance allegiance = event.getAllegiance();
 		final int points = event.getAllianceReputationPoints();
+		final int hostilePoints = -points;
 
-		setFactionPoints(player, event.getOrderFactionName(),
-				allegiance == Allegiance.ORDER ? points : 0);
-		setFactionPoints(player, event.getDestructionFactionName(),
-				allegiance == Allegiance.DESTRUCTION ? points : 0);
-		setFactionPoints(player, event.getNeutralFactionName(),
-				allegiance == Allegiance.NEUTRAL ? points : 0);
+		int orderPoints = 0;
+		int destructionPoints = 0;
+		int neutralPoints = 0;
+		if (allegiance == Allegiance.ORDER) {
+			orderPoints = points;
+			destructionPoints = hostilePoints;
+		} else if (allegiance == Allegiance.DESTRUCTION) {
+			destructionPoints = points;
+			orderPoints = hostilePoints;
+		} else if (allegiance == Allegiance.NEUTRAL) {
+			neutralPoints = points;
+		}
+
+		setFactionPoints(player, event.getOrderFactionName(), orderPoints);
+		setFactionPoints(player, event.getDestructionFactionName(), destructionPoints);
+		setFactionPoints(player, event.getNeutralFactionName(), neutralPoints);
 
 		PlayerData.get(player).save(true);
 	}

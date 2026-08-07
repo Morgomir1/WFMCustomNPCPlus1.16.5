@@ -47,3 +47,9 @@ The Custom Npcs mod lets you create your own npcs and lets you customize them ho
     versionRange="[1.0.0,)"
     ordering="AFTER"
     side="BOTH"
+[[dependencies.customnpcs]]
+    modId="wfm"
+    mandatory=true
+    versionRange="[1.0,)"
+    ordering="AFTER"
+    side="BOTH"

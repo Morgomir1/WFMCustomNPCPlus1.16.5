@@ -8,7 +8,7 @@ version = '1.16.5-1.0.0'
 
 java {
     archivesBaseName = 'CustomNPCs v1.16.5'
-    toolchain.languageVersion = JavaLanguageVersion.of(8)
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
 }
 
 minecraft {
@@ -80,6 +80,8 @@ dependencies {
     compileOnly name: archivesBaseName+'-deobf'
     implementation fg.deobf('lib:geckolib-forge-1.16.5:3.0.106')
     implementation fg.deobf('lib:wfmtelegraph:1.0.0-1.16.5')
+    // Sibling WFM (official mappings classes) — PledgeAllegianceChangedEvent / Allegiance
+    compileOnly files("${rootProject.projectDir}/../WFM1.16.5/build/classes/java/main")
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 

@@ -23,9 +23,6 @@ function init(event) {
     try {
         npc.getAi().setRetaliateType(RETALIATE_REVENGE);
     } catch (err2) {}
-    try {
-        npc.getDisplay().setHitboxState(HITBOX_NONE);
-    } catch (err3) {}
 }
 
 function tick(event) {

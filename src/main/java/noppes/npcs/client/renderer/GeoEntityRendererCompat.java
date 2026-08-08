@@ -107,6 +107,12 @@ public abstract class GeoEntityRendererCompat<T extends LivingEntity & IAnimatab
     @Override
     public void render(T entity, float entityYaw, float partialTicks, MatrixStack stack, IRenderTypeBuffer bufferIn,
                        int packedLightIn) {
+        final PlayerEntity localPlayer = Minecraft.getInstance().player;
+        // Soft / classic per-player hide: skip model, layers, nameplate and shadow.
+        if (localPlayer != null && entity.isInvisibleTo(localPlayer)) {
+            this.shadowRadius = 0.0f;
+            return;
+        }
         this.dispatchedMat = stack.last().pose().copy();
         this.setCurrentModelRenderCycle(EModelRenderCycle.INITIAL);
         stack.pushPose();
@@ -186,16 +192,14 @@ public abstract class GeoEntityRendererCompat<T extends LivingEntity & IAnimatab
         Color renderColor = getRenderColor(entity, partialTicks, stack, bufferIn, null, packedLightIn);
         RenderType renderType = getRenderType(entity, partialTicks, stack, bufferIn, null, packedLightIn,
                 getTextureLocation(entity));
-        if (!entity.isInvisibleTo(Minecraft.getInstance().player)) {
-            IVertexBuilder glintBuffer = bufferIn.getBuffer(RenderType.entityGlintDirect());
-            IVertexBuilder translucentBuffer = bufferIn
-                    .getBuffer(RenderType.entityTranslucentCull(getTextureLocation(entity)));
-            render(model, entity, partialTicks, renderType, stack, bufferIn,
-                    glintBuffer != translucentBuffer ? VertexBuilderUtils.create(glintBuffer, translucentBuffer) : null,
-                    packedLightIn, getOverlay(entity, 0), (float) renderColor.getRed() / 255f,
-                    (float) renderColor.getGreen() / 255f, (float) renderColor.getBlue() / 255f,
-                    (float) renderColor.getAlpha() / 255);
-        }
+        IVertexBuilder glintBuffer = bufferIn.getBuffer(RenderType.entityGlintDirect());
+        IVertexBuilder translucentBuffer = bufferIn
+                .getBuffer(RenderType.entityTranslucentCull(getTextureLocation(entity)));
+        render(model, entity, partialTicks, renderType, stack, bufferIn,
+                glintBuffer != translucentBuffer ? VertexBuilderUtils.create(glintBuffer, translucentBuffer) : null,
+                packedLightIn, getOverlay(entity, 0), (float) renderColor.getRed() / 255f,
+                (float) renderColor.getGreen() / 255f, (float) renderColor.getBlue() / 255f,
+                (float) renderColor.getAlpha() / 255);
 
         if (!entity.isSpectator()) {
             for (GeoLayerRenderer<T> layerRenderer : this.layerRenderers) {

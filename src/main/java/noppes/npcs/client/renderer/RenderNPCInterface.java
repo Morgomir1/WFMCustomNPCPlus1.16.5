@@ -5,6 +5,7 @@ import net.minecraft.client.renderer.entity.*;
 import com.mojang.blaze3d.matrix.*;
 import net.minecraft.client.renderer.*;
 import net.minecraft.entity.*;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.client.*;
 import net.minecraft.util.text.*;
 import net.minecraft.client.gui.*;
@@ -129,6 +130,11 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
             EntityUtil.Copy(npc, (LivingEntity) entity);
         }
         entity.yRot = entity.yRotO = 0;
+        // Per-player soft hide: do not draw the linked model at all.
+        final PlayerEntity localPlayer = Minecraft.getInstance().player;
+        if (localPlayer != null && npc.isInvisibleTo(localPlayer)) {
+            return;
+        }
         if (!npc.isInvisible())
         {
             EntityRendererManager lvt_16_1_ = Minecraft.getInstance().getEntityRenderDispatcher();
@@ -137,8 +143,9 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
                 lvt_16_1_.render(entity, 0.0, 0.0, 0.0, 0.0F, 1.0F, matrixStack, buffer,packedLight);
             });
         }
-        else if (!npc.isInvisibleTo(Minecraft.getInstance().player))
+        else
         {
+            // Classic Visible=No ghost (visible to wand / spectators via isInvisibleTo=false).
             GL11.glPushMatrix();
             GL11.glColor4f(1.0F, 1.0F, 1.0F, 0.15F);
             GL11.glDepthMask(false);
@@ -166,6 +173,12 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
     }
 
     public void render(final T npc, final float entityYaw, final float partialTicks, final MatrixStack matrixStack, final IRenderTypeBuffer buffer, final int packedLight) {
+        final PlayerEntity localPlayer = Minecraft.getInstance().player;
+        // Soft per-player hide: skip model, nameplate and shadow (Availability does not set isInvisible()).
+        if (localPlayer != null && npc.isInvisibleTo(localPlayer)) {
+            this.shadowRadius = 0.0f;
+            return;
+        }
         if (npc.isKilled()) {
             this.shadowRadius = 0.0f;
         }

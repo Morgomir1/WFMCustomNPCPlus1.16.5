@@ -20,8 +20,10 @@ import net.minecraft.client.renderer.entity.layers.LayerRenderer;
 import net.minecraft.client.renderer.entity.model.BipedModel;
 import net.minecraft.client.renderer.entity.model.EntityModel;
 import net.minecraft.client.renderer.model.Model;
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.UseAction;
 import net.minecraft.util.ResourceLocation;
@@ -147,6 +149,12 @@ public class RenderCustomNpc<T extends EntityCustomNpc, M extends BipedModel<T>>
 
     @Override
     public void render(final T npc, final float entityYaw, final float partialTicks, final MatrixStack matrixStack, final IRenderTypeBuffer buffer, final int packedLight) {
+        // simpleRender returns before super.render — must gate soft-hide here too.
+        final PlayerEntity localPlayer = Minecraft.getInstance().player;
+        if (localPlayer != null && npc.isInvisibleTo(localPlayer)) {
+            this.shadowRadius = 0.0f;
+            return;
+        }
         this.npc = npc;
         this.partialTicks = partialTicks;
         final Entity prevEntity = this.entity;

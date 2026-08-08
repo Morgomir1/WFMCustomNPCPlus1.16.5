@@ -580,7 +580,7 @@ public class DataDisplay implements INPCDisplay
 
     @Override
     public boolean isVisibleTo(final IPlayer player) {
-        return this.isVisibleTo(player);
+        return this.isVisibleTo(player.getMCEntity());
     }
 
     public boolean isVisibleTo(final ServerPlayerEntity player) {

@@ -52,10 +52,14 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `otrodie_fecal_wave` | `OtrodieFecalWaveAbility` | Усечённый конус назад (после vomit): урон + poison/slowness |
 | `otrodie_devour_dash` | `OtrodieDevourDashAbility` | Line TG → dash grab → eat 5s; 15 melee spit / timeout heal 200 |
 | `otrodie_spreading_filth` | `OtrodieSpreadingFilthAbility` | Зелёные лужи (крупная+малые); JS `trigger` по −200 HP / CD 20с |
+| `vampire_whirl_slash` | `VampireWhirlSlashAbility` | Круговой удар + 100 HP за цель |
+| `vampire_crimson_bats` | `VampireCrimsonBatsAbility` | 2 мыши; тычки хилят босса на 15 |
+| `vampire_blood_ring` | `VampireBloodRingAbility` | Кольцо-аура 10с, следует за боссом |
 
 Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
 Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
 Оркестратор Отродья: `src/main/resources/scripts/otrodie/otrodie_boss.js`.
+Оркестратор Кровавого лорда: `src/main/resources/scripts/vampire/vampire_crimson_lord.js`.
 
 ---
 
@@ -285,6 +289,45 @@ Yaw конуса = взгляд босса + 180 (атака в спину). С�
 
 Скрипт: `scripts/ghost/ghost_soul_bolt.js` (CD 10 с). `cancelsOnTargetLost = false`.
 
+### `vampire_whirl_slash`
+
+Круговой удар вокруг босса. Charge 8 тиков (круг) + yaw-spin, затем AoE и хилл 100 HP за цель.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 8 | Зарядка (0.4 с; фаза 2 → 4) |
+| `damage` | double | 18.0 | Урон круга |
+| `radius` | double | 4.5 | Радиус AoE / telegraph |
+| `knockback` / `knockbackY` | double | 1.2 / 0.3 | Радиальное |
+| `lifeStealPerHit` | double | 100.0 | Хилл за каждую цель |
+
+### `vampire_crimson_bats`
+
+Две мыши-клона. Тычка мыши хилит босса на 15 (`VampireCrimsonBatHealHandler`).
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 8 | Зарядка |
+| `radius` | double | 3.0 | Telegraph у босса |
+| `summonCount` / `summonRadius` | int / double | 2 / 2.5 | Спавн |
+| `maxSummonedNearBoss` | int | 2 | Потолок живых |
+| `cloneTab` / `cloneName` | int / string | 1 / `Vampire Crimson Bat` | Клон |
+| `lifeStealPerHit` | double | 15.0 | Хилл босса за тычку мыши |
+
+### `vampire_blood_ring`
+
+Charge → hazard-кольцо 10 с следует за боссом. Урон в annulus, дым + души. Босс не бежит по кольцу.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 8 | Зарядка |
+| `radius` / `innerRadius` | double | 7.0 / 4.5 | Внешний / внутренний |
+| `damage` / `damageInterval` | double / int | 3.0 / 10 | Тик урона зоны |
+| `zoneTicks` | int | 200 | Lifetime (10 с) |
+| `zoneColor` | int | `0xC0180810` | Тёмный ARGB |
+
+Оркестратор: `scripts/vampire/vampire_crimson_lord.js` (пассивка +25 melee, one-way ярость на 50%).
+
 ---
 
 ## Примеры
@@ -340,7 +383,8 @@ AbilityTickHandler → AbilityRunner.tickAll → DashAbility / JumpSlamAbility
 | 2 | `landRadius` > 0 | circle в точке ленда (`active.ex/ey/ez`) |
 | 3 | `distance` + `radius` | line-коридор (+ circle в impact, если есть) |
 | 4 | только `distance` | line (`hitRadius` = ширина) |
-| 5 | `radius` / `auraRadius` | circle (или `telegraphForward` / impact point) |
+| 5 | `innerRadius` > 0 и `radius` > inner | ring |
+| 6 | `radius` / `auraRadius` | circle (или `telegraphForward` / impact point) |
 
 Отключить: `"telegraph", 0`. Цвет: `"telegraphColor", 0xC0FF3030`.
 

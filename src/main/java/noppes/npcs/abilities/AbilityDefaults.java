@@ -578,4 +578,40 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.PARTICLE_COUNT, 10);
         return map;
     }
+
+    public static Map<String, Object> vampireWhirlSlash() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 8);
+        map.put(AbilityParamKeys.DAMAGE, 18.0);
+        map.put(AbilityParamKeys.RADIUS, 4.5);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.2);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.3);
+        map.put(AbilityParamKeys.LIFE_STEAL_PER_HIT, 100.0);
+        return map;
+    }
+
+    public static Map<String, Object> vampireCrimsonBats() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 8);
+        map.put(AbilityParamKeys.RADIUS, 3.0);
+        map.put(AbilityParamKeys.SUMMON_COUNT, 2);
+        map.put(AbilityParamKeys.SUMMON_RADIUS, 2.5);
+        map.put(AbilityParamKeys.MAX_SUMMONED_NEAR_BOSS, 2);
+        map.put(AbilityParamKeys.CLONE_TAB, 1);
+        map.put(AbilityParamKeys.CLONE_NAME, "Vampire Crimson Bat");
+        map.put(AbilityParamKeys.LIFE_STEAL_PER_HIT, 15.0);
+        return map;
+    }
+
+    public static Map<String, Object> vampireBloodRing() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 8);
+        map.put(AbilityParamKeys.RADIUS, 7.0);
+        map.put(AbilityParamKeys.INNER_RADIUS, 4.5);
+        map.put(AbilityParamKeys.DAMAGE, 3.0);
+        map.put(AbilityParamKeys.ZONE_TICKS, 200);
+        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0180810);
+        return map;
+    }
 }

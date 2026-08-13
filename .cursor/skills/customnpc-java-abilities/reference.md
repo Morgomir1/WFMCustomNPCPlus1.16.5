@@ -19,7 +19,8 @@ noppes.npcs.abilities/
 ├── event/
 │   ├── AbilityTickHandler.java
 │   ├── ShieldBlockDamageHandler.java
-│   └── OtrodieCombatHandler.java   # front DR / vomit meter / devour
+│   ├── OtrodieCombatHandler.java   # front DR / vomit meter / devour
+│   └── VampireCrimsonBatHealHandler.java # bat melee → heal owner
 └── impl/
     ├── DashAbility.java           # id: dash
     ├── JumpSlamAbility.java       # id: jump_slam
@@ -45,7 +46,10 @@ noppes.npcs.abilities/
     ├── OtrodieDevourDashAbility.java       # id: otrodie_devour_dash
     ├── OtrodieSpreadingFilthAbility.java   # id: otrodie_spreading_filth
     ├── GhostOrbitSlamAbility.java          # id: ghost_orbit_slam
-    └── GhostSoulBoltAbility.java           # id: ghost_soul_bolt
+    ├── GhostSoulBoltAbility.java           # id: ghost_soul_bolt
+    ├── VampireWhirlSlashAbility.java       # id: vampire_whirl_slash
+    ├── VampireCrimsonBatsAbility.java      # id: vampire_crimson_bats
+    └── VampireBloodRingAbility.java        # id: vampire_blood_ring
 ```
 
 ## CnpcAbility — контракт
@@ -415,6 +419,46 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 `cancelsOnTargetLost = false`.
 
+### `vampire_whirl_slash` — VampireWhirlSlashAbility
+
+Круговой удар вокруг кастера. Charge 8 тиков (круг telegraph) + yaw-spin BipedModel (~Жатва), затем AoE и `lifeStealPerHit` за каждую поражённую цель. `cancelsOnTargetLost = false`.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 8 | Зарядка (0.4 с) |
+| `damage` | double | 18.0 | Урон круга |
+| `radius` | double | 4.5 | Радиус AoE / telegraph |
+| `knockback` / `knockbackY` | double | 1.2 / 0.3 | Радиальное отбрасывание |
+| `lifeStealPerHit` | double | 100.0 | Хилл кастера за каждую цель |
+
+### `vampire_crimson_bats` — VampireCrimsonBatsAbility
+
+Призыв 2 клонов (`Vampire Crimson Bat`). После спавна: 50 HP, size 3, walk speed 9, тег `vampire_crimson_bat`, owner UUID. Тычки мышей хилят босса через `VampireCrimsonBatHealHandler`. `cancelsOnTargetLost = false`.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 8 | Зарядка |
+| `radius` | double | 3.0 | Telegraph-круг у босса |
+| `summonCount` | int | 2 | Число мышей |
+| `summonRadius` | double | 2.5 | Радиус спавна |
+| `maxSummonedNearBoss` | int | 2 | Потолок живых рядом |
+| `cloneTab` / `cloneName` | int / string | 1 / `Vampire Crimson Bat` | Клон |
+| `lifeStealPerHit` | double | 15.0 | Хилл босса за тычку мыши |
+
+### `vampire_blood_ring` — VampireBloodRingAbility
+
+Charge 8 тиков (ring telegraph), затем hazard-кольцо на 10 с следует за боссом. Урон тикает в annulus (внутри кольца безопасно). Дым + души. Босс после спавна свободен. `cancelsOnTargetLost = false`.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 8 | Зарядка (0.4 с) |
+| `radius` | double | 7.0 | Внешний радиус |
+| `innerRadius` | double | 4.5 | Внутренний радиус |
+| `damage` | double | 3.0 | Урон тика зоны |
+| `zoneTicks` | int | 200 | Lifetime (10 с) |
+| `damageInterval` | int | 10 | Интервал урона |
+| `zoneColor` | int | `0xC0180810` | Тёмный ARGB |
+
 ## Примеры скриптов
 
 | Файл | Назначение |
@@ -428,5 +472,6 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `scripts/otrodie/otrodie_boss.js` | Отродье: CD/forced chain + SpreadingFilth.trigger |
 | `scripts/ghost/ghost_orbit_slam.js` | Призрак: агро → `ghost_orbit_slam` → смерть |
 | `scripts/ghost/ghost_soul_bolt.js` | Летающий призрак: soul-болт раз в 10 с |
+| `scripts/vampire/vampire_crimson_lord.js` | Кровавый лорд: whirl / bats / ring, one-way ярость |
 
 После правки скрипта на NPC: `/script reload`.

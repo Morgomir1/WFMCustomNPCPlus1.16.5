@@ -95,6 +95,31 @@ public final class AbilityVfx {
         safeSpawn(world, "minecraft:large_smoke", x, y + 0.5, z, 0, 0.05, 0, 0.02, 4);
     }
 
+    /** Тёмный дым + души по кольцу (annulus), не в центре. */
+    public static void spawnDarkSoulRing(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double innerRadius,
+            final double outerRadius) {
+        final Random r = AbilityCombatHelper.random();
+        final double inner = Math.max(0.2, innerRadius);
+        final double outer = Math.max(inner + 0.4, outerRadius);
+        for (int i = 0; i < 6; i++) {
+            final double a = r.nextDouble() * Math.PI * 2;
+            final double dist = inner + r.nextDouble() * (outer - inner);
+            final double px = x + Math.cos(a) * dist;
+            final double pz = z + Math.sin(a) * dist;
+            final double py = y + 0.15 + r.nextDouble() * 0.55;
+            safeSpawn(world, "minecraft:smoke", px, py, pz, 0, 0.04, 0, 0.01, 1);
+            safeSpawn(world, "minecraft:soul", px, py + 0.1, pz, 0, 0.05, 0, 0.01, 1);
+            if (r.nextDouble() < 0.35) {
+                safeSpawn(world, "minecraft:large_smoke", px, py + 0.05, pz, 0, 0.03, 0, 0.01, 1);
+            }
+        }
+    }
+
     public static void spawnDashTrail(final IWorld world, final double x, final double y, final double z) {
         final Random r = AbilityCombatHelper.random();
         for (int i = 0; i < 3; i++) {

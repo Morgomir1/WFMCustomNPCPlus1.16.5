@@ -21,6 +21,7 @@ import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.abilities.AbilityCombatHelper;
+import noppes.npcs.abilities.AbilityVfx;
 
 import java.util.List;
 import java.util.UUID;
@@ -81,6 +82,7 @@ public class EntityAbilityZone extends Entity {
     private int effectAmplifier;
     private boolean trapTriggered;
     private int triggerFlashTick = -1;
+    private boolean followOwner;
 
     public EntityAbilityZone(final EntityType<?> type, final World level) {
         super(type, level);
@@ -124,6 +126,13 @@ public class EntityAbilityZone extends Entity {
         if (this.lifetimeTicks <= 0) {
             this.remove();
             return;
+        }
+
+        if (this.followOwner) {
+            if (!tickFollowOwner()) {
+                this.remove();
+                return;
+            }
         }
 
         if (this.getZoneType() == ZoneType.TRAP) {
@@ -264,6 +273,35 @@ public class EntityAbilityZone extends Entity {
             default:
                 return dist <= r;
         }
+    }
+
+    private boolean tickFollowOwner() {
+        final IEntityLiving owner = resolveOwner();
+        if (owner == null || !owner.isAlive()) {
+            return false;
+        }
+        final double x = owner.getX();
+        final double z = owner.getZ();
+        final double y = AbilityCombatHelper.findGroundY(owner.getWorld(), x, z, owner.getY()) + 0.05;
+        this.moveTo(x, y, z, 0, 0);
+        if (getShape() == ZoneShape.RING && this.tickCount % 2 == 0) {
+            AbilityVfx.spawnDarkSoulRing(
+                    owner.getWorld(),
+                    x,
+                    y,
+                    z,
+                    getInnerRadius(),
+                    getRadius());
+        }
+        return true;
+    }
+
+    public void setFollowOwner(final boolean follow) {
+        this.followOwner = follow;
+    }
+
+    public boolean isFollowOwner() {
+        return this.followOwner;
     }
 
     private IEntityLiving resolveOwner() {
@@ -491,6 +529,7 @@ public class EntityAbilityZone extends Entity {
         if (nbt.hasUUID("Owner")) {
             this.ownerUuid = nbt.getUUID("Owner");
         }
+        this.followOwner = nbt.getBoolean("FollowOwner");
     }
 
     @Override
@@ -514,6 +553,7 @@ public class EntityAbilityZone extends Entity {
         if (this.ownerUuid != null) {
             nbt.putUUID("Owner", this.ownerUuid);
         }
+        nbt.putBoolean("FollowOwner", this.followOwner);
     }
 
     @Override

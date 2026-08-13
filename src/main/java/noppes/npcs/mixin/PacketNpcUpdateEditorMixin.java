@@ -2,6 +2,8 @@ package noppes.npcs.mixin;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.nbt.CompoundNBT;
+import noppes.npcs.client.ClientNpcSpawnData;
 import noppes.npcs.client.gui.util.GuiNPCInterface;
 import noppes.npcs.packets.client.PacketNpcUpdate;
 import org.spongepowered.asm.mixin.Final;
@@ -12,27 +14,33 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * {@code PacketNpcUpdate} writes spawn NBT onto the client entity, including Display.
- * The NPC editor edits that same {@code npc.display} object; applying the packet
- * while the editor is open rolled visibility / Availability back to the last saved server
- * snapshot, so closing the GUI saved the old values.
+ * Jar {@code PacketNpcUpdate.handle} drops NBT when {@code level.getEntity(id)} is null
+ * (common on hide→show). Queue until the NPC exists. Also skip applying while the
+ * editor GUI is open so Display edits are not overwritten.
  */
 @Mixin(PacketNpcUpdate.class)
 public abstract class PacketNpcUpdateEditorMixin {
 
-    @Shadow
+    @Shadow(remap = false)
     @Final
     private int id;
 
+    @Shadow(remap = false)
+    @Final
+    private CompoundNBT data;
+
     @Inject(method = "handle", at = @At("HEAD"), cancellable = true, remap = false)
-    private void cnpc$skipOverwriteWhileEditing(final CallbackInfo ci) {
-        final Screen screen = Minecraft.getInstance().screen;
-        if (!(screen instanceof GuiNPCInterface)) {
-            return;
+    private void cnpc$applyOrQueueSpawnData(final CallbackInfo ci) {
+        final Minecraft mc = Minecraft.getInstance();
+        final Screen screen = mc.screen;
+        if (screen instanceof GuiNPCInterface) {
+            final GuiNPCInterface gui = (GuiNPCInterface) screen;
+            if (gui.npc != null && gui.npc.getId() == this.id) {
+                ci.cancel();
+                return;
+            }
         }
-        final GuiNPCInterface gui = (GuiNPCInterface) screen;
-        if (gui.npc != null && gui.npc.getId() == this.id) {
-            ci.cancel();
-        }
+        ClientNpcSpawnData.applyOrQueue(this.id, this.data);
+        ci.cancel();
     }
 }

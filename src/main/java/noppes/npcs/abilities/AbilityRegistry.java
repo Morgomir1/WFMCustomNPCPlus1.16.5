@@ -48,6 +48,9 @@ public final class AbilityRegistry {
         register(new OtrodieSpreadingFilthAbility());
         register(new GhostOrbitSlamAbility());
         register(new GhostSoulBoltAbility());
+        register(new VampireWhirlSlashAbility());
+        register(new VampireCrimsonBatsAbility());
+        register(new VampireBloodRingAbility());
     }
 
     private AbilityRegistry() {

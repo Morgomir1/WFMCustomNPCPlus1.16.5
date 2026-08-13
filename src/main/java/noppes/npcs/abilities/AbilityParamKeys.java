@@ -22,6 +22,8 @@ public final class AbilityParamKeys {
     public static final String DAMAGE_PER_TICK = "damagePerTick";
     public static final String CONE_HALF_ANGLE = "coneHalfAngle";
     public static final String RADIUS = "radius";
+    /** Внутренний радиус кольца (telegraph / орбита). */
+    public static final String INNER_RADIUS = "innerRadius";
     public static final String SHOTS = "shots";
     public static final String SHOT_INTERVAL = "shotInterval";
     public static final String FIRST_SHOT_TICK = "firstShotTick";

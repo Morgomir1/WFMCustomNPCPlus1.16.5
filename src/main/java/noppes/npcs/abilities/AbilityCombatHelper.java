@@ -1152,4 +1152,24 @@ public final class AbilityCombatHelper {
     public static Random random() {
         return RANDOM;
     }
+
+    public static void healCaster(final AbilityContext ctx, final double amount) {
+        if (ctx == null || ctx.npc == null) {
+            return;
+        }
+        try {
+            final Object mc = ctx.npc.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                healLiving((LivingEntity) mc, amount);
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    public static void healLiving(final LivingEntity living, final double amount) {
+        if (living == null || amount <= 0.0) {
+            return;
+        }
+        living.setHealth(Math.min(living.getMaxHealth(), living.getHealth() + (float) amount));
+    }
 }

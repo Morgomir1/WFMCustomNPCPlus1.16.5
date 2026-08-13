@@ -74,6 +74,10 @@ public final class AbilityTelegraph {
         }
 
         if (radius > 0.05) {
+            final double innerRadius = ctx.params.getDouble(AbilityParamKeys.INNER_RADIUS, 0);
+            if (innerRadius > 0.05 && radius > innerRadius) {
+                return TelegraphAPI.ring(npc, nx, ny, nz, radius, innerRadius, chargeTicks, color);
+            }
             // Prefer impact point fixed in onStart (e.g. slam forward)
             if (active.ex != 0 || active.ez != 0 || active.ey != 0) {
                 return TelegraphAPI.circle(npc, active.ex, active.ey, active.ez, radius, chargeTicks, color);

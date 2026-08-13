@@ -9,6 +9,7 @@ import net.minecraft.util.math.RayTraceResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -30,6 +31,15 @@ public final class SoftVisibilityClientHandler {
     @SubscribeEvent
     public static void onLoggedOut(final ClientPlayerNetworkEvent.LoggedOutEvent event) {
         ClientNpcVisibility.clear();
+        ClientNpcSpawnData.clear();
+    }
+
+    @SubscribeEvent
+    public static void onEntityJoin(final EntityJoinWorldEvent event) {
+        if (!event.getWorld().isClientSide()) {
+            return;
+        }
+        ClientNpcSpawnData.applyIfPending(event.getEntity());
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -41,6 +51,7 @@ public final class SoftVisibilityClientHandler {
         if (mc.player == null || mc.level == null) {
             return;
         }
+        ClientNpcSpawnData.tryApplyPending();
 
         final RayTraceResult hit = mc.hitResult;
         if (hit instanceof EntityRayTraceResult) {

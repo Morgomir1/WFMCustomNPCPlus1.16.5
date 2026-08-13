@@ -35,11 +35,8 @@ public abstract class EntityNPCInterfaceVisibilityMixin {
     @Inject(method = "setInvisible", at = @At("HEAD"), cancellable = true, remap = false)
     private void cnpc$setInvisibleSoft(final ServerPlayerEntity player, final CallbackInfo ci) {
         final EntityNPCInterface self = (EntityNPCInterface) (Object) this;
-        // tracking = "soft-shown". StartTracking pre-adds id, so first hide always sends.
-        final boolean wasShown = self.tracking.remove(player.getId());
-        if (wasShown) {
-            Packets.send(player, new PacketNpcVisibleFalse(self.getId()));
-        }
+        self.tracking.remove(player.getId());
+        Packets.send(player, new PacketNpcVisibleFalse(self.getId()));
         ci.cancel();
     }
 
@@ -47,11 +44,15 @@ public abstract class EntityNPCInterfaceVisibilityMixin {
     private void cnpc$setVisibleSoft(final ServerPlayerEntity player, final CallbackInfo ci) {
         final EntityNPCInterface self = (EntityNPCInterface) (Object) this;
         final boolean newlyShown = self.tracking.add(player.getId());
-        // Id-only show packet — never FML SpawnEntity. Skip spam when already shown.
-        if (newlyShown) {
-            Packets.send(player, new PacketNpcVisibleTrue(self.getId()));
-            Packets.send(player, new PacketNpcUpdate(self.getId(), self.writeSpawnData()));
+        if (!newlyShown) {
+            // Already shown: do NOT spam PacketNpcUpdate. VisibilityController runs every
+            // second for wand holders and was overwriting GuiNpcDisplay edits, so save()
+            // sent stale NpcVisible / Availability back to the server.
+            ci.cancel();
+            return;
         }
+        Packets.send(player, new PacketNpcVisibleTrue(self.getId()));
+        Packets.send(player, new PacketNpcUpdate(self.getId(), self.writeSpawnData()));
         ci.cancel();
     }
 

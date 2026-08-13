@@ -30,6 +30,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.vector.Vector3d;
 import net.minecraft.util.text.StringTextComponent;
 import noppes.npcs.NoppesUtilServer;
+import noppes.npcs.NpcSoftVisibility;
 import noppes.npcs.client.layer.LayerArms;
 import noppes.npcs.client.layer.LayerBody;
 import noppes.npcs.client.layer.LayerEyes;
@@ -151,7 +152,7 @@ public class RenderCustomNpc<T extends EntityCustomNpc, M extends BipedModel<T>>
     public void render(final T npc, final float entityYaw, final float partialTicks, final MatrixStack matrixStack, final IRenderTypeBuffer buffer, final int packedLight) {
         // simpleRender returns before super.render — must gate soft-hide here too.
         final PlayerEntity localPlayer = Minecraft.getInstance().player;
-        if (localPlayer != null && npc.isInvisibleTo(localPlayer)) {
+        if (localPlayer != null && NpcSoftVisibility.isInvisibleTo(npc, localPlayer)) {
             this.shadowRadius = 0.0f;
             return;
         }

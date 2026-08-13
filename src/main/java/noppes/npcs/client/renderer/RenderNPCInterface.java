@@ -12,6 +12,7 @@ import net.minecraft.client.gui.*;
 import com.mojang.blaze3d.systems.*;
 import net.minecraft.util.math.vector.*;
 import noppes.npcs.entity.*;
+import noppes.npcs.NpcSoftVisibility;
 import noppes.npcs.mixin.*;
 import noppes.npcs.client.EntityUtil;
 import noppes.npcs.shared.common.util.*;
@@ -132,7 +133,7 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
         entity.yRot = entity.yRotO = 0;
         // Per-player soft hide: do not draw the linked model at all.
         final PlayerEntity localPlayer = Minecraft.getInstance().player;
-        if (localPlayer != null && npc.isInvisibleTo(localPlayer)) {
+        if (localPlayer != null && NpcSoftVisibility.isInvisibleTo(npc, localPlayer)) {
             return;
         }
         if (!npc.isInvisible())
@@ -175,7 +176,7 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
     public void render(final T npc, final float entityYaw, final float partialTicks, final MatrixStack matrixStack, final IRenderTypeBuffer buffer, final int packedLight) {
         final PlayerEntity localPlayer = Minecraft.getInstance().player;
         // Soft per-player hide: skip model, nameplate and shadow (Availability does not set isInvisible()).
-        if (localPlayer != null && npc.isInvisibleTo(localPlayer)) {
+        if (localPlayer != null && NpcSoftVisibility.isInvisibleTo(npc, localPlayer)) {
             this.shadowRadius = 0.0f;
             return;
         }

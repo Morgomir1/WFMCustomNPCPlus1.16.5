@@ -1,38 +1,43 @@
 package noppes.npcs;
 
 import net.minecraft.entity.player.PlayerEntity;
+import noppes.npcs.client.ClientNpcVisibility;
 import noppes.npcs.entity.EntityNPCInterface;
+import noppes.npcs.entity.data.DataDisplay;
 
 /**
- * Soft per-player NPC hide.
+ * Soft per-player NPC hide from Display Visible + Availability.
  * <p>
- * Client render/pick evaluates Availability locally (faction, daytime, dialogs, …) —
- * same rules as {@code DataDisplay.isVisibleTo}. Relying only on rare
- * {@code VisibilityController} packets left conditions stuck after soft-hide replaced
- * {@code removeEntity}.
+ * Display {@code Availability} is the hide condition for every option type (dialog, quest,
+ * faction, daytime, scoreboard, level) — NPC is hidden when {@code isAvailable} is true.
+ * {@code Visible=Yes/No} only applies when Availability has no options.
  */
 public final class NpcSoftVisibility {
     private NpcSoftVisibility() {
     }
 
-    /**
-     * Same predicate as {@link noppes.npcs.entity.data.DataDisplay#isVisibleTo} but for any
-     * {@link PlayerEntity} (client + server). Uses {@link noppes.npcs.controllers.data.Availability#isAvailable}.
-     */
     public static boolean isDisplayVisibleTo(final EntityNPCInterface npc, final PlayerEntity player) {
-        final boolean available = npc.display.availability.isAvailable(player);
-        if (npc.display.getVisible() == 1) {
-            return !available;
+        if (npc == null) {
+            return true;
         }
-        return available;
+        return isDisplayVisibleTo(npc.display, player);
+    }
+
+    public static boolean isDisplayVisibleTo(final DataDisplay display, final PlayerEntity player) {
+        if (display == null || player == null) {
+            return true;
+        }
+        if (display.availability.hasOptions()) {
+            return !display.availability.isAvailable(player);
+        }
+        return display.getVisible() != 1;
     }
 
     /**
-     * True when EnableInvisibleNpcs would soft-hide this NPC from the player
-     * ({@code !display.isVisibleTo} and not spectator / wand).
+     * True when this NPC should be soft-hidden from the player.
      */
     public static boolean isHiddenFrom(final EntityNPCInterface npc, final PlayerEntity player) {
-        if (!CustomNpcs.EnableInvisibleNpcs || player == null || npc == null) {
+        if (player == null || npc == null) {
             return false;
         }
         if (player.isSpectator()) {
@@ -45,8 +50,8 @@ public final class NpcSoftVisibility {
     }
 
     /**
-     * Expanded {@link EntityNPCInterface#isInvisibleTo}: classic Display Visible=No, plus
-     * live Availability evaluation on client and server.
+     * Expanded {@link EntityNPCInterface#isInvisibleTo}: classic Visible=No, server hide
+     * flag, and live Availability (all condition types).
      */
     public static boolean isInvisibleTo(final EntityNPCInterface npc, final PlayerEntity player) {
         if (player == null || npc == null) {
@@ -58,12 +63,9 @@ public final class NpcSoftVisibility {
         if (player.isSpectator()) {
             return false;
         }
-        // Classic Visible=No without Availability options (no EnableInvisibleNpcs needed)
-        if (npc.display.getVisible() == 1 && !npc.display.availability.hasOptions()) {
+        if (npc.level != null && npc.level.isClientSide
+                && ClientNpcVisibility.isHiddenFromLocalPlayer(npc.getId())) {
             return true;
-        }
-        if (!CustomNpcs.EnableInvisibleNpcs) {
-            return false;
         }
         return !isDisplayVisibleTo(npc, player);
     }

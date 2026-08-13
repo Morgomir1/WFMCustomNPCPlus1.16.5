@@ -30,7 +30,9 @@ import net.minecraft.util.math.vector.Vector3f;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.LightType;
 import net.minecraftforge.fml.ModList;
+import noppes.npcs.NpcSoftVisibility;
 import noppes.npcs.client.model.DummyVanilaModel;
+import noppes.npcs.entity.EntityNPCInterface;
 import software.bernie.geckolib3.compat.PatchouliCompat;
 import software.bernie.geckolib3.core.IAnimatable;
 import software.bernie.geckolib3.core.IAnimatableModel;
@@ -109,7 +111,8 @@ public abstract class GeoEntityRendererCompat<T extends LivingEntity & IAnimatab
                        int packedLightIn) {
         final PlayerEntity localPlayer = Minecraft.getInstance().player;
         // Soft / classic per-player hide: skip model, layers, nameplate and shadow.
-        if (localPlayer != null && entity.isInvisibleTo(localPlayer)) {
+        if (localPlayer != null && entity instanceof EntityNPCInterface
+                && NpcSoftVisibility.isInvisibleTo((EntityNPCInterface) entity, localPlayer)) {
             this.shadowRadius = 0.0f;
             return;
         }

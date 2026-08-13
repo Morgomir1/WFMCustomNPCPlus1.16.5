@@ -96,9 +96,18 @@ public class NoppesUtilServer
             PlayerDataController.instance.addPlayerMessage(player.getServer(), player.getName().getString(), dialog.mail);
         }
         final PlayerDialogData data = playerdata.dialogData;
-        if (!data.dialogsRead.contains(dialog.id) && dialog.id >= 0) {
-            data.dialogsRead.add(dialog.id);
-            playerdata.updateClient = true;
+        if (dialog.id >= 0) {
+            if (!data.dialogsRead.contains(dialog.id)) {
+                data.dialogsRead.add(dialog.id);
+            }
+            if (player instanceof ServerPlayerEntity) {
+                final ServerPlayerEntity mp = (ServerPlayerEntity) player;
+                Packets.send(mp, new PacketSync(8, playerdata.getSyncNBT(), true));
+                playerdata.updateClient = false;
+                VisibilityController.instance.onUpdate(mp);
+            } else {
+                playerdata.updateClient = true;
+            }
         }
         setEditingNpc(player, npc);
         playerdata.questData.checkQuestCompletion(player, 1);

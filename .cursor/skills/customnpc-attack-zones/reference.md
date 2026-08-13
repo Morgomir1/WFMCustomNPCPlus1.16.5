@@ -58,6 +58,7 @@ Native WFM-боссы зовут `com.wfm.telegraph.TelegraphAPI` напряму
 
 - `setEffect("minecraft:poison", duration, amplifier)`
 - `setColor(0xAARRGGBB)`, `setKnockback(f)`, `setDamage(f)`
+- `setHealOwner(f)` — хилл владельца при входе; зона сразу снимается (звук + партиклы)
 - `setLifetimeTicks(n)`, `setDamageInterval(n)`
 - `moveTo(x, y, z, yaw, pitch)` — follow aura
 - `setVisible` / groundFill / border через data

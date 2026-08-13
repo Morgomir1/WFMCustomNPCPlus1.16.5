@@ -55,11 +55,14 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `vampire_whirl_slash` | `VampireWhirlSlashAbility` | Круговой удар + 100 HP за цель |
 | `vampire_crimson_bats` | `VampireCrimsonBatsAbility` | 2 мыши; тычки хилят босса на 15 |
 | `vampire_blood_ring` | `VampireBloodRingAbility` | Кольцо-аура 10с, следует за боссом |
+| `vampire_blood_dash` | `VampireBloodDashAbility` | Homing-рывок без уворота + лужи крови |
+| `vampire_blood_slash` | `VampireBloodSlashAbility` | Конус мечом (как охотник), кровь |
 
 Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
 Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
 Оркестратор Отродья: `src/main/resources/scripts/otrodie/otrodie_boss.js`.
 Оркестратор Кровавого лорда: `src/main/resources/scripts/vampire/vampire_crimson_lord.js`.
+Оркестратор кровавого рывка: `src/main/resources/scripts/vampire/vampire_blood_dash.js`.
 
 ---
 
@@ -327,6 +330,36 @@ Charge → hazard-кольцо 10 с следует за боссом. Урон 
 | `zoneColor` | int | `0xC0180810` | Тёмный ARGB |
 
 Оркестратор: `scripts/vampire/vampire_crimson_lord.js` (пассивка +25 melee, one-way ярость на 50%).
+
+### `vampire_blood_dash`
+
+Homing-рывок: метка на игроке → полёт в **текущую** позицию → snap, урон гарантирован. Игрок 8 с оставляет красные лужи; вампир подбирает лужу (хилл + звук + партиклы), зона сразу исчезает.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 18 / 6 | Зарядка + рывок |
+| `damage` | double | 14.0 | Урон попадания |
+| `hitRadius` | double | 2.2 | Касание / метка |
+| `radius` | double | 1.8 | Радиус лужи |
+| `zoneTicks` | int | 50 | Lifetime лужи |
+| `trailTicks` | int | 160 | Длительность следа (8 с) |
+| `puddleInterval` | int | 8 | Интервал спавна луж |
+| `healPerTick` | double | 15.0 | Хилл вампира в луже |
+| `zoneColor` | int | `0xC0B01018` | Цвет лужи |
+
+Оркестратор: `scripts/vampire/vampire_blood_dash.js` (slash вблизи / dash 3–16). Пассивки: +25 HP с автоатаки; раненые игроки ускоряют бег/удары; 50% и 10% HP (по разу за бой) — невидимость + 5 мышей (хилл 10 за удар).
+
+### `vampire_blood_slash`
+
+Удар мечом усечённым конусом, как `wh_flaming_strike`. Красный telegraph, кровь, без огня.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 20 | Warning 1 с |
+| `distance` | double | 4.5 | Длина сектора |
+| `radius` | double | 1.35 | Полуширина у ног |
+| `coneHalfAngle` | double | 38 | Половина угла |
+| `damage` | double | 14.0 | Урон |
 
 ---
 

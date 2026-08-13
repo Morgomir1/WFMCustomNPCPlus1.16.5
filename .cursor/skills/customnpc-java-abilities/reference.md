@@ -49,7 +49,9 @@ noppes.npcs.abilities/
     ├── GhostSoulBoltAbility.java           # id: ghost_soul_bolt
     ├── VampireWhirlSlashAbility.java       # id: vampire_whirl_slash
     ├── VampireCrimsonBatsAbility.java      # id: vampire_crimson_bats
-    └── VampireBloodRingAbility.java        # id: vampire_blood_ring
+    ├── VampireBloodRingAbility.java        # id: vampire_blood_ring
+    ├── VampireBloodDashAbility.java        # id: vampire_blood_dash
+    └── VampireBloodSlashAbility.java       # id: vampire_blood_slash
 ```
 
 ## CnpcAbility — контракт
@@ -459,6 +461,38 @@ Charge 8 тиков (ring telegraph), затем hazard-кольцо на 10 с 
 | `damageInterval` | int | 10 | Интервал урона |
 | `zoneColor` | int | `0xC0180810` | Тёмный ARGB |
 
+### `vampire_blood_dash` — VampireBloodDashAbility
+
+Homing-рывок в текущую позицию цели: charge 18 тиков (круг-метка на игроке), затем 6 тиков полёта с перенацеливанием каждый тик и snap в цель. Увернуться нельзя — урон гарантирован. Поражённый **игрок** 8 с оставляет красные лужи (`EntityAbilityZone`, урон 0); вампир подбирает лужу (хилл, звук, партиклы) — зона сразу исчезает. `cancelsOnTargetLost = false`.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 18 / 6 | Зарядка + рывок |
+| `damage` | double | 14.0 | Урон попадания |
+| `hitRadius` | double | 2.2 | Радиус касания / метки |
+| `knockback` / `knockbackY` | double | 0.8 / 0.2 | Отбрасывание при ударе |
+| `radius` | double | 1.8 | Радиус лужи |
+| `zoneTicks` | int | 50 | Lifetime лужи (2.5 с) |
+| `trailTicks` | int | 160 | Как долго цель оставляет лужи (8 с) |
+| `puddleInterval` | int | 8 | Интервал спавна луж |
+| `healPerTick` | double | 15.0 | Хилл кастера за тик зоны |
+| `damageInterval` | int | 10 | Интервал хилла в луже |
+| `zoneColor` | int | `0xC0B01018` | Цвет лужи |
+| `telegraph` | int | 0 | Авто-line выключен (метка спавнится вручную) |
+
+### `vampire_blood_slash` — VampireBloodSlashAbility
+
+Удар мечом усечённым конусом, как `wh_flaming_strike`: charge 20 тиков, `coneTruncated`, босс вне зоны. Кровь вместо огня, без поджога. `cancelsOnTargetLost = false`.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 20 | 1 с warning |
+| `distance` | double | 4.5 | Длина сектора |
+| `radius` | double | 1.35 | Полуширина у ног |
+| `coneHalfAngle` | double | 38 | Половина угла |
+| `damage` | double | 14.0 | Урон |
+| `knockback` / `knockbackY` | double | 0.9 / 0.2 | Отбрасывание |
+
 ## Примеры скриптов
 
 | Файл | Назначение |
@@ -473,5 +507,6 @@ Charge 8 тиков (ring telegraph), затем hazard-кольцо на 10 с 
 | `scripts/ghost/ghost_orbit_slam.js` | Призрак: агро → `ghost_orbit_slam` → смерть |
 | `scripts/ghost/ghost_soul_bolt.js` | Летающий призрак: soul-болт раз в 10 с |
 | `scripts/vampire/vampire_crimson_lord.js` | Кровавый лорд: whirl / bats / ring, one-way ярость |
+| `scripts/vampire/vampire_blood_dash.js` | Вампир: dash / cone slash, лужи, мыши на 50%/10% |
 
 После правки скрипта на NPC: `/script reload`.

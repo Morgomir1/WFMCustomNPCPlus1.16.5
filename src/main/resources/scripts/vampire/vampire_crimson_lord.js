@@ -4,6 +4,7 @@
  * Пассивка: +25 HP с каждой автоатаки.
  * Абилки (Java AbilityAPI):
  *   vampire_whirl_slash  — круговой удар, +100 HP за цель
+ *   dash                 — рывок к цели (как у других боссов)
  *   vampire_crimson_bats — 2 мыши (клон "Vampire Crimson Bat"), +15 HP боссу за тычку мыши
  *   vampire_blood_ring   — кольцо-аура 10с (следует за боссом, урон в зоне)
  *
@@ -28,6 +29,7 @@ var BASE_SPEED_KEY = "vcl_base_speed";
 var CD_PREFIX = "vcl_cd_";
 
 var WHIRL_ID = "vampire_whirl_slash";
+var DASH_ID = "dash";
 var BATS_ID = "vampire_crimson_bats";
 var RING_ID = "vampire_blood_ring";
 var BAT_TAG = "vampire_crimson_bat";
@@ -38,6 +40,7 @@ var RAGE_SPEED_CAP = 10;
 
 var COOLDOWNS = {};
 COOLDOWNS[WHIRL_ID] = 55;
+COOLDOWNS[DASH_ID] = 70;
 COOLDOWNS[BATS_ID] = 180;
 COOLDOWNS[RING_ID] = 200;
 
@@ -132,6 +135,10 @@ function pickAbility(npc, target, data, now) {
         }
     }
 
+    if (dist >= 6.0 && dist <= 16.0 && isCooldownReady(data, now, DASH_ID) && last != DASH_ID) {
+        return DASH_ID;
+    }
+
     if (dist < 5.5 && isCooldownReady(data, now, WHIRL_ID) && last != WHIRL_ID) {
         return WHIRL_ID;
     }
@@ -141,6 +148,7 @@ function pickAbility(npc, target, data, now) {
     }
 
     if (isCooldownReady(data, now, WHIRL_ID)) return WHIRL_ID;
+    if (isCooldownReady(data, now, DASH_ID)) return DASH_ID;
     if (isCooldownReady(data, now, RING_ID)) return RING_ID;
     if (batsAlive < BAT_MAX_NEAR && isCooldownReady(data, now, BATS_ID)) return BATS_ID;
     return null;
@@ -157,6 +165,18 @@ function buildParams(abilityId, phase) {
             "knockback", 1.2,
             "knockbackY", 0.3,
             "lifeStealPerHit", 100.0
+        );
+    }
+    if (abilityId == DASH_ID) {
+        return AbilityAPI.params(
+            "telegraphColor", tg,
+            "damage", 12.0,
+            "distance", 16.0,
+            "chargeTicks", chargeOf(10, phase),
+            "activeTicks", 7,
+            "knockback", 1.6,
+            "knockbackY", 0.35,
+            "hitRadius", 1.6
         );
     }
     if (abilityId == BATS_ID) {

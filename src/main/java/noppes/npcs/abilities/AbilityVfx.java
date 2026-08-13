@@ -58,6 +58,31 @@ public final class AbilityVfx {
         }
     }
 
+    /** Hearts + blood around the caster when a blood puddle is picked up. */
+    public static void spawnBloodHeal(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z) {
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 8; i++) {
+            safeSpawn(world, "minecraft:heart",
+                    x + (r.nextDouble() - 0.5) * 1.1,
+                    y + r.nextDouble() * 0.8,
+                    z + (r.nextDouble() - 0.5) * 1.1,
+                    0, 0.08, 0, 0, 1);
+        }
+        for (int i = 0; i < 10; i++) {
+            safeSpawn(world, "minecraft:entity_effect",
+                    x + (r.nextDouble() - 0.5) * 1.4,
+                    y - 0.2 + r.nextDouble() * 1.2,
+                    z + (r.nextDouble() - 0.5) * 1.4,
+                    0.9, 0.1, 0.1, 0, 1);
+        }
+        safeSpawn(world, "minecraft:damage_indicator", x, y + 0.4, z, 0, 0.2, 0, 0, 4);
+        spawnBloodBurst(world, x, y - 0.4, z, 0.9);
+    }
+
     public static void spawnBloodBurst(
             final IWorld world,
             final double x,
@@ -518,6 +543,67 @@ public final class AbilityVfx {
         }
 
         // Доп. дуги ближе к боссу / к концу удара
+        safeSpawn(world, "minecraft:sweep_attack",
+                sx + fx * 0.6, sy + 1.05, sz + fz * 0.6,
+                fx, 0.0, fz, 0.0, 0);
+        safeSpawn(world, "minecraft:sweep_attack",
+                ex, ey + 1.1, ez,
+                fx, 0.0, fz, 0.0, 0);
+    }
+
+    /** Кровавый взмах мечом по коридору удара (как flaming strike, без огня). */
+    public static void spawnBloodSlashSweep(
+            final IWorld world,
+            final double sx,
+            final double sy,
+            final double sz,
+            final double ex,
+            final double ey,
+            final double ez,
+            final double halfWidth) {
+        final double dx = ex - sx;
+        final double dz = ez - sz;
+        final double len = Math.sqrt(dx * dx + dz * dz);
+        final double fx;
+        final double fz;
+        if (len < 0.05) {
+            fx = 0.0;
+            fz = 1.0;
+        } else {
+            fx = dx / len;
+            fz = dz / len;
+        }
+        final double rx = -fz;
+        final double rz = fx;
+        final double useLen = Math.max(1.0, len);
+        final double width = Math.max(0.6, halfWidth);
+        final int steps = Math.max(4, (int) Math.ceil(useLen / 0.55));
+        final Random r = AbilityCombatHelper.random();
+
+        for (int i = 0; i <= steps; i++) {
+            final double t = i / (double) steps;
+            final double cx = sx + dx * t;
+            final double cz = sz + dz * t;
+            final double cy = sy + (ey - sy) * t + 0.95;
+
+            safeSpawn(world, "minecraft:sweep_attack",
+                    cx, cy, cz,
+                    fx, 0.0, fz, 0.0, 0);
+
+            final int sideSamples = Math.max(2, (int) Math.ceil(width * 2.0));
+            for (int s = -sideSamples; s <= sideSamples; s++) {
+                final double side = (s / (double) sideSamples) * width;
+                final double px = cx + rx * side + (r.nextDouble() - 0.5) * 0.15;
+                final double pz = cz + rz * side + (r.nextDouble() - 0.5) * 0.15;
+                final double py = cy - 0.15 + r.nextDouble() * 0.35;
+                safeSpawn(world, "minecraft:entity_effect", px, py, pz, 0.9, 0.1, 0.1, 0, 1);
+                if (s == 0 || (i + s) % 2 == 0) {
+                    safeSpawn(world, "minecraft:crit", px, py + 0.1, pz, 0, 0.05, 0, 0.01, 1);
+                    safeSpawn(world, "minecraft:crimson_spore", px, py, pz, 0, 0.03, 0, 0.01, 1);
+                }
+            }
+        }
+
         safeSpawn(world, "minecraft:sweep_attack",
                 sx + fx * 0.6, sy + 1.05, sz + fz * 0.6,
                 fx, 0.0, fz, 0.0, 0);

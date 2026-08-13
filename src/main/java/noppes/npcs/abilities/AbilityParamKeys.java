@@ -83,6 +83,10 @@ public final class AbilityParamKeys {
     public static final String HOVER_OFFSET = "hoverOffset";
     /** Длительность фазы врезания (тики). */
     public static final String SLAM_TICKS = "slamTicks";
+    /** Как долго цель оставляет лужи (тики). */
+    public static final String TRAIL_TICKS = "trailTicks";
+    /** Интервал спавна луж под целью (тики). */
+    public static final String PUDDLE_INTERVAL = "puddleInterval";
 
     private AbilityParamKeys() {
     }

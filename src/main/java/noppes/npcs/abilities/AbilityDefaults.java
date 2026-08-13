@@ -614,4 +614,39 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.ZONE_COLOR, 0xC0180810);
         return map;
     }
+
+    public static Map<String, Object> vampireBloodDash() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 16.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 18);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 6);
+        map.put(AbilityParamKeys.DAMAGE, 14.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.8);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.2);
+        map.put(AbilityParamKeys.HIT_RADIUS, 2.2);
+        map.put(AbilityParamKeys.RADIUS, 1.8);
+        map.put(AbilityParamKeys.ZONE_TICKS, 50);
+        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0B01018);
+        map.put(AbilityParamKeys.HEAL_PER_TICK, 15.0);
+        map.put(AbilityParamKeys.TRAIL_TICKS, 160);
+        map.put(AbilityParamKeys.PUDDLE_INTERVAL, 8);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
+    public static Map<String, Object> vampireBloodSlash() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 4.5);
+        map.put(AbilityParamKeys.RADIUS, 1.35);
+        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 38.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.DAMAGE, 14.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.9);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.2);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
 }

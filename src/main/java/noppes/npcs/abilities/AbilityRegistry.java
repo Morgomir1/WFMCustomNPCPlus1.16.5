@@ -51,6 +51,8 @@ public final class AbilityRegistry {
         register(new VampireWhirlSlashAbility());
         register(new VampireCrimsonBatsAbility());
         register(new VampireBloodRingAbility());
+        register(new VampireBloodDashAbility());
+        register(new VampireBloodSlashAbility());
     }
 
     private AbilityRegistry() {

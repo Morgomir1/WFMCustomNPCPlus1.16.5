@@ -84,6 +84,8 @@ public class EntityAbilityZone extends Entity {
     private int triggerFlashTick = -1;
     private boolean followOwner;
 
+    private float healOwner;
+
     public EntityAbilityZone(final EntityType<?> type, final World level) {
         super(type, level);
         this.noPhysics = true;
@@ -149,6 +151,11 @@ public class EntityAbilityZone extends Entity {
             return;
         }
 
+        if (healOwnerIfInside()) {
+            this.remove();
+            return;
+        }
+
         if (this.damageCooldown > 0) {
             this.damageCooldown--;
             return;
@@ -188,6 +195,45 @@ public class EntityAbilityZone extends Entity {
                 continue;
             }
             applyHit(living);
+        }
+    }
+
+    /**
+     * @return true if the owner picked up this zone (heal + VFX); caller should remove it
+     */
+    private boolean healOwnerIfInside() {
+        if (this.healOwner <= 0.001f) {
+            return false;
+        }
+        final IEntityLiving owner = resolveOwner();
+        if (owner == null || !owner.isAlive()) {
+            return false;
+        }
+        try {
+            final Object mc = owner.getMCEntity();
+            if (!(mc instanceof LivingEntity)) {
+                return false;
+            }
+            final LivingEntity living = (LivingEntity) mc;
+            if (!isInside(living)) {
+                return false;
+            }
+            final double dy = living.getY() - this.getY();
+            if (dy < -0.5 || dy > getZoneHeight() + 0.5) {
+                return false;
+            }
+            AbilityCombatHelper.healLiving(living, this.healOwner);
+            AbilityVfx.spawnBloodHeal(owner.getWorld(), owner.getX(), owner.getY() + 1.0, owner.getZ());
+            AbilityVfx.spawnBloodBurst(owner.getWorld(), this.getX(), this.getY() + 0.2, this.getZ(), getRadius());
+            try {
+                owner.getWorld().playSoundAt(owner.getPos(), "minecraft:entity.generic.drink", 1.0F, 0.75F);
+                owner.getWorld().playSoundAt(owner.getPos(), "minecraft:item.honey_bottle.drink", 0.9F, 0.7F);
+                owner.getWorld().playSoundAt(owner.getPos(), "minecraft:block.beacon.power_select", 0.65F, 1.55F);
+            } catch (final Exception ignoredSound) {
+            }
+            return true;
+        } catch (final Exception ignored) {
+            return false;
         }
     }
 
@@ -492,6 +538,18 @@ public class EntityAbilityZone extends Entity {
         return this.damage;
     }
 
+    public void setHealOwner(final float heal) {
+        this.healOwner = Math.max(0f, heal);
+    }
+
+    public float getHealOwner() {
+        return this.healOwner;
+    }
+
+    public UUID getOwnerUuid() {
+        return this.ownerUuid;
+    }
+
     public void setLifetimeTicks(final int ticks) {
         this.lifetimeTicks = Math.max(1, ticks);
     }
@@ -530,6 +588,7 @@ public class EntityAbilityZone extends Entity {
             this.ownerUuid = nbt.getUUID("Owner");
         }
         this.followOwner = nbt.getBoolean("FollowOwner");
+        this.healOwner = nbt.getFloat("HealOwner");
     }
 
     @Override
@@ -554,6 +613,7 @@ public class EntityAbilityZone extends Entity {
             nbt.putUUID("Owner", this.ownerUuid);
         }
         nbt.putBoolean("FollowOwner", this.followOwner);
+        nbt.putFloat("HealOwner", this.healOwner);
     }
 
     @Override

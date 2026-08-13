@@ -3,8 +3,7 @@
  *
  * Пассивки:
  *   — вампиризм: +25 HP с каждой автоатаки;
- *   — чем больше рядом игроков с потерянным HP, тем быстрее бег
- *     и тем чаще автоатака (меньше delay setAttackSpeed);
+ *   — пассивка ярости от раненых игроков (FRENZY_ENABLED, сейчас выкл.);
  *   — при 50% и 10% HP (по разу за бой): невидимость, стоп,
  *     5 мышей; удар мыши хилит вампира на 10. Все мыши убиты — снова бой.
  *
@@ -32,7 +31,7 @@ var DASH_ID = "vampire_blood_dash";
 var SLASH_ID = "vampire_blood_slash";
 
 var COOLDOWNS = {};
-COOLDOWNS[DASH_ID] = 80;
+COOLDOWNS[DASH_ID] = 600;
 COOLDOWNS[SLASH_ID] = 50;
 
 var ENTITY_PLAYER = 1;
@@ -50,10 +49,16 @@ var WALK_SPEED_CAP = 10;
 var ATK_REDUCE_PER = 3;
 var ATK_SPEED_MIN = 5;
 
-var BASE_SPEED_KEY = "vbd_base_speed";
-var BASE_ATK_KEY = "vbd_base_atk";
+var BASE_SPEED_KEY = "vbd_base_walk";
+var BASE_ATK_KEY = "vbd_base_swing";
 var LAST_WOUNDED_KEY = "vbd_wounded";
 var MELEE_HEAL = 25;
+
+var PUDDLE_HEAL = 15.0;
+var PUDDLE_RADIUS = 1.3;
+var PUDDLE_COLOR = 0xC0C01838;
+
+var FRENZY_ENABLED = false;
 
 var HIDING_KEY = "vbd_hiding";
 var USED_50_KEY = "vbd_mice_50";
@@ -71,17 +76,19 @@ var BAT_OWNER_KEY = "vcl_owner";
 var BAT_COUNT = 5;
 var BAT_HEAL = 10.0;
 var BAT_CLONE_TAB = 1;
-var BAT_CLONE_NAME = "Vampire Crimson Bat";
+var BAT_CLONE_NAME = "Летучая мышь";
 var BAT_COUNT_RADIUS = 24;
 var HIDE_GRACE_TICKS = 30;
-var HIDE_MAX_TICKS = 600;
+var HIDE_MAX_TICKS = 1800;
 
 function init(event) {
     var npc = event.npc;
     var data = npc.getStoreddata();
     storeBaseStats(data, npc);
+    restoreBaseStats(npc);
     data.put(USED_50_KEY, "0");
     data.put(USED_10_KEY, "0");
+    data.put(LAST_WOUNDED_KEY, "0");
     if (String(data.get(HIDING_KEY)) == "1") {
         endMiceHide(npc, data);
     }
@@ -108,7 +115,8 @@ function timer(event) {
 
     if (String(data.get(HIDING_KEY)) == "1") return;
 
-    updateBloodFrenzy(npc);
+    if (FRENZY_ENABLED) updateBloodFrenzy(npc);
+    else if (!AbilityAPI.isBusy(npc)) restoreBaseStats(npc);
 
     if (AbilityAPI.isBusy(npc)) return;
 
@@ -163,12 +171,12 @@ function buildParams(abilityId) {
         "chargeTicks", 18,
         "activeTicks", 6,
         "hitRadius", 2.2,
-        "radius", 1.8,
+        "radius", PUDDLE_RADIUS,
         "zoneTicks", 50,
         "trailTicks", 160,
         "puddleInterval", 8,
-        "healPerTick", 15.0,
-        "zoneColor", 0xC0B01018
+        "healPerTick", PUDDLE_HEAL,
+        "zoneColor", PUDDLE_COLOR
     );
 }
 
@@ -208,6 +216,7 @@ function meleeAttack(event) {
 function targetLost(event) {
     if (String(event.npc.getStoreddata().get(HIDING_KEY)) == "1") return;
     AbilityAPI.cancel(event.npc);
+    restoreBaseStats(event.npc);
 }
 
 function died(event) {
@@ -320,11 +329,12 @@ function endMiceHide(npc, data) {
     data.put(HIDING_KEY, "0");
     data.put(BATS_STARTED_KEY, "0");
     clearInvisibility(npc, data);
+    restoreBaseStats(npc);
     try {
         var ai = npc.getAi();
         var ret = data.has(SAVED_RETALIATE_KEY) ? getInt(data, SAVED_RETALIATE_KEY) : RETALIATE_REVENGE;
+        if (ret == RETALIATE_NONE) ret = RETALIATE_REVENGE;
         ai.setRetaliateType(ret);
-        ai.setWalkingSpeed(getBaseSpeed(data, npc));
     } catch (e) {}
     try {
         var world = npc.getWorld();
@@ -419,10 +429,21 @@ function countOwnedBats(npc) {
 
 function updateBloodFrenzy(npc) {
     var data = npc.getStoreddata();
-    storeBaseStats(data, npc);
-
-    var wounded = countWoundedPlayers(npc);
+    var target = npc.getAttackTarget();
+    var inCombat = target != null && target.isAlive();
+    var wounded = 0;
+    if (inCombat) wounded = countWoundedPlayers(npc);
     data.put(LAST_WOUNDED_KEY, String(wounded));
+
+    if (wounded <= 0) {
+        if (!AbilityAPI.isBusy(npc)) restoreBaseStats(npc);
+        else {
+            try {
+                npc.getAi().setAttackSpeed(getBaseAttackSpeed(data, npc));
+            } catch (e0) {}
+        }
+        return;
+    }
 
     var ratio = wounded / MAX_WOUNDED;
     if (ratio < 0) ratio = 0;
@@ -465,7 +486,7 @@ function countWoundedPlayers(npc) {
 function isWoundedPlayer(ent, npc) {
     if (ent == null || !ent.isAlive()) return false;
     try {
-        if (typeof ent.getType == "function" && ent.getType() != ENTITY_PLAYER) return false;
+        if (typeof ent.getType != "function" || ent.getType() != ENTITY_PLAYER) return false;
         if (typeof ent.getGamemode == "function" && ent.getGamemode() == GAMEMODE_SPECTATOR) return false;
         if (String(ent.getUUID()) == String(npc.getUUID())) return false;
         var hp = ent.getHealth();
@@ -496,7 +517,7 @@ function storeBaseStats(data, npc) {
         var ai = npc.getAi();
         if (!data.has(BASE_SPEED_KEY)) {
             var speed = ai.getWalkingSpeed();
-            if (speed < 0) speed = 5;
+            if (speed <= 0 || speed >= WALK_SPEED_CAP - 1) speed = 5;
             data.put(BASE_SPEED_KEY, String(speed));
         }
         if (!data.has(BASE_ATK_KEY)) {
@@ -504,11 +525,12 @@ function storeBaseStats(data, npc) {
             try {
                 atk = ai.getAttackSpeed();
             } catch (e) {}
-            if (atk <= 0) atk = 20;
+            if (atk <= ATK_SPEED_MIN + 2) atk = 20;
             data.put(BASE_ATK_KEY, String(atk));
         }
         if (!data.has(SAVED_RETALIATE_KEY)) {
-            data.put(SAVED_RETALIATE_KEY, String(ai.getRetaliateType()));
+            var ret = ai.getRetaliateType();
+            if (ret != RETALIATE_NONE) data.put(SAVED_RETALIATE_KEY, String(ret));
         }
     } catch (e) {}
 }

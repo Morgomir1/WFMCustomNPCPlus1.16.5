@@ -94,6 +94,9 @@ public class ClientProxy extends CommonProxy
         RenderingRegistry.registerEntityRenderingHandler(
                 CustomEntities.entityAbilityZone,
                 RenderAbilityZone::new);
+        RenderingRegistry.registerEntityRenderingHandler(
+                CustomEntities.entityNecroBeam,
+                RenderNecroBeam::new);
         ScreenManager.register(CustomContainer.container_carpentrybench, GuiNpcCarpentryBench::new);
         ScreenManager.register(CustomContainer.container_customgui, GuiCustom::new);
         ScreenManager.register(CustomContainer.container_mail, GuiMailmanWrite::new);

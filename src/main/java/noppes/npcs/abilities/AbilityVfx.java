@@ -279,6 +279,52 @@ public final class AbilityVfx {
         }
     }
 
+    /**
+     * Particles along a rectangular necro beam corridor (ox,oz → length along fx,fz).
+     */
+    public static void spawnNecroBeamZone(
+            final IWorld world,
+            final double ox,
+            final double oy,
+            final double oz,
+            final double fx,
+            final double fz,
+            final double length,
+            final double halfWidth,
+            final int count) {
+        if (world == null || count <= 0 || length <= 0.0) {
+            return;
+        }
+        final Random r = AbilityCombatHelper.random();
+        final double len = Math.max(1.0, length);
+        for (int i = 0; i < count; i++) {
+            final double t = (0.12 + r.nextDouble() * 0.86) * len;
+            final double side = (r.nextDouble() - 0.5) * 2.0 * halfWidth * 0.85;
+            final double px = ox + fx * t + (-fz) * side;
+            final double pz = oz + fz * t + fx * side;
+            final double py = oy + r.nextDouble() * 0.55;
+            safeSpawn(world, "minecraft:soul_fire_flame", px, py, pz, 0, 0.04, 0, 0.01, 1);
+            if (i % 2 == 0) {
+                safeSpawn(world, "minecraft:witch", px, py + 0.1, pz, 0, 0.03, 0, 0.01, 1);
+            }
+            if (r.nextBoolean()) {
+                safeSpawn(world, "minecraft:soul", px, py + 0.15, pz, 0, 0.02, 0, 0.01, 1);
+            }
+        }
+    }
+
+    /** Неуязвимость некроманта: soul / soul_fire_flame / witch. */
+    public static void spawnNecroInvuln(final IWorld world, final double x, final double y, final double z) {
+        spawnDarkCharge(world, x, y, z);
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 3; i++) {
+            final double ox = (r.nextDouble() - 0.5) * 1.2;
+            final double oy = 0.3 + r.nextDouble() * 1.1;
+            final double oz = (r.nextDouble() - 0.5) * 1.2;
+            safeSpawn(world, "minecraft:witch", x + ox, y + oy, z + oz, 0, 0.04, 0, 0.01, 1);
+        }
+    }
+
     /** Зарядка Дракенфельса: огонь душ + песок душ + WFM fog. */
     public static void spawnDarkCharge(final IWorld world, final double x, final double y, final double z) {
         final Random r = AbilityCombatHelper.random();

@@ -649,4 +649,33 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
+
+    public static Map<String, Object> necroVolley() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 18);
+        map.put(AbilityParamKeys.SHOTS, 3);
+        map.put(AbilityParamKeys.SHOT_INTERVAL, 5);
+        map.put(AbilityParamKeys.FIRST_SHOT_TICK, 1);
+        map.put(AbilityParamKeys.SPREAD_RADIUS, 16.0);
+        map.put(AbilityParamKeys.LAND_RADIUS, 1.6);
+        map.put(AbilityParamKeys.MAX_RANGE, 28.0);
+        map.put(AbilityParamKeys.TELEGRAPH, 0); // circles spawned manually per landing
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.BLOB_PARTICLES,
+                "minecraft:soul_fire_flame,minecraft:soul,minecraft:witch,minecraft:end_rod");
+        map.put(AbilityParamKeys.LAND_PARTICLES,
+                "minecraft:soul_fire_flame,minecraft:soul,minecraft:witch,minecraft:smoke");
+        map.put(AbilityParamKeys.PARTICLE_COUNT, 10);
+        return map;
+    }
+
+    public static Map<String, Object> necroRings() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.DAMAGE, 10.0);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
 }

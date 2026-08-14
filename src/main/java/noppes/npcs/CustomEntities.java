@@ -44,6 +44,8 @@ public class CustomEntities
     public static EntityType<?> entityCloneStructureSpawner;
     @ObjectHolder("ability_zone")
     public static EntityType<EntityAbilityZone> entityAbilityZone;
+    @ObjectHolder("necro_beam")
+    public static EntityType<EntityNecroBeam> entityNecroBeam;
     private static List<EntityType> types;
 
     @SubscribeEvent
@@ -63,6 +65,7 @@ public class CustomEntities
         registerNewentity(event.getRegistry(), EntityCustomModel.class, "custommodelentity", EntityCustomModel::new, 64, 10, false, 0.7F, 2F);
         registerNewentity(event.getRegistry(), EntityCloneStructureSpawner.class, "clone_structure_spawner", EntityCloneStructureSpawner::new, 64, 10, false, 0.5f, 1.0f);
         registerNewentity(event.getRegistry(), EntityAbilityZone.class, "ability_zone", EntityAbilityZone::new, 96, 3, false, 4.0f, 2.0f, 96);
+        registerNewentity(event.getRegistry(), EntityNecroBeam.class, "necro_beam", EntityNecroBeam::new, 96, 1, false, 0.5f, 0.5f, 96);
     }
 
     @SubscribeEvent

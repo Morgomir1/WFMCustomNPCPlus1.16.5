@@ -7,6 +7,7 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.potion.Effect;
 import net.minecraft.potion.EffectInstance;
+import net.minecraft.util.DamageSource;
 import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
@@ -1015,6 +1016,52 @@ public final class AbilityCombatHelper {
             AbilityVfx.spawnHitParticle(ctx.world, ent);
             active.hitUuids.add(id);
         }
+    }
+
+    public static int damageInMagicRing(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z,
+            final double innerRadius,
+            final double outerRadius,
+            final float damage) {
+        final int range = (int) Math.ceil(outerRadius + 1.0);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(x, y, z),
+                range,
+                -1);
+
+        int hits = 0;
+        for (final IEntity ent : list) {
+            if (!isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            final String id = String.valueOf(ent.getUUID());
+            if (active.hitUuids.contains(id)) {
+                continue;
+            }
+            final double dist = flatDistance(ent.getX(), ent.getZ(), x, z);
+            if (dist < innerRadius || dist > outerRadius) {
+                continue;
+            }
+            boolean damaged = false;
+            try {
+                final Entity mc = ent.getMCEntity();
+                if (mc instanceof LivingEntity) {
+                    damaged = ((LivingEntity) mc).hurt(DamageSource.MAGIC, damage);
+                }
+            } catch (final Exception ignored) {
+            }
+            if (!damaged) {
+                ent.damage(damage);
+            }
+            AbilityVfx.spawnHitParticle(ctx.world, ent);
+            active.hitUuids.add(id);
+            hits++;
+        }
+        return hits;
     }
 
     /**

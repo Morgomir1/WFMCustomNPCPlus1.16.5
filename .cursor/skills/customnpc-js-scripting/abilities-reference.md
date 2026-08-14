@@ -48,6 +48,8 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
 | `crimson_blob` | `CrimsonBlobAbility` | Навес сгустка → hazard-зона слепоты + MAGIC DPS |
 | `ghost_soul_bolt` | `GhostSoulBoltAbility` | Навес soul-болта (как crimson_blob) → knockback |
+| `necro_volley` | `NecromancerVolleyAbility` | 3 некро-залпа в случайные точки → каждая точка спавнит сферу-клон |
+| `necro_rings` | `NecromancerRingsAbility` | 3 последовательных ring telegraph вокруг босса → 10 MAGIC по annulus |
 | `otrodie_hell_vomit` | `OtrodieHellVomitAbility` | Струя + движущаяся red hazard; break по урону в спину → force fecal_wave |
 | `otrodie_fecal_wave` | `OtrodieFecalWaveAbility` | Усечённый конус назад (после vomit): урон + poison/slowness |
 | `otrodie_devour_dash` | `OtrodieDevourDashAbility` | Line TG → dash grab → eat 5s; 15 melee spit / timeout heal 200 |
@@ -63,6 +65,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 Оркестратор Отродья: `src/main/resources/scripts/otrodie/otrodie_boss.js`.
 Оркестратор Кровавого лорда: `src/main/resources/scripts/vampire/vampire_crimson_lord.js`.
 Оркестратор кровавого рывка: `src/main/resources/scripts/vampire/vampire_blood_dash.js`.
+Оркестратор некроманта: `src/main/resources/scripts/necromancer/necromancer_boss.js`.
 
 ---
 
@@ -291,6 +294,36 @@ Yaw конуса = взгляд босса + 180 (атака в спину). С�
 | `maxRange` | double | 24.0 | Дальность каста |
 
 Скрипт: `scripts/ghost/ghost_soul_bolt.js` (CD 10 с). `cancelsOnTargetLost = false`.
+
+### `necro_volley`
+
+Три последовательных навесных некро-сгустка в случайные точки вокруг босса. Каждое приземление спавнит сферу-клон (скелеты — сразу после появления сферы, затем волнами); пока жива хотя бы одна сфера этого босса, JS не даёт повторно кастовать залп.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 20 / 18 | Charge + окно трёх залпов |
+| `shots` | int | 3 | Число точек |
+| `shotInterval` / `firstShotTick` | int | 5 / 1 | Ритм выстрелов в active-фазе |
+| `spreadRadius` | double | 16.0 | Радиус случайных точек вокруг босса |
+| `landRadius` | double | 1.6 | Размер telegraph в точке приземления |
+| `maxRange` | double | 28.0 | Проверка дистанции до цели на старте |
+| `blobParticles` / `landParticles` | string | soul,witch… | CSV партиклов |
+| `particleCount` | int | 10 | Плотность VFX |
+
+Скрипт: `scripts/necromancer/necromancer_boss.js`. Клоны сфер/скелетов задаются в storeddata босса (`necro_clone_tab`, `necro_sphere_clone`, `necro_skeleton_clone`).
+
+### `necro_rings`
+
+Три последовательных кольца вокруг босса: через 1 секунду телеграфа каждое кольцо бьёт на 10 `DamageSource.MAGIC`. Босс во время каста заморожен.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 20 | Время телеграфа на каждое кольцо |
+| `damage` | double | 10.0 | MAGIC-урон кольца |
+| `telegraph` | int | 0 | Авто-telegraph отключен, кольца спавнятся вручную |
+| `telegraphColor` | int | `0xC0FF3030` | Цвет telegraph |
+
+Кольца фиксированные: `3–5`, `6–8`, `9–11`. Скрипт: `scripts/necromancer/necromancer_boss.js`.
 
 ### `vampire_whirl_slash`
 

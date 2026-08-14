@@ -53,6 +53,8 @@ public final class AbilityRegistry {
         register(new VampireBloodRingAbility());
         register(new VampireBloodDashAbility());
         register(new VampireBloodSlashAbility());
+        register(new NecromancerVolleyAbility());
+        register(new NecromancerRingsAbility());
     }
 
     private AbilityRegistry() {

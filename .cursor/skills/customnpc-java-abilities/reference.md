@@ -47,6 +47,8 @@ noppes.npcs.abilities/
     ├── OtrodieSpreadingFilthAbility.java   # id: otrodie_spreading_filth
     ├── GhostOrbitSlamAbility.java          # id: ghost_orbit_slam
     ├── GhostSoulBoltAbility.java           # id: ghost_soul_bolt
+    ├── NecromancerVolleyAbility.java       # id: necro_volley
+    ├── NecromancerRingsAbility.java        # id: necro_rings
     ├── VampireWhirlSlashAbility.java       # id: vampire_whirl_slash
     ├── VampireCrimsonBatsAbility.java      # id: vampire_crimson_bats
     ├── VampireBloodRingAbility.java        # id: vampire_blood_ring
@@ -420,6 +422,36 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `maxRange` | double | 24.0 | Дальность каста |
 
 `cancelsOnTargetLost = false`.
+
+### `necro_volley` — NecromancerVolleyAbility
+
+Три последовательных навесных некро-залпа в случайные точки вокруг босса. В точках приземления спавнятся сферы-клоны (`NecromancerMinionHelper.spawnSphere`) с `spawnCycle=3`, owner UUID; скелеты вызываются сразу при появлении сферы, далее — каждые 200 тиков (до 9 на сферу).
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` / `activeTicks` | int | 20 / 18 | Charge + окно трёх выстрелов |
+| `shots` | int | 3 | Количество точек |
+| `shotInterval` / `firstShotTick` | int | 5 / 1 | Ритм выстрелов во время active |
+| `spreadRadius` | double | 16.0 | Радиус случайных точек вокруг босса |
+| `landRadius` | double | 1.6 | Радиус telegraph-круга |
+| `maxRange` | double | 28.0 | Проверка старта по дистанции до цели |
+| `blobParticles` / `landParticles` | string | soul,witch… | CSV партиклов полёта/ленда |
+| `particleCount` | int | 10 | Плотность VFX |
+
+JS: `scripts/necromancer/necromancer_boss.js`. Повторный каст блокируется на уровне JS, пока `NecromancerCombatHandler.hasLivingSpheres(npc)` возвращает `true`.
+
+### `necro_rings` — NecromancerRingsAbility
+
+Три последовательных кольца вокруг босса. Каждое кольцо телеграфится 20 тиков через `TelegraphAPI.ring`, после чего наносит 10 `DamageSource.MAGIC` по annulus через `AbilityCombatHelper.damageInMagicRing`.
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 20 | Время телеграфа на шаг |
+| `damage` | double | 10.0 | MAGIC-урон кольца |
+| `telegraph` | int | 0 | Авто-telegraph выключен |
+| `telegraphColor` | int | `0xC0FF3030` | Цвет ring warning |
+
+Радиусы фиксированные: `3–5`, `6–8`, `9–11`. Во время каста используется `freezeAiForCast`, `cancelsOnTargetLost = false`.
 
 ### `vampire_whirl_slash` — VampireWhirlSlashAbility
 

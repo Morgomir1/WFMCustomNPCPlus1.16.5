@@ -55,7 +55,21 @@ public final class ScriptDataUtil {
     }
 
     public static boolean isFlag(final IData data, final String key) {
-        return "1".equals(String.valueOf(data.get(key)));
+        if (data == null || !data.has(key)) {
+            return false;
+        }
+        final Object raw = data.get(key);
+        if (raw == null) {
+            return false;
+        }
+        if (raw instanceof Boolean) {
+            return (Boolean) raw;
+        }
+        if (raw instanceof Number) {
+            return ((Number) raw).doubleValue() != 0.0;
+        }
+        final String value = String.valueOf(raw).trim();
+        return "1".equals(value) || "true".equalsIgnoreCase(value);
     }
 
     public static void setFlag(final IData data, final String key, final boolean value) {

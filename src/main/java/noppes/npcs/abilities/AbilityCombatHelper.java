@@ -141,6 +141,50 @@ public final class AbilityCombatHelper {
     }
 
     /**
+     * Ground under the entity's feet. Unlike {@link #findGroundY}, does not scan
+     * above {@code feetY} — a ceiling/roof must not become the zone/telegraph floor.
+     */
+    public static double findFeetGroundY(
+            final noppes.npcs.api.IWorld world,
+            final double x,
+            final double z,
+            final double feetY) {
+        if (world instanceof WorldWrapper) {
+            final World mcWorld = ((WorldWrapper) world).getMCWorld();
+            if (mcWorld != null) {
+                return findFeetGroundYMc(mcWorld, x, z, feetY);
+            }
+        }
+        return findGroundY(world, x, z, feetY);
+    }
+
+    private static double findFeetGroundYMc(
+            final World world,
+            final double x,
+            final double z,
+            final double feetY) {
+        final int bx = MathHelper.floor(x);
+        final int bz = MathHelper.floor(z);
+        final int from = MathHelper.floor(feetY);
+        final int minY = Math.max(0, from - 8);
+        final BlockPos.Mutable pos = new BlockPos.Mutable();
+        for (int by = from; by >= minY; by--) {
+            pos.set(bx, by, bz);
+            final BlockState state = world.getBlockState(pos);
+            if (!isCollisionSolid(state, world, pos)) {
+                continue;
+            }
+            final VoxelShape shape = state.getCollisionShape(world, pos);
+            final double top = by + shape.max(Direction.Axis.Y);
+            if (top > feetY + 0.05) {
+                continue;
+            }
+            return top;
+        }
+        return feetY;
+    }
+
+    /**
      * Solid ground only: {@code material.isSolid()} + non-empty collision shape.
      * Ignores grass/flowers/moss/fog and other walk-through blocks.
      */

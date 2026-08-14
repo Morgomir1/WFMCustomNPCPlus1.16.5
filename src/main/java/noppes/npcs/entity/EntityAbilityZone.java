@@ -328,7 +328,7 @@ public class EntityAbilityZone extends Entity {
         }
         final double x = owner.getX();
         final double z = owner.getZ();
-        final double y = AbilityCombatHelper.findGroundY(owner.getWorld(), x, z, owner.getY()) + 0.05;
+        final double y = AbilityCombatHelper.findFeetGroundY(owner.getWorld(), x, z, owner.getY()) + 0.05;
         this.moveTo(x, y, z, 0, 0);
         if (getShape() == ZoneShape.RING && this.tickCount % 2 == 0) {
             AbilityVfx.spawnDarkSoulRing(

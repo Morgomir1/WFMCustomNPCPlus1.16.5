@@ -72,7 +72,7 @@ public final class TeleportAuraZoneHelper {
             final int color) {
         final double x = npc.getX();
         final double z = npc.getZ();
-        final double y = AbilityCombatHelper.findGroundY(npc.getWorld(), x, z, npc.getY()) + 0.05;
+        final double y = AbilityCombatHelper.findFeetGroundY(npc.getWorld(), x, z, npc.getY()) + 0.05;
         final EntityAbilityZone zone = ZoneAPI.hazardCircle(
                 npc, x, y, z, radius, LIFETIME_TICKS, 0.0, 40);
         if (zone == null) {
@@ -107,7 +107,7 @@ public final class TeleportAuraZoneHelper {
         }
         final double x = npc.getX();
         final double z = npc.getZ();
-        final double y = AbilityCombatHelper.findGroundY(npc.getWorld(), x, z, npc.getY()) + 0.05;
+        final double y = AbilityCombatHelper.findFeetGroundY(npc.getWorld(), x, z, npc.getY()) + 0.05;
         zone.moveTo(x, y, z, 0, 0);
     }
 

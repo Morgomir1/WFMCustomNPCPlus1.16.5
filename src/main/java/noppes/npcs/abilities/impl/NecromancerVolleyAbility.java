@@ -71,6 +71,9 @@ public final class NecromancerVolleyAbility implements CnpcAbility {
         active.hitUuids.clear();
 
         pickLandings(active, ctx);
+        if (active.markers.isEmpty()) {
+            return false;
+        }
         final int chargeTicks = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 20));
         final double radius = ctx.params.getDouble(AbilityParamKeys.LAND_RADIUS, 1.6);
         final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, TelegraphAPI.DEFAULT_COLOR);
@@ -193,6 +196,7 @@ public final class NecromancerVolleyAbility implements CnpcAbility {
         final int shots = Math.max(1, Math.min(5, ctx.params.getInt(AbilityParamKeys.SHOTS, 3)));
         final double spread = Math.max(4.0, ctx.params.getDouble(AbilityParamKeys.SPREAD_RADIUS, 9.0));
         final double originX = ctx.npc.getX();
+        final double originY = ctx.npc.getY();
         final double originZ = ctx.npc.getZ();
         final double minDist = spread * 0.65;
         final double minSeparation = Math.max(4.0, spread * 0.45);
@@ -200,22 +204,48 @@ public final class NecromancerVolleyAbility implements CnpcAbility {
         final double baseAngle = AbilityCombatHelper.random().nextDouble() * Math.PI * 2.0;
 
         for (int i = 0; i < shots; i++) {
-            double x = originX;
-            double z = originZ;
-            boolean placed = false;
-            for (int attempt = 0; attempt < 8 && !placed; attempt++) {
-                final double angle = baseAngle + sector * i
-                        + (AbilityCombatHelper.random().nextDouble() - 0.5) * sector * 0.35;
-                final double dist = minDist + AbilityCombatHelper.random().nextDouble() * (spread - minDist);
-                x = originX + Math.cos(angle) * dist;
-                z = originZ + Math.sin(angle) * dist;
-                if (!tooCloseToMarkers(active, x, z, minSeparation)) {
-                    placed = true;
-                }
+            boolean placed = tryPlaceLanding(
+                    active, ctx, originX, originY, originZ,
+                    baseAngle + sector * i, sector * 0.35, minDist, spread, minSeparation, 16);
+            if (!placed) {
+                // Near boss: prefer a free pad over spawning inside walls.
+                tryPlaceLanding(
+                        active, ctx, originX, originY, originZ,
+                        baseAngle + sector * i, Math.PI, 2.0, 6.0, Math.min(3.0, minSeparation), 12);
             }
-            final double y = AbilityCombatHelper.findGroundY(ctx.world, x, z, ctx.npc.getY());
-            active.markers.add(new double[]{x, y, z});
         }
+    }
+
+    private static boolean tryPlaceLanding(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double originX,
+            final double originY,
+            final double originZ,
+            final double baseAngle,
+            final double angleJitter,
+            final double minDist,
+            final double maxDist,
+            final double minSeparation,
+            final int attempts) {
+        final double span = Math.max(0.1, maxDist - minDist);
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            final double angle = baseAngle
+                    + (AbilityCombatHelper.random().nextDouble() - 0.5) * angleJitter;
+            final double dist = minDist + AbilityCombatHelper.random().nextDouble() * span;
+            final double x = originX + Math.cos(angle) * dist;
+            final double z = originZ + Math.sin(angle) * dist;
+            if (tooCloseToMarkers(active, x, z, minSeparation)) {
+                continue;
+            }
+            final double y = AbilityCombatHelper.findGroundY(ctx.world, x, z, originY);
+            if (!AbilityCombatHelper.canStandAt(ctx.world, x, y, z)) {
+                continue;
+            }
+            active.markers.add(new double[]{x, y, z});
+            return true;
+        }
+        return false;
     }
 
     private static boolean tooCloseToMarkers(

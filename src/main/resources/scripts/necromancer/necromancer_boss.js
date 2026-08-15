@@ -26,15 +26,34 @@ var VOLLEY_ID = "necro_volley";
 var RINGS_ID = "necro_rings";
 
 var CLONE_TAB = 1;
-var SPHERE_CLONE_NAME = "Necromancer Sphere";
-var SKELETON_CLONE_NAME = "Necromancer Skeleton";
+var SPHERE_CLONE_NAME = "Сфера некроманта";
+var SKELETON_CLONE_NAME = "Скелет некроманта";
 
 var VOLLEY_COOLDOWN = 160;
 var RINGS_COOLDOWN = 100;
 
+// Блоки «ворот»: воздух пока босс жив, wfm:empire_brick после смерти.
+var GATE_BLOCK = "wfm:empire_brick";
+var GATE_STATE_KEY = "necro_gate_dead";
+var GATE_POSITIONS = [
+    [24196, 201, -60367],
+    [24197, 201, -60367],
+    [24197, 201, -60368],
+    [24198, 201, -60368],
+    [24196, 200, -60371],
+    [24197, 200, -60371],
+    [24197, 200, -60372],
+    [24198, 200, -60372],
+    [24196, 199, -60375],
+    [24197, 199, -60375],
+    [24197, 199, -60376],
+    [24198, 199, -60376]
+];
+
 function init(event) {
     configureBoss(event.npc);
     NecroCombat.initBoss(event.npc);
+    syncGateBlocks(event.npc.getWorld(), event.npc.getStoreddata(), false);
     startTimers(event.npc);
 }
 
@@ -44,11 +63,13 @@ function timer(event) {
     var npc = event.npc;
     if (!npc.isAlive()) {
         AbilityAPI.cancel(npc);
+        syncGateBlocks(npc.getWorld(), npc.getStoreddata(), true);
         return;
     }
 
     configureBoss(npc);
     NecroCombat.initBoss(npc);
+    syncGateBlocks(npc.getWorld(), npc.getStoreddata(), false);
 
     if (AbilityAPI.isBusy(npc)) return;
     if (NecroCombat.isStunned(npc)) return;
@@ -87,6 +108,24 @@ function targetLost(event) {
 function died(event) {
     AbilityAPI.cancel(event.npc);
     NecroCombat.cleanupBoss(event.npc);
+    syncGateBlocks(event.npc.getWorld(), event.npc.getStoreddata(), true);
+}
+
+function syncGateBlocks(world, data, bossDead) {
+    if (world == null) return;
+    var wantDead = bossDead ? "1" : "0";
+    if (data != null && String(data.get(GATE_STATE_KEY)) == wantDead) return;
+
+    var i;
+    for (i = 0; i < GATE_POSITIONS.length; i++) {
+        var p = GATE_POSITIONS[i];
+        if (bossDead) {
+            world.setBlock(p[0], p[1], p[2], GATE_BLOCK, 0);
+        } else {
+            world.removeBlock(p[0], p[1], p[2]);
+        }
+    }
+    if (data != null) data.put(GATE_STATE_KEY, wantDead);
 }
 
 function configureBoss(npc) {

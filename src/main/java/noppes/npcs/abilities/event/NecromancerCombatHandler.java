@@ -66,7 +66,6 @@ public final class NecromancerCombatHandler {
             return;
         }
         NecromancerMinionHelper.ensureBossFlag(boss);
-        NecromancerMinionHelper.disableRespawn(boss);
         final BossState state = STATES.computeIfAbsent(uuid, BossState::new);
         // Beams only while fighting and not vulnerable — never on idle init.
         syncBeam(boss, state);
@@ -345,19 +344,44 @@ public final class NecromancerCombatHandler {
             }
             final IEntityLiving target = boss.getAttackTarget();
             final int toSpawn = Math.min(SKELETONS_PER_WAVE, MAX_SKELETONS_PER_SPHERE - spawned);
+            int spawnedNow = 0;
             for (int i = 0; i < toSpawn; i++) {
-                final double angle = (Math.PI * 2.0 * i) / Math.max(1, toSpawn)
-                        + AbilityCombatHelper.random().nextDouble() * 0.35;
-                final double dist = SUMMON_RADIUS * (0.45 + AbilityCombatHelper.random().nextDouble() * 0.55);
-                final double sx = sphere.getX() + Math.cos(angle) * dist;
-                final double sz = sphere.getZ() + Math.sin(angle) * dist;
-                final double sy = AbilityCombatHelper.findGroundY(boss.getWorld(), sx, sz, sphere.getY());
-                NecromancerMinionHelper.spawnSkeleton(boss, sphere, target, sx, sy, sz);
-                AbilityVfx.spawnSoulBurst(boss.getWorld(), sx, sy + 0.2, sz, 0.9);
+                final double[] pos = pickClearSummonPos(boss, sphere, i, toSpawn);
+                if (pos == null) {
+                    continue;
+                }
+                NecromancerMinionHelper.spawnSkeleton(boss, sphere, target, pos[0], pos[1], pos[2]);
+                AbilityVfx.spawnSoulBurst(boss.getWorld(), pos[0], pos[1] + 0.2, pos[2], 0.9);
+                spawnedNow++;
             }
-            ScriptDataUtil.putInt(data, NecromancerMinionHelper.SPAWNED_COUNT_KEY, spawned + toSpawn);
+            if (spawnedNow <= 0) {
+                // Retry soon instead of spinning every tick when all pads are blocked.
+                ScriptDataUtil.putInt(data, NecromancerMinionHelper.NEXT_SUMMON_TICK_KEY, now + 20);
+                continue;
+            }
+            ScriptDataUtil.putInt(data, NecromancerMinionHelper.SPAWNED_COUNT_KEY, spawned + spawnedNow);
             ScriptDataUtil.putInt(data, NecromancerMinionHelper.NEXT_SUMMON_TICK_KEY, now + SPHERE_SUMMON_INTERVAL);
         }
+    }
+
+    private static double[] pickClearSummonPos(
+            final ICustomNpc boss,
+            final IEntity sphere,
+            final int index,
+            final int total) {
+        final double baseAngle = (Math.PI * 2.0 * index) / Math.max(1, total);
+        for (int attempt = 0; attempt < 10; attempt++) {
+            final double angle = baseAngle + AbilityCombatHelper.random().nextDouble() * 0.35
+                    + (attempt * 0.7);
+            final double dist = SUMMON_RADIUS * (0.35 + AbilityCombatHelper.random().nextDouble() * 0.65);
+            final double sx = sphere.getX() + Math.cos(angle) * dist;
+            final double sz = sphere.getZ() + Math.sin(angle) * dist;
+            final double sy = AbilityCombatHelper.findGroundY(boss.getWorld(), sx, sz, sphere.getY());
+            if (AbilityCombatHelper.canStandAt(boss.getWorld(), sx, sy, sz)) {
+                return new double[]{sx, sy, sz};
+            }
+        }
+        return null;
     }
 
     /**

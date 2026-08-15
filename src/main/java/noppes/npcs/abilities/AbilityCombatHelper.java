@@ -188,6 +188,7 @@ public final class AbilityCombatHelper {
     /**
      * Solid ground only: {@code material.isSolid()} + non-empty collision shape.
      * Ignores grass/flowers/moss/fog and other walk-through blocks.
+     * Requires two clear body blocks above the floor (no spawn inside walls).
      */
     private static double findGroundYMc(
             final World world,
@@ -205,10 +206,47 @@ public final class AbilityCombatHelper {
             if (!isCollisionSolid(state, world, pos)) {
                 continue;
             }
+            pos.set(bx, by + 1, bz);
+            if (isCollisionSolid(world.getBlockState(pos), world, pos)) {
+                continue;
+            }
+            pos.set(bx, by + 2, bz);
+            if (isCollisionSolid(world.getBlockState(pos), world, pos)) {
+                continue;
+            }
+            pos.set(bx, by, bz);
             final VoxelShape shape = state.getCollisionShape(world, pos);
             return by + shape.max(Direction.Axis.Y);
         }
         return startY;
+    }
+
+    /**
+     * True if an NPC-sized body can stand at {@code (x,y,z)}: solid floor under feet
+     * and no solid collision in a ~0.6×1.8 hitbox.
+     */
+    public static boolean canStandAt(
+            final noppes.npcs.api.IWorld world,
+            final double x,
+            final double y,
+            final double z) {
+        if (world instanceof WorldWrapper) {
+            final World mcWorld = ((WorldWrapper) world).getMCWorld();
+            if (mcWorld != null) {
+                final AxisAlignedBB body = new AxisAlignedBB(
+                        x - 0.3, y, z - 0.3,
+                        x + 0.3, y + 1.8, z + 0.3);
+                if (!mcWorld.noCollision(body)) {
+                    return false;
+                }
+                final BlockPos below = new BlockPos(
+                        MathHelper.floor(x),
+                        MathHelper.floor(y - 0.05),
+                        MathHelper.floor(z));
+                return isCollisionSolid(mcWorld.getBlockState(below), mcWorld, below);
+            }
+        }
+        return canStandAtBlocks(world, x, y, z);
     }
 
     private static boolean isCollisionSolid(

@@ -8,9 +8,13 @@ var ScriptData = Java.type("noppes.npcs.script.ScriptDataUtil");
 // Пассивные лучи неуязвимости: EntityNecroBeam (Java) — удлинённые прямоугольные
 // зоны на земле + партиклы. Углы: шаг 360/N (при 3 лучах ровно 120°).
 // Вращение ~0.75°/тик. Число лучей растёт с убийствами сфер (1→2→3).
+// Длина: BEAM_LENGTH ниже (necro_beam_length → Java).
 // Лучи есть ТОЛЬКО в бою (есть attack target) и НЕ в уязвимости (stun).
 // Без агро / во время vulnerability — лучей нет.
 // Аура неуязвимости (spawnNecroInvuln) тоже гасится на время stun.
+// Конец уязвимости (Java finishStun): telegraph-круг под боссом → через 0.5с
+// расталкивание + звук (wither.break_block / evoker.cast_spell) +
+// волна soul-партиклов от босса наружу + 5 чистого MAGIC урона (radius 7).
 var TIMER_ID = 861;
 
 var CAST_INTERVAL = 50;
@@ -21,6 +25,8 @@ var CD_PREFIX = "necro_cd_";
 var CLONE_TAB_KEY = "necro_clone_tab";
 var SPHERE_CLONE_NAME_KEY = "necro_sphere_clone";
 var SKELETON_CLONE_NAME_KEY = "necro_skeleton_clone";
+var BEAM_LENGTH_KEY = "necro_beam_length";
+var SUMMON_INTERVAL_KEY = "necro_summon_interval";
 
 var VOLLEY_ID = "necro_volley";
 var RINGS_ID = "necro_rings";
@@ -28,9 +34,23 @@ var RINGS_ID = "necro_rings";
 var CLONE_TAB = 1;
 var SPHERE_CLONE_NAME = "Сфера некроманта";
 var SKELETON_CLONE_NAME = "Скелет некроманта";
+/** Длина луча (блоки). Диапазон в Java: 4–48. */
+var BEAM_LENGTH = 16.0;
+/** Интервал волн скелетов от сферы (тики). 200 = 10с. Диапазон в Java: 20–1200. */
+var SPHERE_SUMMON_INTERVAL = 400;
 
 var VOLLEY_COOLDOWN = 160;
 var RINGS_COOLDOWN = 100;
+
+// necro_rings: distance — блоки от некроманта до внутреннего края кольца;
+// radius — толщина кольца (внешний край = distance + radius).
+// Было: 3–5 / 6–8 / 9–11. Сейчас 2-е +1 и 3-е +2 к толщине.
+var RING1_DISTANCE = 3.0;
+var RING1_RADIUS = 2.0;   // 3–5
+var RING2_DISTANCE = 6.0;
+var RING2_RADIUS = 3.0;   // 6–9
+var RING3_DISTANCE = 9.0;
+var RING3_RADIUS = 4.0;   // 9–13
 
 // Блоки «ворот»: воздух пока босс жив, wfm:empire_brick после смерти.
 var GATE_BLOCK = "wfm:empire_brick";
@@ -102,6 +122,7 @@ function damaged(event) {
 
 function targetLost(event) {
     AbilityAPI.cancel(event.npc);
+    // Потеря агро: Java снимает лучи, деспаунит сферы и скелетов.
     NecroCombat.onTargetLost(event.npc);
 }
 
@@ -134,6 +155,8 @@ function configureBoss(npc) {
     ScriptData.putInt(data, CLONE_TAB_KEY, CLONE_TAB);
     ScriptData.putString(data, SPHERE_CLONE_NAME_KEY, SPHERE_CLONE_NAME);
     ScriptData.putString(data, SKELETON_CLONE_NAME_KEY, SKELETON_CLONE_NAME);
+    ScriptData.putFloat(data, BEAM_LENGTH_KEY, BEAM_LENGTH);
+    ScriptData.putInt(data, SUMMON_INTERVAL_KEY, SPHERE_SUMMON_INTERVAL);
 }
 
 function pickAbility(npc, data, now) {
@@ -167,7 +190,13 @@ function startAbility(npc, target, abilityId) {
         return AbilityAPI.start(npc, RINGS_ID, target, AbilityAPI.params(
             "chargeTicks", 20,
             "damage", 10.0,
-            "telegraph", 0
+            "telegraph", 0,
+            "ring1Distance", RING1_DISTANCE,
+            "ring1Radius", RING1_RADIUS,
+            "ring2Distance", RING2_DISTANCE,
+            "ring2Radius", RING2_RADIUS,
+            "ring3Distance", RING3_DISTANCE,
+            "ring3Radius", RING3_RADIUS
         ));
     }
     return false;

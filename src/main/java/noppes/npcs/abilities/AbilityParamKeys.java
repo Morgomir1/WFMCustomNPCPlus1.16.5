@@ -87,6 +87,14 @@ public final class AbilityParamKeys {
     public static final String TRAIL_TICKS = "trailTicks";
     /** Интервал спавна луж под целью (тики). */
     public static final String PUDDLE_INTERVAL = "puddleInterval";
+    /** necro_rings: расстояние от кастера до внутреннего края кольца N. */
+    public static final String RING1_DISTANCE = "ring1Distance";
+    public static final String RING2_DISTANCE = "ring2Distance";
+    public static final String RING3_DISTANCE = "ring3Distance";
+    /** necro_rings: толщина (радиус) кольца N; внешний край = distance + radius. */
+    public static final String RING1_RADIUS = "ring1Radius";
+    public static final String RING2_RADIUS = "ring2Radius";
+    public static final String RING3_RADIUS = "ring3Radius";
 
     private AbilityParamKeys() {
     }

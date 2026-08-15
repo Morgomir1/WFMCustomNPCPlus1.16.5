@@ -3,6 +3,7 @@ package noppes.npcs.abilities.event;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.MobEntity;
+import net.minecraft.util.DamageSource;
 import net.minecraft.world.World;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
@@ -25,6 +26,7 @@ import noppes.npcs.api.entity.data.IData;
 import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.entity.EntityNecroBeam;
 import noppes.npcs.script.ScriptDataUtil;
+import noppes.npcs.telegraph.TelegraphAPI;
 
 import java.util.HashSet;
 import java.util.List;
@@ -39,13 +41,16 @@ public final class NecromancerCombatHandler {
     private static final int STUN_TICKS = NecromancerMinionHelper.DEFAULT_STUN_TICKS;
     private static final int POST_STUN_CAST_DELAY = 60;
     private static final int POST_STUN_VOLLEY_COOLDOWN = 160;
-    private static final int SPHERE_SUMMON_INTERVAL = 200;
     private static final int SKELETONS_PER_WAVE = 3;
-    private static final int MAX_SKELETONS_PER_SPHERE = 9;
+    /** Лимит живых скелетов у одной сферы (не lifetime-счётчик). */
+    private static final int MAX_LIVING_SKELETONS_PER_SPHERE = 9;
     private static final double SUMMON_RADIUS = 2.5;
     private static final double CONTROL_RADIUS = 64.0;
     private static final double KNOCKBACK_RADIUS = 7.0;
     private static final double KNOCKBACK_STRENGTH = 1.6;
+    /** Warning circle under boss when invuln returns, then knockback pulse. */
+    private static final int INVULN_PULSE_DELAY_TICKS = 10; // 0.5s
+    private static final float INVULN_PULSE_DAMAGE = 5.0F;
 
     private static final String NEXT_CAST_KEY = "necro_next_cast";
     private static final String LAST_ABILITY_KEY = "necro_last_ability";
@@ -85,6 +90,7 @@ public final class NecromancerCombatHandler {
             state.stunUntilGameTime = 0L;
             state.stunLatched = false;
             state.knownSpheres.clear();
+            clearInvulnPulse(state);
         }
         removeBeam(state);
         NecromancerMinionHelper.removeBossMinions(boss, CONTROL_RADIUS);
@@ -99,7 +105,14 @@ public final class NecromancerCombatHandler {
             return;
         }
         final BossState state = STATES.get(uuid);
+        if (state != null) {
+            // Деспаун сфер не должен считаться убийством орбов / триггерить stun.
+            state.ignoreSphereLoss = true;
+            state.knownSpheres.clear();
+        }
         removeBeam(state);
+        // Потеря агро: сферы и скелеты деспаунятся.
+        NecromancerMinionHelper.removeBossMinions(boss, CONTROL_RADIUS);
     }
 
     public static boolean isStunned(final ICustomNpc boss) {
@@ -212,12 +225,18 @@ public final class NecromancerCombatHandler {
             finishStun(boss, state, now);
         }
 
+        if (state.invulnPulseAt > 0L && now >= state.invulnPulseAt) {
+            fireInvulnPulse(boss, state);
+        }
+
         // Invuln body aura only while not vulnerable (beams gated separately by combat).
         if (now % 4L == 0L) {
             AbilityVfx.spawnNecroInvuln(boss.getWorld(), boss.getX(), boss.getY(), boss.getZ());
         }
         syncBeam(boss, state);
-        tickSphereSummons(boss, (int) now);
+        if (hasCombatTarget(boss)) {
+            tickSphereSummons(boss, (int) now);
+        }
     }
 
     private static boolean isBossStunned(final ICustomNpc boss, final BossState state, final long now) {
@@ -321,20 +340,80 @@ public final class NecromancerCombatHandler {
         state.countedSpheres.clear();
         state.knownSpheres.clear();
         unfreezeBoss(boss, state);
-        knockbackNearby(boss);
         state.stunLatched = false;
         // Beams return only if still in combat after vulnerability ends.
         syncBeam(boss, state);
-        AbilityVfx.spawnSoulBurst(boss.getWorld(), boss.getX(), boss.getY() + 0.3, boss.getZ(), 2.8);
+        scheduleInvulnPulse(boss, state, now);
+    }
+
+    /** Warning circle under boss; after 0.5s — knockback, soul wave + sound, 5 pure MAGIC damage. */
+    private static void scheduleInvulnPulse(final ICustomNpc boss, final BossState state, final long now) {
+        clearInvulnPulse(state);
+        state.invulnPulseAt = now + INVULN_PULSE_DELAY_TICKS;
+        try {
+            state.invulnPulseTelegraphId = TelegraphAPI.circleFollow(
+                    boss,
+                    boss.getX(),
+                    boss.getY(),
+                    boss.getZ(),
+                    KNOCKBACK_RADIUS,
+                    INVULN_PULSE_DELAY_TICKS,
+                    TelegraphAPI.DEFAULT_COLOR);
+        } catch (final Exception ignored) {
+            state.invulnPulseTelegraphId = null;
+        }
+    }
+
+    private static void fireInvulnPulse(final ICustomNpc boss, final BossState state) {
+        clearInvulnPulse(state);
+        if (boss == null || !boss.isAlive()) {
+            return;
+        }
+        final double x = boss.getX();
+        final double y = boss.getY();
+        final double z = boss.getZ();
+        AbilityVfx.spawnSoulWave(boss.getWorld(), x, y + 0.25, z, KNOCKBACK_RADIUS);
+        try {
+            boss.getWorld().playSoundAt(
+                    NpcAPI.Instance().getIPos(x, y, z),
+                    "minecraft:entity.wither.break_block",
+                    1.0F,
+                    0.65F);
+            boss.getWorld().playSoundAt(
+                    NpcAPI.Instance().getIPos(x, y, z),
+                    "minecraft:entity.evoker.cast_spell",
+                    0.9F,
+                    0.75F);
+        } catch (final Exception ignored) {
+        }
+        knockbackAndDamageNearby(boss);
+    }
+
+    private static void clearInvulnPulse(final BossState state) {
+        if (state == null) {
+            return;
+        }
+        state.invulnPulseAt = 0L;
+        if (state.invulnPulseTelegraphId != null && !state.invulnPulseTelegraphId.isEmpty()) {
+            try {
+                TelegraphAPI.remove(state.invulnPulseTelegraphId);
+            } catch (final Exception ignored) {
+            }
+        }
+        state.invulnPulseTelegraphId = null;
     }
 
     private static void tickSphereSummons(final ICustomNpc boss, final int now) {
+        final int summonInterval = NecromancerMinionHelper.getSummonInterval(boss);
         final List<IEntity> spheres = NecromancerMinionHelper.listOwnedTagged(
                 boss, NecromancerMinionHelper.SPHERE_TAG, CONTROL_RADIUS);
         for (final IEntity sphere : spheres) {
             final IData data = sphere.getStoreddata();
-            final int spawned = ScriptDataUtil.getInt(data, NecromancerMinionHelper.SPAWNED_COUNT_KEY);
-            if (spawned >= MAX_SKELETONS_PER_SPHERE) {
+            // Лимит по живым детям сферы — иначе после 2–3 волн lifetime-счётчик
+            // достигал MAX и призыв навсегда останавливался.
+            final int living = NecromancerMinionHelper.countChildrenOfSphere(
+                    boss, String.valueOf(sphere.getUUID()), CONTROL_RADIUS);
+            if (living >= MAX_LIVING_SKELETONS_PER_SPHERE) {
                 continue;
             }
             // nextTick <= 0: freshly spawned sphere → summon skeletons immediately
@@ -343,7 +422,11 @@ public final class NecromancerCombatHandler {
                 continue;
             }
             final IEntityLiving target = boss.getAttackTarget();
-            final int toSpawn = Math.min(SKELETONS_PER_WAVE, MAX_SKELETONS_PER_SPHERE - spawned);
+            if (target == null || !target.isAlive()) {
+                return;
+            }
+            final int toSpawn = Math.min(
+                    SKELETONS_PER_WAVE, MAX_LIVING_SKELETONS_PER_SPHERE - living);
             int spawnedNow = 0;
             for (int i = 0; i < toSpawn; i++) {
                 final double[] pos = pickClearSummonPos(boss, sphere, i, toSpawn);
@@ -359,8 +442,11 @@ public final class NecromancerCombatHandler {
                 ScriptDataUtil.putInt(data, NecromancerMinionHelper.NEXT_SUMMON_TICK_KEY, now + 20);
                 continue;
             }
-            ScriptDataUtil.putInt(data, NecromancerMinionHelper.SPAWNED_COUNT_KEY, spawned + spawnedNow);
-            ScriptDataUtil.putInt(data, NecromancerMinionHelper.NEXT_SUMMON_TICK_KEY, now + SPHERE_SUMMON_INTERVAL);
+            ScriptDataUtil.putInt(
+                    data,
+                    NecromancerMinionHelper.SPAWNED_COUNT_KEY,
+                    ScriptDataUtil.getInt(data, NecromancerMinionHelper.SPAWNED_COUNT_KEY) + spawnedNow);
+            ScriptDataUtil.putInt(data, NecromancerMinionHelper.NEXT_SUMMON_TICK_KEY, now + summonInterval);
         }
     }
 
@@ -437,6 +523,7 @@ public final class NecromancerCombatHandler {
             beam.setOwnerUuid(ownerUuid);
             beam.setOwnerEntityId(((EntityNPCInterface) mc).getId());
             beam.setBeamCount(NecromancerMinionHelper.getBeamCount(boss));
+            beam.setLength(NecromancerMinionHelper.getBeamLength(boss));
             // Ground-level rectangular zones (not mid-body beacon beams).
             final double groundY = noppes.npcs.telegraph.TelegraphAPI.resolveGroundY(
                     level, boss.getX(), boss.getY(), boss.getZ());
@@ -450,6 +537,7 @@ public final class NecromancerCombatHandler {
                 beam.setOwnerEntityId(((EntityNPCInterface) ownerMc).getId());
             }
             beam.setBeamCount(NecromancerMinionHelper.getBeamCount(boss));
+            beam.setLength(NecromancerMinionHelper.getBeamLength(boss));
         }
     }
 
@@ -512,7 +600,7 @@ public final class NecromancerCombatHandler {
         }
     }
 
-    private static void knockbackNearby(final ICustomNpc boss) {
+    private static void knockbackAndDamageNearby(final ICustomNpc boss) {
         final int range = (int) Math.ceil(KNOCKBACK_RADIUS + 0.5);
         final IEntity[] list = boss.getWorld().getNearbyEntities(
                 NpcAPI.Instance().getIPos(boss.getX(), boss.getY(), boss.getZ()),
@@ -526,6 +614,7 @@ public final class NecromancerCombatHandler {
                 continue;
             }
             final IEntityLiving living = (IEntityLiving) ent;
+            dealPureDamage(living, INVULN_PULSE_DAMAGE);
             double dx = living.getX() - boss.getX();
             double dz = living.getZ() - boss.getZ();
             double len = Math.sqrt(dx * dx + dz * dz);
@@ -538,6 +627,25 @@ public final class NecromancerCombatHandler {
             living.setMotionY(0.0);
             living.setMotionZ((dz / len) * KNOCKBACK_STRENGTH);
             AbilityVfx.spawnHitParticle(boss.getWorld(), ent);
+        }
+    }
+
+    /** Чистый MAGIC-урон (bypass armor), как Ability Zone / necro beams. */
+    private static void dealPureDamage(final IEntityLiving victim, final float amount) {
+        if (victim == null || !victim.isAlive() || amount <= 0.0F) {
+            return;
+        }
+        try {
+            final Object mc = victim.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                ((LivingEntity) mc).hurt(DamageSource.MAGIC, amount);
+                return;
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            victim.damage(amount);
+        } catch (final Exception ignored) {
         }
     }
 
@@ -630,6 +738,8 @@ public final class NecromancerCombatHandler {
         private UUID beamUuid;
         private boolean stunLatched;
         private long stunUntilGameTime;
+        private long invulnPulseAt;
+        private String invulnPulseTelegraphId;
         private boolean savedAi;
         private int savedSpeed;
         private int savedRetaliate;

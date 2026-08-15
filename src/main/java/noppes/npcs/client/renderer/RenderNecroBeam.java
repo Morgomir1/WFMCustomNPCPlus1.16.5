@@ -41,7 +41,7 @@ public class RenderNecroBeam extends EntityRenderer<EntityNecroBeam> {
             final int packedLight) {
         final int beams = entity.getBeamCount();
         final float baseYaw = entity.getInterpolatedYaw(partialTicks);
-        final float length = (float) EntityNecroBeam.LENGTH;
+        final float length = (float) entity.getLength();
         final float halfW = (float) (EntityNecroBeam.ZONE_WIDTH * 0.5);
 
         final float a = ((COLOR >> 24) & 0xFF) / 255.0f;

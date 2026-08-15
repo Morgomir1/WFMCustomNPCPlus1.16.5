@@ -30,6 +30,8 @@ public final class NecromancerMinionHelper {
     public static final String ORB_KILLS_KEY = "necro_orb_kills";
     public static final String STUN_UNTIL_KEY = "necro_stun_until";
     public static final String BEAM_COUNT_KEY = "necro_beam_count";
+    public static final String BEAM_LENGTH_KEY = "necro_beam_length";
+    public static final String SUMMON_INTERVAL_KEY = "necro_summon_interval";
 
     public static final String CLONE_TAB_KEY = "necro_clone_tab";
     public static final String SPHERE_CLONE_NAME_KEY = "necro_sphere_clone";
@@ -42,6 +44,14 @@ public final class NecromancerMinionHelper {
     public static final int DEFAULT_REQUIRED_ORBS = 3;
     public static final int DEFAULT_STUN_TICKS = 15 * 20;
     public static final int DEFAULT_BEAM_COUNT = 1;
+    /** Blocks along beam corridor; overridden from necromancer_boss.js. */
+    public static final float DEFAULT_BEAM_LENGTH = 16.0F;
+    private static final float MIN_BEAM_LENGTH = 4.0F;
+    private static final float MAX_BEAM_LENGTH = 48.0F;
+    /** Ticks between skeleton waves per sphere; overridden from necromancer_boss.js. */
+    public static final int DEFAULT_SUMMON_INTERVAL = 200;
+    private static final int MIN_SUMMON_INTERVAL = 20;
+    private static final int MAX_SUMMON_INTERVAL = 1200;
     public static final int DEFAULT_CLONE_TAB = 1;
 
     private NecromancerMinionHelper() {
@@ -94,6 +104,44 @@ public final class NecromancerMinionHelper {
 
     public static void setBeamCount(final ICustomNpc boss, final int value) {
         ScriptDataUtil.putInt(boss.getStoreddata(), BEAM_COUNT_KEY, Math.max(1, Math.min(3, value)));
+    }
+
+    public static float getBeamLength(final ICustomNpc boss) {
+        if (boss == null) {
+            return DEFAULT_BEAM_LENGTH;
+        }
+        final float length = ScriptDataUtil.getFloat(boss.getStoreddata(), BEAM_LENGTH_KEY);
+        return clampBeamLength(length <= 0.0F ? DEFAULT_BEAM_LENGTH : length);
+    }
+
+    public static void setBeamLength(final ICustomNpc boss, final float value) {
+        if (boss == null) {
+            return;
+        }
+        ScriptDataUtil.putFloat(boss.getStoreddata(), BEAM_LENGTH_KEY, clampBeamLength(value));
+    }
+
+    private static float clampBeamLength(final float value) {
+        return Math.max(MIN_BEAM_LENGTH, Math.min(MAX_BEAM_LENGTH, value));
+    }
+
+    public static int getSummonInterval(final ICustomNpc boss) {
+        if (boss == null) {
+            return DEFAULT_SUMMON_INTERVAL;
+        }
+        final int interval = ScriptDataUtil.getInt(boss.getStoreddata(), SUMMON_INTERVAL_KEY);
+        return clampSummonInterval(interval <= 0 ? DEFAULT_SUMMON_INTERVAL : interval);
+    }
+
+    public static void setSummonInterval(final ICustomNpc boss, final int value) {
+        if (boss == null) {
+            return;
+        }
+        ScriptDataUtil.putInt(boss.getStoreddata(), SUMMON_INTERVAL_KEY, clampSummonInterval(value));
+    }
+
+    private static int clampSummonInterval(final int value) {
+        return Math.max(MIN_SUMMON_INTERVAL, Math.min(MAX_SUMMON_INTERVAL, value));
     }
 
     public static boolean isBossFlagSet(final ICustomNpc boss) {
@@ -257,9 +305,41 @@ public final class NecromancerMinionHelper {
         for (final IEntity ent : listOwnedTagged(boss, SPHERE_TAG, radius)) {
             discard(ent);
         }
+        removeBossSkeletons(boss, radius);
+    }
+
+    /** Убирает только скелетов босса (сферы остаются). */
+    public static void removeBossSkeletons(final ICustomNpc boss, final double radius) {
+        if (boss == null) {
+            return;
+        }
         for (final IEntity ent : listOwnedTagged(boss, SKELETON_TAG, radius)) {
             discard(ent);
         }
+    }
+
+    public static int countChildrenOfSphere(
+            final ICustomNpc boss,
+            final String sphereId,
+            final double radius) {
+        if (boss == null || sphereId == null || sphereId.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        final int range = (int) Math.ceil(radius + 0.5);
+        final IEntity[] list = boss.getWorld().getNearbyEntities(
+                NpcAPI.Instance().getIPos(boss.getX(), boss.getY(), boss.getZ()),
+                range,
+                -1);
+        for (final IEntity ent : list) {
+            if (ent == null || !ent.isAlive() || !ent.hasTag(SKELETON_TAG)) {
+                continue;
+            }
+            if (sphereId.equals(readString(ent.getStoreddata(), PARENT_UUID_KEY, ""))) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public static void removeChildrenOfSphere(final IEntity sphere, final double radius) {

@@ -381,6 +381,39 @@ public final class AbilityVfx {
         spawnWfmFogRing(world, x, y + 0.25, z, Math.max(1.2, radius * 0.9), 8);
     }
 
+    /**
+     * Расходящаяся волна soul-партиклов от центра (invuln knockback pulse).
+     * Несколько колец + направленный разлёт наружу.
+     */
+    public static void spawnSoulWave(final IWorld world, final double x, final double y, final double z, final double radius) {
+        if (world == null || radius <= 0.0) {
+            return;
+        }
+        final Random r = AbilityCombatHelper.random();
+        final double rMax = Math.max(1.5, radius);
+        final int rings = Math.max(3, (int) Math.ceil(rMax / 1.8));
+        for (int ring = 0; ring <= rings; ring++) {
+            final double dist = (ring / (double) rings) * rMax;
+            final int points = Math.max(8, (int) Math.ceil(6.0 + dist * 2.2));
+            for (int i = 0; i < points; i++) {
+                final double a = (i / (double) points) * Math.PI * 2.0 + r.nextDouble() * 0.12;
+                final double cos = Math.cos(a);
+                final double sin = Math.sin(a);
+                final double px = x + cos * dist;
+                final double pz = z + sin * dist;
+                final double py = y + 0.15 + r.nextDouble() * 0.45;
+                // count=0 → dx/dy/dz как скорость: разлёт наружу от босса
+                safeSpawn(world, "minecraft:soul_fire_flame", px, py, pz, cos * 0.35, 0.04, sin * 0.35, 0.18, 0);
+                safeSpawn(world, "minecraft:soul", px, py + 0.12, pz, cos * 0.28, 0.05, sin * 0.28, 0.14, 0);
+                if (ring == rings || i % 3 == 0) {
+                    safeSpawn(world, "minecraft:witch", px, py + 0.08, pz, cos * 0.2, 0.03, sin * 0.2, 0.1, 0);
+                }
+            }
+        }
+        safeSpawn(world, "minecraft:soul", x, y + 0.6, z, 0.25, 0.15, 0.25, 0.04, 10);
+        spawnWfmFogRing(world, x, y + 0.2, z, Math.max(1.5, rMax * 0.95), 12);
+    }
+
     public static void spawnShadowTrail(final IWorld world, final double x, final double y, final double z) {
         final Random r = AbilityCombatHelper.random();
         for (int i = 0; i < 3; i++) {

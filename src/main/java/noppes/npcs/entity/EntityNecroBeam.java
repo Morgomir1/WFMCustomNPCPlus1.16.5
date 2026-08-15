@@ -40,19 +40,24 @@ public class EntityNecroBeam extends Entity {
             EntityDataManager.defineId(EntityNecroBeam.class, DataSerializers.INT);
     private static final DataParameter<Float> DATA_BASE_YAW =
             EntityDataManager.defineId(EntityNecroBeam.class, DataSerializers.FLOAT);
+    private static final DataParameter<Float> DATA_LENGTH =
+            EntityDataManager.defineId(EntityNecroBeam.class, DataSerializers.FLOAT);
 
-    /** Corridor length (blocks) along beam yaw. */
-    public static final double LENGTH = 16.0;
+    /** Default corridor length; runtime value is synced via {@link #getLength()}. */
+    public static final double DEFAULT_LENGTH = 16.0;
     /** Full width of rectangular zone (blocks). */
     public static final double ZONE_WIDTH = 1.6;
     private static final double HALF_WIDTH = ZONE_WIDTH * 0.5;
     private static final double HIT_HEIGHT = 2.2;
     private static final float DAMAGE = 4.0F;
-    private static final int DAMAGE_INTERVAL = 10;
+    /** Every tick so a sprint through the 1.6-wide zone still lands a hit. */
+    private static final int DAMAGE_INTERVAL = 1;
     /** Degrees per tick — ~0.75° ≈ full spin in ~24s (readable dodge). Was 2.5°. */
     private static final float YAW_PER_TICK = 0.75F;
     private static final int PARTICLE_INTERVAL = 2;
     private static final int PARTICLES_PER_BEAM = 5;
+    private static final float MIN_LENGTH = 4.0F;
+    private static final float MAX_LENGTH = 48.0F;
 
     private float prevBaseYaw;
 
@@ -72,6 +77,7 @@ public class EntityNecroBeam extends Entity {
         this.entityData.define(DATA_OWNER_ID, -1);
         this.entityData.define(DATA_BEAM_COUNT, 1);
         this.entityData.define(DATA_BASE_YAW, 0.0F);
+        this.entityData.define(DATA_LENGTH, (float) DEFAULT_LENGTH);
     }
 
     @Override
@@ -153,13 +159,14 @@ public class EntityNecroBeam extends Entity {
         if (!(ownerWrapped instanceof IEntityLiving)) {
             return;
         }
+        final double len = getLength();
         final AxisAlignedBB box = new AxisAlignedBB(
-                ox - LENGTH,
+                ox - len,
                 oy - 0.5,
-                oz - LENGTH,
-                ox + LENGTH,
+                oz - len,
+                ox + len,
                 oy + HIT_HEIGHT,
-                oz + LENGTH);
+                oz + len);
         final List<LivingEntity> list = this.level.getEntitiesOfClass(LivingEntity.class, box);
         for (final LivingEntity living : list) {
             if (living == ownerMc) {
@@ -191,6 +198,7 @@ public class EntityNecroBeam extends Entity {
     private boolean isHitByAnyBeam(final double tx, final double tz) {
         final double dx = tx - this.getX();
         final double dz = tz - this.getZ();
+        final double length = getLength();
         final int beams = getBeamCount();
         final double[] dir = new double[2];
         for (int i = 0; i < beams; i++) {
@@ -199,7 +207,7 @@ public class EntityNecroBeam extends Entity {
             final double fx = dir[0];
             final double fz = dir[1];
             final double proj = dx * fx + dz * fz;
-            if (proj < 0.0 || proj > LENGTH) {
+            if (proj < 0.0 || proj > length) {
                 continue;
             }
             final double perp = Math.abs((-fz * dx) + (fx * dz));
@@ -229,7 +237,7 @@ public class EntityNecroBeam extends Entity {
         for (int i = 0; i < beams; i++) {
             directionFromYaw(beamYaw(getBaseYaw(), i, beams), dir);
             AbilityVfx.spawnNecroBeamZone(
-                    world, ox, oy, oz, dir[0], dir[1], LENGTH, HALF_WIDTH, PARTICLES_PER_BEAM);
+                    world, ox, oy, oz, dir[0], dir[1], getLength(), HALF_WIDTH, PARTICLES_PER_BEAM);
         }
     }
 
@@ -289,6 +297,21 @@ public class EntityNecroBeam extends Entity {
         return Math.max(1, Math.min(3, this.entityData.get(DATA_BEAM_COUNT)));
     }
 
+    public void setLength(final float length) {
+        this.entityData.set(DATA_LENGTH, clampLength(length));
+    }
+
+    public double getLength() {
+        return clampLength(this.entityData.get(DATA_LENGTH));
+    }
+
+    private static float clampLength(final float length) {
+        if (length <= 0.0F) {
+            return (float) DEFAULT_LENGTH;
+        }
+        return Math.max(MIN_LENGTH, Math.min(MAX_LENGTH, length));
+    }
+
     public void setBaseYaw(final float yaw) {
         this.entityData.set(DATA_BASE_YAW, yaw);
     }
@@ -299,13 +322,13 @@ public class EntityNecroBeam extends Entity {
 
     @Override
     public boolean shouldRenderAtSqrDistance(final double distance) {
-        final double range = LENGTH + 48.0;
+        final double range = getLength() + 48.0;
         return distance < range * range;
     }
 
     @Override
     public AxisAlignedBB getBoundingBoxForCulling() {
-        return this.getBoundingBox().inflate(LENGTH + 1.0);
+        return this.getBoundingBox().inflate(getLength() + 1.0);
     }
 
     @Override
@@ -313,6 +336,9 @@ public class EntityNecroBeam extends Entity {
         setOwnerUuid(nbt.hasUUID("Owner") ? nbt.getUUID("Owner") : null);
         setBeamCount(nbt.getInt("BeamCount"));
         setBaseYaw(nbt.getFloat("BaseYaw"));
+        if (nbt.contains("Length")) {
+            setLength(nbt.getFloat("Length"));
+        }
     }
 
     @Override
@@ -323,6 +349,7 @@ public class EntityNecroBeam extends Entity {
         }
         nbt.putInt("BeamCount", getBeamCount());
         nbt.putFloat("BaseYaw", getBaseYaw());
+        nbt.putFloat("Length", (float) getLength());
     }
 
     @Override

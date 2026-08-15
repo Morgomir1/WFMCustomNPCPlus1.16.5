@@ -676,6 +676,13 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.DAMAGE, 10.0);
         map.put(AbilityParamKeys.TELEGRAPH, 0);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        // distance → внутренний край; radius → толщина (outer = distance + radius)
+        map.put(AbilityParamKeys.RING1_DISTANCE, 3.0);
+        map.put(AbilityParamKeys.RING1_RADIUS, 2.0); // 3–5
+        map.put(AbilityParamKeys.RING2_DISTANCE, 6.0);
+        map.put(AbilityParamKeys.RING2_RADIUS, 3.0); // 6–9
+        map.put(AbilityParamKeys.RING3_DISTANCE, 9.0);
+        map.put(AbilityParamKeys.RING3_RADIUS, 4.0); // 9–13
         return map;
     }
 }

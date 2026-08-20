@@ -5,7 +5,9 @@
   "refmap": "customnpcs.refmap.json",
   "mixins": [
     "CCreativeInventoryActionPacketMixin",
+    "CustomNpcsDefaultInteractLineMixin",
     "DelegatingResourcePackMixin",
+    "EntityNPCInterfaceDefaultInteractMixin",
     "EntityNPCInterfaceHitboxMixin",
     "EntityNPCInterfaceSpawnPacketMixin",
     "EntityNPCInterfaceVisibilityMixin",

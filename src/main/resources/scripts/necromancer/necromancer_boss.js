@@ -53,7 +53,7 @@ var RING3_DISTANCE = 9.0;
 var RING3_RADIUS = 4.0;   // 9–13
 
 // Блоки «ворот»: воздух пока босс жив, wfm:empire_brick после смерти.
-var GATE_BLOCK = "wfm:empire_brick";
+var GATE_BLOCK = "minecraft:bookshelf";
 var GATE_STATE_KEY = "necro_gate_dead";
 var GATE_POSITIONS = [
     [24196, 201, -60367],

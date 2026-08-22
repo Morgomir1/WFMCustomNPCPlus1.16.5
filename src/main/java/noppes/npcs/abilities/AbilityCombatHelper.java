@@ -1,12 +1,15 @@
 package noppes.npcs.abilities;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityClassification;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.potion.Effect;
 import net.minecraft.potion.EffectInstance;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
@@ -16,16 +19,22 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.shapes.VoxelShape;
 import net.minecraft.world.World;
 import net.minecraftforge.registries.ForgeRegistries;
+import noppes.npcs.api.IWorld;
 import noppes.npcs.api.NpcAPI;
 import noppes.npcs.api.block.IBlock;
 import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.api.entity.IMob;
+import noppes.npcs.api.entity.data.IData;
 import noppes.npcs.api.wrapper.WorldWrapper;
 import noppes.npcs.entity.EntityNPCInterface;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class AbilityCombatHelper {
     private static final Random RANDOM = new Random();
@@ -38,7 +47,25 @@ public final class AbilityCombatHelper {
     private static final double JUMP_WALL_MARGIN = 0.35;
     private static final double JUMP_HIT_EPSILON = 0.08;
 
+    /** Encounter key prefix for Drachenfels pair board snapshots. */
+    public static final String DRACHENFELS_PAIR_ID_KEY = "df_pair_id";
+    private static final int BOARD_BREAK_Y_DOWN = 1;
+    private static final int BOARD_BREAK_Y_UP = 3;
+    private static final int BOARD_RESTORE_FLAGS = 3;
+    private static final Map<String, List<BrokenBoardEntry>> BROKEN_BOARDS = new ConcurrentHashMap<>();
+
     private AbilityCombatHelper() {
+    }
+
+    /** Saved plank for arena restore after full aggro reset. */
+    public static final class BrokenBoardEntry {
+        public final BlockPos pos;
+        public final BlockState state;
+
+        public BrokenBoardEntry(final BlockPos pos, final BlockState state) {
+            this.pos = pos.immutable();
+            this.state = state;
+        }
     }
 
     public static void stopNavigation(final IMob npc) {
@@ -66,6 +93,82 @@ public final class AbilityCombatHelper {
             npc.setPosition(x, y, z);
         } catch (final Exception ignored) {
         }
+    }
+
+    /**
+     * Server-side pin for grab/parasite: teleport + zero all motion (no client packets).
+     */
+    public static void pinLiving(final IEntityLiving living, final double x, final double y, final double z) {
+        if (living == null) {
+            return;
+        }
+        try {
+            living.setPosition(x, y, z);
+            living.setMotionX(0.0);
+            living.setMotionY(0.0);
+            living.setMotionZ(0.0);
+        } catch (final Exception ignored) {
+        }
+    }
+
+    /**
+     * Pull hostile players in {@code pullRadius} toward {@code (x,y,z)}, placing them at
+     * {@code standOff} blocks out (preserves relative XZ angle). Server-only, no packets.
+     *
+     * @return number of players pulled
+     */
+    public static int pullPlayersToward(
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z,
+            final double pullRadius,
+            final double standOff) {
+        if (ctx == null || ctx.npc == null || ctx.world == null || pullRadius <= 0.05) {
+            return 0;
+        }
+        final double standoff = Math.max(0.6, standOff);
+        final int range = (int) Math.ceil(pullRadius + 0.5);
+        // EntitiesType.PLAYER = 1
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(x, y, z),
+                range,
+                1);
+
+        int pulled = 0;
+        for (final IEntity ent : list) {
+            if (!(ent instanceof IEntityLiving) || !isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            try {
+                final Object mc = ent.getMCEntity();
+                if (!(mc instanceof PlayerEntity) || !((PlayerEntity) mc).isAlive()) {
+                    continue;
+                }
+            } catch (final Exception ignored) {
+                continue;
+            }
+            if (flatDistance(ent.getX(), ent.getZ(), x, z) > pullRadius) {
+                continue;
+            }
+
+            double dx = ent.getX() - x;
+            double dz = ent.getZ() - z;
+            double len = Math.sqrt(dx * dx + dz * dz);
+            if (len < 0.08) {
+                final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
+                dx = Math.cos(ang);
+                dz = Math.sin(ang);
+                len = 1.0;
+            }
+            final double nx = x + (dx / len) * standoff;
+            final double nz = z + (dz / len) * standoff;
+            final double ny = findFeetGroundY(ctx.world, nx, nz, y);
+            pinLiving((IEntityLiving) ent, nx, ny, nz);
+            AbilityVfx.spawnHitParticle(ctx.world, ent);
+            pulled++;
+        }
+        return pulled;
     }
 
     /**
@@ -1010,6 +1113,51 @@ public final class AbilityCombatHelper {
         return 0.0f;
     }
 
+    /**
+     * Чистый урон ({@link DamageSource#MAGIC}): обходит броню.
+     * Не путать с {@link IEntity#damage} — тот бьёт {@link DamageSource#GENERIC}.
+     *
+     * @param ignoreIframes если true, сбрасывает {@code invulnerableTime} перед ударом
+     *                      (нужно для стабильного DoT раз в секунду)
+     * @return true если урон применён (или fallback {@code entity.damage} вызван)
+     */
+    public static boolean dealPureDamage(final IEntity victim, final float amount, final boolean ignoreIframes) {
+        if (victim == null || !victim.isAlive() || amount <= 0.0F) {
+            return false;
+        }
+        try {
+            final Entity mc = victim.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                return dealPureDamage((LivingEntity) mc, amount, ignoreIframes);
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            victim.damage(amount);
+            return true;
+        } catch (final Exception ignored) {
+            return false;
+        }
+    }
+
+    public static boolean dealPureDamage(final IEntity victim, final float amount) {
+        return dealPureDamage(victim, amount, false);
+    }
+
+    public static boolean dealPureDamage(final LivingEntity living, final float amount, final boolean ignoreIframes) {
+        if (living == null || !living.isAlive() || amount <= 0.0F) {
+            return false;
+        }
+        if (ignoreIframes) {
+            living.invulnerableTime = 0;
+        }
+        return living.hurt(DamageSource.MAGIC, amount);
+    }
+
+    public static boolean dealPureDamage(final LivingEntity living, final float amount) {
+        return dealPureDamage(living, amount, false);
+    }
+
     public static void damageNearby(
             final ActiveAbility active,
             final AbilityContext ctx,
@@ -1023,6 +1171,44 @@ public final class AbilityCombatHelper {
             final double knockback,
             final double lift,
             final boolean useFixedDir) {
+        damageNearbyInternal(
+                active, ctx, x, y, z, radius, damage, dirX, dirZ, knockback, lift, useFixedDir, false);
+    }
+
+    /**
+     * Как {@link #damageNearby}, но чистый {@link DamageSource#MAGIC} (без брони).
+     */
+    public static void damageNearbyPure(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final double damage,
+            final double dirX,
+            final double dirZ,
+            final double knockback,
+            final double lift,
+            final boolean useFixedDir) {
+        damageNearbyInternal(
+                active, ctx, x, y, z, radius, damage, dirX, dirZ, knockback, lift, useFixedDir, true);
+    }
+
+    private static void damageNearbyInternal(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final double damage,
+            final double dirX,
+            final double dirZ,
+            final double knockback,
+            final double lift,
+            final boolean useFixedDir,
+            final boolean pure) {
         final int range = (int) Math.ceil(radius + 0.5);
         final IEntity[] list = ctx.world.getNearbyEntities(
                 NpcAPI.Instance().getIPos(x, y, z),
@@ -1040,7 +1226,11 @@ public final class AbilityCombatHelper {
             if (flatDistance(ent.getX(), ent.getZ(), x, z) > radius) {
                 continue;
             }
-            ent.damage((float) damage);
+            if (pure) {
+                dealPureDamage(ent, (float) damage, false);
+            } else {
+                ent.damage((float) damage);
+            }
             if (ent instanceof IEntityLiving) {
                 final IEntityLiving living = (IEntityLiving) ent;
                 if (useFixedDir) {
@@ -1084,15 +1274,7 @@ public final class AbilityCombatHelper {
             if (dist < innerRadius || dist > outerRadius) {
                 continue;
             }
-            boolean damaged = false;
-            try {
-                final Entity mc = ent.getMCEntity();
-                if (mc instanceof LivingEntity) {
-                    damaged = ((LivingEntity) mc).hurt(DamageSource.MAGIC, damage);
-                }
-            } catch (final Exception ignored) {
-            }
-            if (!damaged) {
+            if (!dealPureDamage(ent, damage, false)) {
                 ent.damage(damage);
             }
             AbilityVfx.spawnHitParticle(ctx.world, ent);
@@ -1300,5 +1482,299 @@ public final class AbilityCombatHelper {
             return;
         }
         living.setHealth(Math.min(living.getMaxHealth(), living.getHealth() + (float) amount));
+    }
+
+    /**
+     * One step of Drachenfels HP-equalize ritual: healthier half loses a small share,
+     * weaker half gains more (asymmetric transfer). No-op if HP ratios are close.
+     *
+     * @return {@code true} if any HP was moved
+     */
+    public static boolean transferDrachenfelsRitualHp(final ICustomNpc a, final ICustomNpc b) {
+        return transferDrachenfelsRitualHp(a, b, 5.0F, 0.18F, 0.10F);
+    }
+
+    /**
+     * @param maxHealPerStep max HP the weaker half gains this call
+     * @param drainOfHeal    donor loses {@code heal * drainOfHeal} (e.g. 0.18)
+     * @param minRatioGap    minimum |ratioA - ratioB| required to transfer
+     */
+    public static boolean transferDrachenfelsRitualHp(
+            final ICustomNpc a,
+            final ICustomNpc b,
+            final float maxHealPerStep,
+            final float drainOfHeal,
+            final float minRatioGap) {
+        final LivingEntity livingA = resolveLiving(a);
+        final LivingEntity livingB = resolveLiving(b);
+        if (livingA == null || livingB == null) {
+            return false;
+        }
+        if (!livingA.isAlive() || !livingB.isAlive()) {
+            return false;
+        }
+
+        final float maxA = livingA.getMaxHealth();
+        final float maxB = livingB.getMaxHealth();
+        if (maxA <= 0.01F || maxB <= 0.01F) {
+            return false;
+        }
+
+        final float hpA = livingA.getHealth();
+        final float hpB = livingB.getHealth();
+        final float ratioA = hpA / maxA;
+        final float ratioB = hpB / maxB;
+        final float gap = Math.abs(ratioA - ratioB);
+        final float gapFloor = Math.max(0.01F, minRatioGap);
+        if (gap < gapFloor) {
+            return false;
+        }
+
+        final boolean aIsDonor = ratioA >= ratioB;
+        final LivingEntity donor = aIsDonor ? livingA : livingB;
+        final LivingEntity recipient = aIsDonor ? livingB : livingA;
+        final float donorMax = aIsDonor ? maxA : maxB;
+        final float recipientMax = aIsDonor ? maxB : maxA;
+
+        final float missing = Math.max(0.0F, recipientMax - recipient.getHealth());
+        if (missing <= 0.05F) {
+            return false;
+        }
+
+        // Close a slice of the ratio gap, but never more than maxHealPerStep / missing.
+        final float gapHeal = gap * recipientMax * 0.35F;
+        final float heal = Math.min(Math.max(0.05F, maxHealPerStep), Math.min(missing, gapHeal));
+        if (heal <= 0.05F) {
+            return false;
+        }
+
+        final float drainFrac = MathHelper.clamp(drainOfHeal, 0.0F, 1.0F);
+        final float drain = Math.min(heal * drainFrac, Math.max(0.0F, donor.getHealth() - 1.0F));
+
+        recipient.setHealth(Math.min(recipientMax, recipient.getHealth() + heal));
+        if (drain > 0.05F) {
+            donor.setHealth(Math.max(1.0F, donor.getHealth() - drain));
+        }
+        return true;
+    }
+
+    private static LivingEntity resolveLiving(final ICustomNpc npc) {
+        if (npc == null) {
+            return null;
+        }
+        try {
+            final Object mc = npc.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                return (LivingEntity) mc;
+            }
+        } catch (final Exception ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Encounter key for Drachenfels board snapshots: {@code df_pair_id} or NPC UUID.
+     */
+    public static String resolveDrachenfelsEncounterKey(final ICustomNpc npc) {
+        if (npc == null) {
+            return "";
+        }
+        try {
+            final IData data = npc.getStoreddata();
+            if (data != null && data.has(DRACHENFELS_PAIR_ID_KEY)) {
+                final Object raw = data.get(DRACHENFELS_PAIR_ID_KEY);
+                if (raw != null) {
+                    final String pairId = String.valueOf(raw).trim();
+                    if (!pairId.isEmpty() && !"null".equalsIgnoreCase(pairId)) {
+                        return "df:" + pairId;
+                    }
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            return "npc:" + String.valueOf(npc.getUUID());
+        } catch (final Exception ignored) {
+            return "";
+        }
+    }
+
+    /**
+     * Breaks only {@link BlockTags#PLANKS} in a cylinder around the blast.
+     * Original states are appended to the encounter snapshot for later restore.
+     *
+     * @return number of plank blocks removed
+     */
+    public static int breakWoodenPlanksInRadius(
+            final ICustomNpc npc,
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius) {
+        if (npc == null || world == null || radius <= 0.05) {
+            return 0;
+        }
+        final World mcWorld = resolveMcWorld(world, npc);
+        if (mcWorld == null || mcWorld.isClientSide) {
+            return 0;
+        }
+        final String key = resolveDrachenfelsEncounterKey(npc);
+        if (key.isEmpty()) {
+            return 0;
+        }
+
+        final double r = Math.max(0.5, radius);
+        final double rSq = r * r;
+        final int minX = MathHelper.floor(x - r);
+        final int maxX = MathHelper.floor(x + r);
+        final int minZ = MathHelper.floor(z - r);
+        final int maxZ = MathHelper.floor(z + r);
+        final int baseY = MathHelper.floor(y);
+        final int minY = baseY - BOARD_BREAK_Y_DOWN;
+        final int maxY = baseY + BOARD_BREAK_Y_UP;
+
+        final List<BrokenBoardEntry> snapshot = BROKEN_BOARDS.computeIfAbsent(key, k -> new ArrayList<>());
+        int broken = 0;
+
+        synchronized (snapshot) {
+            for (int bx = minX; bx <= maxX; bx++) {
+                for (int bz = minZ; bz <= maxZ; bz++) {
+                    final double dx = (bx + 0.5) - x;
+                    final double dz = (bz + 0.5) - z;
+                    if (dx * dx + dz * dz > rSq) {
+                        continue;
+                    }
+                    for (int by = minY; by <= maxY; by++) {
+                        final BlockPos pos = new BlockPos(bx, by, bz);
+                        final BlockState state = mcWorld.getBlockState(pos);
+                        if (!isWoodenPlank(state)) {
+                            continue;
+                        }
+                        if (!containsBoardPos(snapshot, pos)) {
+                            snapshot.add(new BrokenBoardEntry(pos, state));
+                        }
+                        try {
+                            mcWorld.levelEvent(2001, pos, Block.getId(state));
+                            if (mcWorld.removeBlock(pos, false)) {
+                                broken++;
+                            }
+                        } catch (final Exception ignored) {
+                        }
+                    }
+                }
+            }
+        }
+        return broken;
+    }
+
+    /**
+     * Restores all snapped wooden planks for this NPC's encounter key.
+     *
+     * @return number of blocks restored
+     */
+    public static int restoreBrokenBoards(final ICustomNpc npc) {
+        if (npc == null) {
+            return 0;
+        }
+        final String key = resolveDrachenfelsEncounterKey(npc);
+        if (key.isEmpty()) {
+            return 0;
+        }
+        final List<BrokenBoardEntry> snapshot = BROKEN_BOARDS.remove(key);
+        if (snapshot == null || snapshot.isEmpty()) {
+            return 0;
+        }
+        final World mcWorld = resolveMcWorld(null, npc);
+        if (mcWorld == null || mcWorld.isClientSide) {
+            return 0;
+        }
+        int restored = 0;
+        synchronized (snapshot) {
+            for (final BrokenBoardEntry entry : snapshot) {
+                if (entry == null || entry.pos == null || entry.state == null) {
+                    continue;
+                }
+                try {
+                    if (mcWorld.setBlock(entry.pos, entry.state, BOARD_RESTORE_FLAGS)) {
+                        restored++;
+                    }
+                } catch (final Exception ignored) {
+                }
+            }
+            snapshot.clear();
+        }
+        return restored;
+    }
+
+    /** Drops encounter board snapshot without placing blocks back. */
+    public static void clearBrokenBoards(final ICustomNpc npc) {
+        if (npc == null) {
+            return;
+        }
+        final String key = resolveDrachenfelsEncounterKey(npc);
+        if (key.isEmpty()) {
+            return;
+        }
+        final List<BrokenBoardEntry> snapshot = BROKEN_BOARDS.remove(key);
+        if (snapshot != null) {
+            synchronized (snapshot) {
+                snapshot.clear();
+            }
+        }
+    }
+
+    public static int getBrokenBoardCount(final ICustomNpc npc) {
+        if (npc == null) {
+            return 0;
+        }
+        final String key = resolveDrachenfelsEncounterKey(npc);
+        if (key.isEmpty()) {
+            return 0;
+        }
+        final List<BrokenBoardEntry> snapshot = BROKEN_BOARDS.get(key);
+        if (snapshot == null) {
+            return 0;
+        }
+        synchronized (snapshot) {
+            return snapshot.size();
+        }
+    }
+
+    private static boolean isWoodenPlank(final BlockState state) {
+        if (state == null || state.isAir()) {
+            return false;
+        }
+        try {
+            return state.getBlock().is(BlockTags.PLANKS);
+        } catch (final Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean containsBoardPos(final List<BrokenBoardEntry> snapshot, final BlockPos pos) {
+        for (final BrokenBoardEntry entry : snapshot) {
+            if (entry != null && entry.pos != null && entry.pos.equals(pos)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static World resolveMcWorld(final IWorld world, final ICustomNpc npc) {
+        if (world instanceof WorldWrapper) {
+            try {
+                return ((WorldWrapper) world).getMCWorld();
+            } catch (final Exception ignored) {
+            }
+        }
+        try {
+            final Object mc = npc.getMCEntity();
+            if (mc instanceof Entity) {
+                return ((Entity) mc).level;
+            }
+        } catch (final Exception ignored) {
+        }
+        return null;
     }
 }

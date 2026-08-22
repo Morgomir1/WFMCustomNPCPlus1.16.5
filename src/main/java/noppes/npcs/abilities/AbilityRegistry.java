@@ -34,6 +34,10 @@ public final class AbilityRegistry {
         register(new DrachenfelsSpiritBarrageAbility());
         register(new DrachenfelsSoulSeekerAbility());
         register(new DrachenfelsSoulOrbsAbility());
+        register(new DrachenfelsDarkBlastAbility());
+        register(new DrachenfelsGhostParasiteAbility());
+        register(new DrachenfelsBodyPullAbility());
+        register(new DrachenfelsCursePuddlesAbility());
         register(new DrachenfelsRaiseThrallsAbility());
         register(new DrachenfelsShadowStepAbility());
         register(new ShieldBlockAbility());

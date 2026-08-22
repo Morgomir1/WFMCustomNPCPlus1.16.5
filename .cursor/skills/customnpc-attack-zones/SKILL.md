@@ -26,8 +26,10 @@ Telegraph **не** живёт внутри CNPC: sync/render/tick — в `WFMTel
 
 1. **AbilityAPI-босс** (Java + тонкий JS) → авто-телеграф после `onStart`. Достаточно геометрии в params + достаточный `chargeTicks`.
 2. **Чистый JS SM** → явный `TelegraphAPI` в `startCharge`, `remove` в `clearState`.
-3. **Aura / burn / poison puddle** → `ZoneAPI.hazard*` (урон тикает сам; убрать дублирующий JS-урон).
+3. **Aura / burn / poison puddle** → `ZoneAPI.hazard*` (урон тикает сам через `dealPureDamage`; убрать дублирующий JS-урон). Для огня: `zone.setFireSeconds(n)`.
 4. **Одноразовый trap** → `ZoneAPI.trapCircle`.
+
+Не делать отдельный server-tick DoT поверх `EntityAbilityZone` — зона уже бьёт чистым MAGIC с `ignoreIframes`.
 
 ---
 

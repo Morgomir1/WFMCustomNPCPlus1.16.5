@@ -20,6 +20,8 @@ noppes.npcs.abilities/
 │   ├── AbilityTickHandler.java
 │   ├── ShieldBlockDamageHandler.java
 │   ├── OtrodieCombatHandler.java   # front DR / vomit meter / devour
+│   ├── DrachenfelsGhostGrabHandler.java # parasite SEEK/GRAB + pure DPS
+│   ├── DrachenfelsCursePuddlesHandler.java # curse marks + cleanse puddles + heal on fail
 │   └── VampireCrimsonBatHealHandler.java # bat melee → heal owner
 └── impl/
     ├── DashAbility.java           # id: dash
@@ -37,6 +39,12 @@ noppes.npcs.abilities/
     ├── DrachenfelsSoulSeekerAbility.java    # id: drachenfels_soul_seeker
     ├── DrachenfelsRaiseThrallsAbility.java # id: drachenfels_raise_thralls
     ├── DrachenfelsShadowStepAbility.java   # id: drachenfels_shadow_step
+    ├── DrachenfelsBodyPullAbility.java     # id: drachenfels_body_pull
+    ├── DrachenfelsCursePuddlesAbility.java  # id: drachenfels_curse_puddles
+    ├── DrachenfelsSoulOrbsAbility.java     # id: drachenfels_soul_orbs
+    ├── DrachenfelsDarkBlastAbility.java    # id: drachenfels_dark_blast
+    ├── DrachenfelsGhostParasiteAbility.java # id: drachenfels_ghost_parasite
+    ├── DrachenfelsBodyPullAbility.java     # id: drachenfels_body_pull
     ├── WhFlamingStrikeAbility.java         # id: wh_flaming_strike
     ├── WhLungeAbility.java                 # id: wh_lunge
     ├── WhFlamingCrossbowAbility.java       # id: wh_flaming_crossbow
@@ -83,6 +91,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `isBusy(npc)` | Активна ли абилка |
 | `getActiveId(npc)` | id или `""` |
 | `cancel(npc)` | Сброс |
+| `transferDrachenfelsRitualHp(a, b)` | Encounter: асимметричный HP-transfer Тело↔Душа |
 
 ## Зарегистрированные абилки
 
@@ -188,6 +197,8 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 
 ```java
 stopNavigation(IMob npc)
+holdInPlace(npc, x, y, z)
+pinLiving(living, x, y, z)                // grab/parasite: setPos + zero XYZ motion
 computeYaw(dx, dz) → float
 flatDistance(x1, z1, x2, z2) → double
 findGroundY(world, x, z, startY) → double
@@ -203,7 +214,13 @@ Dash-стиль — см. `computeDashEndPoints` (`distance`).
 distanceToTarget(ctx) → double
 isUndead(entity) → boolean
 isInFrontCone(npc, entity, halfAngleDeg) → boolean
-damageNearby(...)
+dealPureDamage(victim, amount [, ignoreIframes]) → boolean
+damageNearby(...)                          // GENERIC via IEntity.damage
+damageNearbyPure(...)                      // MAGIC, bypass armor
+damageInMagicRing(...)                     // MAGIC annulus
+breakWoodenPlanksInRadius(npc, world, x, y, z, radius) → int  // PLANKS only + snapshot
+restoreBrokenBoards(npc) / clearBrokenBoards(npc)            // Drachenfels arena boards
+resolveDrachenfelsEncounterKey(npc) → String                 // df_pair_id or npc UUID
 damageWithUndeadBonus(...)
 damageInConeWithUndeadBonus(...)
 applyPotionNearby(active, ctx, x, y, z, radius, effectType, duration, amplifier)
@@ -213,6 +230,11 @@ isHostileToBoss(npc, entity) → boolean
 ```
 
 `effectType`: строка `slowness` / `weakness` → `AbilityEffectType`.
+
+**Чистый урон (Drachenfels / DoT):** `dealPureDamage` = `DamageSource.MAGIC` (обходит броню).  
+`ignoreIframes=true` — для периодических хитов (зоны, parasite), иначе i-frame от другого удара может съесть тик.  
+Пространственные hazard (огненные точки арены) — через `ZoneAPI`/`EntityAbilityZone` (уже зовут helper); отдельный tick-overlay поверх зоны не нужен. Grab/parasite state — helper напрямую из handler.
+**Доски арены:** `breakWoodenPlanksInRadius` сохраняет `BlockState` по encounter-key (`df_pair_id`); восстановление — `restoreBrokenBoards` при сбросе агра (JS orchestration).
 
 ## AbilityVfx
 
@@ -290,8 +312,74 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 | `drachenfels_soul_seeker` | оба | дальние soul-импульсы (punish kite) |
 | `drachenfels_raise_thralls` | оба | spawnClone thralls |
 | `drachenfels_shadow_step` | оба | soul dash |
+| `drachenfels_soul_orbs` | spirit | несколько кругов под целью |
+| `drachenfels_dark_blast` | spirit | telegraph-круг под целью → 15 pure + ломка досок (snapshot) |
+| `drachenfels_ghost_parasite` | spirit | homing-призрак → grab + 2 pure DPS до убийства призрака |
+| `drachenfels_body_pull` | body | стяжка игроков → delayed круг 15 pure → JS forced follow-up |
+| `drachenfels_curse_puddles` | body | метка ≤3 игроков на 10с + 3 лужи-очистителя; fail → +10 HP боссу |
+
+Encounter (не AbilityAPI id): `df_hp_ritual` в `drachenfels_boss_rework.js` — телепорт на `24379 28 -60298` / `+5Y`, particle-link, фиксация AI, HP через `AbilityAPI.transferDrachenfelsRitualHp` / `AbilityCombatHelper.transferDrachenfelsRitualHp` (слабый хиллится сильнее, донор теряет ~18% от heal).
 
 Дефолты — `AbilityDefaults.drachenfels*()`. Эффекты `poison` / `wither` — в `AbilityEffectType`.
+
+### `drachenfels_dark_blast` — DrachenfelsDarkBlastAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 32 | Warning circle под целью |
+| `damage` | double | 15.0 | Чистый MAGIC (`damageNearbyPure`) |
+| `radius` | double | 3.5 | Радиус AoE / telegraph / ломки досок |
+| `knockback` / `knockbackY` | double | 0.55 / 0.2 | Отброс |
+
+На `onStart` фиксирует точку под целью (`ex/ey/ez`). Ломает только `BlockTags.PLANKS`; snapshot в `AbilityCombatHelper` по `df_pair_id` — `restoreBrokenBoards(npc)` / `clearBrokenBoards(npc)`.
+
+### `drachenfels_ghost_parasite` — DrachenfelsGhostParasiteAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 28 | Каст Души перед запуском |
+| `activeTicks` | int | 600 | Safety-лимит grab (тики) |
+| `approachSpeed` | double | 0.55 | Скорость homing (блоки/тик) |
+| `hitRadius` | double | 1.4 | Радиус контакта → grab |
+| `hoverOffset` | double | 1.1 | Высота призрака над жертвой |
+| `damage` | double | 2.0 | Чистый MAGIC / тик урона |
+| `damageInterval` | int | 20 | Интервал DoT (= 2 DPS) |
+| `distance` | double | 40.0 | Бюджет полёта (блоки → тики) |
+| `cloneTab` / `cloneName` | | 1 / `Drachenfels Ghost Parasite` | Опциональный клон; иначе `spawnNPC` fallback |
+
+После charge спавнит killable NPC (тег `drachenfels_ghost_parasite`) и передаёт в `DrachenfelsGhostGrabHandler`: SEEK → GRAB. Grab: `AbilityCombatHelper.pinLiving` + `dealPureDamage(..., ignoreIframes=true)`. Убийство призрака снимает захват. Без клиентских пакетов. JS: `drachenfels_boss_rework.js`.
+
+### `drachenfels_body_pull` — DrachenfelsBodyPullAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `telegraph` | int | 0 | Авто-TG на charge выключен |
+| `chargeTicks` | int | 16 | Windup до стяжки |
+| `activeTicks` | int | 28 | Длительность warning-круга после pull |
+| `damage` | double | 15.0 | Чистый MAGIC (`damageNearbyPure`) |
+| `radius` | double | 5.0 | Радиус blast / telegraph |
+| `maxRange` | double | 12.0 | Радиус стяжки игроков |
+| `hitRadius` | double | 2.0 | Stand-off от босса после pull |
+| `knockback` / `knockbackY` | double | 0.7 / 0.25 | Отброс на blast |
+
+CHARGE → `pullPlayersToward` → ручной `TelegraphAPI.circle` → delayed blast. Follow-up body-каст ставит JS (`df_forced_ability` → `drachenfels_curse_puddles`).
+
+### `drachenfels_curse_puddles` — DrachenfelsCursePuddlesAbility
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `telegraph` | int | 0 | Авто-TG выключен |
+| `chargeTicks` | int | 24 | Windup перед метками |
+| `maxRange` | double | 18.0 | Радиус выбора игроков |
+| `hitCount` | int | 3 | Макс. проклятых игроков |
+| `summonCount` | int | 3 | Число очищающих луж |
+| `hitRadius` | double | 2.0 | Радиус лужи |
+| `spreadRadius` | double | 12.0 | Разброс луж вокруг кастера |
+| `zoneTicks` | int | 200 | Длительность curse / луж (10с) |
+| `zoneColor` | int | `0xC040E0D0` | Цвет cleanse-лужи |
+| `healOnFail` | double | 10.0 | Хил боссу за каждого неуспевшего |
+
+CHARGE → выбор ≤3 игроков → `DrachenfelsCursePuddlesHandler`: glowing-метка, 3 visual ZoneAPI-лужи (0 dmg). Вход в свободную лужу снимает curse и удаляет лужу; истечение таймера → `healLiving(+10)`. JS: `drachenfels_boss_rework.js` (в т.ч. forced follow-up после `body_pull`).
 
 ### `shield_block` — ShieldBlockAbility
 

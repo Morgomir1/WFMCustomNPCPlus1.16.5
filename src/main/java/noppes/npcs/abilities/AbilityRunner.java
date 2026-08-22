@@ -52,7 +52,12 @@ public final class AbilityRunner {
             LogWriter.info("AbilityRunner: onStart failed for ability: " + abilityId);
             return false;
         }
-        active.telegraphId = AbilityTelegraph.spawnFromCharge(active, ctx);
+        // Не затирать telegraphId, если абилка уже заспавнила warning в onStart
+        // (spawnFromCharge при telegraph=0 возвращает "").
+        final String autoTg = AbilityTelegraph.spawnFromCharge(active, ctx);
+        if (autoTg != null && !autoTg.isEmpty()) {
+            active.telegraphId = autoTg;
+        }
         ACTIVE.put(uuid, active);
         return true;
     }

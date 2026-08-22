@@ -58,12 +58,16 @@ Native WFM-боссы зовут `com.wfm.telegraph.TelegraphAPI` напряму
 
 - `setEffect("minecraft:poison", duration, amplifier)`
 - `setColor(0xAARRGGBB)`, `setKnockback(f)`, `setDamage(f)`
+- `setFireSeconds(n)` — поджог при каждом damage-тике (0 = выкл)
 - `setHealOwner(f)` — хилл владельца при входе; зона сразу снимается (звук + партиклы)
 - `setLifetimeTicks(n)`, `setDamageInterval(n)`
 - `moveTo(x, y, z, yaw, pitch)` — follow aura
 - `setVisible` / groundFill / border через data
 
+Урон зоны: `AbilityCombatHelper.dealPureDamage(..., ignoreIframes=true)` — MAGIC, без брони, стабильный DoT.  
 Фильтр целей: `AbilityCombatHelper.isHostileToBoss` (не бьёт союзников/себя).
+
+**Drachenfels / periodic fire zones:** не дублировать урон отдельным tick-handler поверх entity — `hazardCircle` + `setFireSeconds` + `moveTo` для маршрута.
 
 Entity: `customnpcs:ability_zone` → `EntityAbilityZone` + `RenderAbilityZone`.
 

@@ -44,6 +44,10 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `drachenfels_spirit_barrage` | `DrachenfelsSpiritBarrageAbility` | Серия импульсов к цели |
 | `drachenfels_soul_seeker` | `DrachenfelsSoulSeekerAbility` | Дальние soul-импульсы по линии (punish kite) |
 | `drachenfels_soul_orbs` | `DrachenfelsSoulOrbsAbility` | Несколько soul-шаров: круглые telegraph → AoE при приземлении |
+| `drachenfels_dark_blast` | `DrachenfelsDarkBlastAbility` | Круг под целью → 15 pure + ломка досок |
+| `drachenfels_ghost_parasite` | `DrachenfelsGhostParasiteAbility` | Homing-призрак → grab + 2 pure DPS |
+| `drachenfels_body_pull` | `DrachenfelsBodyPullAbility` | Стяжка → delayed круг 15 pure → forced follow-up |
+| `drachenfels_curse_puddles` | `DrachenfelsCursePuddlesAbility` | Метка ≤3 игроков + 3 лужи; fail → +10 HP |
 | `drachenfels_raise_thralls` | `DrachenfelsRaiseThrallsAbility` | Призыв thrall-клонов + aura |
 | `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
 | `crimson_blob` | `CrimsonBlobAbility` | Навес сгустка → hazard-зона слепоты + MAGIC DPS |
@@ -60,7 +64,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `vampire_blood_dash` | `VampireBloodDashAbility` | Homing-рывок без уворота + лужи крови |
 | `vampire_blood_slash` | `VampireBloodSlashAbility` | Конус мечом (как охотник), кровь |
 
-Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss.js`.
+Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss_rework.js` (тонкий JS + `DrachenfelsEncounterAPI`; старый `drachenfels_boss.js` — референс).
 Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
 Оркестратор Отродья: `src/main/resources/scripts/otrodie/otrodie_boss.js`.
 Оркестратор Кровавого лорда: `src/main/resources/scripts/vampire/vampire_crimson_lord.js`.
@@ -154,6 +158,52 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `damage` | double | 10.0 | Урон импульса (по пути ~55%) |
 | `hitRadius` | double | 2.2 | Радиус попадания |
 | `knockback` / `knockbackY` | double | 0.65 / 0.18 | Отбрасывание |
+
+### `drachenfels_ghost_parasite`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 28 | Каст Души |
+| `activeTicks` | int | 600 | Safety-лимит grab |
+| `approachSpeed` | double | 0.55 | Homing blocks/tick |
+| `hitRadius` | double | 1.4 | Контакт → grab |
+| `hoverOffset` | double | 1.1 | Высота призрака над жертвой |
+| `damage` / `damageInterval` | double / int | 2.0 / 20 | 2 pure DPS |
+| `distance` | double | 40.0 | Бюджет полёта |
+| `cloneTab` / `cloneName` | | 1 / `Drachenfels Ghost Parasite` | Опциональный клон |
+
+Homing NPC → server grab (`DrachenfelsGhostGrabHandler`). Убийство призрака снимает захват. Оркестратор: `drachenfels_boss_rework.js`.
+
+### `drachenfels_body_pull`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `telegraph` | int | 0 | Авто-TG на charge выключен |
+| `chargeTicks` | int | 16 | Windup до стяжки |
+| `activeTicks` | int | 28 | Warning-круг после pull |
+| `damage` | double | 15.0 | Чистый MAGIC blast |
+| `radius` | double | 5.0 | Радиус blast / TG |
+| `maxRange` | double | 12.0 | Радиус стяжки игроков |
+| `hitRadius` | double | 2.0 | Stand-off от босса |
+| `knockback` / `knockbackY` | double | 0.7 / 0.25 | Отброс |
+
+Стяжка → delayed круг → JS `df_forced_ability` → `drachenfels_curse_puddles`. Оркестратор: `drachenfels_boss_rework.js`.
+
+### `drachenfels_curse_puddles`
+
+| Ключ | Тип | Дефолт | Описание |
+|------|-----|--------|----------|
+| `chargeTicks` | int | 24 | Windup |
+| `maxRange` | double | 18.0 | Радиус выбора игроков |
+| `hitCount` | int | 3 | Макс. проклятых |
+| `summonCount` | int | 3 | Число луж |
+| `hitRadius` | double | 2.0 | Радиус лужи |
+| `spreadRadius` | double | 12.0 | Разброс луж |
+| `zoneTicks` | int | 200 | 10с на очистку |
+| `zoneColor` | int | `0xC040E0D0` | Цвет лужи |
+| `healOnFail` | double | 10.0 | Хил боссу за fail |
+
+Метка (glowing) + 3 cleanse-лужи (0 dmg ZoneAPI). Вход в свободную лужу снимает curse; истечение → +10 HP. Handler: `DrachenfelsCursePuddlesHandler`.
 
 ### `drachenfels_raise_thralls`
 

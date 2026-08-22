@@ -74,6 +74,8 @@ public class EntityAbilityZone extends Entity {
     private float damage = 2.0f;
     private int damageInterval = 20;
     private float knockback = 0.0f;
+    /** Seconds on fire applied with each damage tick (0 = off). */
+    private int fireSeconds;
     private int damageCooldown;
     private UUID ownerUuid;
     private int ownerEntityId = -1;
@@ -268,8 +270,12 @@ public class EntityAbilityZone extends Entity {
     }
 
     private void applyHit(final LivingEntity living) {
+        // Pure MAGIC via shared helper; ignore i-frames so DoT interval is reliable.
         if (this.damage > 0.001f) {
-            living.hurt(net.minecraft.util.DamageSource.MAGIC, this.damage);
+            AbilityCombatHelper.dealPureDamage(living, this.damage, true);
+        }
+        if (this.fireSeconds > 0) {
+            living.setSecondsOnFire(this.fireSeconds);
         }
         if (this.knockback > 0.001f) {
             final double dx = living.getX() - this.getX();
@@ -558,6 +564,14 @@ public class EntityAbilityZone extends Entity {
         this.damageInterval = Math.max(1, interval);
     }
 
+    public void setFireSeconds(final int seconds) {
+        this.fireSeconds = Math.max(0, seconds);
+    }
+
+    public int getFireSeconds() {
+        return this.fireSeconds;
+    }
+
     public int getTriggerFlashTick() {
         return this.triggerFlashTick;
     }
@@ -581,6 +595,7 @@ public class EntityAbilityZone extends Entity {
         this.damage = nbt.getFloat("Damage");
         this.damageInterval = nbt.getInt("DamageInterval");
         this.knockback = nbt.getFloat("Knockback");
+        this.fireSeconds = nbt.getInt("FireSeconds");
         this.effectId = nbt.getString("EffectId");
         this.effectDuration = nbt.getInt("EffectDuration");
         this.effectAmplifier = nbt.getInt("EffectAmplifier");
@@ -606,6 +621,7 @@ public class EntityAbilityZone extends Entity {
         nbt.putFloat("Damage", this.damage);
         nbt.putInt("DamageInterval", this.damageInterval);
         nbt.putFloat("Knockback", this.knockback);
+        nbt.putInt("FireSeconds", this.fireSeconds);
         nbt.putString("EffectId", this.effectId == null ? "" : this.effectId);
         nbt.putInt("EffectDuration", this.effectDuration);
         nbt.putInt("EffectAmplifier", this.effectAmplifier);

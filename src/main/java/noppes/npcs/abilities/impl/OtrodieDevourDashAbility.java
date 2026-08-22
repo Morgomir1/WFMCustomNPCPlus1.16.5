@@ -1,7 +1,6 @@
 package noppes.npcs.abilities.impl;
 
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.util.DamageSource;
 import noppes.npcs.abilities.AbilityCombatHelper;
 import noppes.npcs.abilities.AbilityContext;
 import noppes.npcs.abilities.AbilityDefaults;
@@ -393,21 +392,7 @@ public final class OtrodieDevourDashAbility implements CnpcAbility {
 
     /** Чистый MAGIC-урон (как Ability Zone / warpfire). */
     private static void dealPureDamage(final IEntityLiving victim, final float amount) {
-        if (victim == null || !victim.isAlive() || amount <= 0.0F) {
-            return;
-        }
-        try {
-            final Object mc = victim.getMCEntity();
-            if (mc instanceof LivingEntity) {
-                ((LivingEntity) mc).hurt(DamageSource.MAGIC, amount);
-                return;
-            }
-        } catch (final Exception ignored) {
-        }
-        try {
-            victim.damage(amount);
-        } catch (final Exception ignored) {
-        }
+        AbilityCombatHelper.dealPureDamage(victim, amount, false);
     }
 
     private static double resolveEyeHeight(final IEntityLiving entity) {

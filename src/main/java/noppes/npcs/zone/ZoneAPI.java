@@ -18,6 +18,7 @@ import noppes.npcs.telegraph.TelegraphAPI;
  * var zone = ZoneAPI.hazardCircle(npc, x, y, z, radius, durationTicks, damage, damageInterval);
  * zone.setEffect("minecraft:poison", 60, 0);
  * zone.setColor(0x80FF0000);
+ * zone.setFireSeconds(3); // optional ignite with each damage tick
  * </pre>
  */
 public final class ZoneAPI {

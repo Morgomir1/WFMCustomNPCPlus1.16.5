@@ -51,4 +51,12 @@ public final class AbilityAPI {
     public static void cancel(final ICustomNpc npc) {
         AbilityRunner.cancel(npc);
     }
+
+    /**
+     * Encounter helper for Drachenfels HP ritual: asymmetric HP transfer between body and spirit.
+     * Prefer calling from the JS orchestrator each ritual step.
+     */
+    public static boolean transferDrachenfelsRitualHp(final ICustomNpc a, final ICustomNpc b) {
+        return AbilityCombatHelper.transferDrachenfelsRitualHp(a, b);
+    }
 }

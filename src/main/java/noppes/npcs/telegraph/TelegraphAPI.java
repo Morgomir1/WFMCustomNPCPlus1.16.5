@@ -45,6 +45,22 @@ public final class TelegraphAPI {
     }
 
     /**
+     * Circle at an already-resolved Y (no upward ground scan).
+     * Use when Y came from {@code AbilityCombatHelper.findFeetGroundY} so a low
+     * ceiling / overhang cannot steal the telegraph off the floor.
+     */
+    public static String circleAt(
+            final ICustomNpc npc,
+            final double x,
+            final double y,
+            final double z,
+            final double radius,
+            final int durationTicks,
+            final int color) {
+        return com.wfm.telegraph.TelegraphAPI.circle(worldOf(npc), x, y, z, radius, durationTicks, color);
+    }
+
+    /**
      * Keeper-style: one circle at solid ground Y, follow baked into first spawn packet.
      */
     public static String circleFollow(
@@ -170,20 +186,25 @@ public final class TelegraphAPI {
     }
 
     /**
-     * Same solid-ground Y as KeeperOfSecretsEntity / wfm-attack-telegraphs skill.
+     * Same solid-ground Y as KeeperOfSecretsEntity / wfm-attack-telegraphs skill,
+     * but does not prefer blocks above {@code startY} (arena ceilings / overhangs).
      */
     public static double resolveGroundY(final World world, final double x, final double startY, final double z) {
         if (world == null) {
             return startY;
         }
-        final int from = MathHelper.floor(startY) + 2;
+        final int from = MathHelper.floor(startY);
         final int minY = Math.max(0, MathHelper.floor(startY) - 8);
         final BlockPos.Mutable pos = new BlockPos.Mutable(x, from, z);
         for (int y = from; y >= minY; y--) {
             pos.setY(y);
             final BlockState state = world.getBlockState(pos);
             if (state.getMaterial().isSolid() && !state.getCollisionShape(world, pos).isEmpty()) {
-                return y + 1.05D;
+                final double top = y + state.getCollisionShape(world, pos).max(net.minecraft.util.Direction.Axis.Y);
+                if (top > startY + 0.05D) {
+                    continue;
+                }
+                return top + 0.05D;
             }
         }
         return startY;

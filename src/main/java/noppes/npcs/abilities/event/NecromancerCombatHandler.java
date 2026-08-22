@@ -3,7 +3,6 @@ package noppes.npcs.abilities.event;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.MobEntity;
-import net.minecraft.util.DamageSource;
 import net.minecraft.world.World;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
@@ -632,21 +631,7 @@ public final class NecromancerCombatHandler {
 
     /** Чистый MAGIC-урон (bypass armor), как Ability Zone / necro beams. */
     private static void dealPureDamage(final IEntityLiving victim, final float amount) {
-        if (victim == null || !victim.isAlive() || amount <= 0.0F) {
-            return;
-        }
-        try {
-            final Object mc = victim.getMCEntity();
-            if (mc instanceof LivingEntity) {
-                ((LivingEntity) mc).hurt(DamageSource.MAGIC, amount);
-                return;
-            }
-        } catch (final Exception ignored) {
-        }
-        try {
-            victim.damage(amount);
-        } catch (final Exception ignored) {
-        }
+        AbilityCombatHelper.dealPureDamage(victim, amount, false);
     }
 
     private static ICustomNpc wrapNecroBoss(final LivingEntity entity) {

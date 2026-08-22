@@ -130,13 +130,13 @@ public static final String MY_PARAM = "myParam";
 
 | Класс | Использование |
 |-------|---------------|
-| `AbilityCombatHelper` | `stopNavigation`, `computeDashEndPoints`, `computeEndPoints` (jump к цели), `findGroundY`, `damageNearby`, `isHostileToBoss` |
+| `AbilityCombatHelper` | `stopNavigation`, `computeDashEndPoints`, `computeEndPoints` (jump к цели), `findGroundY`, `damageNearby` / `damageNearbyPure`, `dealPureDamage`, `isHostileToBoss` |
 | `AbilityVfx` | `spawnChargeParticles`, `spawnStartBurst`, `spawnDashTrail`, `spawnLandBurst`, `spawnHitParticle` |
 | `AbilityParams` | `merge(defaults, overrides, knownKeys)` — неизвестные ключи логируются и игнорируются |
 
 **Рывок (`distance`):** полная дистанция в направлении цели, **не** обрезать до дистанции до цели. Y на каждом тике — `findGroundY(world, cx, cz, sy)`.
 
-**Урон:** `damageNearby(active, ctx, x, y, z, radius, damage, dirX, dirZ, knockback, knockbackY, useFixedDir)` — `useFixedDir=true` для dash, `false` для радиального AoE.
+**Урон:** `damageNearby(...)` — GENERIC; `damageNearbyPure(...)` / `dealPureDamage(...)` — MAGIC (чистый, bypass armor). Для DoT зон — `ZoneAPI`, не отдельный tick-overlay.
 
 ## JS-оркестратор (минимум)
 

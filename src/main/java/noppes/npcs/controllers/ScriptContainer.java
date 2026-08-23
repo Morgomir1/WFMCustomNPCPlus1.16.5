@@ -14,6 +14,7 @@ import noppes.npcs.api.wrapper.*;
 import java.util.function.*;
 import noppes.npcs.shared.client.util.*;
 import noppes.npcs.shared.common.util.*;
+import noppes.npcs.util.NbtLongString;
 
 public class ScriptContainer
 {
@@ -68,15 +69,17 @@ public class ScriptContainer
     }
     
     public void load(final CompoundNBT compound) {
-        this.script = compound.getString("Script");
-        this.console = NBTTags.GetLongStringMap(compound.getList("Console", 10));
+        // Reassemble ScriptChunks when present (scripts larger than writeUTF 65KB).
+        this.script = NbtLongString.get(compound, "Script");
+        this.console = NbtLongString.loadConsoleMap(compound.getList("Console", 10));
         this.scripts = NBTTags.getStringList(compound.getList("ScriptList", 10));
         this.lastCreated = 0L;
     }
     
     public CompoundNBT save(final CompoundNBT compound) {
-        compound.putString("Script", this.script);
-        compound.put("Console", (INBT)NBTTags.NBTLongStringMap(this.console));
+        // Chunk oversized scripts so PacketGuiData / entity NBT can encode them.
+        NbtLongString.put(compound, "Script", this.script);
+        compound.put("Console", (INBT)NbtLongString.saveConsoleMap(this.console));
         compound.put("ScriptList", (INBT)NBTTags.nbtStringList(this.scripts));
         return compound;
     }

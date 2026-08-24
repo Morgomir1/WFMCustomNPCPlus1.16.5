@@ -1,7 +1,7 @@
 {
     "_comment1": "Patrykgazing - 1.4",
     "_comment2": "Nick J. Bernards - 1.12.2 (28-apr-2018)",
-    "customnpcs.defaultTextColor": "404040",
+    "customnpcs.defaultTextColor": "FFFFB6",
     "entity.customnpc": "Własny NPC",
     "entity.customnpcs.customnpc": "Własny NPC",
     "itemGroup.cnpcs": "Narzędzia CustomNpcs",

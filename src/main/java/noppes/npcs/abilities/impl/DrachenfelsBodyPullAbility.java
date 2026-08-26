@@ -134,7 +134,7 @@ public final class DrachenfelsBodyPullAbility implements CnpcAbility {
 
         AbilityCombatHelper.pullPlayersToward(ctx, x, y, z, pullRange, standOff);
 
-        AbilityVfx.spawnSoulWave(ctx.world, x, active.ey + 0.15, z, Math.min(pullRange, 8.0));
+        AbilityVfx.spawnVoidPullWave(ctx.world, x, active.ey + 0.15, z, Math.min(pullRange, 10.0));
         ctx.world.playSoundAt(
                 NpcAPI.Instance().getIPos(x, y, z),
                 "minecraft:entity.elder_guardian.curse",
@@ -159,7 +159,7 @@ public final class DrachenfelsBodyPullAbility implements CnpcAbility {
         AbilityCombatHelper.stopNavigation(ctx.npc);
         ctx.npc.setRotation(active.yaw);
         if (active.ticksLeft % 4 == 0) {
-            AbilityVfx.spawnDarkCharge(ctx.world, active.ex, active.ey + 0.35, active.ez);
+            AbilityVfx.spawnVoidCharge(ctx.world, active.ex, active.ey + 0.35, active.ez);
         }
 
         active.ticksLeft--;
@@ -181,8 +181,7 @@ public final class DrachenfelsBodyPullAbility implements CnpcAbility {
         final double knockbackY = ctx.params.getDouble(AbilityParamKeys.KNOCKBACK_Y, 0.25);
 
         AbilityTelegraph.clear(active, ctx);
-        AbilityVfx.spawnSoulBurst(ctx.world, x, y + 0.2, z, radius);
-        AbilityVfx.spawnDarkCharge(ctx.world, x, y + 0.45, z);
+        AbilityVfx.spawnVoidBlast(ctx.world, x, y + 0.2, z, radius);
         ctx.world.playSoundAt(
                 NpcAPI.Instance().getIPos(x, y, z),
                 "minecraft:entity.wither.break_block",

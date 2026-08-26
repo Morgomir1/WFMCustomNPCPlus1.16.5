@@ -9,7 +9,7 @@
  * GUI: вставить этот скрипт только на Body-NPC.
  * Душа: drachenfels_spirit_rework.js
  *
- * AI: OnAttack=Мстить. Navigation=Flying. Высота полёта = Y спавна (не следует за землёй).
+ * AI: OnAttack=Отступать. Navigation=Flying. Высота полёта = Y спавна (не следует за землёй).
  */
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var Encounter = Java.type("noppes.npcs.abilities.DrachenfelsEncounterAPI");
@@ -20,7 +20,7 @@ var NPC_ROLE = "body";
 var RITUAL_X = 24379.5;
 var RITUAL_Y = 28.0;
 var RITUAL_Z = -60298.5;
-var RITUAL_SPIRIT_DY = 5.0;
+var RITUAL_SPIRIT_DY = 8.0;
 var FLAME0_X = 24394.5;
 var FLAME0_Y = 28.05;
 var FLAME0_Z = -60298.5;
@@ -169,7 +169,7 @@ function pickAbility(npc, target, phase, data, now) {
     var last = String(data.get(LAST_KEY));
     var p2 = phase == "2" || phase == "bond";
 
-    if (dist <= 12.0 && isCooldownReady(data, now, BODY_PULL) && last != BODY_PULL) {
+    if (dist <= 18.0 && isCooldownReady(data, now, BODY_PULL) && last != BODY_PULL) {
         if (Math.random() < (p2 ? 0.5 : 0.38)) return BODY_PULL;
     }
     if (isCooldownReady(data, now, BODY_CURSE) && last != BODY_CURSE && last != BODY_PULL) {
@@ -184,8 +184,8 @@ function buildParams(abilityId) {
     if (abilityId == BODY_PULL) {
         return AbilityAPI.params(
             "damage", 15.0,
-            "radius", 5.0,
-            "maxRange", 12.0,
+            "radius", 7.5,
+            "maxRange", 18.0,
             "chargeTicks", 16,
             "activeTicks", 36,
             "telegraph", 0,
@@ -197,10 +197,11 @@ function buildParams(abilityId) {
             "chargeTicks", 24,
             "maxRange", 18.0,
             "summonCount", 3,
-            "effectDuration", 200,
-            "healPerTick", 10.0,
-            "landRadius", 2.2,
-            "spreadRadius", 10.0,
+            "hitCount", 3,
+            "hitRadius", 2.0,
+            "zoneTicks", 200,
+            "healOnFail", 10.0,
+            "spreadRadius", 20.0,
             "telegraph", 0
         );
     }
@@ -216,7 +217,7 @@ function getCastInterval(phase) {
 function getCooldown(abilityId, phase) {
     var bond = phase == "bond";
     var p2 = phase == "2" || bond;
-    if (abilityId == BODY_PULL) return bond ? 100 : (p2 ? 130 : 160);
+    if (abilityId == BODY_PULL) return bond ? 150 : (p2 ? 195 : 240);
     if (abilityId == BODY_CURSE) return bond ? 110 : (p2 ? 140 : 180);
     return 120;
 }

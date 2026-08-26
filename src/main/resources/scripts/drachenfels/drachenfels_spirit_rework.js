@@ -12,7 +12,7 @@
  * GUI: вставить этот скрипт только на Spirit-NPC.
  * Тело: drachenfels_body_rework.js
  *
- * AI: OnAttack=Мстить. Navigation=Flying. Высота полёта = Y спавна (не следует за землёй).
+ * AI: OnAttack=Отступать. Navigation=Flying. Высота полёта = Y спавна + RITUAL_SPIRIT_DY (выше тела).
  * Клон призрака (tab 1): "Drachenfels Ghost Parasite"
  * После спавна клону в Java выключается респавн (NecromancerMinionHelper.disableRespawn).
  */
@@ -25,7 +25,7 @@ var NPC_ROLE = "spirit";
 var RITUAL_X = 24379.5;
 var RITUAL_Y = 28.0;
 var RITUAL_Z = -60298.5;
-var RITUAL_SPIRIT_DY = 5.0;
+var RITUAL_SPIRIT_DY = 8.0;
 var FLAME0_X = 24394.5;
 var FLAME0_Y = 28.05;
 var FLAME0_Z = -60298.5;
@@ -211,12 +211,17 @@ function buildParams(abilityId) {
         );
     }
     if (abilityId == GHOST_PARASITE) {
+        // telegraph=0: не рисуем line-коридор от distance.
+        // Круг под целью — Java GrabHandler на фазе SEEK (пока дух летит).
         return AbilityAPI.params(
             "damage", 2.0,
             "damageInterval", 20,
             "chargeTicks", 28,
             "activeTicks", 600,
             "distance", 40.0,
+            "landRadius", 2.0,
+            "telegraph", 0,
+            "telegraphColor", 0xC0FF3030,
             "cloneTab", 1,
             "cloneName", CLONE_GHOST
         );

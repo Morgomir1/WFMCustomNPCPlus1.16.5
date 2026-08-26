@@ -31,6 +31,10 @@ public final class DrachenfelsCursePuddlesAbility implements CnpcAbility {
     public static final String ID = "drachenfels_curse_puddles";
 
     private static final int DEFAULT_ZONE_COLOR = 0xC040E0D0;
+    /** Минимальная дистанция лужи от босса / игроков (flat). */
+    private static final double MIN_AWAY_BOSS = 10.0;
+    private static final double MIN_AWAY_PLAYER = 8.0;
+    private static final int PUDDLE_PLACE_ATTEMPTS = 28;
 
     @Override
     public String getId() {
@@ -125,7 +129,7 @@ public final class DrachenfelsCursePuddlesAbility implements CnpcAbility {
         final int maxTargets = Math.max(1, Math.min(3, ctx.params.getInt(AbilityParamKeys.HIT_COUNT, 3)));
         final int puddleCount = Math.max(1, Math.min(3, ctx.params.getInt(AbilityParamKeys.SUMMON_COUNT, 3)));
         final double puddleRadius = Math.max(0.9, ctx.params.getDouble(AbilityParamKeys.HIT_RADIUS, 2.0));
-        final double spreadRadius = Math.max(4.0, ctx.params.getDouble(AbilityParamKeys.SPREAD_RADIUS, 12.0));
+        final double spreadRadius = Math.max(12.0, ctx.params.getDouble(AbilityParamKeys.SPREAD_RADIUS, 20.0));
         final int curseTicks = Math.max(20, ctx.params.getInt(AbilityParamKeys.ZONE_TICKS, 200));
         final float healOnFail = (float) Math.max(0.0, ctx.params.getDouble(AbilityParamKeys.HEAL_ON_FAIL, 10.0));
         final int zoneColor = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, DEFAULT_ZONE_COLOR);
@@ -158,7 +162,14 @@ public final class DrachenfelsCursePuddlesAbility implements CnpcAbility {
         final double cz = ctx.npc.getZ();
         final double cy = AbilityCombatHelper.findGroundY(ctx.world, cx, cz, ctx.npc.getY());
         final List<double[]> points = pickPuddlePoints(
-                ctx.world, cx, cy, cz, spreadRadius, puddleCount, puddleRadius * 2.2);
+                ctx.world,
+                cx,
+                cy,
+                cz,
+                spreadRadius,
+                puddleCount,
+                puddleRadius * 2.4,
+                candidates);
 
         final int cursed = DrachenfelsCursePuddlesHandler.start(
                 ctx.npc, victims, points, puddleRadius, curseTicks, healOnFail, zoneColor);
@@ -166,7 +177,7 @@ public final class DrachenfelsCursePuddlesAbility implements CnpcAbility {
             return;
         }
 
-        AbilityVfx.spawnSoulWave(ctx.world, cx, cy + 0.2, cz, Math.min(spreadRadius, 8.0));
+        AbilityVfx.spawnSoulWave(ctx.world, cx, cy + 0.2, cz, Math.min(spreadRadius * 0.45, 8.0));
         ctx.world.playSoundAt(
                 NpcAPI.Instance().getIPos(cx, cy, cz),
                 "minecraft:entity.elder_guardian.curse",
@@ -208,6 +219,10 @@ public final class DrachenfelsCursePuddlesAbility implements CnpcAbility {
         return out;
     }
 
+    /**
+     * Случайные точки в кольце [minRing .. spreadRadius], далеко от босса и игроков.
+     * Углы полностью случайные (не равномерный веер).
+     */
     private static List<double[]> pickPuddlePoints(
             final noppes.npcs.api.IWorld world,
             final double cx,
@@ -215,33 +230,95 @@ public final class DrachenfelsCursePuddlesAbility implements CnpcAbility {
             final double cz,
             final double spreadRadius,
             final int count,
-            final double minSeparation) {
+            final double minSeparation,
+            final List<IEntityLiving> players) {
         final List<double[]> points = new ArrayList<>();
-        final double angleOffset = AbilityCombatHelper.random().nextDouble() * Math.PI * 2.0;
+        final double outer = Math.max(spreadRadius, MIN_AWAY_BOSS + 4.0);
+        final double minRing = Math.min(outer * 0.55, Math.max(MIN_AWAY_BOSS, outer * 0.4));
+
         for (int i = 0; i < count; i++) {
             double bestX = cx;
             double bestZ = cz;
-            boolean placed = false;
-            for (int attempt = 0; attempt < 12; attempt++) {
-                final double angle = angleOffset
-                        + (Math.PI * 2.0 * i) / Math.max(1, count)
-                        + (AbilityCombatHelper.random().nextDouble() - 0.5) * 0.7;
-                final double dist = spreadRadius * (0.45 + AbilityCombatHelper.random().nextDouble() * 0.55);
+            double bestScore = -1.0;
+            boolean foundOk = false;
+
+            for (int attempt = 0; attempt < PUDDLE_PLACE_ATTEMPTS; attempt++) {
+                final double angle = AbilityCombatHelper.random().nextDouble() * Math.PI * 2.0;
+                final double t = AbilityCombatHelper.random().nextDouble();
+                // Bias outward: чаще ближе к внешнему кольцу.
+                final double dist = minRing + (outer - minRing) * (0.35 + 0.65 * t * t);
                 final double x = cx + Math.cos(angle) * dist;
                 final double z = cz + Math.sin(angle) * dist;
+
                 if (tooClose(points, x, z, minSeparation)) {
                     continue;
                 }
-                bestX = x;
-                bestZ = z;
-                placed = true;
-                break;
+                final double awayBoss = AbilityCombatHelper.flatDistance(x, z, cx, cz);
+                if (awayBoss < MIN_AWAY_BOSS) {
+                    continue;
+                }
+                double minPlayer = Double.POSITIVE_INFINITY;
+                boolean nearPlayer = false;
+                if (players != null) {
+                    for (final IEntityLiving p : players) {
+                        if (p == null || !p.isAlive()) {
+                            continue;
+                        }
+                        final double d = AbilityCombatHelper.flatDistance(x, z, p.getX(), p.getZ());
+                        if (d < minPlayer) {
+                            minPlayer = d;
+                        }
+                        if (d < MIN_AWAY_PLAYER) {
+                            nearPlayer = true;
+                            break;
+                        }
+                    }
+                }
+                if (nearPlayer) {
+                    continue;
+                }
+                // Score: далеко от босса и от ближайшего игрока.
+                final double score = awayBoss + (minPlayer == Double.POSITIVE_INFINITY ? 0.0 : minPlayer);
+                if (!foundOk || score > bestScore) {
+                    bestScore = score;
+                    bestX = x;
+                    bestZ = z;
+                    foundOk = true;
+                }
             }
-            if (!placed) {
-                final double angle = angleOffset + (Math.PI * 2.0 * i) / Math.max(1, count);
-                bestX = cx + Math.cos(angle) * (spreadRadius * 0.7);
-                bestZ = cz + Math.sin(angle) * (spreadRadius * 0.7);
+
+            if (!foundOk) {
+                // Fallback: случайный угол на внешнем кольце, максимизируя дистанцию до игроков.
+                for (int attempt = 0; attempt < 16; attempt++) {
+                    final double angle = AbilityCombatHelper.random().nextDouble() * Math.PI * 2.0;
+                    final double dist = outer * (0.75 + AbilityCombatHelper.random().nextDouble() * 0.25);
+                    final double x = cx + Math.cos(angle) * dist;
+                    final double z = cz + Math.sin(angle) * dist;
+                    if (tooClose(points, x, z, minSeparation * 0.7)) {
+                        continue;
+                    }
+                    double minPlayer = Double.POSITIVE_INFINITY;
+                    if (players != null) {
+                        for (final IEntityLiving p : players) {
+                            if (p == null || !p.isAlive()) {
+                                continue;
+                            }
+                            final double d = AbilityCombatHelper.flatDistance(x, z, p.getX(), p.getZ());
+                            if (d < minPlayer) {
+                                minPlayer = d;
+                            }
+                        }
+                    }
+                    final double score = AbilityCombatHelper.flatDistance(x, z, cx, cz)
+                            + (minPlayer == Double.POSITIVE_INFINITY ? 0.0 : minPlayer);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestX = x;
+                        bestZ = z;
+                    }
+                }
             }
+
             final double bestY = AbilityCombatHelper.findGroundY(world, bestX, bestZ, cy) + 0.05;
             points.add(new double[]{bestX, bestY, bestZ});
         }

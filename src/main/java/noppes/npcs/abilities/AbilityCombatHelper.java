@@ -2,6 +2,7 @@ package noppes.npcs.abilities;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityClassification;
 import net.minecraft.entity.EntityType;
@@ -53,6 +54,8 @@ public final class AbilityCombatHelper {
     private static final int BOARD_BREAK_Y_DOWN = 1;
     private static final int BOARD_BREAK_Y_UP = 3;
     private static final int BOARD_RESTORE_FLAGS = 3;
+    /** Lost-aggro arena patch: air → oak_planks around home. */
+    private static final int ARENA_FLOOR_FILL_RADIUS = 30;
     private static final Map<String, List<BrokenBoardEntry>> BROKEN_BOARDS = new ConcurrentHashMap<>();
 
     private AbilityCombatHelper() {
@@ -165,8 +168,12 @@ public final class AbilityCombatHelper {
             final double nx = x + (dx / len) * standoff;
             final double nz = z + (dz / len) * standoff;
             final double ny = findFeetGroundY(ctx.world, nx, nz, y);
+            final double ox = ent.getX();
+            final double oy = ent.getY();
+            final double oz = ent.getZ();
             pinLiving((IEntityLiving) ent, nx, ny, nz);
-            AbilityVfx.spawnHitParticle(ctx.world, ent);
+            AbilityVfx.spawnVoidPullTrail(ctx.world, ox, oy + 0.9, oz, nx, ny + 0.9, nz);
+            AbilityVfx.spawnVoidPullBurst(ctx.world, nx, ny + 0.4, nz);
             pulled++;
         }
         return pulled;
@@ -1745,6 +1752,64 @@ public final class AbilityCombatHelper {
         } catch (final Exception ignored) {
         }
         return restored;
+    }
+
+    /**
+     * Lost-aggro arena fix: at block layer under respawn feet ({@code floor(homeY)-1}),
+     * replace air with oak_planks in a flat disk of {@link #ARENA_FLOOR_FILL_RADIUS}.
+     * Also clears the plank snapshot so holes are not double-tracked.
+     *
+     * @return number of air blocks replaced
+     */
+    public static int fillHomeFloorAirWithOakPlanks(
+            final ICustomNpc npc,
+            final double homeX,
+            final double homeY,
+            final double homeZ) {
+        return fillHomeFloorAirWithOakPlanks(npc, homeX, homeY, homeZ, ARENA_FLOOR_FILL_RADIUS);
+    }
+
+    public static int fillHomeFloorAirWithOakPlanks(
+            final ICustomNpc npc,
+            final double homeX,
+            final double homeY,
+            final double homeZ,
+            final int radius) {
+        if (npc == null || radius <= 0) {
+            return 0;
+        }
+        final World mcWorld = resolveMcWorld(null, npc);
+        if (mcWorld == null || mcWorld.isClientSide) {
+            return 0;
+        }
+        // Feet at homeY stand on the block below.
+        final int floorY = MathHelper.floor(homeY) - 1;
+        final int cx = MathHelper.floor(homeX);
+        final int cz = MathHelper.floor(homeZ);
+        final int r = Math.max(1, radius);
+        final int rSq = r * r;
+        final BlockState planks = Blocks.OAK_PLANKS.defaultBlockState();
+        int filled = 0;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                if (dx * dx + dz * dz > rSq) {
+                    continue;
+                }
+                final BlockPos pos = new BlockPos(cx + dx, floorY, cz + dz);
+                try {
+                    final BlockState current = mcWorld.getBlockState(pos);
+                    if (current == null || !current.isAir()) {
+                        continue;
+                    }
+                    if (mcWorld.setBlock(pos, planks, BOARD_RESTORE_FLAGS)) {
+                        filled++;
+                    }
+                } catch (final Exception ignored) {
+                }
+            }
+        }
+        clearBrokenBoards(npc);
+        return filled;
     }
 
     private static int restoreBoardKey(final String key, final ICustomNpc npc) {

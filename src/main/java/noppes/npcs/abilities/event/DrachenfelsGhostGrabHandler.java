@@ -16,6 +16,7 @@ import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.api.IWorld;
+import noppes.npcs.telegraph.TelegraphAPI;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -34,12 +35,14 @@ public final class DrachenfelsGhostGrabHandler {
     private static final int PHASE_GRAB = 2;
     private static final double DEFAULT_APPROACH = 0.55;
     private static final double DEFAULT_HIT_RADIUS = 1.4;
+    private static final double DEFAULT_LAND_RADIUS = 2.0;
     private static final double DEFAULT_HOVER = 1.1;
     private static final float DEFAULT_DAMAGE = 2.0F;
     private static final int DEFAULT_DAMAGE_INTERVAL = 20;
     private static final int DEFAULT_FLIGHT_TICKS = 120;
     private static final int DEFAULT_GRAB_TICKS = 600;
     private static final double DEFAULT_MAX_FLIGHT_DIST = 40.0;
+    private static final int DEFAULT_TELEGRAPH_COLOR = 0xC0FF3030;
 
     private static final Map<UUID, GrabState> BY_VICTIM = new ConcurrentHashMap<>();
 
@@ -97,9 +100,47 @@ public final class DrachenfelsGhostGrabHandler {
         state.holdX = victim.getX();
         state.holdY = victim.getY();
         state.holdZ = victim.getZ();
+        state.telegraphId = spawnSeekTelegraph(owner, victim, params, state.flightTicksLeft);
 
         BY_VICTIM.put(victimId, state);
         return true;
+    }
+
+    /** Красный круг под жертвой на время полёта паразита (follow). */
+    private static String spawnSeekTelegraph(
+            final ICustomNpc owner,
+            final IEntityLiving victim,
+            final AbilityParams params,
+            final int durationTicks) {
+        try {
+            final double radius = Math.max(0.8, params.getDouble(AbilityParamKeys.LAND_RADIUS, DEFAULT_LAND_RADIUS));
+            final int color = params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, DEFAULT_TELEGRAPH_COLOR);
+            final String id = TelegraphAPI.circle(
+                    owner,
+                    victim.getX(),
+                    victim.getY(),
+                    victim.getZ(),
+                    radius,
+                    Math.max(1, durationTicks),
+                    color);
+            if (id != null && !id.isEmpty()) {
+                TelegraphAPI.follow(id, victim);
+                return id;
+            }
+        } catch (final Exception ignored) {
+        }
+        return null;
+    }
+
+    private static void clearSeekTelegraph(final GrabState state) {
+        if (state == null || state.telegraphId == null || state.telegraphId.isEmpty()) {
+            return;
+        }
+        try {
+            TelegraphAPI.remove(state.telegraphId);
+        } catch (final Exception ignored) {
+        }
+        state.telegraphId = null;
     }
 
     @SubscribeEvent
@@ -170,6 +211,7 @@ public final class DrachenfelsGhostGrabHandler {
         final double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
         if (dist <= state.hitRadius) {
+            clearSeekTelegraph(state);
             beginGrab(state, ghost, victim, world);
             return true;
         }
@@ -254,6 +296,7 @@ public final class DrachenfelsGhostGrabHandler {
     }
 
     private static void despawnGhost(final GrabState state) {
+        clearSeekTelegraph(state);
         final Entity ghostMc = findEntity(state.ghostUuid);
         if (ghostMc != null && ghostMc.isAlive()) {
             try {
@@ -306,5 +349,6 @@ public final class DrachenfelsGhostGrabHandler {
         private double holdX;
         private double holdY;
         private double holdZ;
+        private String telegraphId;
     }
 }

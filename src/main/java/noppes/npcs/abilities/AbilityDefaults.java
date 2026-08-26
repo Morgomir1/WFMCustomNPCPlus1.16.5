@@ -378,14 +378,17 @@ public final class AbilityDefaults {
     /** Soul parasite ghost: charge → homing NPC → grab + 2 pure DPS until ghost dies. */
     public static Map<String, Object> drachenfelsGhostParasite() {
         final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.TELEGRAPH, 0); // круг под жертвой в GrabHandler (SEEK), не line
         map.put(AbilityParamKeys.CHARGE_TICKS, 28);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 600);
         map.put(AbilityParamKeys.APPROACH_SPEED, 0.55);
         map.put(AbilityParamKeys.HIT_RADIUS, 1.4);
+        map.put(AbilityParamKeys.LAND_RADIUS, 2.0);
         map.put(AbilityParamKeys.HOVER_OFFSET, 1.1);
         map.put(AbilityParamKeys.DAMAGE, 2.0);
         map.put(AbilityParamKeys.DAMAGE_INTERVAL, 20);
         map.put(AbilityParamKeys.DISTANCE, 40.0);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         map.put(AbilityParamKeys.CLONE_TAB, 1);
         map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels Ghost Parasite");
         return map;
@@ -398,8 +401,8 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.CHARGE_TICKS, 16);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 36); // dodge-window после pull
         map.put(AbilityParamKeys.DAMAGE, 15.0);
-        map.put(AbilityParamKeys.RADIUS, 5.0);
-        map.put(AbilityParamKeys.MAX_RANGE, 12.0);
+        map.put(AbilityParamKeys.RADIUS, 7.5);
+        map.put(AbilityParamKeys.MAX_RANGE, 18.0);
         map.put(AbilityParamKeys.HIT_RADIUS, 2.0);
         map.put(AbilityParamKeys.KNOCKBACK, 0.7);
         map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
@@ -417,7 +420,7 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.HIT_COUNT, 3);
         map.put(AbilityParamKeys.SUMMON_COUNT, 3);
         map.put(AbilityParamKeys.HIT_RADIUS, 2.0);
-        map.put(AbilityParamKeys.SPREAD_RADIUS, 12.0);
+        map.put(AbilityParamKeys.SPREAD_RADIUS, 20.0);
         map.put(AbilityParamKeys.ZONE_TICKS, 200); // 10s curse / puddle lifetime
         map.put(AbilityParamKeys.ZONE_COLOR, 0xC040E0D0);
         map.put(AbilityParamKeys.HEAL_ON_FAIL, 10.0);

@@ -64,12 +64,15 @@ public final class DrachenfelsGhostParasiteAbility implements CnpcAbility {
                 AbilityParamKeys.ACTIVE_TICKS,
                 AbilityParamKeys.APPROACH_SPEED,
                 AbilityParamKeys.HIT_RADIUS,
+                AbilityParamKeys.LAND_RADIUS,
                 AbilityParamKeys.HOVER_OFFSET,
                 AbilityParamKeys.DAMAGE,
                 AbilityParamKeys.DAMAGE_INTERVAL,
                 AbilityParamKeys.DISTANCE,
                 AbilityParamKeys.CLONE_TAB,
-                AbilityParamKeys.CLONE_NAME);
+                AbilityParamKeys.CLONE_NAME,
+                AbilityParamKeys.TELEGRAPH,
+                AbilityParamKeys.TELEGRAPH_COLOR);
     }
 
     @Override

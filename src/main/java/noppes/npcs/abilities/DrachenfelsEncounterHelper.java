@@ -51,8 +51,8 @@ public final class DrachenfelsEncounterHelper {
     private static final double SPIRIT_MIN_RANGE = 6.5;
     private static final double SPIRIT_MAX_RANGE = 15.0;
     private static final int KITE_TICKS = 45;
-    private static final int KITE_SPEED_BODY = 5;
-    private static final int KITE_SPEED_SPIRIT = 6;
+    private static final int KITE_SPEED_BODY = 1;
+    private static final int KITE_SPEED_SPIRIT = 2;
     private static final int CASTER_SPEED = 1;
     private static final double HOME_ARRIVE_DIST = 1.8;
     private static final int HOME_RETURN_DELAY_TICKS = 50;
@@ -60,7 +60,7 @@ public final class DrachenfelsEncounterHelper {
     private static final double HOVER_MAX_DRIFT = 1.8;
 
     /** Fallback spirit Y offset if script did not call {@link #configureArena}. */
-    private static final double DEFAULT_RITUAL_SPIRIT_OFFSET_Y = 5.0;
+    private static final double DEFAULT_RITUAL_SPIRIT_OFFSET_Y = 8.0;
     private static final int RITUAL_DURATION_TICKS = 80;
     private static final int RITUAL_TRANSFER_INTERVAL = 4;
     private static final int RITUAL_COOLDOWN_TICKS = 700;
@@ -78,7 +78,8 @@ public final class DrachenfelsEncounterHelper {
     private static final int FLAME_ZONE_COUNT = 4;
     private static final double FLAME_RADIUS = 3.5;
     private static final float FLAME_DAMAGE = 5.0F;
-    private static final int FLAME_DAMAGE_INTERVAL = 20;
+    /** Было 20 (~1с); 10 = удар + поджог ~2 раза/сек. */
+    private static final int FLAME_DAMAGE_INTERVAL = 10;
     private static final int FLAME_FIRE_SECONDS = 3;
     /** Ticks to travel from one arena point to the next (full lap = ×4). */
     private static final int FLAME_SEGMENT_TICKS = 80;
@@ -1150,7 +1151,7 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         if (AbilityAPI.isBusy(npc)) {
-            applyCasterStance(npc);
+            // freezeAiForCast уже держит NONE/speed0 — не перетирать.
             return;
         }
         final IData data = npc.getStoreddata();
@@ -1192,12 +1193,13 @@ public final class DrachenfelsEncounterHelper {
                 put(data, FORCED_ABILITY_KEY, ABILITY_BODY_PULL);
             }
         }
+        // В бою оба постоянно отступают (не стоят на месте между кастами).
         applyCasterStance(npc);
     }
 
     /**
      * Both body and spirit: Flying + soft bob around spawn height ({@code HOME_Y}).
-     * Does not track ground — pit/board collapse must not lower the boss.
+     * Spirit stays {@link #ritualSpiritDy} above body home Y. Does not track ground.
      */
     private static void tickHover(final ICustomNpc npc) {
         final IData data = npc.getStoreddata();
@@ -1222,6 +1224,9 @@ public final class DrachenfelsEncounterHelper {
                 hoverY = ScriptDataUtil.getFloat(data, HOVER_Y_KEY);
             } else {
                 hoverY = y;
+            }
+            if ("spirit".equals(getRole(data))) {
+                hoverY += ritualSpiritDy(npc);
             }
             put(data, HOVER_Y_KEY, hoverY);
 
@@ -1271,9 +1276,8 @@ public final class DrachenfelsEncounterHelper {
         }
         if (distToHomeFlat(npc) <= HOME_ARRIVE_DIST) {
             // Не сбрасывать таймер, пока дырки не закрыты — иначе restore не догоняет.
-            if (AbilityCombatHelper.getBrokenBoardCount(npc) <= 0) {
-                clearLostAggroTimer(npc);
-            }
+            restoreArenaFloor(npc);
+            clearLostAggroTimer(npc);
             tickHover(npc);
             return;
         }
@@ -1292,15 +1296,18 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         final double x = ScriptDataUtil.getFloat(data, HOME_X_KEY);
-        final double y = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
+        double y = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
         final double z = ScriptDataUtil.getFloat(data, HOME_Z_KEY);
+        if ("spirit".equals(getRole(data))) {
+            y += ritualSpiritDy(npc);
+        }
         put(data, HOVER_Y_KEY, y);
         AbilityAPI.cancel(npc);
         put(data, KITE_UNTIL_KEY, "0");
         put(data, FORCED_ABILITY_KEY, "");
         put(data, NEXT_CAST_KEY, "0");
-        // Полный disengage за leash — закрыть доски и здесь (на случай гонки с tickSlow).
-        AbilityCombatHelper.restoreBrokenBoards(npc);
+        // Полный disengage за leash — закрыть дыры на полу арены.
+        restoreArenaFloor(npc);
         stopFlameCarousel(npc);
         put(data, LOST_AGGRO_SINCE_KEY, "0");
         try {
@@ -1326,11 +1333,11 @@ public final class DrachenfelsEncounterHelper {
         }
         try {
             final INPCAi ai = npc.getAi();
-            // Revenge держит агро; NONE каждый тик сбрасывал цель и ломал касты.
-            ai.setRetaliateType(RETALIATE_REVENGE);
+            final String role = getRole(npc.getStoreddata());
+            // Отступать: оба босса двигаются в бою, не стоят на месте.
+            ai.setRetaliateType(RETALIATE_RETREAT);
             ai.setMovingType(MOVING_STANDING);
-            ai.setWalkingSpeed(CASTER_SPEED);
-            // Body + spirit: Flying, чтобы тело не проваливалось в ямы
+            ai.setWalkingSpeed("spirit".equals(role) ? KITE_SPEED_SPIRIT : KITE_SPEED_BODY);
             ai.setNavigationType(NAV_FLYING);
             try {
                 ai.setLeapAtTarget(false);
@@ -1341,18 +1348,8 @@ public final class DrachenfelsEncounterHelper {
     }
 
     private static void applyKiteStance(final ICustomNpc npc) {
-        if (npc == null || isDowned(npc)) {
-            return;
-        }
-        try {
-            final INPCAi ai = npc.getAi();
-            final String role = getRole(npc.getStoreddata());
-            ai.setRetaliateType(RETALIATE_RETREAT);
-            ai.setMovingType(MOVING_STANDING);
-            ai.setWalkingSpeed("spirit".equals(role) ? KITE_SPEED_SPIRIT : KITE_SPEED_BODY);
-            ai.setNavigationType(NAV_FLYING);
-        } catch (final Exception ignored) {
-        }
+        // Ближний kite = та же стойка отступления (чуть дольше держим через KITE_UNTIL).
+        applyCasterStance(npc);
     }
 
     // -------------------------------------------------------------------------
@@ -1980,16 +1977,51 @@ public final class DrachenfelsEncounterHelper {
         if (!npcReady && !partnerReady) {
             return;
         }
-        AbilityCombatHelper.restoreBrokenBoards(npc);
-        if (partner != null) {
-            AbilityCombatHelper.restoreBrokenBoards(partner);
-        }
+        restoreArenaFloor(npc);
         stopFlameCarousel(npc);
+        clearLostAggroTimer(npc);
+        if (partner != null) {
+            clearLostAggroTimer(partner);
+        }
         if (!isInBondPhase(npc)) {
             tryReturnHomeIfIdle(npc);
         }
         if (partner != null && partner.isAlive() && !isDowned(partner) && !isInBondPhase(partner)) {
             tryReturnHomeIfIdle(partner);
+        }
+    }
+
+    /**
+     * After lost aggro: at body respawn height (block under feet), fill air with oak_planks
+     * in radius 30. Prefer body's home so spirit's hover Y does not shift the floor layer.
+     */
+    private static void restoreArenaFloor(final ICustomNpc npc) {
+        if (npc == null) {
+            return;
+        }
+        ICustomNpc anchor = npc;
+        try {
+            if (!"body".equals(getRole(npc.getStoreddata()))) {
+                final ICustomNpc partner = findPartner(npc);
+                if (partner != null && partner.isAlive() && "body".equals(getRole(partner.getStoreddata()))) {
+                    anchor = partner;
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        final IData data = anchor.getStoreddata();
+        if (!hasHome(data)) {
+            return;
+        }
+        final double hx = ScriptDataUtil.getFloat(data, HOME_X_KEY);
+        final double hy = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
+        final double hz = ScriptDataUtil.getFloat(data, HOME_Z_KEY);
+        AbilityCombatHelper.fillHomeFloorAirWithOakPlanks(anchor, hx, hy, hz);
+        // Clear pair snapshots on both halves.
+        AbilityCombatHelper.clearBrokenBoards(npc);
+        final ICustomNpc partner = findPartner(npc);
+        if (partner != null) {
+            AbilityCombatHelper.clearBrokenBoards(partner);
         }
     }
 

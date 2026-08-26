@@ -473,6 +473,166 @@ public final class AbilityVfx {
         }
     }
 
+    /**
+     * Body Pull: чёрно-фиолетовый шлейф вдоль пути стяжки игрока.
+     * {@code squid_ink}/{@code smoke} — чёрный, {@code witch}/{@code portal}/{@code dragon_breath} — фиолетовый.
+     */
+    public static void spawnVoidPullTrail(
+            final IWorld world,
+            final double x1,
+            final double y1,
+            final double z1,
+            final double x2,
+            final double y2,
+            final double z2) {
+        if (world == null) {
+            return;
+        }
+        final Random r = AbilityCombatHelper.random();
+        final double dist = Math.sqrt(
+                (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1) + (z2 - z1) * (z2 - z1));
+        final int steps = Math.max(6, Math.min(18, (int) Math.ceil(dist * 1.4)));
+        for (int i = 0; i <= steps; i++) {
+            final double t = i / (double) steps;
+            final double x = x1 + (x2 - x1) * t + (r.nextDouble() - 0.5) * 0.25;
+            final double y = y1 + (y2 - y1) * t + (r.nextDouble() - 0.5) * 0.2;
+            final double z = z1 + (z2 - z1) * t + (r.nextDouble() - 0.5) * 0.25;
+            safeSpawn(world, "minecraft:squid_ink", x, y, z, 0, 0.03, 0, 0.01, 1);
+            if (i % 2 == 0) {
+                safeSpawn(world, "minecraft:witch", x, y + 0.08, z, 0, 0.04, 0, 0.01, 1);
+            }
+            if (i % 3 == 0) {
+                safeSpawn(world, "minecraft:portal", x, y + 0.05, z, 0, 0.05, 0, 0.02, 1);
+            }
+            if (i % 4 == 0) {
+                safeSpawn(world, "minecraft:dragon_breath", x, y, z, 0, 0.02, 0, 0.01, 1);
+            }
+        }
+    }
+
+    /** Короткий всплеск у ног игрока в конце стяжки. */
+    public static void spawnVoidPullBurst(final IWorld world, final double x, final double y, final double z) {
+        if (world == null) {
+            return;
+        }
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 8; i++) {
+            final double ox = (r.nextDouble() - 0.5) * 0.9;
+            final double oy = r.nextDouble() * 0.7;
+            final double oz = (r.nextDouble() - 0.5) * 0.9;
+            safeSpawn(world, "minecraft:squid_ink", x + ox, y + oy, z + oz, 0, 0.05, 0, 0.02, 1);
+            safeSpawn(world, "minecraft:witch", x + ox * 0.7, y + oy + 0.1, z + oz * 0.7, 0, 0.04, 0, 0.01, 1);
+        }
+        safeSpawn(world, "minecraft:portal", x, y + 0.3, z, 0.15, 0.1, 0.15, 0.03, 4);
+        safeSpawn(world, "minecraft:smoke", x, y + 0.2, z, 0.12, 0.08, 0.12, 0.02, 5);
+    }
+
+    /** Волна стяжки вокруг кастера — чёрно-фиолетовое кольцо. */
+    public static void spawnVoidPullWave(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius) {
+        if (world == null || radius <= 0.0) {
+            return;
+        }
+        final Random r = AbilityCombatHelper.random();
+        final double rMax = Math.max(1.5, radius);
+        final int rings = Math.max(3, (int) Math.ceil(rMax / 2.0));
+        for (int ring = 0; ring <= rings; ring++) {
+            final double dist = (ring / (double) rings) * rMax;
+            final int points = Math.max(8, (int) Math.ceil(6.0 + dist * 2.0));
+            for (int i = 0; i < points; i++) {
+                final double a = (i / (double) points) * Math.PI * 2.0 + r.nextDouble() * 0.1;
+                final double cos = Math.cos(a);
+                final double sin = Math.sin(a);
+                final double px = x + cos * dist;
+                final double pz = z + sin * dist;
+                final double py = y + 0.1 + r.nextDouble() * 0.4;
+                safeSpawn(world, "minecraft:squid_ink", px, py, pz, cos * 0.25, 0.03, sin * 0.25, 0.12, 0);
+                if (i % 2 == 0) {
+                    safeSpawn(world, "minecraft:witch", px, py + 0.1, pz, cos * 0.2, 0.04, sin * 0.2, 0.1, 0);
+                }
+                if (i % 3 == 0) {
+                    safeSpawn(world, "minecraft:portal", px, py + 0.05, pz, cos * 0.15, 0.05, sin * 0.15, 0.08, 0);
+                }
+            }
+        }
+        safeSpawn(world, "minecraft:dragon_breath", x, y + 0.4, z, 0.2, 0.12, 0.2, 0.03, 6);
+    }
+
+    /** Заряд зоны перед взрывом Body Pull. */
+    public static void spawnVoidCharge(final IWorld world, final double x, final double y, final double z) {
+        if (world == null) {
+            return;
+        }
+        final Random r = AbilityCombatHelper.random();
+        for (int i = 0; i < 5; i++) {
+            final double ox = (r.nextDouble() - 0.5) * 1.4;
+            final double oy = 0.15 + r.nextDouble() * 0.7;
+            final double oz = (r.nextDouble() - 0.5) * 1.4;
+            safeSpawn(world, "minecraft:squid_ink", x + ox, y + oy, z + oz, 0, 0.04, 0, 0.01, 1);
+            safeSpawn(world, "minecraft:witch", x + ox * 0.8, y + oy * 0.6, z + oz * 0.8, 0, 0.05, 0, 0.01, 1);
+            if (r.nextBoolean()) {
+                safeSpawn(world, "minecraft:portal", x + ox * 0.5, y + oy, z + oz * 0.5, 0, 0.04, 0, 0.02, 1);
+            }
+        }
+    }
+
+    /** Финальный взрыв Body Pull — чёрно-фиолетовое кольцо + центральный всплеск. */
+    public static void spawnVoidBlast(
+            final IWorld world,
+            final double x,
+            final double y,
+            final double z,
+            final double radius) {
+        if (world == null) {
+            return;
+        }
+        final Random r = AbilityCombatHelper.random();
+        final double rMax = Math.max(1.2, radius);
+        final int count = Math.max(14, (int) Math.ceil(rMax * 3.5));
+        for (int i = 0; i < count; i++) {
+            final double a = (i / (double) count) * Math.PI * 2.0;
+            final double cos = Math.cos(a);
+            final double sin = Math.sin(a);
+            final double px = x + cos * rMax;
+            final double pz = z + sin * rMax;
+            final double py = y + 0.2 + r.nextDouble() * 0.6;
+            safeSpawn(world, "minecraft:squid_ink", px, py, pz, cos * 0.4, 0.08, sin * 0.4, 0.2, 0);
+            safeSpawn(world, "minecraft:witch", px, py + 0.15, pz, cos * 0.3, 0.06, sin * 0.3, 0.15, 0);
+            if (i % 2 == 0) {
+                safeSpawn(world, "minecraft:dragon_breath", px, py, pz, cos * 0.25, 0.05, sin * 0.25, 0.12, 0);
+            }
+            if (i % 3 == 0) {
+                safeSpawn(world, "minecraft:portal",
+                        x + cos * (rMax * 0.55),
+                        y + 0.35,
+                        z + sin * (rMax * 0.55),
+                        cos * 0.2, 0.08, sin * 0.2, 0.1, 0);
+            }
+        }
+        // Внутренний диск
+        for (int i = 0; i < 10; i++) {
+            final double a = r.nextDouble() * Math.PI * 2.0;
+            final double dist = r.nextDouble() * rMax * 0.7;
+            safeSpawn(world, "minecraft:squid_ink",
+                    x + Math.cos(a) * dist,
+                    y + 0.15 + r.nextDouble() * 0.8,
+                    z + Math.sin(a) * dist,
+                    0, 0.1, 0, 0.03, 1);
+            safeSpawn(world, "minecraft:large_smoke",
+                    x + Math.cos(a) * dist,
+                    y + 0.2 + r.nextDouble() * 0.5,
+                    z + Math.sin(a) * dist,
+                    0, 0.06, 0, 0.02, 1);
+        }
+        safeSpawn(world, "minecraft:portal", x, y + 0.5, z, 0.35, 0.25, 0.35, 0.05, 12);
+        safeSpawn(world, "minecraft:witch", x, y + 0.6, z, 0.3, 0.2, 0.3, 0.04, 10);
+        safeSpawn(world, "minecraft:explosion", x, y + 0.4, z, 0, 0, 0, 0, 1);
+    }
+
     private static void spawnWfmFog(
             final IWorld world,
             final double x,

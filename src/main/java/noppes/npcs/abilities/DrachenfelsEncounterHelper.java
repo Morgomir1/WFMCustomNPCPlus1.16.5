@@ -1,6 +1,7 @@
 package noppes.npcs.abilities;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.world.server.ServerWorld;
 import noppes.npcs.api.IPos;
 import noppes.npcs.api.IWorld;
 import noppes.npcs.api.NpcAPI;
@@ -10,6 +11,7 @@ import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.api.entity.IPlayer;
 import noppes.npcs.api.entity.data.IData;
 import noppes.npcs.api.entity.data.INPCAi;
+import noppes.npcs.api.wrapper.WorldWrapper;
 import noppes.npcs.entity.EntityAbilityZone;
 import noppes.npcs.script.ScriptDataUtil;
 import noppes.npcs.zone.ZoneAPI;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Server-side Drachenfels pair encounter: Immortal Bond, HP ritual, flame carousel,
@@ -55,9 +58,6 @@ public final class DrachenfelsEncounterHelper {
     private static final int HOME_RETURN_DELAY_TICKS = 50;
     private static final double HOVER_AMP = 0.22;
     private static final double HOVER_MAX_DRIFT = 1.8;
-    /** Душа парит выше; тело — чуть над землёй, чтобы не падать в ямы. */
-    private static final double SPIRIT_HOVER_OFFSET = 1.2;
-    private static final double BODY_HOVER_OFFSET = 0.4;
 
     /** Fallback spirit Y offset if script did not call {@link #configureArena}. */
     private static final double DEFAULT_RITUAL_SPIRIT_OFFSET_Y = 5.0;
@@ -80,14 +80,18 @@ public final class DrachenfelsEncounterHelper {
     private static final float FLAME_DAMAGE = 5.0F;
     private static final int FLAME_DAMAGE_INTERVAL = 20;
     private static final int FLAME_FIRE_SECONDS = 3;
-    private static final int FLAME_SHIFT_TICKS = 80;
+    /** Ticks to travel from one arena point to the next (full lap = ×4). */
+    private static final int FLAME_SEGMENT_TICKS = 80;
     private static final int FLAME_LIFETIME = 400;
+    private static final float FLAME_ZONE_HEIGHT = 8.0F;
     private static final int FLAME_COLOR = 0xC0FF6020;
     private static final String FLAME_TAG = "drachenfels_flame";
     private static final String FLAME_ACTIVE = "active";
     private static final String FLAME_UUIDS = "uuids";
+    /** Zone indices 0..3 — each keeps a fixed offset on the loop. */
     private static final String FLAME_SLOTS = "slots";
-    private static final String FLAME_NEXT = "next";
+    /** World totalTime when the carousel started (phase origin). */
+    private static final String FLAME_EPOCH = "epoch";
 
     private static final String ROLE_KEY = "df_role";
     private static final String PARTNER_UUID_KEY = "df_partner_uuid";
@@ -126,6 +130,13 @@ public final class DrachenfelsEncounterHelper {
     private static final String ABILITY_GHOST_PARASITE = "drachenfels_ghost_parasite";
     private static final String ABILITY_BODY_PULL = "drachenfels_body_pull";
 
+    /**
+     * {@code setAttackTarget} синхронно шлёт {@code targetLost} до обновления цели —
+     * без guard'а {@link #onTargetLost} → {@link #ensureCombatTarget} зацикливается.
+     */
+    private static final ThreadLocal<Integer> COMBAT_TARGET_MUTATION_DEPTH =
+            ThreadLocal.withInitial(() -> Integer.valueOf(0));
+
     private static final String[] QUOTES_BOND = {
             "Связь нерасторжима!",
             "Пока один дышит — второй вернётся!",
@@ -160,10 +171,8 @@ public final class DrachenfelsEncounterHelper {
             put(data, HOME_Y_KEY, npc.getY());
             put(data, HOME_Z_KEY, npc.getZ());
         }
-        if (isBlank(str(data, HOVER_Y_KEY))) {
-            final float homeY = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
-            put(data, HOVER_Y_KEY, homeY + (float) hoverOffsetFor(getRole(data)));
-        }
+        // Hover lock = spawn Y; never follow ground under the NPC (boards can break).
+        put(data, HOVER_Y_KEY, ScriptDataUtil.getFloat(data, HOME_Y_KEY));
         if (!isDowned(npc)) {
             put(data, PHASE_KEY, "1");
             put(data, PARTNER_DEAD_KEY, "0");
@@ -231,6 +240,9 @@ public final class DrachenfelsEncounterHelper {
         tickBondVfx(npc);
         tryCompleteRevive(npc);
         tickFlameCarousel(npc);
+        if (isFlameCarouselLeader(npc) && isFlameCarouselActive(npc)) {
+            pulseFlamePillarVfx(npc);
+        }
         tryRestoreBoardsAndStopFlame(npc);
         if (isRitualActive(npc)) {
             if (isDowned(npc) || !npc.isAlive()) {
@@ -264,6 +276,8 @@ public final class DrachenfelsEncounterHelper {
             tickHpRitual(npc);
             return;
         }
+        // Каждый тик каста — иначе карусель ждёт TIMER_SLOW (~1с) и легко срывается restore'ом.
+        tickFlameCarousel(npc);
         tickHover(npc);
         if (AbilityAPI.isBusy(npc)) {
             // Во время каста не бегать за целью
@@ -279,6 +293,10 @@ public final class DrachenfelsEncounterHelper {
 
     public static void onTargetLost(final ICustomNpc npc) {
         if (npc == null || isClient(npc)) {
+            return;
+        }
+        // Nested event from our own setAttackTarget — ignore, caller already retargets.
+        if (COMBAT_TARGET_MUTATION_DEPTH.get().intValue() > 0) {
             return;
         }
         if (isRitualActive(npc)) {
@@ -470,31 +488,34 @@ public final class DrachenfelsEncounterHelper {
         // Revenge может повесить целью партнёра / призрака / thrall — для кастов только игроки.
         if (cur != null && cur.isAlive() && isCombatPlayerTarget(cur)) {
             if (distEntityToHome(npc, cur) > LEASH_RANGE) {
-                try {
-                    npc.setAttackTarget(null);
-                } catch (final Exception ignored) {
-                }
+                setCombatTarget(npc, null);
             } else {
                 clearLostAggroTimer(npc);
                 return cur;
             }
         } else if (cur != null) {
-            try {
-                npc.setAttackTarget(null);
-            } catch (final Exception ignored) {
-            }
+            setCombatTarget(npc, null);
         }
         final IEntityLiving best = findValidPlayer(npc, AGRO_RANGE, LEASH_RANGE);
         if (best != null) {
-            try {
-                npc.setAttackTarget(best);
-            } catch (final Exception ignored) {
-            }
+            setCombatTarget(npc, best);
             clearLostAggroTimer(npc);
             return best;
         }
         markLostAggro(npc);
         return null;
+    }
+
+    /** setAttackTarget with reentrancy guard so nested targetLost is ignored. */
+    private static void setCombatTarget(final ICustomNpc npc, final IEntityLiving target) {
+        final int depth = COMBAT_TARGET_MUTATION_DEPTH.get().intValue();
+        COMBAT_TARGET_MUTATION_DEPTH.set(Integer.valueOf(depth + 1));
+        try {
+            npc.setAttackTarget(target);
+        } catch (final Exception ignored) {
+        } finally {
+            COMBAT_TARGET_MUTATION_DEPTH.set(Integer.valueOf(depth));
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -996,12 +1017,14 @@ public final class DrachenfelsEncounterHelper {
         if (!existing.isEmpty()) {
             put(db, PAIR_ID_KEY, existing);
             syncArenaConfig(a, b);
+            AbilityCombatHelper.migrateDrachenfelsBoardKeys(a, b);
             return;
         }
         existing = str(db, PAIR_ID_KEY);
         if (!existing.isEmpty()) {
             put(da, PAIR_ID_KEY, existing);
             syncArenaConfig(a, b);
+            AbilityCombatHelper.migrateDrachenfelsBoardKeys(a, b);
             return;
         }
         final String ua = String.valueOf(a.getUUID());
@@ -1010,6 +1033,7 @@ public final class DrachenfelsEncounterHelper {
         put(da, PAIR_ID_KEY, pairId);
         put(db, PAIR_ID_KEY, pairId);
         syncArenaConfig(a, b);
+        AbilityCombatHelper.migrateDrachenfelsBoardKeys(a, b);
     }
 
     private static void syncArenaConfig(final ICustomNpc a, final ICustomNpc b) {
@@ -1171,13 +1195,9 @@ public final class DrachenfelsEncounterHelper {
         applyCasterStance(npc);
     }
 
-    private static double hoverOffsetFor(final String role) {
-        return "spirit".equals(role) ? SPIRIT_HOVER_OFFSET : BODY_HOVER_OFFSET;
-    }
-
     /**
-     * Both body and spirit use Flying + soft hover above solid ground.
-     * Body stays ~0.4 above terrain so it does not fall into pits.
+     * Both body and spirit: Flying + soft bob around spawn height ({@code HOME_Y}).
+     * Does not track ground — pit/board collapse must not lower the boss.
      */
     private static void tickHover(final ICustomNpc npc) {
         final IData data = npc.getStoreddata();
@@ -1192,12 +1212,17 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         try {
-            final String role = getRole(data);
             final double x = npc.getX();
             final double z = npc.getZ();
             final double y = npc.getY();
-            final double groundY = AbilityCombatHelper.findGroundY(npc.getWorld(), x, z, y);
-            final double hoverY = groundY + hoverOffsetFor(role);
+            double hoverY;
+            if (hasHome(data)) {
+                hoverY = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
+            } else if (!isBlank(str(data, HOVER_Y_KEY))) {
+                hoverY = ScriptDataUtil.getFloat(data, HOVER_Y_KEY);
+            } else {
+                hoverY = y;
+            }
             put(data, HOVER_Y_KEY, hoverY);
 
             final long t = npc.getWorld().getTotalTime();
@@ -1245,7 +1270,10 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         if (distToHomeFlat(npc) <= HOME_ARRIVE_DIST) {
-            clearLostAggroTimer(npc);
+            // Не сбрасывать таймер, пока дырки не закрыты — иначе restore не догоняет.
+            if (AbilityCombatHelper.getBrokenBoardCount(npc) <= 0) {
+                clearLostAggroTimer(npc);
+            }
             tickHover(npc);
             return;
         }
@@ -1263,16 +1291,17 @@ public final class DrachenfelsEncounterHelper {
         if (!hasHome(data)) {
             return;
         }
-        double x = ScriptDataUtil.getFloat(data, HOME_X_KEY);
-        double y = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
-        double z = ScriptDataUtil.getFloat(data, HOME_Z_KEY);
-        final double hoverY = y + hoverOffsetFor(getRole(data));
-        put(data, HOVER_Y_KEY, hoverY);
-        y = hoverY;
+        final double x = ScriptDataUtil.getFloat(data, HOME_X_KEY);
+        final double y = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
+        final double z = ScriptDataUtil.getFloat(data, HOME_Z_KEY);
+        put(data, HOVER_Y_KEY, y);
         AbilityAPI.cancel(npc);
         put(data, KITE_UNTIL_KEY, "0");
         put(data, FORCED_ABILITY_KEY, "");
         put(data, NEXT_CAST_KEY, "0");
+        // Полный disengage за leash — закрыть доски и здесь (на случай гонки с tickSlow).
+        AbilityCombatHelper.restoreBrokenBoards(npc);
+        stopFlameCarousel(npc);
         put(data, LOST_AGGRO_SINCE_KEY, "0");
         try {
             npc.setAttackTarget(null);
@@ -1528,12 +1557,13 @@ public final class DrachenfelsEncounterHelper {
     // -------------------------------------------------------------------------
 
     private static void tickFlameCarousel(final ICustomNpc npc) {
-        if (npc == null || !npc.isAlive() || !isFlameCarouselLeader(npc)) {
+        if (npc == null || !npc.isAlive() || isDowned(npc) || !isFlameCarouselLeader(npc)) {
             return;
         }
-        if (!isEncounterAggroActive(npc)) {
+        if (!isFlameCarouselWanted(npc)) {
             return;
         }
+        ensureFlameConfigFromPartner(npc);
         if (!isFlameCarouselActive(npc)) {
             startFlameCarousel(npc);
             return;
@@ -1542,27 +1572,26 @@ public final class DrachenfelsEncounterHelper {
             startFlameCarousel(npc);
             return;
         }
-        final long now = npc.getWorld().getTotalTime();
-        long next = 0;
-        try {
-            next = Long.parseLong(flameTempGet(npc, FLAME_NEXT));
-        } catch (final Exception ignored) {
-        }
-        if (now >= next) {
-            shiftFlameCarousel(npc);
-        }
+        // Каждый тик: плавно едем по замкнутому маршруту 0→1→2→3→0.
+        advanceFlameCarousel(npc);
     }
 
     private static boolean startFlameCarousel(final ICustomNpc npc) {
-        if (npc == null || !isFlameCarouselLeader(npc) || !hasFlameConfig(npc)) {
+        if (npc == null || !isFlameCarouselLeader(npc)) {
+            return false;
+        }
+        ensureFlameConfigFromPartner(npc);
+        if (!hasFlameConfig(npc)) {
             return false;
         }
         stopFlameCarouselEntities(npc);
         final List<String> uuids = new ArrayList<>();
         final List<String> slots = new ArrayList<>();
         final IWorld world = npc.getWorld();
+        final long now = world.getTotalTime();
+        flameTempPut(npc, FLAME_EPOCH, String.valueOf(now));
         for (int i = 0; i < FLAME_ZONE_COUNT; i++) {
-            final double[] point = flamePoint(npc, i);
+            final double[] point = sampleFlamePath(npc, i);
             if (point == null) {
                 continue;
             }
@@ -1573,7 +1602,7 @@ public final class DrachenfelsEncounterHelper {
             try {
                 uuids.add(zone.getUUID().toString());
                 slots.add(String.valueOf(i));
-                spawnFlameVfx(world, point);
+                spawnFlameVfx(world, point, true);
             } catch (final Exception e) {
                 ZoneAPI.remove(zone);
             }
@@ -1581,11 +1610,9 @@ public final class DrachenfelsEncounterHelper {
         if (uuids.isEmpty()) {
             return false;
         }
-        final long now = world.getTotalTime();
         flameTempPut(npc, FLAME_ACTIVE, "1");
         flameTempPut(npc, FLAME_UUIDS, joinList(uuids));
         flameTempPut(npc, FLAME_SLOTS, joinList(slots));
-        flameTempPut(npc, FLAME_NEXT, String.valueOf(now + FLAME_SHIFT_TICKS));
         return true;
     }
 
@@ -1596,6 +1623,7 @@ public final class DrachenfelsEncounterHelper {
         final List<String> alive = new ArrayList<>();
         final List<String> slots = new ArrayList<>();
         final Set<Integer> usedSlots = new HashSet<>();
+        final double segments = flamePathSegments(npc);
 
         for (int i = 0; i < uuids.size(); i++) {
             final EntityAbilityZone zone = resolveFlameZone(world, uuids.get(i));
@@ -1625,7 +1653,8 @@ public final class DrachenfelsEncounterHelper {
             if (usedSlots.contains(s)) {
                 continue;
             }
-            final EntityAbilityZone spawned = spawnFlameZoneAt(npc, flamePoint(npc, s));
+            final double[] point = sampleFlamePath(npc, segments + s);
+            final EntityAbilityZone spawned = spawnFlameZoneAt(npc, point);
             if (spawned == null) {
                 continue;
             }
@@ -1633,7 +1662,7 @@ public final class DrachenfelsEncounterHelper {
                 alive.add(spawned.getUUID().toString());
                 slots.add(String.valueOf(s));
                 usedSlots.add(s);
-                spawnFlameVfx(world, flamePoint(npc, s));
+                spawnFlameVfx(world, point, false);
             } catch (final Exception e) {
                 ZoneAPI.remove(spawned);
             }
@@ -1643,18 +1672,23 @@ public final class DrachenfelsEncounterHelper {
         return alive.size();
     }
 
-    private static void shiftFlameCarousel(final ICustomNpc npc) {
+    /**
+     * Move all flame zones along the 4-point loop. Zone {@code i} stays offset by {@code i}
+     * segments so the four pillars remain evenly spaced while circling.
+     */
+    private static void advanceFlameCarousel(final ICustomNpc npc) {
         final IWorld world = npc.getWorld();
         final List<String> uuids = parseList(flameTempGet(npc, FLAME_UUIDS));
         final List<String> slots = parseList(flameTempGet(npc, FLAME_SLOTS));
         if (uuids.isEmpty()) {
-            startFlameCarousel(npc);
             return;
         }
-        final List<String> newUuids = new ArrayList<>();
-        final List<String> newSlots = new ArrayList<>();
+        final double segments = flamePathSegments(npc);
         for (int i = 0; i < uuids.size(); i++) {
-            EntityAbilityZone zone = resolveFlameZone(world, uuids.get(i));
+            final EntityAbilityZone zone = resolveFlameZone(world, uuids.get(i));
+            if (zone == null || zone.removed) {
+                continue;
+            }
             int slot = i;
             try {
                 if (i < slots.size()) {
@@ -1662,44 +1696,59 @@ public final class DrachenfelsEncounterHelper {
                 }
             } catch (final Exception ignored) {
             }
-            final int nextSlot = Math.floorMod(slot + 1, FLAME_ZONE_COUNT);
-            final double[] point = flamePoint(npc, nextSlot);
+            slot = Math.floorMod(slot, FLAME_ZONE_COUNT);
+            final double[] point = sampleFlamePath(npc, segments + slot);
             if (point == null) {
-                continue;
-            }
-            if (zone == null) {
-                zone = spawnFlameZoneAt(npc, point);
-                if (zone == null) {
-                    continue;
-                }
-                newUuids.add(zone.getUUID().toString());
-                newSlots.add(String.valueOf(nextSlot));
-                spawnFlameVfx(world, point);
                 continue;
             }
             try {
                 zone.moveTo(point[0], point[1], point[2], 0, 0);
                 zone.setLifetimeTicks(FLAME_LIFETIME);
-                configureFlameZone(zone);
-                newUuids.add(uuids.get(i));
-                newSlots.add(String.valueOf(nextSlot));
-                spawnFlameVfx(world, point);
-            } catch (final Exception e) {
-                ZoneAPI.remove(zone);
-                final EntityAbilityZone respawn = spawnFlameZoneAt(npc, point);
-                if (respawn != null) {
-                    newUuids.add(respawn.getUUID().toString());
-                    newSlots.add(String.valueOf(nextSlot));
-                }
+            } catch (final Exception ignored) {
             }
         }
-        if (newUuids.isEmpty()) {
-            startFlameCarousel(npc);
-            return;
+    }
+
+    /** How many path segments have been traveled since {@link #FLAME_EPOCH}. */
+    private static double flamePathSegments(final ICustomNpc npc) {
+        long epoch = 0L;
+        try {
+            epoch = Long.parseLong(flameTempGet(npc, FLAME_EPOCH));
+        } catch (final Exception ignored) {
         }
-        flameTempPut(npc, FLAME_UUIDS, joinList(newUuids));
-        flameTempPut(npc, FLAME_SLOTS, joinList(newSlots));
-        flameTempPut(npc, FLAME_NEXT, String.valueOf(world.getTotalTime() + FLAME_SHIFT_TICKS));
+        if (epoch <= 0L) {
+            epoch = npc.getWorld().getTotalTime();
+            flameTempPut(npc, FLAME_EPOCH, String.valueOf(epoch));
+        }
+        final long elapsed = Math.max(0L, npc.getWorld().getTotalTime() - epoch);
+        return elapsed / (double) Math.max(1, FLAME_SEGMENT_TICKS);
+    }
+
+    /**
+     * Sample the closed polyline FLAME0→1→2→3→0.
+     * {@code pathPos} in segment units (integer = corner, +0.5 = midpoint of an edge).
+     */
+    private static double[] sampleFlamePath(final ICustomNpc npc, final double pathPos) {
+        if (npc == null || FLAME_ZONE_COUNT <= 0) {
+            return null;
+        }
+        double p = pathPos % FLAME_ZONE_COUNT;
+        if (p < 0.0) {
+            p += FLAME_ZONE_COUNT;
+        }
+        final int from = (int) Math.floor(p) % FLAME_ZONE_COUNT;
+        final int to = (from + 1) % FLAME_ZONE_COUNT;
+        final double t = p - Math.floor(p);
+        final double[] a = resolveFlameWorldPoint(npc, from);
+        final double[] b = resolveFlameWorldPoint(npc, to);
+        if (a == null || b == null) {
+            return a != null ? a : b;
+        }
+        return new double[]{
+                a[0] + (b[0] - a[0]) * t,
+                a[1] + (b[1] - a[1]) * t,
+                a[2] + (b[2] - a[2]) * t
+        };
     }
 
     private static EntityAbilityZone spawnFlameZoneAt(final ICustomNpc npc, final double[] point) {
@@ -1714,8 +1763,25 @@ public final class DrachenfelsEncounterHelper {
         } catch (final Exception e) {
             return null;
         }
+        if (zone == null) {
+            return null;
+        }
         configureFlameZone(zone);
         return zone;
+    }
+
+    /** Config slot → world XYZ with feet snapped to ground. */
+    private static double[] resolveFlameWorldPoint(final ICustomNpc npc, final int index) {
+        final double[] raw = flamePoint(npc, index);
+        if (raw == null || npc == null) {
+            return raw;
+        }
+        double y = raw[1];
+        try {
+            y = AbilityCombatHelper.findFeetGroundY(npc.getWorld(), raw[0], raw[2], y) + 0.05;
+        } catch (final Exception ignored) {
+        }
+        return new double[]{raw[0], y, raw[2]};
     }
 
     private static void configureFlameZone(final EntityAbilityZone zone) {
@@ -1731,7 +1797,7 @@ public final class DrachenfelsEncounterHelper {
         } catch (final Exception ignored) {
         }
         try {
-            zone.setZoneHeight(2.5F);
+            zone.setZoneHeight(FLAME_ZONE_HEIGHT);
         } catch (final Exception ignored) {
         }
         try {
@@ -1765,16 +1831,49 @@ public final class DrachenfelsEncounterHelper {
     }
 
     private static void spawnFlameVfx(final IWorld world, final double[] point) {
+        spawnFlameVfx(world, point, true);
+    }
+
+    private static void spawnFlameVfx(final IWorld world, final double[] point, final boolean withSound) {
         if (world == null || point == null) {
             return;
         }
         try {
-            world.spawnParticle("minecraft:flame", point[0], point[1] + 0.4, point[2], 0.35, 0.25, 0.35, 0.02, 18);
-            world.spawnParticle("minecraft:smoke", point[0], point[1] + 0.6, point[2], 0.3, 0.35, 0.3, 0.01, 10);
-            world.playSoundAt(
-                    NpcAPI.Instance().getIPos(point[0], point[1], point[2]),
-                    "minecraft:block.fire.ambient", 0.85F, 0.9F);
+            final double x = point[0];
+            final double y = point[1];
+            final double z = point[2];
+            for (int h = 0; h < 5; h++) {
+                final double py = y + 0.3 + h * 1.4;
+                world.spawnParticle("minecraft:flame", x, py, z, 0.25, 0.35, 0.25, 0.02, 10);
+                world.spawnParticle("minecraft:soul_fire_flame", x, py + 0.2, z, 0.15, 0.25, 0.15, 0.01, 4);
+            }
+            world.spawnParticle("minecraft:smoke", x, y + 1.2, z, 0.35, 0.6, 0.35, 0.01, 12);
+            if (withSound) {
+                world.playSoundAt(
+                        NpcAPI.Instance().getIPos(x, y, z),
+                        "minecraft:block.fire.ambient", 0.85F, 0.9F);
+            }
         } catch (final Exception ignored) {
+        }
+    }
+
+    /** Ambient pillar particles ~1/s while carousel is up. */
+    private static void pulseFlamePillarVfx(final ICustomNpc npc) {
+        if (npc == null) {
+            return;
+        }
+        final IWorld world = npc.getWorld();
+        final double segments = flamePathSegments(npc);
+        final List<String> slots = parseList(flameTempGet(npc, FLAME_SLOTS));
+        for (final String slotRaw : slots) {
+            try {
+                final int slot = Integer.parseInt(slotRaw);
+                final double[] point = sampleFlamePath(npc, segments + slot);
+                if (point != null) {
+                    spawnFlameVfx(world, point, false);
+                }
+            } catch (final Exception ignored) {
+            }
         }
     }
 
@@ -1852,28 +1951,39 @@ public final class DrachenfelsEncounterHelper {
     }
 
     /**
-     * When both body and spirit lost aggro long enough: restore boards + stop flame.
+     * When the pair is out of combat long enough: restore boards + stop flame.
      * Thrall cleanup intentionally skipped.
+     * <p>
+     * Combat for restore = survival player in flat {@link #AGRO_RANGE} of either half,
+     * or a player attack-target. Does <b>not</b> require the player to leave {@link #LEASH_RANGE}
+     * (arena), otherwise holes never close after wipe/disengage.
+     * Flame stop uses the same agro gate so pillars are not culled mid-fight.
      */
     private static void tryRestoreBoardsAndStopFlame(final ICustomNpc npc) {
-        if (hasCombatTarget(npc) || findPlayerInLeash(npc) != null || isInActiveCombat(npc)) {
-            return;
-        }
         final ICustomNpc partner = findPartner(npc);
-        if (partner != null && partner.isAlive() && !isDowned(partner)) {
-            if (hasCombatTarget(partner) || findPlayerInLeash(partner) != null) {
-                return;
+        // Единый agro-gate пары (как у карусели) — без отдельного isInActiveCombat/LEASH.
+        if (isFlameCarouselWanted(npc)) {
+            clearLostAggroTimer(npc);
+            if (partner != null) {
+                clearLostAggroTimer(partner);
             }
-        }
-        if (!hasLostAggroLongEnough(npc)) {
-            markLostAggro(npc);
             return;
         }
-        if (partner != null && partner.isAlive() && !isDowned(partner) && !hasLostAggroLongEnough(partner)) {
+        markLostAggro(npc);
+        if (partner != null && partner.isAlive() && !isDowned(partner)) {
             markLostAggro(partner);
+        }
+        final boolean npcReady = hasLostAggroLongEnough(npc);
+        final boolean partnerReady = partner != null && partner.isAlive() && !isDowned(partner)
+                && hasLostAggroLongEnough(partner);
+        // Любая половина с истёкшим таймером — достаточно (оба маркируются вместе).
+        if (!npcReady && !partnerReady) {
             return;
         }
         AbilityCombatHelper.restoreBrokenBoards(npc);
+        if (partner != null) {
+            AbilityCombatHelper.restoreBrokenBoards(partner);
+        }
         stopFlameCarousel(npc);
         if (!isInBondPhase(npc)) {
             tryReturnHomeIfIdle(npc);
@@ -1887,11 +1997,48 @@ public final class DrachenfelsEncounterHelper {
         return "1".equals(flameTempGet(npc, FLAME_ACTIVE));
     }
 
+    /**
+     * Нужна ли карусель: survival/adventure рядом с любой половиной (flat AGRO),
+     * либо у пары есть player-target. Не зависит от HOME/LEASH — иначе при кривом home
+     * столбы никогда не стартуют, хотя бой идёт.
+     */
+    private static boolean isFlameCarouselWanted(final ICustomNpc npc) {
+        if (npc == null) {
+            return false;
+        }
+        if (hasCombatTarget(npc) || hasNearbyCombatPlayer(npc, AGRO_RANGE)) {
+            return true;
+        }
+        final ICustomNpc partner = findPartner(npc);
+        if (partner != null && partner.isAlive() && !isDowned(partner)) {
+            return hasCombatTarget(partner) || hasNearbyCombatPlayer(partner, AGRO_RANGE);
+        }
+        return false;
+    }
+
+    private static boolean hasNearbyCombatPlayer(final ICustomNpc npc, final double range) {
+        if (npc == null || range <= 0.0) {
+            return false;
+        }
+        try {
+            for (final IPlayer p : npc.getWorld().getAllPlayers()) {
+                if (!isValidCombatPlayer(p)) {
+                    continue;
+                }
+                if (flatDistance(npc, p) <= range) {
+                    return true;
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        return false;
+    }
+
     private static boolean isEncounterAggroActive(final ICustomNpc npc) {
         if (npc == null) {
             return false;
         }
-        if (isInActiveCombat(npc) || findPlayerInLeash(npc) != null) {
+        if (isFlameCarouselWanted(npc) || isInActiveCombat(npc) || findPlayerInLeash(npc) != null) {
             return true;
         }
         final ICustomNpc partner = findPartner(npc);
@@ -1901,6 +2048,11 @@ public final class DrachenfelsEncounterHelper {
         return false;
     }
 
+    /**
+     * Flame carousel — механика арены Души: лидер = живая Душа (с конфигом),
+     * иначе Тело. Раньше предпочиталось Тело без проверки {@code df_cfg_flames},
+     * и при отсутствии конфига у Тела зоны никогда не спавнились.
+     */
     private static ICustomNpc getFlameCarouselLeader(final ICustomNpc npc) {
         if (npc == null) {
             return null;
@@ -1915,13 +2067,34 @@ public final class DrachenfelsEncounterHelper {
             body = npc;
             spirit = partner;
         }
-        if (body != null && body.isAlive() && !isDowned(body)) {
-            return body;
-        }
-        if (spirit != null && spirit.isAlive() && !isDowned(spirit)) {
+        if (isFlameLeaderCandidate(spirit) && hasFlameConfig(spirit)) {
             return spirit;
         }
+        if (isFlameLeaderCandidate(body) && hasFlameConfig(body)) {
+            return body;
+        }
+        if (isFlameLeaderCandidate(spirit)) {
+            return spirit;
+        }
+        if (isFlameLeaderCandidate(body)) {
+            return body;
+        }
         return null;
+    }
+
+    private static boolean isFlameLeaderCandidate(final ICustomNpc npc) {
+        return npc != null && npc.isAlive() && !isDowned(npc);
+    }
+
+    /** Если у лидера нет точек — скопировать арену с партнёра. */
+    private static void ensureFlameConfigFromPartner(final ICustomNpc npc) {
+        if (npc == null || hasFlameConfig(npc)) {
+            return;
+        }
+        final ICustomNpc partner = findPartner(npc);
+        if (partner != null && hasFlameConfig(partner)) {
+            copyArenaConfig(partner.getStoreddata(), npc.getStoreddata());
+        }
     }
 
     private static boolean isFlameCarouselLeader(final ICustomNpc npc) {
@@ -1976,7 +2149,7 @@ public final class DrachenfelsEncounterHelper {
             td.remove(flameTempKey(npc, FLAME_ACTIVE));
             td.remove(flameTempKey(npc, FLAME_UUIDS));
             td.remove(flameTempKey(npc, FLAME_SLOTS));
-            td.remove(flameTempKey(npc, FLAME_NEXT));
+            td.remove(flameTempKey(npc, FLAME_EPOCH));
         } catch (final Exception ignored) {
         }
     }
@@ -1986,6 +2159,16 @@ public final class DrachenfelsEncounterHelper {
             return null;
         }
         try {
+            final UUID id = UUID.fromString(uuid);
+            if (world instanceof WorldWrapper) {
+                final ServerWorld sw = ((WorldWrapper) world).getMCWorld();
+                if (sw != null) {
+                    final Entity e = sw.getEntity(id);
+                    if (e instanceof EntityAbilityZone && !e.removed) {
+                        return (EntityAbilityZone) e;
+                    }
+                }
+            }
             return asAbilityZone(world.getEntity(uuid));
         } catch (final Exception e) {
             return null;
@@ -2115,7 +2298,8 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         final IData data = npc.getStoreddata();
-        if (ScriptDataUtil.getInt(data, LOST_AGGRO_SINCE_KEY) > 0) {
+        // gameTime — long; int-parse ломал таймер на старых мирах (NumberFormat → 0 → never restore).
+        if (getLostAggroSince(data) > 0L) {
             return;
         }
         put(data, LOST_AGGRO_SINCE_KEY, String.valueOf(npc.getWorld().getTotalTime()));
@@ -2125,11 +2309,33 @@ public final class DrachenfelsEncounterHelper {
         if (npc == null) {
             return false;
         }
-        final int since = ScriptDataUtil.getInt(npc.getStoreddata(), LOST_AGGRO_SINCE_KEY);
-        if (since <= 0) {
+        final long since = getLostAggroSince(npc.getStoreddata());
+        if (since <= 0L) {
             return false;
         }
         return npc.getWorld().getTotalTime() - since >= HOME_RETURN_DELAY_TICKS;
+    }
+
+    private static long getLostAggroSince(final IData data) {
+        if (data == null || !data.has(LOST_AGGRO_SINCE_KEY)) {
+            return 0L;
+        }
+        try {
+            final Object raw = data.get(LOST_AGGRO_SINCE_KEY);
+            if (raw == null) {
+                return 0L;
+            }
+            if (raw instanceof Number) {
+                return ((Number) raw).longValue();
+            }
+            final String s = String.valueOf(raw).trim();
+            if (s.isEmpty()) {
+                return 0L;
+            }
+            return Long.parseLong(s);
+        } catch (final Exception ignored) {
+            return 0L;
+        }
     }
 
     private static boolean hasHome(final IData data) {

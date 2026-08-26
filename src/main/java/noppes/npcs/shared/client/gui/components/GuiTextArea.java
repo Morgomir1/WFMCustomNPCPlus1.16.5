@@ -1,5 +1,7 @@
 package noppes.npcs.shared.client.gui.components;
 
+import noppes.npcs.client.CustomNpcResourceListener;
+
 import net.minecraft.client.gui.*;
 import noppes.npcs.shared.client.gui.listeners.*;
 import com.mojang.blaze3d.matrix.*;
@@ -174,7 +176,7 @@ public class GuiTextArea extends AbstractGui implements IGui, IGuiEventListener
                     fill(matrixStack, this.x + 1 + s, posY, this.x + 1 + e, posY + this.container.lineHeight + 1, -1728052993);
                 }
                 final int yPos = this.y + (j - this.scrolledLine) * this.container.lineHeight + 1;
-                GuiTextArea.font.draw(data.getFormattedString(), (float)(this.x + 1), (float)yPos, -2039584);
+                GuiTextArea.font.draw(data.getFormattedString(), (float)(this.x + 1), (float)yPos, CustomNpcResourceListener.DefaultTextColor);
                 if (this.active && this.isEnabled() && this.cursorCounter / 6 % 2 == 0 && this.cursorPosition >= data.start && this.cursorPosition < data.end) {
                     final int posX = this.x + GuiTextArea.font.width(line.substring(0, this.cursorPosition - data.start));
                     fill(matrixStack, posX + 1, yPos, posX + 2, yPos + 1 + this.container.lineHeight, -3092272);

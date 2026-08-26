@@ -2,12 +2,14 @@
  * Constant Drachenfels — ТЕЛО (rework).
  *
  * Скиллы: body_pull → (forced) curse_puddles
- * Арена / bond / flame: DrachenfelsEncounterAPI
+ * Арена / bond / flame: DrachenfelsEncounterAPI (столбы ведёт Душа; body только sync арены).
+ * Нужен актуальный jar с DrachenfelsEncounterHelper.
+ * Доски арены чинит encounter (Java) при потере агро — см. spirit_rework.
  *
  * GUI: вставить этот скрипт только на Body-NPC.
  * Душа: drachenfels_spirit_rework.js
  *
- * AI: OnAttack=Мстить. Navigation=Flying.
+ * AI: OnAttack=Мстить. Navigation=Flying. Высота полёта = Y спавна (не следует за землёй).
  */
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var Encounter = Java.type("noppes.npcs.abilities.DrachenfelsEncounterAPI");
@@ -80,6 +82,14 @@ function timer(event) {
     }
 
     if (event.id == TIMER_SLOW) {
+        Encounter.configureArena(
+            npc,
+            RITUAL_X, RITUAL_Y, RITUAL_Z, RITUAL_SPIRIT_DY,
+            FLAME0_X, FLAME0_Y, FLAME0_Z,
+            FLAME1_X, FLAME1_Y, FLAME1_Z,
+            FLAME2_X, FLAME2_Y, FLAME2_Z,
+            FLAME3_X, FLAME3_Y, FLAME3_Z
+        );
         Encounter.tickSlow(npc);
         return;
     }

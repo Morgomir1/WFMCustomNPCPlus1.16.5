@@ -1,5 +1,7 @@
 package noppes.npcs.client.gui.player;
 
+import noppes.npcs.client.CustomNpcResourceListener;
+
 import noppes.npcs.client.gui.util.*;
 import noppes.npcs.shared.client.gui.listeners.*;
 import noppes.npcs.entity.*;
@@ -95,9 +97,9 @@ public class GuiDialogInteract extends GuiNPCInterface implements IGuiClose
         int count = 0;
         for (final TextBlockClient block : new ArrayList<TextBlockClient>(this.lines)) {
             final int size = ClientProxy.Font.width(block.getName() + ": ");
-            this.drawString(matrixStack, block.getName() + ": ", -4 - size, block.color, count);
+            this.drawString(matrixStack, block.getName() + ": ", -4 - size, remapGray(block.color), count);
             for (final ITextComponent line : block.lines) {
-                this.drawString(matrixStack, line.getString(), 0, block.color, count);
+                this.drawString(matrixStack, line.getString(), 0, remapGray(block.color), count);
                 ++count;
             }
             ++count;
@@ -150,7 +152,7 @@ public class GuiDialogInteract extends GuiNPCInterface implements IGuiClose
                 if (!option.isAvailable((PlayerEntity)this.player)) {
                     continue;
                 }
-                int color = option.optionColor;
+                int color = remapGray(option.optionColor);
                 if (slot == this.selected) {
                     color = 8622040;
                 }
@@ -200,15 +202,23 @@ public class GuiDialogInteract extends GuiNPCInterface implements IGuiClose
             final DialogOption option = this.dialog.options.get(id);
             final int y = this.guiTop + offset + k * ClientProxy.Font.height(null);
             if (this.selected == k) {
-                drawString(matrixStack, this.font, ">", this.guiLeft - 60, y, 14737632);
+                drawString(matrixStack, this.font, ">", this.guiLeft - 60, y, CustomNpcResourceListener.DefaultTextColor);
             }
-            drawString(matrixStack, this.font, NoppesStringUtils.formatText(option.title, this.player, this.npc), this.guiLeft - 30, y, option.optionColor);
+            drawString(matrixStack, this.font, NoppesStringUtils.formatText(option.title, this.player, this.npc), this.guiLeft - 30, y, remapGray(option.optionColor));
         }
     }
     
     private void drawString(final MatrixStack matrixStack, final String text, final int left, final int color, final int count) {
         final int height = count - this.rowStart;
         ClientProxy.Font.draw(matrixStack, text, this.guiLeft + left, this.guiTop + height * ClientProxy.Font.height(null), color);
+    }
+
+    /** Legacy CNPC gray UI colors -> current defaultTextColor. */
+    private static int remapGray(final int color) {
+        if (color == 0xE0E0E0 || color == 0x404040) {
+            return CustomNpcResourceListener.DefaultTextColor;
+        }
+        return color;
     }
     
     private int getSelected() {
@@ -291,7 +301,7 @@ public class GuiDialogInteract extends GuiNPCInterface implements IGuiClose
             final BlockPos pos = this.npc.blockPosition();
             MusicController.Instance.playSound(SoundCategory.VOICE, dialog.sound, pos, 1.0f, 1.0f);
         }
-        this.lines.add(new TextBlockClient(this.npc.createCommandSourceStack(), dialog.text, 280, 14737632, new Object[] { this.player, this.npc }));
+        this.lines.add(new TextBlockClient(this.npc.createCommandSourceStack(), dialog.text, 280, CustomNpcResourceListener.DefaultTextColor, new Object[] { this.player, this.npc }));
         for (final int slot : dialog.options.keySet()) {
             final DialogOption option = dialog.options.get(slot);
             if (option != null) {

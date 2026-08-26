@@ -49,6 +49,7 @@ public final class AbilityCombatHelper {
 
     /** Encounter key prefix for Drachenfels pair board snapshots. */
     public static final String DRACHENFELS_PAIR_ID_KEY = "df_pair_id";
+    public static final String DRACHENFELS_PARTNER_UUID_KEY = "df_partner_uuid";
     private static final int BOARD_BREAK_Y_DOWN = 1;
     private static final int BOARD_BREAK_Y_UP = 3;
     private static final int BOARD_RESTORE_FLAGS = 3;
@@ -1592,10 +1593,59 @@ public final class AbilityCombatHelper {
             }
         } catch (final Exception ignored) {
         }
+        return npcUuidBoardKey(npc);
+    }
+
+    /** Per-NPC fallback key used before the pair is linked. */
+    public static String npcUuidBoardKey(final ICustomNpc npc) {
+        if (npc == null) {
+            return "";
+        }
         try {
             return "npc:" + String.valueOf(npc.getUUID());
         } catch (final Exception ignored) {
             return "";
+        }
+    }
+
+    /**
+     * Merge orphan UUID snapshots into the shared pair key after body/spirit link.
+     * Dark blast may break boards before {@code df_pair_id} exists.
+     */
+    public static void migrateDrachenfelsBoardKeys(final ICustomNpc a, final ICustomNpc b) {
+        if (a == null && b == null) {
+            return;
+        }
+        final ICustomNpc ref = a != null ? a : b;
+        final String pairKey = resolveDrachenfelsEncounterKey(ref);
+        if (pairKey.isEmpty() || !pairKey.startsWith("df:")) {
+            return;
+        }
+        mergeBoardSnapshot(npcUuidBoardKey(a), pairKey);
+        mergeBoardSnapshot(npcUuidBoardKey(b), pairKey);
+    }
+
+    private static void mergeBoardSnapshot(final String fromKey, final String toKey) {
+        if (fromKey == null || fromKey.isEmpty() || toKey == null || toKey.isEmpty() || fromKey.equals(toKey)) {
+            return;
+        }
+        final List<BrokenBoardEntry> from = BROKEN_BOARDS.remove(fromKey);
+        if (from == null || from.isEmpty()) {
+            return;
+        }
+        final List<BrokenBoardEntry> to = BROKEN_BOARDS.computeIfAbsent(toKey, k -> new ArrayList<>());
+        synchronized (from) {
+            synchronized (to) {
+                for (final BrokenBoardEntry entry : from) {
+                    if (entry == null || entry.pos == null) {
+                        continue;
+                    }
+                    if (!containsBoardPos(to, entry.pos)) {
+                        to.add(entry);
+                    }
+                }
+                from.clear();
+            }
         }
     }
 
@@ -1669,7 +1719,8 @@ public final class AbilityCombatHelper {
     }
 
     /**
-     * Restores all snapped wooden planks for this NPC's encounter key.
+     * Restores all snapped wooden planks for this NPC's encounter.
+     * Tries pair key and per-NPC UUID keys (pre-link orphans).
      *
      * @return number of blocks restored
      */
@@ -1677,8 +1728,27 @@ public final class AbilityCombatHelper {
         if (npc == null) {
             return 0;
         }
-        final String key = resolveDrachenfelsEncounterKey(npc);
-        if (key.isEmpty()) {
+        migrateDrachenfelsBoardKeys(npc, null);
+        int restored = restoreBoardKey(resolveDrachenfelsEncounterKey(npc), npc);
+        restored += restoreBoardKey(npcUuidBoardKey(npc), npc);
+        try {
+            final IData data = npc.getStoreddata();
+            if (data != null && data.has(DRACHENFELS_PARTNER_UUID_KEY)) {
+                final Object raw = data.get(DRACHENFELS_PARTNER_UUID_KEY);
+                if (raw != null) {
+                    final String partnerUuid = String.valueOf(raw).trim();
+                    if (!partnerUuid.isEmpty() && !"null".equalsIgnoreCase(partnerUuid)) {
+                        restored += restoreBoardKey("npc:" + partnerUuid, npc);
+                    }
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        return restored;
+    }
+
+    private static int restoreBoardKey(final String key, final ICustomNpc npc) {
+        if (key == null || key.isEmpty() || npc == null) {
             return 0;
         }
         final List<BrokenBoardEntry> snapshot = BROKEN_BOARDS.remove(key);
@@ -1687,6 +1757,8 @@ public final class AbilityCombatHelper {
         }
         final World mcWorld = resolveMcWorld(null, npc);
         if (mcWorld == null || mcWorld.isClientSide) {
+            // Put back so a later server-side call can still restore.
+            BROKEN_BOARDS.put(key, snapshot);
             return 0;
         }
         int restored = 0;
@@ -1696,6 +1768,11 @@ public final class AbilityCombatHelper {
                     continue;
                 }
                 try {
+                    // Replace air / non-solid gaps; skip if something else was built in the hole.
+                    final BlockState current = mcWorld.getBlockState(entry.pos);
+                    if (current != null && !current.isAir() && current.getBlock() != entry.state.getBlock()) {
+                        continue;
+                    }
                     if (mcWorld.setBlock(entry.pos, entry.state, BOARD_RESTORE_FLAGS)) {
                         restored++;
                     }
@@ -1712,8 +1789,12 @@ public final class AbilityCombatHelper {
         if (npc == null) {
             return;
         }
-        final String key = resolveDrachenfelsEncounterKey(npc);
-        if (key.isEmpty()) {
+        clearBoardKey(resolveDrachenfelsEncounterKey(npc));
+        clearBoardKey(npcUuidBoardKey(npc));
+    }
+
+    private static void clearBoardKey(final String key) {
+        if (key == null || key.isEmpty()) {
             return;
         }
         final List<BrokenBoardEntry> snapshot = BROKEN_BOARDS.remove(key);
@@ -1728,8 +1809,13 @@ public final class AbilityCombatHelper {
         if (npc == null) {
             return 0;
         }
-        final String key = resolveDrachenfelsEncounterKey(npc);
-        if (key.isEmpty()) {
+        int count = boardKeyCount(resolveDrachenfelsEncounterKey(npc));
+        count += boardKeyCount(npcUuidBoardKey(npc));
+        return count;
+    }
+
+    private static int boardKeyCount(final String key) {
+        if (key == null || key.isEmpty()) {
             return 0;
         }
         final List<BrokenBoardEntry> snapshot = BROKEN_BOARDS.get(key);

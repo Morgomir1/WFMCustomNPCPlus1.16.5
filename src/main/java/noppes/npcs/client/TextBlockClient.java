@@ -33,7 +33,7 @@ public class TextBlockClient extends TextBlock
     }
     
     public TextBlockClient(String text, final int lineWidth, final boolean mcFont, final Object... obs) {
-        this.color = 14737632;
+        this.color = CustomNpcResourceListener.DefaultTextColor;
         text = NoppesStringUtils.formatText(text, obs);
         String line = "";
         text = text.replace("\n", " \n ");

@@ -1,5 +1,7 @@
 package noppes.npcs.client.gui.global;
 
+import noppes.npcs.client.CustomNpcResourceListener;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,7 +27,7 @@ public class SubGuiNpcDialogOption extends GuiBasic implements ITextfieldListene
 
     private final DialogOption option;
     private final List<String> commandLines = new ArrayList<String>();
-    public static int LastColor = 14737632;
+    public static int LastColor = 0xFFFFB6;
 
     public SubGuiNpcDialogOption(final DialogOption option) {
         this.option = option;

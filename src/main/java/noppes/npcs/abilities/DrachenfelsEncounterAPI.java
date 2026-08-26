@@ -42,7 +42,7 @@ public final class DrachenfelsEncounterAPI {
         DrachenfelsEncounterHelper.tickSlow(npc);
     }
 
-    /** 1-tick: downed pin, ritual pin/transfer/particles, spirit hover */
+    /** 1-tick: downed pin, ritual pin/transfer/particles, spawn-height hover */
     public static void tickFast(final ICustomNpc npc) {
         DrachenfelsEncounterHelper.tickFast(npc);
     }

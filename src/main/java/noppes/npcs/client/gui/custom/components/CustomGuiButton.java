@@ -1,5 +1,7 @@
 package noppes.npcs.client.gui.custom.components;
 
+import noppes.npcs.client.CustomNpcResourceListener;
+
 import net.minecraft.client.gui.widget.button.*;
 import noppes.npcs.client.gui.custom.interfaces.*;
 import noppes.npcs.client.gui.custom.*;
@@ -61,12 +63,12 @@ public class CustomGuiButton extends Button implements IGuiComponent
             this.blit(matrixStack, this.x, this.y, 0, 46 + i * 20, this.width / 2, this.height);
             this.blit(matrixStack, this.x + this.width / 2, this.y, 200 - this.width / 2, 46 + i * 20, this.width / 2, this.height);
             this.renderBg(matrixStack, mc, mouseX, mouseY);
-            int j = 14737632;
+            int j = CustomNpcResourceListener.DefaultTextColor;
             if (this.colour != 0) {
                 j = this.colour;
             }
             else if (!this.active) {
-                j = 10526880;
+                j = CustomNpcResourceListener.DefaultTextColor;
             }
             else if (this.hovered) {
                 j = 16777120;

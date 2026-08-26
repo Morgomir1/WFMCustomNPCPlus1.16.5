@@ -32,7 +32,7 @@ public class DialogOption implements IDialogOption
         this.option = "Talk";
         this.title = "Talk";
         this.optionType = 1;
-        this.optionColor = 14737632;
+        this.optionColor = 0xFFFFB6;
         this.command = "";
         this.slot = -1;
         this.availability = new Availability();
@@ -49,7 +49,7 @@ public class DialogOption implements IDialogOption
         this.command = compound.getString("DialogCommand");
         this.availability.load(compound);
         if (this.optionColor == 0) {
-            this.optionColor = 14737632;
+            this.optionColor = 0xFFFFB6;
         }
     }
     

@@ -1,5 +1,7 @@
 package noppes.npcs.client.gui.model.custom;
 
+import noppes.npcs.client.CustomNpcResourceListener;
+
 import net.minecraft.util.ResourceLocation;
 import noppes.npcs.client.gui.util.GuiNPCInterface;
 import noppes.npcs.shared.client.gui.components.GuiButtonNop;
@@ -11,7 +13,6 @@ import software.bernie.geckolib3.resource.GeckoLibCache;
 
 public class GuiModelAnimation extends GuiNPCInterface implements ITextfieldListener {
 
-    private static final int HINT_COLOR = 0xA0A0A0;
     private static final int ROW_HEIGHT = 34;
 
     @Override
@@ -30,7 +31,7 @@ public class GuiModelAnimation extends GuiNPCInterface implements ITextfieldList
 
     private void addSelectionBlock(int id, int y, String label, String desc, String value) {
         this.addLabel(new GuiLabel(id, label, guiLeft - 130, y + 2, 0xffffff));
-        this.addLabel(new GuiLabel(id + 100, desc, guiLeft - 130, y + 12, HINT_COLOR));
+        this.addLabel(new GuiLabel(id + 100, desc, guiLeft - 130, y + 12, CustomNpcResourceListener.DefaultTextColor));
         addTextField(new GuiTextFieldNop(id, this, guiLeft - 40, y + 4, 200, 20, value));
         this.addButton(new GuiButtonNop(this, id, guiLeft + 163, y + 4, 80, 20, "mco.template.button.select"));
     }

@@ -1755,9 +1755,9 @@ public final class AbilityCombatHelper {
     }
 
     /**
-     * Lost-aggro arena fix: at block layer under respawn feet ({@code floor(homeY)-1}),
-     * replace air with oak_planks in a flat disk of {@link #ARENA_FLOOR_FILL_RADIUS}.
-     * Also clears the plank snapshot so holes are not double-tracked.
+     * Lost-aggro arena fix: pick the real floor layer (most wooden planks near {@code homeY}),
+     * then replace air with oak_planks in a disk of {@link #ARENA_FLOOR_FILL_RADIUS}.
+     * Exact blast holes should be restored via {@link #restoreBrokenBoards} first.
      *
      * @return number of air blocks replaced
      */
@@ -1782,34 +1782,83 @@ public final class AbilityCombatHelper {
         if (mcWorld == null || mcWorld.isClientSide) {
             return 0;
         }
-        // Feet at homeY stand on the block below.
-        final int floorY = MathHelper.floor(homeY) - 1;
         final int cx = MathHelper.floor(homeX);
         final int cz = MathHelper.floor(homeZ);
         final int r = Math.max(1, radius);
         final int rSq = r * r;
+        final int yBase = MathHelper.floor(homeY);
+        final int[] floorYs = detectArenaFloorYs(mcWorld, cx, cz, yBase, r, rSq);
         final BlockState planks = Blocks.OAK_PLANKS.defaultBlockState();
         int filled = 0;
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                if (dx * dx + dz * dz > rSq) {
-                    continue;
-                }
-                final BlockPos pos = new BlockPos(cx + dx, floorY, cz + dz);
-                try {
-                    final BlockState current = mcWorld.getBlockState(pos);
-                    if (current == null || !current.isAir()) {
+        for (int i = 0; i < floorYs.length; i++) {
+            final int floorY = floorYs[i];
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (dx * dx + dz * dz > rSq) {
                         continue;
                     }
-                    if (mcWorld.setBlock(pos, planks, BOARD_RESTORE_FLAGS)) {
-                        filled++;
+                    final BlockPos pos = new BlockPos(cx + dx, floorY, cz + dz);
+                    try {
+                        if (!mcWorld.isEmptyBlock(pos)) {
+                            continue;
+                        }
+                        if (mcWorld.setBlock(pos, planks, 2)) {
+                            filled++;
+                        }
+                    } catch (final Exception ignored) {
                     }
-                } catch (final Exception ignored) {
                 }
             }
         }
         clearBrokenBoards(npc);
         return filled;
+    }
+
+    /**
+     * Prefer the Y with the most plank blocks in {@code [homeY-2, homeY]}.
+     * If no planks remain, fill both under-feet and spawn Y so holes still close.
+     */
+    private static int[] detectArenaFloorYs(
+            final World world,
+            final int cx,
+            final int cz,
+            final int yBase,
+            final int r,
+            final int rSq) {
+        int bestY = yBase - 1;
+        int bestPlanks = -1;
+        int bestSolid = -1;
+        for (int y = yBase - 2; y <= yBase; y++) {
+            int planks = 0;
+            int solid = 0;
+            for (int dx = -r; dx <= r; dx++) {
+                for (int dz = -r; dz <= r; dz++) {
+                    if (dx * dx + dz * dz > rSq) {
+                        continue;
+                    }
+                    try {
+                        final BlockState state = world.getBlockState(new BlockPos(cx + dx, y, cz + dz));
+                        if (state == null || state.isAir()) {
+                            continue;
+                        }
+                        solid++;
+                        if (isWoodenPlank(state)) {
+                            planks++;
+                        }
+                    } catch (final Exception ignored) {
+                    }
+                }
+            }
+            if (planks > bestPlanks || (planks == bestPlanks && solid > bestSolid)) {
+                bestPlanks = planks;
+                bestSolid = solid;
+                bestY = y;
+            }
+        }
+        if (bestPlanks <= 0) {
+            return new int[] { yBase - 1, yBase };
+        }
+        return new int[] { bestY };
     }
 
     private static int restoreBoardKey(final String key, final ICustomNpc npc) {

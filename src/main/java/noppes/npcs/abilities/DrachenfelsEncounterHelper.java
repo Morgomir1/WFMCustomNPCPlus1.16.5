@@ -55,12 +55,12 @@ public final class DrachenfelsEncounterHelper {
     private static final int KITE_SPEED_SPIRIT = 2;
     private static final int CASTER_SPEED = 1;
     private static final double HOME_ARRIVE_DIST = 1.8;
-    private static final int HOME_RETURN_DELAY_TICKS = 50;
+    private static final int HOME_RETURN_DELAY_TICKS = 20;
     private static final double HOVER_AMP = 0.22;
     private static final double HOVER_MAX_DRIFT = 1.8;
 
     /** Fallback spirit Y offset if script did not call {@link #configureArena}. */
-    private static final double DEFAULT_RITUAL_SPIRIT_OFFSET_Y = 8.0;
+    private static final double DEFAULT_RITUAL_SPIRIT_OFFSET_Y = 4.0;
     private static final int RITUAL_DURATION_TICKS = 80;
     private static final int RITUAL_TRANSFER_INTERVAL = 4;
     private static final int RITUAL_COOLDOWN_TICKS = 700;
@@ -122,6 +122,7 @@ public final class DrachenfelsEncounterHelper {
     private static final String KITE_UNTIL_KEY = "df_kite_until";
     private static final String STANCE_READY_KEY = "df_stance_ready";
     private static final String LOST_AGGRO_SINCE_KEY = "df_lost_aggro_since";
+    private static final String LAST_FLOOR_RESTORE_KEY = "df_last_floor_restore";
     private static final String RITUAL_ACTIVE_KEY = "df_ritual_active";
     private static final String RITUAL_UNTIL_KEY = "df_ritual_until";
     private static final String RITUAL_LEADER_KEY = "df_ritual_leader";
@@ -236,6 +237,9 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         tryLinkPartner(npc);
+        // Restore BEFORE ensureCombatTarget: иначе принудительный re-aggro в AGRO_RANGE
+        // каждый slow-тик сбрасывает таймер, и пол никогда не чинится после потери цели.
+        tryRestoreBoardsAndStopFlame(npc);
         ensureCombatTarget(npc);
         updateBondAndPhase(npc);
         tickBondVfx(npc);
@@ -244,7 +248,6 @@ public final class DrachenfelsEncounterHelper {
         if (isFlameCarouselLeader(npc) && isFlameCarouselActive(npc)) {
             pulseFlamePillarVfx(npc);
         }
-        tryRestoreBoardsAndStopFlame(npc);
         if (isRitualActive(npc)) {
             if (isDowned(npc) || !npc.isAlive()) {
                 abortHpRitual(npc);
@@ -280,6 +283,8 @@ public final class DrachenfelsEncounterHelper {
         // Каждый тик каста — иначе карусель ждёт TIMER_SLOW (~1с) и легко срывается restore'ом.
         tickFlameCarousel(npc);
         tickHover(npc);
+        // Не зависеть от TIMER_SLOW / targetLost в GUI: без этого пол не чинится.
+        tryRestoreBoardsAndStopFlame(npc);
         if (AbilityAPI.isBusy(npc)) {
             // Во время каста не бегать за целью
             try {
@@ -307,12 +312,26 @@ public final class DrachenfelsEncounterHelper {
         if (isInBondPhase(npc) || isDowned(npc)) {
             return;
         }
+        // Сразу чинить пол: ensureCombatTarget ниже снова вешает цель, если игрок ещё в AGRO,
+        // и таймер потери агро никогда не доживает до restore.
+        restoreArenaFloor(npc);
+        if (!isFlameCarouselWanted(npc)) {
+            stopFlameCarousel(npc);
+        }
         final IEntityLiving retarget = ensureCombatTarget(npc);
         if (retarget != null) {
             clearLostAggroTimer(npc);
+            final ICustomNpc partner = findPartner(npc);
+            if (partner != null) {
+                clearLostAggroTimer(partner);
+            }
             return;
         }
         markLostAggro(npc);
+        final ICustomNpc partner = findPartner(npc);
+        if (partner != null && partner.isAlive() && !isDowned(partner)) {
+            markLostAggro(partner);
+        }
     }
 
     public static void onDied(final ICustomNpc npc) {
@@ -1948,18 +1967,13 @@ public final class DrachenfelsEncounterHelper {
     }
 
     /**
-     * When the pair is out of combat long enough: restore boards + stop flame.
-     * Thrall cleanup intentionally skipped.
-     * <p>
-     * Combat for restore = survival player in flat {@link #AGRO_RANGE} of either half,
-     * or a player attack-target. Does <b>not</b> require the player to leave {@link #LEASH_RANGE}
-     * (arena), otherwise holes never close after wipe/disengage.
-     * Flame stop uses the same agro gate so pillars are not culled mid-fight.
+     * Restore boards when no survival player is near the <b>arena center</b> (home/ritual),
+     * not near the NPC: the pair can follow the player and would otherwise never “leave agro”.
+     * Flame stop is separate ({@link #isFlameCarouselWanted}).
      */
     private static void tryRestoreBoardsAndStopFlame(final ICustomNpc npc) {
         final ICustomNpc partner = findPartner(npc);
-        // Единый agro-gate пары (как у карусели) — без отдельного isInActiveCombat/LEASH.
-        if (isFlameCarouselWanted(npc)) {
+        if (hasPlayerNearArena(npc, AGRO_RANGE)) {
             clearLostAggroTimer(npc);
             if (partner != null) {
                 clearLostAggroTimer(partner);
@@ -1973,12 +1987,13 @@ public final class DrachenfelsEncounterHelper {
         final boolean npcReady = hasLostAggroLongEnough(npc);
         final boolean partnerReady = partner != null && partner.isAlive() && !isDowned(partner)
                 && hasLostAggroLongEnough(partner);
-        // Любая половина с истёкшим таймером — достаточно (оба маркируются вместе).
         if (!npcReady && !partnerReady) {
             return;
         }
         restoreArenaFloor(npc);
-        stopFlameCarousel(npc);
+        if (!isFlameCarouselWanted(npc)) {
+            stopFlameCarousel(npc);
+        }
         clearLostAggroTimer(npc);
         if (partner != null) {
             clearLostAggroTimer(partner);
@@ -1992,12 +2007,23 @@ public final class DrachenfelsEncounterHelper {
     }
 
     /**
-     * After lost aggro: at body respawn height (block under feet), fill air with oak_planks
-     * in radius 30. Prefer body's home so spirit's hover Y does not shift the floor layer.
+     * After lost aggro: restore snapped planks, then fill remaining air with oak_planks
+     * in radius 30 on the actual arena floor layer. Prefer ritual/body home so spirit hover Y
+     * does not shift the floor layer.
      */
     private static void restoreArenaFloor(final ICustomNpc npc) {
         if (npc == null) {
             return;
+        }
+        try {
+            final IData throttleData = npc.getStoreddata();
+            final long now = npc.getWorld().getTotalTime();
+            final long last = getStoredLong(throttleData, LAST_FLOOR_RESTORE_KEY);
+            if (last > 0L && now - last < 20L) {
+                return;
+            }
+            put(throttleData, LAST_FLOOR_RESTORE_KEY, String.valueOf(now));
+        } catch (final Exception ignored) {
         }
         ICustomNpc anchor = npc;
         try {
@@ -2009,20 +2035,84 @@ public final class DrachenfelsEncounterHelper {
             }
         } catch (final Exception ignored) {
         }
-        final IData data = anchor.getStoreddata();
-        if (!hasHome(data)) {
-            return;
-        }
-        final double hx = ScriptDataUtil.getFloat(data, HOME_X_KEY);
-        final double hy = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
-        final double hz = ScriptDataUtil.getFloat(data, HOME_Z_KEY);
-        AbilityCombatHelper.fillHomeFloorAirWithOakPlanks(anchor, hx, hy, hz);
-        // Clear pair snapshots on both halves.
-        AbilityCombatHelper.clearBrokenBoards(npc);
+        AbilityCombatHelper.restoreBrokenBoards(npc);
         final ICustomNpc partner = findPartner(npc);
         if (partner != null) {
-            AbilityCombatHelper.clearBrokenBoards(partner);
+            AbilityCombatHelper.restoreBrokenBoards(partner);
         }
+
+        final IData data = anchor.getStoreddata();
+        double hx;
+        double hy;
+        double hz;
+        if (!isBlank(str(data, CFG_RITUAL_X)) && !isBlank(str(data, CFG_RITUAL_Z))) {
+            hx = ScriptDataUtil.getFloat(data, CFG_RITUAL_X);
+            hy = ScriptDataUtil.getFloat(data, CFG_RITUAL_Y);
+            hz = ScriptDataUtil.getFloat(data, CFG_RITUAL_Z);
+        } else if (hasHome(data)) {
+            hx = ScriptDataUtil.getFloat(data, HOME_X_KEY);
+            hy = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
+            hz = ScriptDataUtil.getFloat(data, HOME_Z_KEY);
+        } else {
+            hx = npc.getX();
+            hy = npc.getY();
+            hz = npc.getZ();
+        }
+        AbilityCombatHelper.fillHomeFloorAirWithOakPlanks(anchor, hx, hy, hz);
+    }
+
+    /**
+     * Survival/adventure player within {@code range} of arena home/ritual XZ (not NPC feet).
+     */
+    private static boolean hasPlayerNearArena(final ICustomNpc npc, final double range) {
+        if (npc == null || range <= 0.0) {
+            return false;
+        }
+        final double[] center = resolveArenaCenter(npc);
+        final double hx = center[0];
+        final double hz = center[1];
+        try {
+            for (final IPlayer p : npc.getWorld().getAllPlayers()) {
+                if (!isValidCombatPlayer(p)) {
+                    continue;
+                }
+                final double dx = p.getX() - hx;
+                final double dz = p.getZ() - hz;
+                if (dx * dx + dz * dz <= range * range) {
+                    return true;
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        return false;
+    }
+
+    /** Ritual XZ if configured, else body/npc home XZ, else current NPC XZ. */
+    private static double[] resolveArenaCenter(final ICustomNpc npc) {
+        ICustomNpc anchor = npc;
+        try {
+            if (!"body".equals(getRole(npc.getStoreddata()))) {
+                final ICustomNpc partner = findPartner(npc);
+                if (partner != null && partner.isAlive() && "body".equals(getRole(partner.getStoreddata()))) {
+                    anchor = partner;
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        final IData data = anchor.getStoreddata();
+        if (!isBlank(str(data, CFG_RITUAL_X)) && !isBlank(str(data, CFG_RITUAL_Z))) {
+            return new double[] {
+                    ScriptDataUtil.getFloat(data, CFG_RITUAL_X),
+                    ScriptDataUtil.getFloat(data, CFG_RITUAL_Z)
+            };
+        }
+        if (hasHome(data)) {
+            return new double[] {
+                    ScriptDataUtil.getFloat(data, HOME_X_KEY),
+                    ScriptDataUtil.getFloat(data, HOME_Z_KEY)
+            };
+        }
+        return new double[] { npc.getX(), npc.getZ() };
     }
 
     private static boolean isFlameCarouselActive(final ICustomNpc npc) {
@@ -2349,11 +2439,15 @@ public final class DrachenfelsEncounterHelper {
     }
 
     private static long getLostAggroSince(final IData data) {
-        if (data == null || !data.has(LOST_AGGRO_SINCE_KEY)) {
+        return getStoredLong(data, LOST_AGGRO_SINCE_KEY);
+    }
+
+    private static long getStoredLong(final IData data, final String key) {
+        if (data == null || key == null || !data.has(key)) {
             return 0L;
         }
         try {
-            final Object raw = data.get(LOST_AGGRO_SINCE_KEY);
+            final Object raw = data.get(key);
             if (raw == null) {
                 return 0L;
             }

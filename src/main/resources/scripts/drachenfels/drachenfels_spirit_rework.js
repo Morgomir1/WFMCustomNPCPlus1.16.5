@@ -7,7 +7,8 @@
  * 4 зоны непрерывно едут по кругу FLAME0→1→2→3→0 (~4с на ребро).
  * Нужен актуальный jar с DrachenfelsEncounterHelper (не только вставка JS в GUI).
  * Проверка в survival/adventure: креатив/спек не считаются агро для столбов.
- * Доски после dark blast чинятся в Java при потере агро пары (~2.5с).
+ * Доски чинятся в Java сразу при targetLost и если игрок ушёл от центра арены (~56).
+ * Нужен пересбор jar.
  *
  * GUI: вставить этот скрипт только на Spirit-NPC.
  * Тело: drachenfels_body_rework.js
@@ -25,7 +26,7 @@ var NPC_ROLE = "spirit";
 var RITUAL_X = 24379.5;
 var RITUAL_Y = 28.0;
 var RITUAL_Z = -60298.5;
-var RITUAL_SPIRIT_DY = 8.0;
+var RITUAL_SPIRIT_DY = 4.0;
 var FLAME0_X = 24394.5;
 var FLAME0_Y = 28.05;
 var FLAME0_Z = -60298.5;

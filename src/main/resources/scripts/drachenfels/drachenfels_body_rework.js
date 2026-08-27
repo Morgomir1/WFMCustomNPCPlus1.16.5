@@ -4,7 +4,7 @@
  * Скиллы: body_pull → (forced) curse_puddles
  * Арена / bond / flame: DrachenfelsEncounterAPI (столбы ведёт Душа; body только sync арены).
  * Нужен актуальный jar с DrachenfelsEncounterHelper.
- * Доски арены чинит encounter (Java) при потере агро — см. spirit_rework.
+ * Доски арены чинит encounter (Java) при targetLost / уходе от арены — нужен jar.
  *
  * GUI: вставить этот скрипт только на Body-NPC.
  * Душа: drachenfels_spirit_rework.js
@@ -20,7 +20,7 @@ var NPC_ROLE = "body";
 var RITUAL_X = 24379.5;
 var RITUAL_Y = 28.0;
 var RITUAL_Z = -60298.5;
-var RITUAL_SPIRIT_DY = 8.0;
+var RITUAL_SPIRIT_DY = 4.0;
 var FLAME0_X = 24394.5;
 var FLAME0_Y = 28.05;
 var FLAME0_Z = -60298.5;

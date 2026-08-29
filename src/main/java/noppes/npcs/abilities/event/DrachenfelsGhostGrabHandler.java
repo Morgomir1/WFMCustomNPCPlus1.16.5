@@ -16,6 +16,7 @@ import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.api.IWorld;
+import noppes.npcs.script.ScriptDataUtil;
 import noppes.npcs.telegraph.TelegraphAPI;
 
 import java.util.Iterator;
@@ -30,6 +31,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @Mod.EventBusSubscriber(modid = "customnpcs", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class DrachenfelsGhostGrabHandler {
     public static final String GHOST_TAG = "drachenfels_ghost_parasite";
+    /** Same key as drachenfels_spirit_rework.js (`df_cd_` + ability id). */
+    public static final String CD_KEY = "df_cd_drachenfels_ghost_parasite";
+    /** 45s after the owner's last living parasite ends. */
+    public static final int PARASITE_CD_TICKS = 900;
 
     private static final int PHASE_SEEK = 1;
     private static final int PHASE_GRAB = 2;
@@ -43,6 +48,8 @@ public final class DrachenfelsGhostGrabHandler {
     private static final int DEFAULT_GRAB_TICKS = 600;
     private static final double DEFAULT_MAX_FLIGHT_DIST = 40.0;
     private static final int DEFAULT_TELEGRAPH_COLOR = 0xC0FF3030;
+    /** While any parasite of this owner is alive — block recast. */
+    private static final int BLOCK_CD_TICKS = 72000;
 
     private static final Map<UUID, GrabState> BY_VICTIM = new ConcurrentHashMap<>();
 
@@ -51,6 +58,19 @@ public final class DrachenfelsGhostGrabHandler {
 
     public static boolean isVictimGrabbed(final UUID victimUuid) {
         return victimUuid != null && BY_VICTIM.containsKey(victimUuid);
+    }
+
+    /** True if this soul still has at least one active parasite ghost. */
+    public static boolean hasActiveForOwner(final UUID ownerUuid) {
+        if (ownerUuid == null) {
+            return false;
+        }
+        for (final GrabState state : BY_VICTIM.values()) {
+            if (ownerUuid.equals(state.ownerUuid)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -103,6 +123,8 @@ public final class DrachenfelsGhostGrabHandler {
         state.telegraphId = spawnSeekTelegraph(owner, victim, params, state.flightTicksLeft);
 
         BY_VICTIM.put(victimId, state);
+        // Пока духи живы — ability на блоке; реальный CD после смерти последнего.
+        setParasiteCd(owner, BLOCK_CD_TICKS);
         return true;
     }
 
@@ -153,8 +175,51 @@ public final class DrachenfelsGhostGrabHandler {
             final GrabState state = it.next().getValue();
             if (!tickOne(state)) {
                 despawnGhost(state);
+                final UUID ownerUuid = state.ownerUuid;
                 it.remove();
+                onOwnerGhostEnded(ownerUuid);
             }
+        }
+    }
+
+    /**
+     * When the owner's last parasite ends (killed / timeout / victim lost),
+     * start the 45s ability cooldown on the soul NPC.
+     */
+    private static void onOwnerGhostEnded(final UUID ownerUuid) {
+        if (hasActiveForOwner(ownerUuid)) {
+            return;
+        }
+        final Entity ownerMc = findEntity(ownerUuid);
+        if (!(ownerMc instanceof LivingEntity) || ownerMc.level == null || ownerMc.level.isClientSide) {
+            return;
+        }
+        try {
+            final IEntity wrapped = NpcAPI.Instance().getIEntity(ownerMc);
+            if (!(wrapped instanceof ICustomNpc)) {
+                return;
+            }
+            setParasiteCd((ICustomNpc) wrapped, PARASITE_CD_TICKS);
+        } catch (final Exception ignored) {
+        }
+    }
+
+    private static void setParasiteCd(final ICustomNpc owner, final int ticks) {
+        if (owner == null || ticks < 0) {
+            return;
+        }
+        try {
+            final Object mc = owner.getMCEntity();
+            if (!(mc instanceof Entity) || ((Entity) mc).level == null) {
+                return;
+            }
+            final long now = ((Entity) mc).level.getGameTime();
+            final long until = now + (long) ticks;
+            ScriptDataUtil.putString(
+                    owner.getStoreddata(),
+                    CD_KEY,
+                    String.valueOf(Math.min(Integer.MAX_VALUE, until)));
+        } catch (final Exception ignored) {
         }
     }
 

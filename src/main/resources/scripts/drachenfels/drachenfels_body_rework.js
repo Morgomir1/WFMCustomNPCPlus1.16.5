@@ -36,9 +36,13 @@ var FLAME3_Z = -60282.5;
 
 var TIMER_CAST = 841;
 var TIMER_SLOW = 842;
+var TIMER_CAST_PERIOD = 1;
+var TIMER_SLOW_PERIOD = 20;
 var CAST_INTERVAL_1 = 80;
 var CAST_INTERVAL_2 = 58;
 var CAST_INTERVAL_BOND = 48;
+var DEFAULT_ABILITY_CD = 120;
+var TELEGRAPH_COLOR = 0xC0FF3030;
 
 var FORCED_KEY = "df_forced_ability";
 var LAST_KEY = "df_last_ability";
@@ -47,6 +51,35 @@ var CD_PREFIX = "df_cd_";
 
 var BODY_PULL = "drachenfels_body_pull";
 var BODY_CURSE = "drachenfels_curse_puddles";
+
+// ====== BODY PULL ======
+var PULL_DAMAGE = 15.0;
+var PULL_RADIUS = 7.5;
+var PULL_MAX_RANGE = 18.0;
+var PULL_CHARGE = 16;
+var PULL_ACTIVE = 36;
+var PULL_TELEGRAPH = 0;
+var PULL_CHANCE_1 = 0.38;
+var PULL_CHANCE_2 = 0.5;
+var PULL_CD_1 = 240;
+var PULL_CD_2 = 195;
+var PULL_CD_BOND = 150;
+
+// ====== CURSE PUDDLES ======
+var CURSE_CHARGE = 24;
+var CURSE_MAX_RANGE = 18.0;
+var CURSE_SUMMON_COUNT = 3;
+var CURSE_HIT_COUNT = 3;
+var CURSE_HIT_RADIUS = 2.0;
+var CURSE_ZONE_TICKS = 200;
+var CURSE_HEAL_ON_FAIL = 10.0;
+var CURSE_SPREAD_RADIUS = 20.0;
+var CURSE_TELEGRAPH = 0;
+var CURSE_CHANCE_1 = 0.35;
+var CURSE_CHANCE_2 = 0.45;
+var CURSE_CD_1 = 180;
+var CURSE_CD_2 = 140;
+var CURSE_CD_BOND = 110;
 
 function init(event) {
     var npc = event.npc;
@@ -169,11 +202,11 @@ function pickAbility(npc, target, phase, data, now) {
     var last = String(data.get(LAST_KEY));
     var p2 = phase == "2" || phase == "bond";
 
-    if (dist <= 18.0 && isCooldownReady(data, now, BODY_PULL) && last != BODY_PULL) {
-        if (Math.random() < (p2 ? 0.5 : 0.38)) return BODY_PULL;
+    if (dist <= PULL_MAX_RANGE && isCooldownReady(data, now, BODY_PULL) && last != BODY_PULL) {
+        if (Math.random() < (p2 ? PULL_CHANCE_2 : PULL_CHANCE_1)) return BODY_PULL;
     }
     if (isCooldownReady(data, now, BODY_CURSE) && last != BODY_CURSE && last != BODY_PULL) {
-        if (Math.random() < (p2 ? 0.45 : 0.35)) return BODY_CURSE;
+        if (Math.random() < (p2 ? CURSE_CHANCE_2 : CURSE_CHANCE_1)) return BODY_CURSE;
     }
     if (isCooldownReady(data, now, BODY_PULL) && last != BODY_PULL) return BODY_PULL;
     if (isCooldownReady(data, now, BODY_CURSE)) return BODY_CURSE;
@@ -183,26 +216,26 @@ function pickAbility(npc, target, phase, data, now) {
 function buildParams(abilityId) {
     if (abilityId == BODY_PULL) {
         return AbilityAPI.params(
-            "damage", 15.0,
-            "radius", 7.5,
-            "maxRange", 18.0,
-            "chargeTicks", 16,
-            "activeTicks", 36,
-            "telegraph", 0,
-            "telegraphColor", 0xC0FF3030
+            "damage", PULL_DAMAGE,
+            "radius", PULL_RADIUS,
+            "maxRange", PULL_MAX_RANGE,
+            "chargeTicks", PULL_CHARGE,
+            "activeTicks", PULL_ACTIVE,
+            "telegraph", PULL_TELEGRAPH,
+            "telegraphColor", TELEGRAPH_COLOR
         );
     }
     if (abilityId == BODY_CURSE) {
         return AbilityAPI.params(
-            "chargeTicks", 24,
-            "maxRange", 18.0,
-            "summonCount", 3,
-            "hitCount", 3,
-            "hitRadius", 2.0,
-            "zoneTicks", 200,
-            "healOnFail", 10.0,
-            "spreadRadius", 20.0,
-            "telegraph", 0
+            "chargeTicks", CURSE_CHARGE,
+            "maxRange", CURSE_MAX_RANGE,
+            "summonCount", CURSE_SUMMON_COUNT,
+            "hitCount", CURSE_HIT_COUNT,
+            "hitRadius", CURSE_HIT_RADIUS,
+            "zoneTicks", CURSE_ZONE_TICKS,
+            "healOnFail", CURSE_HEAL_ON_FAIL,
+            "spreadRadius", CURSE_SPREAD_RADIUS,
+            "telegraph", CURSE_TELEGRAPH
         );
     }
     return AbilityAPI.params();
@@ -217,9 +250,9 @@ function getCastInterval(phase) {
 function getCooldown(abilityId, phase) {
     var bond = phase == "bond";
     var p2 = phase == "2" || bond;
-    if (abilityId == BODY_PULL) return bond ? 150 : (p2 ? 195 : 240);
-    if (abilityId == BODY_CURSE) return bond ? 110 : (p2 ? 140 : 180);
-    return 120;
+    if (abilityId == BODY_PULL) return bond ? PULL_CD_BOND : (p2 ? PULL_CD_2 : PULL_CD_1);
+    if (abilityId == BODY_CURSE) return bond ? CURSE_CD_BOND : (p2 ? CURSE_CD_2 : CURSE_CD_1);
+    return DEFAULT_ABILITY_CD;
 }
 
 function startTimers(npc) {
@@ -227,11 +260,11 @@ function startTimers(npc) {
         var t = npc.getTimers();
         if (t == null) return;
         if (typeof t.forceStart == "function") {
-            t.forceStart(TIMER_CAST, 1, true);
-            t.forceStart(TIMER_SLOW, 20, true);
+            t.forceStart(TIMER_CAST, TIMER_CAST_PERIOD, true);
+            t.forceStart(TIMER_SLOW, TIMER_SLOW_PERIOD, true);
         } else {
-            if (!t.has(TIMER_CAST)) t.start(TIMER_CAST, 1, true);
-            if (!t.has(TIMER_SLOW)) t.start(TIMER_SLOW, 20, true);
+            if (!t.has(TIMER_CAST)) t.start(TIMER_CAST, TIMER_CAST_PERIOD, true);
+            if (!t.has(TIMER_SLOW)) t.start(TIMER_SLOW, TIMER_SLOW_PERIOD, true);
         }
     } catch (e) {}
 }

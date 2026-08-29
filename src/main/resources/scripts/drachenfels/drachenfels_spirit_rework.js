@@ -16,6 +16,7 @@
  * AI: OnAttack=Отступать. Navigation=Flying. Высота полёта = Y спавна + RITUAL_SPIRIT_DY (выше тела).
  * Клон призрака (tab 1): "Drachenfels Ghost Parasite"
  * После спавна клону в Java выключается респавн (NecromancerMinionHelper.disableRespawn).
+ * ghost_parasite CD = 45с после смерти последнего паразита (DrachenfelsGhostGrabHandler).
  */
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var Encounter = Java.type("noppes.npcs.abilities.DrachenfelsEncounterAPI");
@@ -42,9 +43,13 @@ var FLAME3_Z = -60282.5;
 
 var TIMER_CAST = 841;
 var TIMER_SLOW = 842;
+var TIMER_CAST_PERIOD = 1;
+var TIMER_SLOW_PERIOD = 20;
 var CAST_INTERVAL_1 = 80;
 var CAST_INTERVAL_2 = 58;
 var CAST_INTERVAL_BOND = 48;
+var DEFAULT_ABILITY_CD = 120;
+var TELEGRAPH_COLOR = 0xC0FF3030;
 
 var FORCED_KEY = "df_forced_ability";
 var LAST_KEY = "df_last_ability";
@@ -55,6 +60,40 @@ var DARK_BLAST = "drachenfels_dark_blast";
 var GHOST_PARASITE = "drachenfels_ghost_parasite";
 var HP_RITUAL = "df_hp_ritual";
 var CLONE_GHOST = "Drachenfels Ghost Parasite";
+
+// ====== DARK BLAST ======
+var DARK_BLAST_DAMAGE = 15.0;
+var DARK_BLAST_RADIUS = 3.5;
+var DARK_BLAST_CHARGE = 32;
+var DARK_BLAST_TELEGRAPH = 0;
+var DARK_BLAST_DIST_MIN = 4.0;
+var DARK_BLAST_DIST_MAX = 16.0;
+var DARK_BLAST_CHANCE_1 = 0.38;
+var DARK_BLAST_CHANCE_2 = 0.5;
+var DARK_BLAST_CD_1 = 125;
+var DARK_BLAST_CD_2 = 100;
+var DARK_BLAST_CD_BOND = 80;
+
+// ====== GHOST PARASITE ======
+var PARASITE_DAMAGE = 2.0;
+var PARASITE_DAMAGE_INTERVAL = 20;
+var PARASITE_CHARGE = 28;
+var PARASITE_ACTIVE = 600;
+var PARASITE_DISTANCE = 40.0;
+var PARASITE_LAND_RADIUS = 2.0;
+var PARASITE_TELEGRAPH = 0;
+var PARASITE_CLONE_TAB = 1;
+var PARASITE_DIST_MIN = 5.0;
+var PARASITE_DIST_MAX = 18.0;
+var PARASITE_CHANCE_1 = 0.32;
+var PARASITE_CHANCE_2 = 0.45;
+/** 45с; в JS не ставится при касте — Java после смерти последнего духа. */
+var PARASITE_CD = 900;
+
+// ====== HP RITUAL ======
+var HP_RITUAL_CD = 700;
+var HP_RITUAL_CHANCE_1 = 0.22;
+var HP_RITUAL_CHANCE_2 = 0.32;
 
 function init(event) {
     var npc = event.npc;
@@ -144,7 +183,7 @@ function timer(event) {
         if (!Encounter.startHpRitual(npc)) return;
         data.put(FORCED_KEY, "");
         data.put(LAST_KEY, HP_RITUAL);
-        data.put(CD_PREFIX + HP_RITUAL, String(now + 700));
+        data.put(CD_PREFIX + HP_RITUAL, String(now + HP_RITUAL_CD));
         data.put(NEXT_CAST_KEY, String(now + getCastInterval(phase)));
         return;
     }
@@ -154,7 +193,10 @@ function timer(event) {
 
     data.put(FORCED_KEY, "");
     data.put(LAST_KEY, abilityId);
-    data.put(CD_PREFIX + abilityId, String(now + getCooldown(abilityId, phase)));
+    // parasite: CD ставит GrabHandler после смерти последнего духа
+    if (abilityId != GHOST_PARASITE) {
+        data.put(CD_PREFIX + abilityId, String(now + getCooldown(abilityId, phase)));
+    }
     data.put(NEXT_CAST_KEY, String(now + getCastInterval(phase)));
 }
 
@@ -179,14 +221,14 @@ function pickAbility(npc, target, phase, data, now) {
     var last = String(data.get(LAST_KEY));
     var p2 = phase == "2" || phase == "bond";
 
-    if (canTryRitual(npc, data, now, last) && Math.random() < (p2 ? 0.32 : 0.22)) {
+    if (canTryRitual(npc, data, now, last) && Math.random() < (p2 ? HP_RITUAL_CHANCE_2 : HP_RITUAL_CHANCE_1)) {
         return HP_RITUAL;
     }
-    if (dist >= 4.0 && dist <= 16.0 && isCooldownReady(data, now, DARK_BLAST) && last != DARK_BLAST) {
-        if (Math.random() < (p2 ? 0.5 : 0.38)) return DARK_BLAST;
+    if (dist >= DARK_BLAST_DIST_MIN && dist <= DARK_BLAST_DIST_MAX && isCooldownReady(data, now, DARK_BLAST) && last != DARK_BLAST) {
+        if (Math.random() < (p2 ? DARK_BLAST_CHANCE_2 : DARK_BLAST_CHANCE_1)) return DARK_BLAST;
     }
-    if (dist >= 5.0 && dist <= 18.0 && isCooldownReady(data, now, GHOST_PARASITE) && last != GHOST_PARASITE) {
-        if (Math.random() < (p2 ? 0.45 : 0.32)) return GHOST_PARASITE;
+    if (dist >= PARASITE_DIST_MIN && dist <= PARASITE_DIST_MAX && isCooldownReady(data, now, GHOST_PARASITE) && last != GHOST_PARASITE) {
+        if (Math.random() < (p2 ? PARASITE_CHANCE_2 : PARASITE_CHANCE_1)) return GHOST_PARASITE;
     }
     if (isCooldownReady(data, now, DARK_BLAST) && last != DARK_BLAST) return DARK_BLAST;
     if (isCooldownReady(data, now, GHOST_PARASITE)) return GHOST_PARASITE;
@@ -204,26 +246,26 @@ function canTryRitual(npc, data, now, last) {
 function buildParams(abilityId) {
     if (abilityId == DARK_BLAST) {
         return AbilityAPI.params(
-            "damage", 15.0,
-            "radius", 3.5,
-            "chargeTicks", 32,
-            "telegraph", 0,
-            "telegraphColor", 0xC0FF3030
+            "damage", DARK_BLAST_DAMAGE,
+            "radius", DARK_BLAST_RADIUS,
+            "chargeTicks", DARK_BLAST_CHARGE,
+            "telegraph", DARK_BLAST_TELEGRAPH,
+            "telegraphColor", TELEGRAPH_COLOR
         );
     }
     if (abilityId == GHOST_PARASITE) {
         // telegraph=0: не рисуем line-коридор от distance.
         // Круг под целью — Java GrabHandler на фазе SEEK (пока дух летит).
         return AbilityAPI.params(
-            "damage", 2.0,
-            "damageInterval", 20,
-            "chargeTicks", 28,
-            "activeTicks", 600,
-            "distance", 40.0,
-            "landRadius", 2.0,
-            "telegraph", 0,
-            "telegraphColor", 0xC0FF3030,
-            "cloneTab", 1,
+            "damage", PARASITE_DAMAGE,
+            "damageInterval", PARASITE_DAMAGE_INTERVAL,
+            "chargeTicks", PARASITE_CHARGE,
+            "activeTicks", PARASITE_ACTIVE,
+            "distance", PARASITE_DISTANCE,
+            "landRadius", PARASITE_LAND_RADIUS,
+            "telegraph", PARASITE_TELEGRAPH,
+            "telegraphColor", TELEGRAPH_COLOR,
+            "cloneTab", PARASITE_CLONE_TAB,
             "cloneName", CLONE_GHOST
         );
     }
@@ -239,10 +281,10 @@ function getCastInterval(phase) {
 function getCooldown(abilityId, phase) {
     var bond = phase == "bond";
     var p2 = phase == "2" || bond;
-    if (abilityId == DARK_BLAST) return bond ? 80 : (p2 ? 100 : 125);
-    if (abilityId == GHOST_PARASITE) return bond ? 110 : (p2 ? 140 : 180);
-    if (abilityId == HP_RITUAL) return 700;
-    return 120;
+    if (abilityId == DARK_BLAST) return bond ? DARK_BLAST_CD_BOND : (p2 ? DARK_BLAST_CD_2 : DARK_BLAST_CD_1);
+    if (abilityId == GHOST_PARASITE) return PARASITE_CD;
+    if (abilityId == HP_RITUAL) return HP_RITUAL_CD;
+    return DEFAULT_ABILITY_CD;
 }
 
 function startTimers(npc) {
@@ -250,11 +292,11 @@ function startTimers(npc) {
         var t = npc.getTimers();
         if (t == null) return;
         if (typeof t.forceStart == "function") {
-            t.forceStart(TIMER_CAST, 1, true);
-            t.forceStart(TIMER_SLOW, 20, true);
+            t.forceStart(TIMER_CAST, TIMER_CAST_PERIOD, true);
+            t.forceStart(TIMER_SLOW, TIMER_SLOW_PERIOD, true);
         } else {
-            if (!t.has(TIMER_CAST)) t.start(TIMER_CAST, 1, true);
-            if (!t.has(TIMER_SLOW)) t.start(TIMER_SLOW, 20, true);
+            if (!t.has(TIMER_CAST)) t.start(TIMER_CAST, TIMER_CAST_PERIOD, true);
+            if (!t.has(TIMER_SLOW)) t.start(TIMER_SLOW, TIMER_SLOW_PERIOD, true);
         }
     } catch (e) {}
 }

@@ -75,7 +75,7 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
         float y = 0.0f;
         final boolean nearby = npc.isInRange(this.entityRenderDispatcher.camera.getEntity(), 8.0);
         if (!npc.display.getTitle().isEmpty() && nearby) {
-            final ITextComponent title = new StringTextComponent("<").append(new TranslationTextComponent(npc.display.getTitle())).append(">");
+            final ITextComponent title = npc.display.getFormattedTitle();
             final float f4 = 0.6f;
             matrixStack.translate(0.0, 4.0, 0.0);
             matrixStack.scale(f4, f4, f4);
@@ -83,7 +83,7 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
             matrixStack.scale(1.0f / f4, 1.0f / f4, 1.0f / f4);
             y = -10.0f;
         }
-        final ITextComponent name = npc.getName();
+        final ITextComponent name = npc.display.getFormattedName();
         fontrenderer.drawInBatch(name, (float)(-fontrenderer.width(name) / 2), y, color, false, matrix4f, buffer, nearby, j, light);
         if (nearby) {
             fontrenderer.drawInBatch(name, (float)(-fontrenderer.width(name) / 2), y, color, false, matrix4f, buffer, false, 0, light);

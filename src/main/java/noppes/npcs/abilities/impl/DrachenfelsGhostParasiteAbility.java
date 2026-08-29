@@ -96,6 +96,10 @@ public final class DrachenfelsGhostParasiteAbility implements CnpcAbility {
             return false;
         }
         try {
+            final UUID ownerId = UUID.fromString(String.valueOf(ctx.npc.getUUID()));
+            if (DrachenfelsGhostGrabHandler.hasActiveForOwner(ownerId)) {
+                return false;
+            }
             final UUID victimId = UUID.fromString(String.valueOf(ctx.target.getUUID()));
             if (DrachenfelsGhostGrabHandler.isVictimGrabbed(victimId)) {
                 return false;

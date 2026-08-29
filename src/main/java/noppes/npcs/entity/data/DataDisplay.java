@@ -20,6 +20,7 @@ import noppes.npcs.entity.*;
 import noppes.npcs.constants.*;
 import noppes.npcs.*;
 import net.minecraft.util.*;
+import net.minecraft.util.text.*;
 import net.minecraft.entity.*;
 import net.minecraftforge.registries.*;
 import noppes.npcs.api.entity.*;
@@ -27,9 +28,16 @@ import net.minecraft.entity.player.*;
 
 public class DataDisplay implements INPCDisplay
 {
+    public static final int FORMAT_BOLD = 1;
+    public static final int FORMAT_ITALIC = 2;
+    public static final int FORMAT_UNDERLINE = 4;
+    private static final int FORMAT_MASK = FORMAT_BOLD | FORMAT_ITALIC | FORMAT_UNDERLINE;
+
     EntityNPCInterface npc;
     private String name;
     private String title;
+    private int nameFormat;
+    private int titleFormat;
     private int markovGeneratorId;
     private int markovGender;
     public byte skinType;
@@ -55,6 +63,8 @@ public class DataDisplay implements INPCDisplay
     public DataDisplay(final EntityNPCInterface npc) {
         this.name = "Noppes";
         this.title = "";
+        this.nameFormat = 0;
+        this.titleFormat = 0;
         this.markovGeneratorId = 8;
         this.markovGender = 0;
         this.skinType = 0;
@@ -98,6 +108,8 @@ public class DataDisplay implements INPCDisplay
         nbttagcompound.putInt("MarkovGeneratorId", this.markovGeneratorId);
         nbttagcompound.putInt("MarkovGender", this.markovGender);
         nbttagcompound.putString("Title", this.title);
+        nbttagcompound.putInt("NameFormat", this.nameFormat);
+        nbttagcompound.putInt("TitleFormat", this.titleFormat);
         nbttagcompound.putString("SkinUrl", this.url);
         nbttagcompound.putString("Texture", this.texture);
         nbttagcompound.putString("CloakTexture", this.cloakTexture);
@@ -128,6 +140,8 @@ public class DataDisplay implements INPCDisplay
         this.setMarkovGeneratorId(nbttagcompound.getInt("MarkovGeneratorId"));
         this.setMarkovGender(nbttagcompound.getInt("MarkovGender"));
         this.title = nbttagcompound.getString("Title");
+        this.nameFormat = nbttagcompound.contains("NameFormat") ? (nbttagcompound.getInt("NameFormat") & FORMAT_MASK) : 0;
+        this.titleFormat = nbttagcompound.contains("TitleFormat") ? (nbttagcompound.getInt("TitleFormat") & FORMAT_MASK) : 0;
         final int prevSkinType = this.skinType;
         final String prevTexture = this.texture;
         final String prevUrl = this.url;
@@ -276,6 +290,78 @@ public class DataDisplay implements INPCDisplay
         }
         this.title = title;
         this.npc.updateClient = true;
+    }
+
+    @Override
+    public int getNameFormat() {
+        return this.nameFormat;
+    }
+
+    @Override
+    public void setNameFormat(final int format) {
+        final int corrected = format & FORMAT_MASK;
+        if (this.nameFormat == corrected) {
+            return;
+        }
+        this.nameFormat = corrected;
+        this.npc.bossInfo.setName(this.npc.getDisplayName());
+        this.npc.updateClient = true;
+    }
+
+    @Override
+    public int getTitleFormat() {
+        return this.titleFormat;
+    }
+
+    @Override
+    public void setTitleFormat(final int format) {
+        final int corrected = format & FORMAT_MASK;
+        if (this.titleFormat == corrected) {
+            return;
+        }
+        this.titleFormat = corrected;
+        this.npc.updateClient = true;
+    }
+
+    public void toggleNameFormat(final int flag) {
+        this.setNameFormat(this.nameFormat ^ (flag & FORMAT_MASK));
+    }
+
+    public void toggleTitleFormat(final int flag) {
+        this.setTitleFormat(this.titleFormat ^ (flag & FORMAT_MASK));
+    }
+
+    public boolean hasNameFormat(final int flag) {
+        return (this.nameFormat & flag) != 0;
+    }
+
+    public boolean hasTitleFormat(final int flag) {
+        return (this.titleFormat & flag) != 0;
+    }
+
+    public static Style formatStyle(final int format) {
+        Style style = Style.EMPTY;
+        if ((format & FORMAT_BOLD) != 0) {
+            style = style.withBold(true);
+        }
+        if ((format & FORMAT_ITALIC) != 0) {
+            style = style.withItalic(true);
+        }
+        if ((format & FORMAT_UNDERLINE) != 0) {
+            style = style.withUnderlined(true);
+        }
+        return style;
+    }
+
+    public ITextComponent getFormattedName() {
+        return new TranslationTextComponent(this.name).withStyle(formatStyle(this.nameFormat));
+    }
+
+    public ITextComponent getFormattedTitle() {
+        final Style style = formatStyle(this.titleFormat);
+        return new StringTextComponent("<").withStyle(style)
+                .append(new TranslationTextComponent(this.title).withStyle(style))
+                .append(new StringTextComponent(">").withStyle(style));
     }
 
     @Override

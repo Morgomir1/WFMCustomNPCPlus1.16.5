@@ -11,6 +11,16 @@ public interface INPCDisplay {
 
    void setTitle(String var1);
 
+   /** Bit flags: 1=bold, 2=italic, 4=underline */
+   int getNameFormat();
+
+   void setNameFormat(int format);
+
+   /** Bit flags: 1=bold, 2=italic, 4=underline */
+   int getTitleFormat();
+
+   void setTitleFormat(int format);
+
    String getSkinUrl();
 
    void setSkinUrl(String var1);

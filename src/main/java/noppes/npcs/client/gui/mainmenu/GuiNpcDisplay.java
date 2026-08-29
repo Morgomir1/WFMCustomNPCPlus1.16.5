@@ -38,7 +38,8 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
       super.init();
       int y = this.guiTop + 4;
       this.addLabel(new GuiLabel(0, "gui.name", this.guiLeft + 5, y + 5));
-      this.addTextField(new GuiTextFieldNop(0, this, this.guiLeft + 50, y, 206, 20, this.display.getName()));
+      this.addTextField(new GuiTextFieldNop(0, this, this.guiLeft + 50, y, 148, 20, this.display.getName()));
+      this.addFormatButtons(20, this.guiLeft + 200, y, this.display.getNameFormat());
       this.addButton(
          new GuiButtonNop(
             this, 0, this.guiLeft + 253 + 52, y, 110, 20, new String[]{"display.show", "display.hide", "display.showAttacking"}, this.display.getShowName()
@@ -48,7 +49,8 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
       this.addButton(new GuiButtonNop(this, 15, this.guiLeft + 259 + 22, y, 20, 20, Character.toString('⋮')));
       y += 23;
       this.addLabel(new GuiLabel(11, "gui.title", this.guiLeft + 5, y + 5));
-      this.addTextField(new GuiTextFieldNop(11, this, this.guiLeft + 50, y, 186, 20, this.display.getTitle()));
+      this.addTextField(new GuiTextFieldNop(11, this, this.guiLeft + 50, y, 148, 20, this.display.getTitle()));
+      this.addFormatButtons(23, this.guiLeft + 200, y, this.display.getTitleFormat());
       y += 23;
       this.addLabel(new GuiLabel(1, "display.model", this.guiLeft + 5, y + 5));
       this.addButton(new GuiButtonNop(this, 1, this.guiLeft + 50, y, 110, 20, "selectServer.edit"));
@@ -210,6 +212,23 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
          this.setSubGui(new SubGuiNpcName(this.display));
       } else if (guibutton.id == 16) {
          this.setSubGui(new SubGuiNpcAvailability(this.display.availability));
+      } else if (guibutton.id >= 20 && guibutton.id <= 22) {
+         this.display.toggleNameFormat(1 << (guibutton.id - 20));
+         this.init();
+      } else if (guibutton.id >= 23 && guibutton.id <= 25) {
+         this.display.toggleTitleFormat(1 << (guibutton.id - 23));
+         this.init();
+      }
+   }
+
+   private void addFormatButtons(int startId, int x, int y, int format) {
+      String[] labels = new String[]{"B", "I", "U"};
+      for (int i = 0; i < 3; ++i) {
+         GuiButtonNop button = new GuiButtonNop(this, startId + i, x + i * 19, y, 18, 20, labels[i]);
+         if ((format & (1 << i)) != 0) {
+            button.setFGColor(0xFFFF55);
+         }
+         this.addButton(button);
       }
    }
 

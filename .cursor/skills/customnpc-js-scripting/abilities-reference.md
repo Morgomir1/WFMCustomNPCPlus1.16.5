@@ -38,18 +38,15 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 |----|-------|----------|
 | `dash` | `DashAbility` | Рывок к цели, урон по пути |
 | `jump_slam` | `JumpSlamAbility` | Прыжок по дуге, AoE при приземлении |
-| `drachenfels_poison_feast` | `DrachenfelsPoisonFeastAbility` | AoE яд + урон (тело Дракенфельса) |
-| `drachenfels_dark_cleave` | `DrachenfelsDarkCleaveAbility` | Короткий рывок-замах конусом |
-| `drachenfels_soul_rend` | `DrachenfelsSoulRendAbility` | Конус soul/wither (дух) |
-| `drachenfels_spirit_barrage` | `DrachenfelsSpiritBarrageAbility` | Серия импульсов к цели |
-| `drachenfels_soul_seeker` | `DrachenfelsSoulSeekerAbility` | Дальние soul-импульсы по линии (punish kite) |
-| `drachenfels_soul_orbs` | `DrachenfelsSoulOrbsAbility` | Несколько soul-шаров: круглые telegraph → AoE при приземлении |
-| `drachenfels_dark_blast` | `DrachenfelsDarkBlastAbility` | Круг под целью → 15 pure + ломка досок |
-| `drachenfels_ghost_parasite` | `DrachenfelsGhostParasiteAbility` | Homing-призрак → grab + 2 pure DPS |
-| `drachenfels_body_pull` | `DrachenfelsBodyPullAbility` | Стяжка → delayed круг 15 pure → forced follow-up |
-| `drachenfels_curse_puddles` | `DrachenfelsCursePuddlesAbility` | Метка ≤3 игроков + 3 лужи; fail → +10 HP |
-| `drachenfels_raise_thralls` | `DrachenfelsRaiseThrallsAbility` | Призыв thrall-клонов + aura |
-| `drachenfels_shadow_step` | `DrachenfelsShadowStepAbility` | Теневой dash к цели |
+| `df_black_seal` | `DfBlackSealAbility` | 3 круга → burst + hazard (фаза 1) |
+| `df_mask_gaze` | `DfMaskGazeAbility` | Фикс. луч 16×1.5 (фаза 1) |
+| `df_imperial_poison` | `DfImperialPoisonAbility` | Расширяющееся кольцо яда (фаза 2) |
+| `df_feast_seats` | `DfFeastSeatsAbility` | 6 safe-кругов + удар арены (фаза 2) |
+| `df_leper_ball` | `DfLeperBallAbility` | 4 фантома к центру (фаза 2) |
+| `df_false_host` | `DfFalseHostAbility` | Копии + телепорт (фаза 2) |
+| `df_nameless_step` | `DfNamelessStepAbility` | Dash по линии (фаза 3) |
+| `df_nameless_whisper` | `DfNamelessWhisperAbility` | 3 кольца сразу (фаза 3) |
+| `df_name_steal` | `DfNameStealAbility` | Мили Weak+Blind (фаза 3) |
 | `crimson_blob` | `CrimsonBlobAbility` | Навес сгустка → hazard-зона слепоты + MAGIC DPS |
 | `ghost_soul_bolt` | `GhostSoulBoltAbility` | Навес soul-болта (как crimson_blob) → knockback |
 | `necro_volley` | `NecromancerVolleyAbility` | 3 некро-залпа в случайные точки → каждая точка спавнит сферу-клон |
@@ -64,7 +61,7 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `vampire_blood_dash` | `VampireBloodDashAbility` | Homing-рывок без уворота + лужи крови |
 | `vampire_blood_slash` | `VampireBloodSlashAbility` | Конус мечом (как охотник), кровь |
 
-Оркестратор парного босса: `src/main/resources/scripts/drachenfels/drachenfels_boss_rework.js` (тонкий JS + `DrachenfelsEncounterAPI`; старый `drachenfels_boss.js` — референс).
+Оркестратор соло Драхенфельса: `src/main/resources/scripts/drachenfels/drachenfels_constant.js` (`DrachenfelsEncounterHelper`).
 Оркестратор сгустка: `src/main/resources/scripts/utility/crimson_blob.js`.
 Оркестратор Отродья: `src/main/resources/scripts/otrodie/otrodie_boss.js`.
 Оркестратор Кровавого лорда: `src/main/resources/scripts/vampire/vampire_crimson_lord.js`.
@@ -102,130 +99,21 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `arcHeight` | double | 6.0 | Высота дуги |
 | `maxRange` | double | 16.0 | Макс. дальность прыжка |
 
-### `drachenfels_poison_feast`
+### `df_*` — Constant Drachenfels (соло)
 
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` | int | 14 | Зарядка |
-| `damage` | double | 14.0 | Урон AoE |
-| `radius` | double | 5.0 | Радиус |
-| `knockback` / `knockbackY` | double | 0.9 / 0.25 | Отбрасывание |
-| `effectType` | string | `poison` | Эффект (`AbilityEffectType`) |
-| `effectDuration` | int | 80 | Длительность эффекта (тики MC) |
-| `effectAmplifier` | int | 1 | Уровень эффекта |
+Пороги фаз/триггеров — **% maxHealth** (см. `DrachenfelsEncounterHelper`). Дефолты — `AbilityDefaults.df*()`.
 
-### `drachenfels_dark_cleave`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `distance` | double | 5.5 | Длина рывка |
-| `chargeTicks` / `activeTicks` | int | 8 / 5 | Фазы |
-| `damage` | double | 13.0 | Урон |
-| `radius` | double | 2.4 | Радиус конуса |
-| `coneHalfAngle` | double | 65.0 | Полуугол конуса |
-| `knockback` / `knockbackY` | double | 1.4 / 0.3 | Отбрасывание |
-
-### `drachenfels_soul_rend`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` | int | 12 | Зарядка |
-| `damage` | double | 12.0 | Урон конуса |
-| `radius` | double | 6.0 | Дальность конуса |
-| `coneHalfAngle` | double | 40.0 | Полуугол |
-| `effectType` | string | `wither` | Эффект |
-| `effectDuration` / `effectAmplifier` | int | 60 / 0 | Параметры эффекта |
-| `knockback` / `knockbackY` | double | 0.7 / 0.2 | Отбрасывание |
-
-### `drachenfels_spirit_barrage`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` / `activeTicks` | int | 10 / 16 | Фазы |
-| `shots` | int | 4 | Число импульсов |
-| `distance` | double | 14.0 | Макс. длина линии импульсов |
-| `damage` | double | 7.0 | Урон импульса |
-| `hitRadius` | double | 1.8 | Радиус попадания |
-| `knockback` / `knockbackY` | double | 0.5 / 0.15 | Отбрасывание |
-
-### `drachenfels_soul_seeker`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` / `activeTicks` | int | 12 / 14 | Фазы |
-| `shots` | int | 2 | Число импульсов (1–3) |
-| `maxRange` / `distance` | double | 40.0 | Дальность луча к цели |
-| `damage` | double | 10.0 | Урон импульса (по пути ~55%) |
-| `hitRadius` | double | 2.2 | Радиус попадания |
-| `knockback` / `knockbackY` | double | 0.65 / 0.18 | Отбрасывание |
-
-### `drachenfels_ghost_parasite`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` | int | 28 | Каст Души |
-| `activeTicks` | int | 600 | Safety-лимит grab |
-| `approachSpeed` | double | 0.55 | Homing blocks/tick |
-| `hitRadius` | double | 1.4 | Контакт → grab |
-| `hoverOffset` | double | 1.1 | Высота призрака над жертвой |
-| `damage` / `damageInterval` | double / int | 2.0 / 20 | 2 pure DPS |
-| `distance` | double | 40.0 | Бюджет полёта |
-| `cloneTab` / `cloneName` | | 1 / `Drachenfels Ghost Parasite` | Опциональный клон |
-
-Homing NPC → server grab (`DrachenfelsGhostGrabHandler`). Убийство призрака снимает захват. Оркестратор: `drachenfels_boss_rework.js`.
-
-### `drachenfels_body_pull`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `telegraph` | int | 0 | Авто-TG на charge выключен |
-| `chargeTicks` | int | 16 | Windup до стяжки |
-| `activeTicks` | int | 28 | Warning-круг после pull |
-| `damage` | double | 15.0 | Чистый MAGIC blast |
-| `radius` | double | 5.0 | Радиус blast / TG |
-| `maxRange` | double | 12.0 | Радиус стяжки игроков |
-| `hitRadius` | double | 2.0 | Stand-off от босса |
-| `knockback` / `knockbackY` | double | 0.7 / 0.25 | Отброс |
-
-Стяжка → delayed круг → JS `df_forced_ability` → `drachenfels_curse_puddles`. Оркестратор: `drachenfels_boss_rework.js`.
-
-### `drachenfels_curse_puddles`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` | int | 24 | Windup |
-| `maxRange` | double | 18.0 | Радиус выбора игроков |
-| `hitCount` | int | 3 | Макс. проклятых |
-| `summonCount` | int | 3 | Число луж |
-| `hitRadius` | double | 2.0 | Радиус лужи |
-| `spreadRadius` | double | 12.0 | Разброс луж |
-| `zoneTicks` | int | 200 | 10с на очистку |
-| `zoneColor` | int | `0xC040E0D0` | Цвет лужи |
-| `healOnFail` | double | 10.0 | Хил боссу за fail |
-
-Метка (glowing) + 3 cleanse-лужи (0 dmg ZoneAPI). Вход в свободную лужу снимает curse; истечение → +10 HP. Handler: `DrachenfelsCursePuddlesHandler`.
-
-### `drachenfels_raise_thralls`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` / `activeTicks` | int | 12 / 18 | Фазы |
-| `summonCount` | int | 2 | Сколько клонов |
-| `summonRadius` | double | 3.5 | Радиус спавна |
-| `maxSummonedNearBoss` | int | 4 | Лимит thrall рядом |
-| `cloneTab` / `cloneName` | int / string | 1 / `Drachenfels Thrall` | Clone Bank |
-| `radius` | double | 4.0 | Радиус aura slow |
-| `effectType` | string | `slowness` | Эффект aura |
-
-### `drachenfels_shadow_step`
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `distance` | double | 10.0 | Дистанция dash |
-| `chargeTicks` / `activeTicks` | int | 6 / 5 | Фазы |
-| `damage` | double | 8.0 | Урон по пути |
-| `hitRadius` | double | 1.5 | Радиус хита |
-| `knockback` / `knockbackY` | double | 1.1 / 0.25 | Отбрасывание |
+| id | Charge | Урон / эффект |
+|----|--------|---------------|
+| `df_black_seal` | 30 | 3×R2 → 12 + zone 3/10тик ×100 |
+| `df_mask_gaze` | 20 + active 15 | corridor 16×1.5 → 18 |
+| `df_imperial_poison` | 10 + 30 | expanding ring → 8 + Poison IV 4с + Slow I 2с (1 прок) |
+| `df_feast_seats` | 40 | arena except 6 white R1.5 → 14 + Poison 3с |
+| `df_leper_ball` | 1 + 60 | spawn 4 phantoms |
+| `df_false_host` | active 30 | 3 copies + TP |
+| `df_nameless_step` | 10 | line dash → 12 |
+| `df_nameless_whisper` | 24 | rings 2/5/8 ×1.2 → 7 + Blind 1с |
+| `df_name_steal` | instant | 6 + Weak I 2с + Blind 2с |
 
 ### `crimson_blob`
 

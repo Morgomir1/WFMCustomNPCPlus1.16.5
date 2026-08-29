@@ -52,11 +52,11 @@ Telegraph **не** живёт внутри CNPC: sync/render/tick — в `WFMTel
 5. `radius` / `auraRadius` → circle  
 
 ```javascript
-AbilityAPI.start(npc, "drachenfels_poison_feast", target, AbilityAPI.params(
+AbilityAPI.start(npc, "df_black_seal", target, AbilityAPI.params(
     "telegraphColor", 0xC0FF3030,
-    "radius", 5.0,
-    "chargeTicks", 36,
-    "damage", 14.0
+    "radius", 2.0,
+    "chargeTicks", 30,
+    "damage", 12.0
 ));
 ```
 

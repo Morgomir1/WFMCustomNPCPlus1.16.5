@@ -1,154 +1,116 @@
 package noppes.npcs.abilities;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.ai.attributes.Attributes;
+import net.minecraft.potion.Effects;
+import net.minecraft.util.math.AxisAlignedBB;
+import net.minecraft.world.World;
 import net.minecraft.world.server.ServerWorld;
-import noppes.npcs.api.IPos;
-import noppes.npcs.api.IWorld;
-import noppes.npcs.api.NpcAPI;
+import noppes.npcs.abilities.impl.DfBlackSealAbility;
+import noppes.npcs.abilities.impl.DfFalseHostAbility;
+import noppes.npcs.abilities.impl.DfFeastSeatsAbility;
+import noppes.npcs.abilities.impl.DfImperialPoisonAbility;
+import noppes.npcs.abilities.impl.DfLeperBallAbility;
+import noppes.npcs.abilities.impl.DfMaskGazeAbility;
+import noppes.npcs.abilities.impl.DfNameStealAbility;
+import noppes.npcs.abilities.impl.DfNamelessStepAbility;
+import noppes.npcs.abilities.impl.DfNamelessWhisperAbility;
 import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.api.entity.IPlayer;
 import noppes.npcs.api.entity.data.IData;
 import noppes.npcs.api.entity.data.INPCAi;
-import noppes.npcs.api.wrapper.WorldWrapper;
 import noppes.npcs.entity.EntityAbilityZone;
 import noppes.npcs.script.ScriptDataUtil;
 import noppes.npcs.zone.ZoneAPI;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 
 /**
- * Server-side Drachenfels pair encounter: Immortal Bond, HP ritual, flame carousel,
- * spacing/kite/hover/home, board restore. Casting remains in thin JS.
+ * Solo Constant Drachenfels encounter: phases, queues, adds, vessels, shards.
+ * Casting of boss spells goes through {@link AbilityAPI}; this helper decides when.
  */
 public final class DrachenfelsEncounterHelper {
-    public static final String PAIR_TAG = "drachenfels";
+    public static final String BOSS_TAG = "df_constant";
+    public static final String TAG_MONK = "df_monk";
+    public static final String TAG_COURT = "df_court";
+    public static final String TAG_CULTIST = "df_cultist";
+    public static final String TAG_GUARD = "df_guard";
+    public static final String TAG_PHANTOM = "df_leper";
+    public static final String TAG_FALSE = "df_false";
+    public static final String TAG_VESSEL = "df_vessel";
+    public static final String TAG_SHARD = "df_shard";
 
-    public static final int REVIVE_WINDOW_TICKS = 300;
-    public static final float REVIVE_HP_RATIO = 0.30F;
-    public static final double LINK_RADIUS = 48.0;
-    public static final double AGRO_RANGE = 56.0;
-    public static final double LEASH_RANGE = 72.0;
+    public static final double ARENA_RADIUS = 12.0;
 
-    private static final int RETALIATE_REVENGE = 0;
-    private static final int RETALIATE_RETREAT = 2;
-    private static final int RETALIATE_NONE = 3;
-    private static final int NAV_GROUND = 0;
-    private static final int NAV_FLYING = 1;
-    private static final int MOVING_STANDING = 0;
-    private static final int VISIBLE_NORMAL = 0;
-    private static final int ENTITY_LIVING = 2;
+    private static final double PHASE2_RATIO = 0.66;
+    private static final double PHASE3_RATIO = 0.33;
+    private static final double[] BELL_RATIOS = {0.88, 0.76};
+    private static final double[] FALSE_RATIOS = {0.56, 0.46, 0.36};
+    private static final double ABSORB_RATIO = 0.133;
+    private static final double SHARD_HEAL_RATIO = 0.0267;
 
-    private static final double BODY_MIN_RANGE = 3.8;
-    private static final double BODY_MAX_RANGE = 9.5;
-    private static final double SPIRIT_MIN_RANGE = 6.5;
-    private static final double SPIRIT_MAX_RANGE = 15.0;
-    private static final int KITE_TICKS = 45;
-    private static final int KITE_SPEED_BODY = 1;
-    private static final int KITE_SPEED_SPIRIT = 2;
-    private static final int CASTER_SPEED = 1;
-    private static final double HOME_ARRIVE_DIST = 1.8;
-    private static final int HOME_RETURN_DELAY_TICKS = 20;
-    private static final double HOVER_AMP = 0.22;
-    private static final double HOVER_MAX_DRIFT = 1.8;
+    private static final int INVULN_TICKS = 60;
+    private static final int CARRIER_TICKS = 240;
+    private static final int SEAL_CD = 200;
+    private static final int GAZE_CD = 160;
+    private static final int BELL_CD = 400;
+    private static final int COURT_CD = 320;
+    private static final int GAZE_FAR_TICKS = 40;
+    private static final int GAZE_RANGE = 8;
+    private static final int STEP_CD = 120;
+    private static final int WHISPER_CD = 180;
+    private static final int STEAL_CD = 160;
+    private static final int CYCLE_LENGTH = 360;
+    private static final int FALSE_SHIFT = 30;
 
-    /** Fallback spirit Y offset if script did not call {@link #configureArena}. */
-    private static final double DEFAULT_RITUAL_SPIRIT_OFFSET_Y = 4.0;
-    private static final int RITUAL_DURATION_TICKS = 80;
-    private static final int RITUAL_TRANSFER_INTERVAL = 4;
-    private static final int RITUAL_COOLDOWN_TICKS = 700;
-    private static final float RITUAL_MIN_HP_GAP = 0.12F;
-    private static final String HP_RITUAL_ID = "df_hp_ritual";
-
-    /** Arena coords come from JS via {@link #configureArena} → storeddata. */
-    private static final String CFG_RITUAL_X = "df_cfg_ritual_x";
-    private static final String CFG_RITUAL_Y = "df_cfg_ritual_y";
-    private static final String CFG_RITUAL_Z = "df_cfg_ritual_z";
-    private static final String CFG_RITUAL_SPIRIT_DY = "df_cfg_ritual_spirit_dy";
-    /** Format: {@code x,y,z;x,y,z;x,y,z;x,y,z} — exactly {@link #FLAME_ZONE_COUNT} points. */
-    private static final String CFG_FLAMES = "df_cfg_flames";
-
-    private static final int FLAME_ZONE_COUNT = 4;
-    private static final double FLAME_RADIUS = 3.5;
-    private static final float FLAME_DAMAGE = 5.0F;
-    /** Было 20 (~1с); 10 = удар + поджог ~2 раза/сек. */
-    private static final int FLAME_DAMAGE_INTERVAL = 10;
-    private static final int FLAME_FIRE_SECONDS = 3;
-    /** Ticks to travel from one arena point to the next (full lap = ×4). */
-    private static final int FLAME_SEGMENT_TICKS = 80;
-    private static final int FLAME_LIFETIME = 400;
-    private static final float FLAME_ZONE_HEIGHT = 8.0F;
-    private static final int FLAME_COLOR = 0xC0FF6020;
-    private static final String FLAME_TAG = "drachenfels_flame";
-    private static final String FLAME_ACTIVE = "active";
-    private static final String FLAME_UUIDS = "uuids";
-    /** Zone indices 0..3 — each keeps a fixed offset on the loop. */
-    private static final String FLAME_SLOTS = "slots";
-    /** World totalTime when the carousel started (phase origin). */
-    private static final String FLAME_EPOCH = "epoch";
-
-    private static final String ROLE_KEY = "df_role";
-    private static final String PARTNER_UUID_KEY = "df_partner_uuid";
-    private static final String PAIR_ID_KEY = "df_pair_id";
-    private static final String PARTNER_DEAD_KEY = "df_partner_dead";
-    private static final String REVIVE_UNTIL_KEY = "df_revive_until";
-    private static final String DEAD_UUID_KEY = "df_dead_uuid";
-    private static final String DEAD_X_KEY = "df_dead_x";
-    private static final String DEAD_Y_KEY = "df_dead_y";
-    private static final String DEAD_Z_KEY = "df_dead_z";
-    private static final String DEAD_ROLE_KEY = "df_dead_role";
-    private static final String DOWNED_KEY = "df_downed";
-    private static final String DOWNED_X_KEY = "df_downed_x";
-    private static final String DOWNED_Y_KEY = "df_downed_y";
-    private static final String DOWNED_Z_KEY = "df_downed_z";
-    private static final String HOME_X_KEY = "df_home_x";
-    private static final String HOME_Y_KEY = "df_home_y";
-    private static final String HOME_Z_KEY = "df_home_z";
-    private static final String HOVER_Y_KEY = "df_hover_y";
-    private static final String SAVED_RETALIATE_KEY = "df_saved_retaliate";
-    private static final String SAVED_SPEED_KEY = "df_saved_speed";
-    private static final String SAVED_VISIBLE_KEY = "df_saved_visible";
     private static final String PHASE_KEY = "df_phase";
-    private static final String NEXT_CAST_KEY = "df_next_cast";
-    private static final String FORCED_ABILITY_KEY = "df_forced_ability";
-    private static final String LINKED_KEY = "df_linked";
-    private static final String KITE_UNTIL_KEY = "df_kite_until";
-    private static final String STANCE_READY_KEY = "df_stance_ready";
-    private static final String LOST_AGGRO_SINCE_KEY = "df_lost_aggro_since";
-    private static final String LAST_FLOOR_RESTORE_KEY = "df_last_floor_restore";
-    private static final String RITUAL_ACTIVE_KEY = "df_ritual_active";
-    private static final String RITUAL_UNTIL_KEY = "df_ritual_until";
-    private static final String RITUAL_LEADER_KEY = "df_ritual_leader";
-    private static final String CD_PREFIX = "df_cd_";
-
-    private static final String ABILITY_DARK_BLAST = "drachenfels_dark_blast";
-    private static final String ABILITY_GHOST_PARASITE = "drachenfels_ghost_parasite";
-    private static final String ABILITY_BODY_PULL = "drachenfels_body_pull";
-
-    /**
-     * {@code setAttackTarget} синхронно шлёт {@code targetLost} до обновления цели —
-     * без guard'а {@link #onTargetLost} → {@link #ensureCombatTarget} зацикливается.
-     */
-    private static final ThreadLocal<Integer> COMBAT_TARGET_MUTATION_DEPTH =
-            ThreadLocal.withInitial(() -> Integer.valueOf(0));
-
-    private static final String[] QUOTES_BOND = {
-            "Связь нерасторжима!",
-            "Пока один дышит — второй вернётся!",
-            "Смерть — лишь пауза."
-    };
-    private static final String[] QUOTES_REVIVE = {
-            "Встань. Мы ещё не закончили.",
-            "Смерть отложена — по моей милости.",
-            "Двое — одно бессмертие."
-    };
+    private static final String ABSORB_KEY = "df_absorb";
+    private static final String HOME_X = "df_home_x";
+    private static final String HOME_Y = "df_home_y";
+    private static final String HOME_Z = "df_home_z";
+    private static final String INVULN_UNTIL = "df_invuln_until";
+    private static final String TRANSITION = "df_transition";
+    private static final String SEAL_READY = "df_seal_ready";
+    private static final String GAZE_READY = "df_gaze_ready";
+    private static final String BELL_READY = "df_bell_ready";
+    private static final String COURT_READY = "df_court_ready";
+    private static final String GAZE_FAR_SINCE = "df_gaze_far";
+    private static final String BELL_FIRED = "df_bell_fired";
+    private static final String FALSE_FIRED = "df_false_fired";
+    private static final String CYCLE_ORIGIN = "df_cycle_origin";
+    private static final String CYCLE_SHIFT = "df_cycle_shift";
+    private static final String CYCLE_SLOT = "df_cycle_slot";
+    private static final String CARRIER_UNTIL = "df_carrier_until";
+    private static final String IN_CARRIER = "df_in_carrier";
+    private static final String VESSEL_ROUND = "df_vessel_round";
+    private static final String STEP_READY = "df_step_ready";
+    private static final String WHISPER_READY = "df_whisper_ready";
+    private static final String STEAL_READY = "df_steal_ready";
+    private static final String PENDING_FALSE = "df_pending_false";
+    private static final String SPIRIT_MODE = "df_spirit";
+    private static final String QUOTE_INTRO = "df_quote_intro";
+    private static final String ARC_CD = "df_arc_cd";
+    private static final String ARC_CAST = "df_arc_cast";
+    private static final String CLONE_TAB = "df_clone_tab";
+    private static final String CLONE_MONK = "df_clone_monk";
+    private static final String CLONE_CULTIST = "df_clone_cultist";
+    private static final String CLONE_GUARD = "df_clone_guard";
+    private static final String CLONE_PHANTOM = "df_clone_phantom";
+    private static final String CLONE_FALSE = "df_clone_false";
+    private static final String CLONE_VESSEL = "df_clone_vessel";
+    private static final String CLONE_SHARD = "df_clone_shard";
+    private static final String BOSS_UUID = "df_boss_uuid";
+    private static final String VESSEL_SLOT = "df_vessel_slot";
+    private static final String SHARD_SPAWN_AT = "df_shard_at";
+    private static final String PHANTOM_LIFE = "df_phantom_life";
+    private static final String ADD_NEXT_ATK = "df_add_atk";
 
     private static final Random RANDOM = new Random();
 
@@ -156,2346 +118,1204 @@ public final class DrachenfelsEncounterHelper {
     }
 
     // -------------------------------------------------------------------------
-    // Public API surface
+    // Public API
     // -------------------------------------------------------------------------
 
-    public static void init(final ICustomNpc npc, final String role) {
+    public static void init(final ICustomNpc npc) {
         if (npc == null || isClient(npc)) {
             return;
         }
         final IData data = npc.getStoreddata();
-        ensureRole(npc, data, role);
-        if (!npc.hasTag(PAIR_TAG)) {
-            npc.addTag(PAIR_TAG);
+        if (!npc.hasTag(BOSS_TAG)) {
+            npc.addTag(BOSS_TAG);
         }
-        if (isBlank(str(data, HOME_X_KEY))) {
-            put(data, HOME_X_KEY, npc.getX());
-            put(data, HOME_Y_KEY, npc.getY());
-            put(data, HOME_Z_KEY, npc.getZ());
+        put(data, HOME_X, npc.getX());
+        put(data, HOME_Y, npc.getY());
+        put(data, HOME_Z, npc.getZ());
+        put(data, PHASE_KEY, "1");
+        put(data, ABSORB_KEY, "0");
+        put(data, INVULN_UNTIL, "0");
+        put(data, TRANSITION, "0");
+        put(data, BELL_FIRED, "");
+        put(data, FALSE_FIRED, "");
+        put(data, CYCLE_ORIGIN, "0");
+        put(data, CYCLE_SHIFT, "0");
+        put(data, CYCLE_SLOT, "0");
+        put(data, IN_CARRIER, "0");
+        put(data, CARRIER_UNTIL, "0");
+        put(data, VESSEL_ROUND, "0");
+        put(data, SPIRIT_MODE, "0");
+        put(data, PENDING_FALSE, "0");
+        final long now = now(npc);
+        put(data, SEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "sealFirstDelay", 40)));
+        put(data, GAZE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "gazeFirstDelay", 80)));
+        put(data, BELL_READY, "0");
+        put(data, COURT_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "courtFirstDelay", 80)));
+        put(data, GAZE_FAR_SINCE, "0");
+        put(data, STEP_READY, "0");
+        put(data, WHISPER_READY, "0");
+        put(data, STEAL_READY, "0");
+        applyPhase1Ai(npc);
+        if (!ScriptDataUtil.isFlag(data, QUOTE_INTRO)) {
+            say(npc, "Этот замок помнит вас дольше, чем вы — себя.");
+            ScriptDataUtil.setFlag(data, QUOTE_INTRO, true);
         }
-        // Hover lock = spawn Y; never follow ground under the NPC (boards can break).
-        put(data, HOVER_Y_KEY, ScriptDataUtil.getFloat(data, HOME_Y_KEY));
-        if (!isDowned(npc)) {
-            put(data, PHASE_KEY, "1");
-            put(data, PARTNER_DEAD_KEY, "0");
-            put(data, REVIVE_UNTIL_KEY, "0");
-            put(data, DEAD_UUID_KEY, "");
-            put(data, DOWNED_X_KEY, "");
-            put(data, DOWNED_Y_KEY, "");
-            put(data, DOWNED_Z_KEY, "");
-        }
-        put(data, FORCED_ABILITY_KEY, "");
-        put(data, KITE_UNTIL_KEY, "0");
-        put(data, LOST_AGGRO_SINCE_KEY, "0");
-        put(data, RITUAL_ACTIVE_KEY, "0");
-        put(data, RITUAL_UNTIL_KEY, "0");
-        put(data, RITUAL_LEADER_KEY, "0");
-        tryLinkPartner(npc);
-        applyCasterStance(npc);
-        put(data, STANCE_READY_KEY, "1");
     }
 
-    /**
-     * Arena world coords from JS (ritual pillar + 4 flame carousel points).
-     * Synced to partner when linked. No world XYZ are hardcoded in Java.
-     */
-    public static void configureArena(
+    public static void configureClones(
             final ICustomNpc npc,
-            final double ritualX,
-            final double ritualY,
-            final double ritualZ,
-            final double spiritOffsetY,
-            final double f0x, final double f0y, final double f0z,
-            final double f1x, final double f1y, final double f1z,
-            final double f2x, final double f2y, final double f2z,
-            final double f3x, final double f3y, final double f3z) {
-        if (npc == null || isClient(npc)) {
+            final int tab,
+            final String monk,
+            final String cultist,
+            final String guard,
+            final String phantom,
+            final String falseHost,
+            final String vessel,
+            final String shard) {
+        if (npc == null) {
             return;
         }
         final IData data = npc.getStoreddata();
-        put(data, CFG_RITUAL_X, ritualX);
-        put(data, CFG_RITUAL_Y, ritualY);
-        put(data, CFG_RITUAL_Z, ritualZ);
-        put(data, CFG_RITUAL_SPIRIT_DY, spiritOffsetY);
-        put(data, CFG_FLAMES,
-                fmtPoint(f0x, f0y, f0z) + ";"
-                        + fmtPoint(f1x, f1y, f1z) + ";"
-                        + fmtPoint(f2x, f2y, f2z) + ";"
-                        + fmtPoint(f3x, f3y, f3z));
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null) {
-            copyArenaConfig(data, partner.getStoreddata());
-        }
+        put(data, CLONE_TAB, String.valueOf(tab));
+        put(data, CLONE_MONK, monk);
+        put(data, CLONE_CULTIST, cultist);
+        put(data, CLONE_GUARD, guard);
+        put(data, CLONE_PHANTOM, phantom);
+        put(data, CLONE_FALSE, falseHost);
+        put(data, CLONE_VESSEL, vessel);
+        put(data, CLONE_SHARD, shard);
     }
 
-    public static void tickSlow(final ICustomNpc npc) {
+    /** JS: {@code Encounter.configure(npc, "sealDamage", 12, "arenaRadius", 12, ...)} */
+    public static void configure(final ICustomNpc npc, final Object... keyValues) {
+        DrachenfelsConfig.configure(npc, keyValues);
+    }
+
+    public static void tick(final ICustomNpc npc) {
         if (npc == null || !npc.isAlive() || isClient(npc)) {
             return;
         }
-        if (isDowned(npc)) {
-            tickDownedWatchdog(npc);
+        if (!isBoss(npc)) {
+            init(npc);
+        }
+        final IData data = npc.getStoreddata();
+        final long now = now(npc);
+        tickTransition(npc, data, now);
+        if (ScriptDataUtil.isFlag(data, TRANSITION)) {
             return;
         }
-        tryLinkPartner(npc);
-        // Restore BEFORE ensureCombatTarget: иначе принудительный re-aggro в AGRO_RANGE
-        // каждый slow-тик сбрасывает таймер, и пол никогда не чинится после потери цели.
-        tryRestoreBoardsAndStopFlame(npc);
-        ensureCombatTarget(npc);
-        updateBondAndPhase(npc);
-        tickBondVfx(npc);
-        tryCompleteRevive(npc);
-        tickFlameCarousel(npc);
-        if (isFlameCarouselLeader(npc) && isFlameCarouselActive(npc)) {
-            pulseFlamePillarVfx(npc);
-        }
-        if (isRitualActive(npc)) {
-            if (isDowned(npc) || !npc.isAlive()) {
-                abortHpRitual(npc);
-            }
-            return;
-        }
-        tryReturnHomeIfIdle(npc);
-        if (hasCombatTarget(npc)) {
-            manageSpacing(npc);
+        enforcePhaseCap(npc, data);
+        updatePhase(npc, data, now);
+        tickAdds(npc, data, now);
+        tickPhantoms(npc, data);
+        tickShards(npc, data);
+        tickVesselVfx(npc, data, now);
+        tickCarrier(npc, data, now);
+
+        final int phase = ScriptDataUtil.getInt(data, PHASE_KEY);
+        if (phase == 1) {
+            tickPhase1(npc, data, now);
+        } else if (phase == 2) {
+            tickPhase2(npc, data, now);
+        } else if (phase == 3) {
+            tickPhase3(npc, data, now);
         }
     }
 
-    public static void tickFast(final ICustomNpc npc) {
-        if (npc == null || isClient(npc)) {
-            return;
-        }
-        if (!npc.isAlive()) {
-            AbilityAPI.cancel(npc);
-            abortHpRitual(npc);
-            tryStopFlameCarouselOnDeath(npc);
-            return;
-        }
-        if (isDowned(npc)) {
-            AbilityAPI.cancel(npc);
-            abortHpRitual(npc);
-            freezeDownedNpc(npc);
-            return;
-        }
-        if (isRitualActive(npc)) {
-            tickHpRitual(npc);
-            return;
-        }
-        // Каждый тик каста — иначе карусель ждёт TIMER_SLOW (~1с) и легко срывается restore'ом.
-        tickFlameCarousel(npc);
-        tickHover(npc);
-        // Не зависеть от TIMER_SLOW / targetLost в GUI: без этого пол не чинится.
-        tryRestoreBoardsAndStopFlame(npc);
-        if (AbilityAPI.isBusy(npc)) {
-            // Во время каста не бегать за целью
-            try {
-                npc.getAi().setRetaliateType(RETALIATE_NONE);
-                npc.getAi().setWalkingSpeed(0);
-            } catch (final Exception ignored) {
-            }
-        } else {
-            applyCasterStance(npc);
-        }
-    }
-
-    public static void onTargetLost(final ICustomNpc npc) {
-        if (npc == null || isClient(npc)) {
-            return;
-        }
-        // Nested event from our own setAttackTarget — ignore, caller already retargets.
-        if (COMBAT_TARGET_MUTATION_DEPTH.get().intValue() > 0) {
-            return;
-        }
-        if (isRitualActive(npc)) {
+    public static void cleanup(final ICustomNpc npc) {
+        if (npc == null) {
             return;
         }
         AbilityAPI.cancel(npc);
-        if (isInBondPhase(npc) || isDowned(npc)) {
+        killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
+                TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
+        clearOwnerZones(npc);
+        say(npc, "Замок не умрёт с этим телом.");
+    }
+
+    public static void onAbilityEnded(final ICustomNpc npc, final String abilityId) {
+        if (npc == null || abilityId == null) {
             return;
         }
-        // Сразу чинить пол: ensureCombatTarget ниже снова вешает цель, если игрок ещё в AGRO,
-        // и таймер потери агро никогда не доживает до restore.
-        restoreArenaFloor(npc);
-        if (!isFlameCarouselWanted(npc)) {
-            stopFlameCarousel(npc);
-        }
-        final IEntityLiving retarget = ensureCombatTarget(npc);
-        if (retarget != null) {
-            clearLostAggroTimer(npc);
-            final ICustomNpc partner = findPartner(npc);
-            if (partner != null) {
-                clearLostAggroTimer(partner);
-            }
-            return;
-        }
-        markLostAggro(npc);
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null && partner.isAlive() && !isDowned(partner)) {
-            markLostAggro(partner);
-        }
-    }
-
-    public static void onDied(final ICustomNpc npc) {
-        if (npc == null || isClient(npc)) {
-            return;
-        }
-        abortHpRitual(npc);
-        AbilityAPI.cancel(npc);
-        tryStopFlameCarouselOnDeath(npc);
-
         final IData data = npc.getStoreddata();
-        final IWorld world = npc.getWorld();
-        if ("1".equals(str(data, PARTNER_DEAD_KEY))) {
-            final ICustomNpc downed = findNpcByUuid(world, str(data, DEAD_UUID_KEY));
-            if (downed != null && isDowned(downed)) {
-                trulyKillDowned(downed);
-            }
+        final long now = now(npc);
+        if (DfBlackSealAbility.ID.equals(abilityId)) {
+            put(data, SEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "sealCd", SEAL_CD)));
+        } else if (DfMaskGazeAbility.ID.equals(abilityId)) {
+            put(data, GAZE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "gazeCd", GAZE_CD)));
+        } else if (DfFalseHostAbility.ID.equals(abilityId)) {
+            final int shift = ScriptDataUtil.getInt(data, CYCLE_SHIFT);
+            put(data, CYCLE_SHIFT, String.valueOf(shift + DrachenfelsConfig.getI(data, "falseShift", FALSE_SHIFT)));
+            put(data, PENDING_FALSE, "0");
+        } else if (DfNamelessStepAbility.ID.equals(abilityId)) {
+            put(data, STEP_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "stepCd", STEP_CD)));
+        } else if (DfNamelessWhisperAbility.ID.equals(abilityId)) {
+            put(data, WHISPER_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "whisperCd", WHISPER_CD)));
+        } else if (DfNameStealAbility.ID.equals(abilityId)) {
+            put(data, STEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "stealCd", STEAL_CD)));
         }
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null && isDowned(partner)) {
-            trulyKillDowned(partner);
-        }
-        clearBondFlags(data);
     }
 
-    /**
-     * Lethal decision for LivingHurt: {@code true} = absorb (cancel + downed or already downed),
-     * {@code false} = allow true death / non-lethal hit.
-     */
-    public static boolean absorbLethal(final ICustomNpc npc, final float damage) {
-        if (npc == null || isClient(npc) || !(damage > 0.0F)) {
-            return false;
-        }
-        if (isDowned(npc)) {
-            pinDownedPosition(npc);
-            try {
-                npc.setHealth(1.0F);
-            } catch (final Exception ignored) {
-            }
-            return true;
-        }
-        final float hp = npc.getHealth();
-        if (hp - damage > 0.5F) {
-            return false;
-        }
-
-        tryLinkPartner(npc);
-        ICustomNpc partner = findPartner(npc);
-        if (partner == null || !partner.isAlive() || isDowned(partner)) {
-            tryLinkPartner(npc);
-            partner = findPartner(npc);
-        }
-
-        final IData data = npc.getStoreddata();
-        if (partner != null && partner.isAlive() && isDowned(partner)) {
-            trulyKillDowned(partner);
-            clearBondFlags(data);
-            return false;
-        }
-        if (partner == null || !partner.isAlive()) {
-            clearBondFlags(data);
-            return false;
-        }
-
-        enterDownedState(npc, partner);
-        return true;
+    public static boolean isBoss(final ICustomNpc npc) {
+        return npc != null && npc.hasTag(BOSS_TAG);
     }
 
-    public static boolean startHpRitual(final ICustomNpc npc) {
-        if (npc == null || !npc.isAlive() || isClient(npc)) {
-            return false;
-        }
-        final IData data = npc.getStoreddata();
-        final long now = npc.getWorld().getTotalTime();
-        if (!canStartHpRitual(npc, data, now)) {
-            return false;
-        }
-        final ICustomNpc partner = findPartner(npc);
-        if (partner == null || !partner.isAlive() || isDowned(partner)) {
-            return false;
-        }
-
-        AbilityAPI.cancel(npc);
-        AbilityAPI.cancel(partner);
-
-        final long until = now + RITUAL_DURATION_TICKS;
-        final long cdUntil = now + RITUAL_COOLDOWN_TICKS;
-        markRitualFlags(npc, until, true);
-        markRitualFlags(partner, until, false);
-        put(data, CD_PREFIX + HP_RITUAL_ID, String.valueOf(cdUntil));
-        put(partner.getStoreddata(), CD_PREFIX + HP_RITUAL_ID, String.valueOf(cdUntil));
-
-        final boolean npcIsBody = "body".equals(getRole(data));
-        final ICustomNpc bodyNpc = npcIsBody ? npc : partner;
-        final ICustomNpc spiritNpc = npcIsBody ? partner : npc;
-        final double rx = ritualX(bodyNpc);
-        final double ry = ritualY(bodyNpc);
-        final double rz = ritualZ(bodyNpc);
-        final double spiritDy = ritualSpiritDy(bodyNpc);
-        try {
-            bodyNpc.setPosition(rx, ry, rz);
-            zeroMotion(bodyNpc);
-        } catch (final Exception ignored) {
-        }
-        try {
-            final double sy = ry + spiritDy;
-            spiritNpc.setPosition(rx, sy, rz);
-            zeroMotion(spiritNpc);
-            put(spiritNpc.getStoreddata(), HOVER_Y_KEY, sy);
-        } catch (final Exception ignored) {
-        }
-        freezeRitualNpc(bodyNpc);
-        freezeRitualNpc(spiritNpc);
-
-        final IWorld world = npc.getWorld();
-        try {
-            final IPos pos = NpcAPI.Instance().getIPos(rx, ry, rz);
-            world.playSoundAt(pos, "minecraft:entity.evoker.prepare_summon", 1.0F, 0.7F);
-            world.spawnParticle("minecraft:soul_fire_flame",
-                    rx, ry + 1.0, rz, 0.35, 0.5, 0.35, 0.04, 24);
-            world.spawnParticle("minecraft:soul",
-                    rx, ry + spiritDy + 0.4, rz,
-                    0.4, 0.35, 0.4, 0.05, 20);
-            try {
-                world.spawnParticle("wfm:fog",
-                        rx, ry + 0.4, rz, 0.35, 0.08, 0.35, 0, 8);
-            } catch (final Exception ignored) {
-            }
-        } catch (final Exception ignored) {
-        }
-        spawnRitualParticleLink(bodyNpc, spiritNpc);
-        return true;
-    }
-
-    public static boolean isDowned(final ICustomNpc npc) {
-        return npc != null && "1".equals(str(npc.getStoreddata(), DOWNED_KEY));
-    }
-
-    public static boolean isRitualActive(final ICustomNpc npc) {
-        return npc != null && "1".equals(str(npc.getStoreddata(), RITUAL_ACTIVE_KEY));
-    }
-
-    public static boolean isBusyForCast(final ICustomNpc npc) {
-        return isDowned(npc) || isRitualActive(npc);
-    }
-
-    public static String getPhase(final ICustomNpc npc) {
+    public static boolean isInvulnerable(final ICustomNpc npc) {
         if (npc == null) {
-            return "1";
-        }
-        final String phase = str(npc.getStoreddata(), PHASE_KEY);
-        if ("2".equals(phase) || "bond".equals(phase)) {
-            return phase;
-        }
-        return "1";
-    }
-
-    public static String getRole(final ICustomNpc npc) {
-        if (npc == null) {
-            return "body";
-        }
-        return getRole(npc.getStoreddata());
-    }
-
-    public static IEntityLiving ensureCombatTarget(final ICustomNpc npc) {
-        if (npc == null || isDowned(npc) || isClient(npc)) {
-            return null;
-        }
-        IEntityLiving cur = null;
-        try {
-            cur = npc.getAttackTarget();
-        } catch (final Exception ignored) {
-        }
-        // Revenge может повесить целью партнёра / призрака / thrall — для кастов только игроки.
-        if (cur != null && cur.isAlive() && isCombatPlayerTarget(cur)) {
-            if (distEntityToHome(npc, cur) > LEASH_RANGE) {
-                setCombatTarget(npc, null);
-            } else {
-                clearLostAggroTimer(npc);
-                return cur;
-            }
-        } else if (cur != null) {
-            setCombatTarget(npc, null);
-        }
-        final IEntityLiving best = findValidPlayer(npc, AGRO_RANGE, LEASH_RANGE);
-        if (best != null) {
-            setCombatTarget(npc, best);
-            clearLostAggroTimer(npc);
-            return best;
-        }
-        markLostAggro(npc);
-        return null;
-    }
-
-    /** setAttackTarget with reentrancy guard so nested targetLost is ignored. */
-    private static void setCombatTarget(final ICustomNpc npc, final IEntityLiving target) {
-        final int depth = COMBAT_TARGET_MUTATION_DEPTH.get().intValue();
-        COMBAT_TARGET_MUTATION_DEPTH.set(Integer.valueOf(depth + 1));
-        try {
-            npc.setAttackTarget(target);
-        } catch (final Exception ignored) {
-        } finally {
-            COMBAT_TARGET_MUTATION_DEPTH.set(Integer.valueOf(depth));
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Bond / downed
-    // -------------------------------------------------------------------------
-
-    private static void enterDownedState(final ICustomNpc npc, final ICustomNpc partner) {
-        abortHpRitual(npc);
-        AbilityAPI.cancel(npc);
-        final IData data = npc.getStoreddata();
-        final double x = npc.getX();
-        final double y = npc.getY();
-        final double z = npc.getZ();
-
-        put(data, DOWNED_KEY, "1");
-        put(data, PARTNER_DEAD_KEY, "0");
-        put(data, REVIVE_UNTIL_KEY, "0");
-        put(data, KITE_UNTIL_KEY, "0");
-        put(data, DOWNED_X_KEY, x);
-        put(data, DOWNED_Y_KEY, y);
-        put(data, DOWNED_Z_KEY, z);
-
-        try {
-            npc.setHealth(1.0F);
-        } catch (final Exception ignored) {
-        }
-        try {
-            npc.setAttackTarget(null);
-        } catch (final Exception ignored) {
-        }
-        try {
-            npc.setPosition(x, y, z);
-        } catch (final Exception ignored) {
-        }
-
-        try {
-            final INPCAi ai = npc.getAi();
-            put(data, SAVED_RETALIATE_KEY, String.valueOf(RETALIATE_NONE));
-            put(data, SAVED_SPEED_KEY, String.valueOf(CASTER_SPEED));
-            ai.setRetaliateType(RETALIATE_NONE);
-            ai.setWalkingSpeed(0);
-            ai.setMovingType(MOVING_STANDING);
-            ai.setNavigationType("spirit".equals(getRole(data)) ? NAV_FLYING : NAV_GROUND);
-        } catch (final Exception ignored) {
-        }
-
-        freezeDownedNpc(npc);
-
-        try {
-            if (isBlank(str(data, SAVED_VISIBLE_KEY))) {
-                put(data, SAVED_VISIBLE_KEY, String.valueOf(npc.getDisplay().getVisible()));
-            }
-            npc.getDisplay().setVisible(VISIBLE_NORMAL);
-        } catch (final Exception ignored) {
-        }
-
-        armPartnerBond(partner, npc);
-
-        try {
-            partner.say("§5§l" + QUOTES_BOND[RANDOM.nextInt(QUOTES_BOND.length)]);
-        } catch (final Exception ignored) {
-        }
-
-        final IWorld world = npc.getWorld();
-        try {
-            world.spawnParticle("minecraft:soul", x, y + 1.0, z, 0.3, 0.5, 0.3, 0.04, 20);
-            world.spawnParticle("minecraft:soul_fire_flame", x, y + 0.6, z, 0.25, 0.4, 0.25, 0.03, 16);
-            try {
-                world.spawnParticle("wfm:fog", x, y + 0.3, z, 0.4, 0.1, 0.4, 0, 6);
-            } catch (final Exception ignored) {
-            }
-            world.playSoundAt(NpcAPI.Instance().getIPos(x, y, z), "minecraft:entity.wither.hurt", 0.8F, 0.6F);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void armPartnerBond(final ICustomNpc partner, final ICustomNpc downedNpc) {
-        if (partner == null || downedNpc == null) {
-            return;
-        }
-        final long now = partner.getWorld().getTotalTime();
-        final IData dd = downedNpc.getStoreddata();
-        final IData pd = partner.getStoreddata();
-        final String role = getRole(dd);
-        put(pd, PARTNER_DEAD_KEY, "1");
-        put(pd, REVIVE_UNTIL_KEY, String.valueOf(now + REVIVE_WINDOW_TICKS));
-        put(pd, DEAD_UUID_KEY, String.valueOf(downedNpc.getUUID()));
-        put(pd, DEAD_X_KEY, str(dd, DOWNED_X_KEY));
-        put(pd, DEAD_Y_KEY, str(dd, DOWNED_Y_KEY));
-        put(pd, DEAD_Z_KEY, str(dd, DOWNED_Z_KEY));
-        put(pd, DEAD_ROLE_KEY, role);
-        put(pd, PHASE_KEY, "bond");
-        put(pd, FORCED_ABILITY_KEY, getBondForcedAbility(getRole(pd)));
-        put(pd, NEXT_CAST_KEY, String.valueOf(now + 10));
-        ensurePairId(downedNpc, partner);
-    }
-
-    /** Bond pressure: только скиллы из плана rework. */
-    private static String getBondForcedAbility(final String role) {
-        return "spirit".equals(role) ? ABILITY_DARK_BLAST : ABILITY_BODY_PULL;
-    }
-
-    private static void pinDownedPosition(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        final IData data = npc.getStoreddata();
-        if (isBlank(str(data, DOWNED_X_KEY))) {
-            return;
-        }
-        final double x = ScriptDataUtil.getFloat(data, DOWNED_X_KEY);
-        final double y = ScriptDataUtil.getFloat(data, DOWNED_Y_KEY);
-        final double z = ScriptDataUtil.getFloat(data, DOWNED_Z_KEY);
-        try {
-            npc.setPosition(x, y, z);
-            zeroMotion(npc);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void freezeDownedNpc(final ICustomNpc npc) {
-        if (npc == null || !isDowned(npc)) {
-            return;
-        }
-        pinDownedPosition(npc);
-        try {
-            npc.setHealth(1.0F);
-        } catch (final Exception ignored) {
-        }
-        try {
-            npc.setAttackTarget(null);
-        } catch (final Exception ignored) {
-        }
-        try {
-            final INPCAi ai = npc.getAi();
-            ai.setRetaliateType(RETALIATE_NONE);
-            ai.setWalkingSpeed(0);
-            ai.setMovingType(MOVING_STANDING);
-            ai.setNavigationType("spirit".equals(getRole(npc.getStoreddata())) ? NAV_FLYING : NAV_GROUND);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void exitDownedState(final ICustomNpc npc, final float hpRatio) {
-        final IData data = npc.getStoreddata();
-        final double x = ScriptDataUtil.getFloat(data, DOWNED_X_KEY);
-        final double y = ScriptDataUtil.getFloat(data, DOWNED_Y_KEY);
-        final double z = ScriptDataUtil.getFloat(data, DOWNED_Z_KEY);
-
-        put(data, DOWNED_KEY, "0");
-        put(data, KITE_UNTIL_KEY, "0");
-        if (!isBlank(str(data, DOWNED_X_KEY))) {
-            try {
-                npc.setPosition(x, y, z);
-            } catch (final Exception ignored) {
-            }
-        }
-        try {
-            final float maxHp = npc.getMaxHealth();
-            if (maxHp > 0.0F) {
-                npc.setHealth(maxHp * hpRatio);
-            }
-        } catch (final Exception ignored) {
-        }
-        try {
-            final int vis = data.has(SAVED_VISIBLE_KEY)
-                    ? ScriptDataUtil.getInt(data, SAVED_VISIBLE_KEY)
-                    : VISIBLE_NORMAL;
-            npc.getDisplay().setVisible(vis);
-        } catch (final Exception ignored) {
-        }
-        put(data, DOWNED_X_KEY, "");
-        put(data, DOWNED_Y_KEY, "");
-        put(data, DOWNED_Z_KEY, "");
-        applyCasterStance(npc);
-    }
-
-    private static void trulyKillDowned(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        final IData data = npc.getStoreddata();
-        clearBondFlags(data);
-        try {
-            final int vis = data.has(SAVED_VISIBLE_KEY)
-                    ? ScriptDataUtil.getInt(data, SAVED_VISIBLE_KEY)
-                    : VISIBLE_NORMAL;
-            npc.getDisplay().setVisible(vis);
-        } catch (final Exception ignored) {
-        }
-        AbilityAPI.cancel(npc);
-        try {
-            npc.setHealth(0.0F);
-        } catch (final Exception ignored) {
-        }
-        try {
-            npc.kill();
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void tickDownedWatchdog(final ICustomNpc npc) {
-        AbilityAPI.cancel(npc);
-        freezeDownedNpc(npc);
-        final String myUuid = String.valueOf(npc.getUUID());
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null && partner.isAlive() && !isDowned(partner)) {
-            final IData pd = partner.getStoreddata();
-            if ("1".equals(str(pd, PARTNER_DEAD_KEY)) && myUuid.equals(str(pd, DEAD_UUID_KEY))) {
-                return;
-            }
-            armPartnerBond(partner, npc);
-            return;
-        }
-        if (partner == null || !partner.isAlive()) {
-            trulyKillDowned(npc);
-        }
-    }
-
-    private static void tryCompleteRevive(final ICustomNpc npc) {
-        final IData data = npc.getStoreddata();
-        if (!"1".equals(str(data, PARTNER_DEAD_KEY))) {
-            return;
-        }
-        if (!npc.isAlive() || isDowned(npc)) {
-            return;
-        }
-        final IWorld world = npc.getWorld();
-        final long now = world.getTotalTime();
-        final int until = ScriptDataUtil.getInt(data, REVIVE_UNTIL_KEY);
-        if (until <= 0 || now < until) {
-            return;
-        }
-
-        final String deadUuid = str(data, DEAD_UUID_KEY);
-        final ICustomNpc downed = findNpcByUuid(world, deadUuid);
-        if (downed == null || !downed.isAlive() || !isDowned(downed)) {
-            put(data, PARTNER_DEAD_KEY, "0");
-            put(data, REVIVE_UNTIL_KEY, "0");
-            put(data, DEAD_UUID_KEY, "");
-            return;
-        }
-        if (!deadUuid.equals(String.valueOf(downed.getUUID()))) {
-            return;
-        }
-
-        exitDownedState(downed, REVIVE_HP_RATIO);
-        linkPair(npc, downed);
-
-        final IData sd = downed.getStoreddata();
-        put(sd, PHASE_KEY, hpPhase(downed));
-        put(sd, PARTNER_DEAD_KEY, "0");
-        put(sd, REVIVE_UNTIL_KEY, "0");
-        put(sd, DEAD_UUID_KEY, "");
-        put(sd, FORCED_ABILITY_KEY, "");
-
-        put(data, PARTNER_DEAD_KEY, "0");
-        put(data, REVIVE_UNTIL_KEY, "0");
-        put(data, DEAD_UUID_KEY, "");
-        put(data, PHASE_KEY, hpPhase(npc));
-
-        try {
-            final IEntityLiving target = npc.getAttackTarget();
-            if (target != null && target.isAlive()) {
-                downed.setAttackTarget(target);
-            }
-        } catch (final Exception ignored) {
-        }
-
-        try {
-            npc.say("§5§l" + QUOTES_REVIVE[RANDOM.nextInt(QUOTES_REVIVE.length)]);
-        } catch (final Exception ignored) {
-        }
-
-        final double x = downed.getX();
-        final double y = downed.getY();
-        final double z = downed.getZ();
-        try {
-            world.spawnParticle("minecraft:soul_fire_flame", x, y + 1.0, z, 0.3, 0.6, 0.3, 0.05, 24);
-            world.spawnParticle("minecraft:soul", x, y + 0.8, z, 0.35, 0.4, 0.35, 0.04, 16);
-            try {
-                world.spawnParticle("wfm:fog", x, y + 0.4, z, 0.5, 0.15, 0.5, 0, 8);
-                world.spawnParticle("wfm:fog_wall", x, y + 0.2, z, 0.3, 0.08, 0.3, 0, 3);
-            } catch (final Exception ignored) {
-            }
-            world.playSoundAt(NpcAPI.Instance().getIPos(x, y, z), "minecraft:entity.wither.spawn", 0.7F, 1.3F);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void updateBondAndPhase(final ICustomNpc npc) {
-        final IData data = npc.getStoreddata();
-        if (isDowned(npc)) {
-            return;
-        }
-        final boolean partnerDead = "1".equals(str(data, PARTNER_DEAD_KEY));
-        if (partnerDead) {
-            final int until = ScriptDataUtil.getInt(data, REVIVE_UNTIL_KEY);
-            final long now = npc.getWorld().getTotalTime();
-            if (until > 0 && now < until) {
-                if (!"bond".equals(str(data, PHASE_KEY))) {
-                    put(data, PHASE_KEY, "bond");
-                }
-                return;
-            }
-        }
-        final float maxHealth = npc.getMaxHealth();
-        if (maxHealth <= 0.0F) {
-            return;
-        }
-        final String newPhase = (npc.getHealth() / maxHealth) <= 0.5F ? "2" : "1";
-        final String oldPhase = str(data, PHASE_KEY);
-        if ("bond".equals(oldPhase) && partnerDead) {
-            return;
-        }
-        if (newPhase.equals(oldPhase)) {
-            return;
-        }
-        put(data, PHASE_KEY, newPhase);
-        if ("2".equals(newPhase)) {
-            final String role = getRole(data);
-            put(data, FORCED_ABILITY_KEY,
-                    "spirit".equals(role) ? ABILITY_DARK_BLAST : ABILITY_BODY_PULL);
-            try {
-                npc.say("spirit".equals(role)
-                        ? "§5§lБезымянный гнев пробудился!"
-                        : "§4§lВеликий Чародей раскрывает силу!");
-            } catch (final Exception ignored) {
-            }
-        }
-    }
-
-    private static void tickBondVfx(final ICustomNpc npc) {
-        final IData data = npc.getStoreddata();
-        if (!"1".equals(str(data, PARTNER_DEAD_KEY))) {
-            return;
-        }
-        final long now = npc.getWorld().getTotalTime();
-        if (now % 10 != 0) {
-            return;
-        }
-        final ICustomNpc downed = findNpcByUuid(npc.getWorld(), str(data, DEAD_UUID_KEY));
-        final double dx = downed != null ? downed.getX() : ScriptDataUtil.getFloat(data, DEAD_X_KEY);
-        final double dy = downed != null ? downed.getY() : ScriptDataUtil.getFloat(data, DEAD_Y_KEY);
-        final double dz = downed != null ? downed.getZ() : ScriptDataUtil.getFloat(data, DEAD_Z_KEY);
-        final IWorld world = npc.getWorld();
-        try {
-            final int steps = 8;
-            for (int i = 0; i <= steps; i++) {
-                final double t = i / (double) steps;
-                final double x = npc.getX() + (dx - npc.getX()) * t;
-                final double y = npc.getY() + 1.0 + (dy + 0.5 - npc.getY() - 1.0) * t;
-                final double z = npc.getZ() + (dz - npc.getZ()) * t;
-                world.spawnParticle("minecraft:soul_fire_flame", x, y, z, 0, 0.02, 0, 0, 1);
-                if (i % 2 == 0) {
-                    world.spawnParticle("minecraft:soul", x, y + 0.1, z, 0, 0.02, 0, 0.01, 1);
-                }
-            }
-            world.spawnParticle("minecraft:soul", dx, dy + 0.8, dz, 0.1, 0.06, 0.1, 0.02, 5);
-            world.spawnParticle("minecraft:soul_fire_flame", dx, dy + 0.5, dz, 0.15, 0.08, 0.15, 0.02, 4);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void clearBondFlags(final IData data) {
-        if (data == null) {
-            return;
-        }
-        put(data, DOWNED_KEY, "0");
-        put(data, PARTNER_DEAD_KEY, "0");
-        put(data, REVIVE_UNTIL_KEY, "0");
-        put(data, DEAD_UUID_KEY, "");
-        put(data, KITE_UNTIL_KEY, "0");
-        put(data, DOWNED_X_KEY, "");
-        put(data, DOWNED_Y_KEY, "");
-        put(data, DOWNED_Z_KEY, "");
-        put(data, FORCED_ABILITY_KEY, "");
-        put(data, LOST_AGGRO_SINCE_KEY, "0");
-    }
-
-    // -------------------------------------------------------------------------
-    // Pair link
-    // -------------------------------------------------------------------------
-
-    private static void ensureRole(final ICustomNpc npc, final IData data, final String roleArg) {
-        final String configured = normalizeRole(roleArg);
-        if (!configured.isEmpty()) {
-            put(data, ROLE_KEY, configured);
-            return;
-        }
-        final String existing = str(data, ROLE_KEY);
-        if ("body".equals(existing) || "spirit".equals(existing)) {
-            return;
-        }
-        String name = "";
-        try {
-            name = String.valueOf(npc.getName()).toLowerCase(Locale.ROOT);
-        } catch (final Exception ignored) {
-        }
-        if (name.contains("spirit") || name.contains("дух") || name.contains("nameless")) {
-            put(data, ROLE_KEY, "spirit");
-        } else {
-            put(data, ROLE_KEY, "body");
-        }
-    }
-
-    private static String normalizeRole(final String role) {
-        if (role == null) {
-            return "";
-        }
-        final String r = role.trim().toLowerCase(Locale.ROOT);
-        if ("spirit".equals(r) || "дух".equals(r)) {
-            return "spirit";
-        }
-        if ("body".equals(r) || "тело".equals(r)) {
-            return "body";
-        }
-        return "";
-    }
-
-    private static String getRole(final IData data) {
-        return "spirit".equals(str(data, ROLE_KEY)) ? "spirit" : "body";
-    }
-
-    private static ICustomNpc findPartner(final ICustomNpc npc) {
-        final String uuid = str(npc.getStoreddata(), PARTNER_UUID_KEY);
-        if (uuid.isEmpty()) {
-            return null;
-        }
-        return findNpcByUuid(npc.getWorld(), uuid);
-    }
-
-    private static void tryLinkPartner(final ICustomNpc npc) {
-        final IData data = npc.getStoreddata();
-        if (isDowned(npc)) {
-            return;
-        }
-        final String partnerUuid = str(data, PARTNER_UUID_KEY);
-        if (!partnerUuid.isEmpty()) {
-            final ICustomNpc existing = findNpcByUuid(npc.getWorld(), partnerUuid);
-            if (existing != null && existing.isAlive()) {
-                put(data, LINKED_KEY, "1");
-                ensurePairId(npc, existing);
-                return;
-            }
-        }
-
-        final IWorld world = npc.getWorld();
-        final IPos pos = NpcAPI.Instance().getIPos(npc.getX(), npc.getY(), npc.getZ());
-        final IEntity[] nearby = world.getNearbyEntities(pos, (int) LINK_RADIUS, ENTITY_LIVING);
-        ICustomNpc best = null;
-        double bestDist = LINK_RADIUS + 1.0;
-        final String myUuid = String.valueOf(npc.getUUID());
-        final String myRole = getRole(data);
-
-        for (final IEntity otherEnt : nearby) {
-            if (!(otherEnt instanceof ICustomNpc)) {
-                continue;
-            }
-            final ICustomNpc other = (ICustomNpc) otherEnt;
-            if (!other.isAlive() || myUuid.equals(String.valueOf(other.getUUID()))) {
-                continue;
-            }
-            if (!other.hasTag(PAIR_TAG) || isDowned(other)) {
-                continue;
-            }
-            final IData od = other.getStoreddata();
-            ensureRole(other, od, null);
-            if (getRole(od).equals(myRole)) {
-                continue;
-            }
-            final double d = flatDistance(npc, other);
-            if (d < bestDist) {
-                bestDist = d;
-                best = other;
-            }
-        }
-        if (best == null) {
-            put(data, LINKED_KEY, "0");
-            return;
-        }
-        linkPair(npc, best);
-    }
-
-    private static void linkPair(final ICustomNpc a, final ICustomNpc b) {
-        final IData da = a.getStoreddata();
-        final IData db = b.getStoreddata();
-        put(da, PARTNER_UUID_KEY, String.valueOf(b.getUUID()));
-        put(db, PARTNER_UUID_KEY, String.valueOf(a.getUUID()));
-        put(da, LINKED_KEY, "1");
-        put(db, LINKED_KEY, "1");
-        ensurePairId(a, b);
-    }
-
-    private static void ensurePairId(final ICustomNpc a, final ICustomNpc b) {
-        final IData da = a.getStoreddata();
-        final IData db = b.getStoreddata();
-        String existing = str(da, PAIR_ID_KEY);
-        if (!existing.isEmpty()) {
-            put(db, PAIR_ID_KEY, existing);
-            syncArenaConfig(a, b);
-            AbilityCombatHelper.migrateDrachenfelsBoardKeys(a, b);
-            return;
-        }
-        existing = str(db, PAIR_ID_KEY);
-        if (!existing.isEmpty()) {
-            put(da, PAIR_ID_KEY, existing);
-            syncArenaConfig(a, b);
-            AbilityCombatHelper.migrateDrachenfelsBoardKeys(a, b);
-            return;
-        }
-        final String ua = String.valueOf(a.getUUID());
-        final String ub = String.valueOf(b.getUUID());
-        final String pairId = ua.compareTo(ub) < 0 ? ua + "_" + ub : ub + "_" + ua;
-        put(da, PAIR_ID_KEY, pairId);
-        put(db, PAIR_ID_KEY, pairId);
-        syncArenaConfig(a, b);
-        AbilityCombatHelper.migrateDrachenfelsBoardKeys(a, b);
-    }
-
-    private static void syncArenaConfig(final ICustomNpc a, final ICustomNpc b) {
-        if (a == null || b == null) {
-            return;
-        }
-        final IData da = a.getStoreddata();
-        final IData db = b.getStoreddata();
-        if (hasArenaConfig(da)) {
-            copyArenaConfig(da, db);
-        } else if (hasArenaConfig(db)) {
-            copyArenaConfig(db, da);
-        }
-    }
-
-    private static boolean hasArenaConfig(final IData data) {
-        return data != null && !isBlank(str(data, CFG_RITUAL_X)) && !isBlank(str(data, CFG_FLAMES));
-    }
-
-    private static void copyArenaConfig(final IData from, final IData to) {
-        if (from == null || to == null) {
-            return;
-        }
-        put(to, CFG_RITUAL_X, str(from, CFG_RITUAL_X));
-        put(to, CFG_RITUAL_Y, str(from, CFG_RITUAL_Y));
-        put(to, CFG_RITUAL_Z, str(from, CFG_RITUAL_Z));
-        put(to, CFG_RITUAL_SPIRIT_DY, str(from, CFG_RITUAL_SPIRIT_DY));
-        put(to, CFG_FLAMES, str(from, CFG_FLAMES));
-    }
-
-    private static String fmtPoint(final double x, final double y, final double z) {
-        return x + "," + y + "," + z;
-    }
-
-    private static boolean hasFlameConfig(final ICustomNpc npc) {
-        return npc != null && !isBlank(str(npc.getStoreddata(), CFG_FLAMES));
-    }
-
-    private static double ritualX(final ICustomNpc npc) {
-        return arenaCoord(npc, CFG_RITUAL_X, HOME_X_KEY, npc.getX());
-    }
-
-    private static double ritualY(final ICustomNpc npc) {
-        return arenaCoord(npc, CFG_RITUAL_Y, HOME_Y_KEY, npc.getY());
-    }
-
-    private static double ritualZ(final ICustomNpc npc) {
-        return arenaCoord(npc, CFG_RITUAL_Z, HOME_Z_KEY, npc.getZ());
-    }
-
-    private static double ritualSpiritDy(final ICustomNpc npc) {
-        if (npc == null) {
-            return DEFAULT_RITUAL_SPIRIT_OFFSET_Y;
-        }
-        final IData data = npc.getStoreddata();
-        if (!isBlank(str(data, CFG_RITUAL_SPIRIT_DY))) {
-            return ScriptDataUtil.getFloat(data, CFG_RITUAL_SPIRIT_DY);
-        }
-        return DEFAULT_RITUAL_SPIRIT_OFFSET_Y;
-    }
-
-    private static double arenaCoord(
-            final ICustomNpc npc,
-            final String cfgKey,
-            final String homeKey,
-            final double liveFallback) {
-        if (npc == null) {
-            return liveFallback;
-        }
-        final IData data = npc.getStoreddata();
-        if (!isBlank(str(data, cfgKey))) {
-            return ScriptDataUtil.getFloat(data, cfgKey);
-        }
-        if (!isBlank(str(data, homeKey))) {
-            return ScriptDataUtil.getFloat(data, homeKey);
-        }
-        return liveFallback;
-    }
-
-    /** @return {@code [x,y,z]} or {@code null} if slot missing / unconfigured */
-    private static double[] flamePoint(final ICustomNpc npc, final int index) {
-        if (npc == null || index < 0 || index >= FLAME_ZONE_COUNT) {
-            return null;
-        }
-        final List<String> points = parseList(str(npc.getStoreddata(), CFG_FLAMES));
-        if (index >= points.size()) {
-            return null;
-        }
-        final String raw = points.get(index);
-        if (raw == null) {
-            return null;
-        }
-        final String[] parts = raw.split(",");
-        if (parts.length < 3) {
-            return null;
-        }
-        try {
-            return new double[]{
-                    Double.parseDouble(parts[0].trim()),
-                    Double.parseDouble(parts[1].trim()),
-                    Double.parseDouble(parts[2].trim())
-            };
-        } catch (final Exception e) {
-            return null;
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Spacing / hover / home
-    // -------------------------------------------------------------------------
-
-    private static void manageSpacing(final ICustomNpc npc) {
-        if (npc == null || !npc.isAlive() || isDowned(npc) || isRitualActive(npc)) {
-            return;
-        }
-        if (AbilityAPI.isBusy(npc)) {
-            // freezeAiForCast уже держит NONE/speed0 — не перетирать.
-            return;
-        }
-        final IData data = npc.getStoreddata();
-        final long now = npc.getWorld().getTotalTime();
-        IEntityLiving target = null;
-        try {
-            target = npc.getAttackTarget();
-        } catch (final Exception ignored) {
-        }
-        if (target == null || !target.isAlive()) {
-            applyCasterStance(npc);
-            put(data, KITE_UNTIL_KEY, "0");
-            return;
-        }
-        final String role = getRole(data);
-        final double dist = flatDistance(npc, target);
-        final double minR = "spirit".equals(role) ? SPIRIT_MIN_RANGE : BODY_MIN_RANGE;
-        final double maxR = "spirit".equals(role) ? SPIRIT_MAX_RANGE : BODY_MAX_RANGE;
-
-        if (dist < minR) {
-            put(data, KITE_UNTIL_KEY, String.valueOf(now + KITE_TICKS));
-            applyKiteStance(npc);
-            return;
-        }
-        if (now < ScriptDataUtil.getInt(data, KITE_UNTIL_KEY)) {
-            applyKiteStance(npc);
-            return;
-        }
-        final String forced = str(data, FORCED_ABILITY_KEY);
-        if (forced.isEmpty() && dist > maxR) {
-            // Дальний gap: Душа — dark blast / parasite; Тело — pull (без старых seeker/step)
-            if ("spirit".equals(role)) {
-                if (isCooldownReady(data, now, ABILITY_DARK_BLAST)) {
-                    put(data, FORCED_ABILITY_KEY, ABILITY_DARK_BLAST);
-                } else if (isCooldownReady(data, now, ABILITY_GHOST_PARASITE)) {
-                    put(data, FORCED_ABILITY_KEY, ABILITY_GHOST_PARASITE);
-                }
-            } else if (isCooldownReady(data, now, ABILITY_BODY_PULL)) {
-                put(data, FORCED_ABILITY_KEY, ABILITY_BODY_PULL);
-            }
-        }
-        // В бою оба постоянно отступают (не стоят на месте между кастами).
-        applyCasterStance(npc);
-    }
-
-    /**
-     * Both body and spirit: Flying + soft bob around spawn height ({@code HOME_Y}).
-     * Spirit stays {@link #ritualSpiritDy} above body home Y. Does not track ground.
-     */
-    private static void tickHover(final ICustomNpc npc) {
-        final IData data = npc.getStoreddata();
-        if (isDowned(npc) || isRitualActive(npc)) {
-            return;
-        }
-        try {
-            npc.getAi().setNavigationType(NAV_FLYING);
-        } catch (final Exception ignored) {
-        }
-        if (AbilityAPI.isBusy(npc)) {
-            return;
-        }
-        try {
-            final double x = npc.getX();
-            final double z = npc.getZ();
-            final double y = npc.getY();
-            double hoverY;
-            if (hasHome(data)) {
-                hoverY = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
-            } else if (!isBlank(str(data, HOVER_Y_KEY))) {
-                hoverY = ScriptDataUtil.getFloat(data, HOVER_Y_KEY);
-            } else {
-                hoverY = y;
-            }
-            if ("spirit".equals(getRole(data))) {
-                hoverY += ritualSpiritDy(npc);
-            }
-            put(data, HOVER_Y_KEY, hoverY);
-
-            final long t = npc.getWorld().getTotalTime();
-            final double targetY = hoverY + Math.sin(t * 0.07) * HOVER_AMP;
-            final double dy = targetY - y;
-            if (y > hoverY + HOVER_MAX_DRIFT) {
-                npc.setPosition(x, hoverY + HOVER_AMP, z);
-                npc.setMotionY(-0.1);
-                return;
-            }
-            if (y < hoverY - HOVER_MAX_DRIFT) {
-                npc.setPosition(x, hoverY - HOVER_AMP, z);
-                npc.setMotionY(0.05);
-                return;
-            }
-            double corr = dy * 0.15;
-            if (corr > 0.06) {
-                corr = 0.06;
-            }
-            if (corr < -0.06) {
-                corr = -0.06;
-            }
-            npc.setMotionY(corr);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void tryReturnHomeIfIdle(final ICustomNpc npc) {
-        if (npc == null || !npc.isAlive() || isDowned(npc) || isInBondPhase(npc)) {
-            return;
-        }
-        if (isRitualActive(npc) || AbilityAPI.isBusy(npc)) {
-            return;
-        }
-        if (hasCombatTarget(npc)) {
-            clearLostAggroTimer(npc);
-            return;
-        }
-        if (findPlayerInLeash(npc) != null) {
-            ensureCombatTarget(npc);
-            return;
-        }
-        markLostAggro(npc);
-        if (!hasLostAggroLongEnough(npc)) {
-            return;
-        }
-        if (distToHomeFlat(npc) <= HOME_ARRIVE_DIST) {
-            // Не сбрасывать таймер, пока дырки не закрыты — иначе restore не догоняет.
-            restoreArenaFloor(npc);
-            clearLostAggroTimer(npc);
-            tickHover(npc);
-            return;
-        }
-        returnToHome(npc);
-    }
-
-    private static void returnToHome(final ICustomNpc npc) {
-        if (npc == null || !npc.isAlive() || isDowned(npc) || isInBondPhase(npc)) {
-            return;
-        }
-        if (isInActiveCombat(npc) || findPlayerInLeash(npc) != null) {
-            return;
-        }
-        final IData data = npc.getStoreddata();
-        if (!hasHome(data)) {
-            return;
-        }
-        final double x = ScriptDataUtil.getFloat(data, HOME_X_KEY);
-        double y = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
-        final double z = ScriptDataUtil.getFloat(data, HOME_Z_KEY);
-        if ("spirit".equals(getRole(data))) {
-            y += ritualSpiritDy(npc);
-        }
-        put(data, HOVER_Y_KEY, y);
-        AbilityAPI.cancel(npc);
-        put(data, KITE_UNTIL_KEY, "0");
-        put(data, FORCED_ABILITY_KEY, "");
-        put(data, NEXT_CAST_KEY, "0");
-        // Полный disengage за leash — закрыть дыры на полу арены.
-        restoreArenaFloor(npc);
-        stopFlameCarousel(npc);
-        put(data, LOST_AGGRO_SINCE_KEY, "0");
-        try {
-            npc.setAttackTarget(null);
-        } catch (final Exception ignored) {
-        }
-        try {
-            npc.setPosition(x, y, z);
-            zeroMotion(npc);
-        } catch (final Exception ignored) {
-        }
-        applyCasterStance(npc);
-        try {
-            final IWorld world = npc.getWorld();
-            world.spawnParticle("minecraft:soul_fire_flame", x, y + 0.5, z, 0.2, 0.3, 0.2, 0.02, 8);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void applyCasterStance(final ICustomNpc npc) {
-        if (npc == null || isDowned(npc)) {
-            return;
-        }
-        try {
-            final INPCAi ai = npc.getAi();
-            final String role = getRole(npc.getStoreddata());
-            // Отступать: оба босса двигаются в бою, не стоят на месте.
-            ai.setRetaliateType(RETALIATE_RETREAT);
-            ai.setMovingType(MOVING_STANDING);
-            ai.setWalkingSpeed("spirit".equals(role) ? KITE_SPEED_SPIRIT : KITE_SPEED_BODY);
-            ai.setNavigationType(NAV_FLYING);
-            try {
-                ai.setLeapAtTarget(false);
-            } catch (final Exception ignored) {
-            }
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void applyKiteStance(final ICustomNpc npc) {
-        // Ближний kite = та же стойка отступления (чуть дольше держим через KITE_UNTIL).
-        applyCasterStance(npc);
-    }
-
-    // -------------------------------------------------------------------------
-    // HP ritual tick
-    // -------------------------------------------------------------------------
-
-    private static boolean canStartHpRitual(final ICustomNpc npc, final IData data, final long now) {
-        if (npc == null || data == null) {
             return false;
         }
-        if (!"spirit".equals(getRole(data))) {
-            return false;
-        }
-        if (isDowned(npc) || isRitualActive(npc) || "1".equals(str(data, PARTNER_DEAD_KEY))) {
-            return false;
-        }
-        if (!isCooldownReady(data, now, HP_RITUAL_ID)) {
-            return false;
-        }
-        final ICustomNpc partner = findPartner(npc);
-        if (partner == null || !partner.isAlive() || isDowned(partner) || isRitualActive(partner)) {
-            return false;
-        }
-        if (AbilityAPI.isBusy(partner) && RANDOM.nextFloat() < 0.35F) {
-            return false;
-        }
-        return Math.abs(hpRatio(npc) - hpRatio(partner)) >= RITUAL_MIN_HP_GAP;
-    }
-
-    private static void tickHpRitual(final ICustomNpc npc) {
-        if (npc == null || !npc.isAlive()) {
-            abortHpRitual(npc);
-            return;
-        }
         final IData data = npc.getStoreddata();
-        if (!isRitualActive(npc)) {
-            return;
-        }
-        final long now = npc.getWorld().getTotalTime();
-        final int until = ScriptDataUtil.getInt(data, RITUAL_UNTIL_KEY);
-        final ICustomNpc partner = findPartner(npc);
-        if (partner == null || !partner.isAlive() || isDowned(partner) || isDowned(npc)) {
-            abortHpRitual(npc);
-            return;
-        }
-        if (!isRitualActive(partner)) {
-            markRitualFlags(partner, until, false);
-        }
-        AbilityAPI.cancel(npc);
-        freezeRitualNpc(npc);
-        if (now >= until) {
-            endHpRitual(npc);
-            return;
-        }
-        if (!"1".equals(str(data, RITUAL_LEADER_KEY))) {
-            return;
-        }
-        if (now % 2 == 0) {
-            spawnRitualParticleLink(npc, partner);
-        }
-        if (now % RITUAL_TRANSFER_INTERVAL == 0) {
-            AbilityCombatHelper.transferDrachenfelsRitualHp(npc, partner);
-        }
+        return now(npc) < ScriptDataUtil.getInt(data, INVULN_UNTIL)
+                || ScriptDataUtil.isFlag(data, TRANSITION);
     }
 
-    private static void endHpRitual(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        final ICustomNpc partner = findPartner(npc);
-        clearRitualFlags(npc);
-        applyCasterStance(npc);
-        if (partner != null) {
-            clearRitualFlags(partner);
-            applyCasterStance(partner);
-            try {
-                final IWorld world = npc.getWorld();
-                final double mx = (npc.getX() + partner.getX()) * 0.5;
-                final double my = (npc.getY() + partner.getY()) * 0.5;
-                final double mz = (npc.getZ() + partner.getZ()) * 0.5;
-                world.spawnParticle("minecraft:soul", mx, my, mz, 0.4, 0.5, 0.4, 0.06, 18);
-                world.playSoundAt(NpcAPI.Instance().getIPos(mx, my, mz),
-                        "minecraft:entity.illusioner.cast_spell", 0.9F, 1.1F);
-            } catch (final Exception ignored) {
-            }
-        }
-        final long now = npc.getWorld().getTotalTime();
-        put(npc.getStoreddata(), NEXT_CAST_KEY, String.valueOf(now + 30));
-        if (partner != null) {
-            put(partner.getStoreddata(), NEXT_CAST_KEY, String.valueOf(now + 30));
-        }
+    public static float getAbsorb(final ICustomNpc npc) {
+        return ScriptDataUtil.getFloat(npc.getStoreddata(), ABSORB_KEY);
     }
 
-    private static void abortHpRitual(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        ICustomNpc partner = null;
-        try {
-            partner = findPartner(npc);
-        } catch (final Exception ignored) {
-        }
-        if (!isRitualActive(npc) && (partner == null || !isRitualActive(partner))) {
-            return;
-        }
-        clearRitualFlags(npc);
-        if (npc.isAlive() && !isDowned(npc)) {
-            applyCasterStance(npc);
-        }
-        if (partner != null) {
-            clearRitualFlags(partner);
-            if (partner.isAlive() && !isDowned(partner)) {
-                applyCasterStance(partner);
-            }
-        }
+    public static void setAbsorb(final ICustomNpc npc, final float value) {
+        put(npc.getStoreddata(), ABSORB_KEY, String.valueOf(Math.max(0.0F, value)));
     }
 
-    private static void markRitualFlags(final ICustomNpc npc, final long until, final boolean leader) {
+    public static boolean hasLivingVessels(final ICustomNpc npc) {
+        return countTaggedNear(npc, TAG_VESSEL) > 0;
+    }
+
+    public static float phaseHpCap(final ICustomNpc npc) {
         final IData data = npc.getStoreddata();
-        put(data, RITUAL_ACTIVE_KEY, "1");
-        put(data, RITUAL_UNTIL_KEY, String.valueOf(until));
-        put(data, RITUAL_LEADER_KEY, leader ? "1" : "0");
-        put(data, KITE_UNTIL_KEY, "0");
-        put(data, FORCED_ABILITY_KEY, "");
+        final int phase = ScriptDataUtil.getInt(data, PHASE_KEY);
+        final float max = (float) npc.getMaxHealth();
+        if (phase == 2) {
+            return max * (float) DrachenfelsConfig.getD(data, "phase2Ratio", PHASE2_RATIO);
+        }
+        if (phase >= 3) {
+            return max * (float) DrachenfelsConfig.getD(data, "phase3Ratio", PHASE3_RATIO);
+        }
+        return 0.0F;
     }
 
-    private static void clearRitualFlags(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
+    public static double getArenaRadius(final ICustomNpc npc) {
+        return DrachenfelsConfig.getD(npc, "arenaRadius", ARENA_RADIUS);
+    }
+
+    public static double[] getArenaCenter(final ICustomNpc npc) {
         final IData data = npc.getStoreddata();
-        put(data, RITUAL_ACTIVE_KEY, "0");
-        put(data, RITUAL_UNTIL_KEY, "0");
-        put(data, RITUAL_LEADER_KEY, "0");
-    }
-
-    private static void freezeRitualNpc(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        pinRitualPosition(npc);
-        try {
-            npc.setAttackTarget(null);
-        } catch (final Exception ignored) {
-        }
-        try {
-            final INPCAi ai = npc.getAi();
-            ai.setRetaliateType(RETALIATE_NONE);
-            ai.setWalkingSpeed(0);
-            ai.setMovingType(MOVING_STANDING);
-            ai.setNavigationType(NAV_FLYING);
-            try {
-                ai.setLeapAtTarget(false);
-            } catch (final Exception ignored) {
-            }
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void pinRitualPosition(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        final boolean spirit = "spirit".equals(getRole(npc.getStoreddata()));
-        final double y = spirit ? ritualY(npc) + ritualSpiritDy(npc) : ritualY(npc);
-        try {
-            npc.setPosition(ritualX(npc), y, ritualZ(npc));
-            zeroMotion(npc);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void spawnRitualParticleLink(final ICustomNpc a, final ICustomNpc b) {
-        if (a == null || b == null) {
-            return;
-        }
-        final IWorld world = a.getWorld();
-        try {
-            final double ax = a.getX();
-            final double ay = a.getY() + 1.0;
-            final double az = a.getZ();
-            final double bx = b.getX();
-            final double by = b.getY() + 0.6;
-            final double bz = b.getZ();
-            final int steps = 10;
-            for (int i = 0; i <= steps; i++) {
-                final double t = i / (double) steps;
-                final double x = ax + (bx - ax) * t;
-                final double y = ay + (by - ay) * t;
-                final double z = az + (bz - az) * t;
-                world.spawnParticle("minecraft:soul_fire_flame", x, y, z, 0, 0.02, 0, 0, 1);
-                if (i % 2 == 0) {
-                    world.spawnParticle("minecraft:enchant", x, y, z, 0, 0.02, 0, 0.01, 1);
-                }
-            }
-        } catch (final Exception ignored) {
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Flame carousel
-    // -------------------------------------------------------------------------
-
-    private static void tickFlameCarousel(final ICustomNpc npc) {
-        if (npc == null || !npc.isAlive() || isDowned(npc) || !isFlameCarouselLeader(npc)) {
-            return;
-        }
-        if (!isFlameCarouselWanted(npc)) {
-            return;
-        }
-        ensureFlameConfigFromPartner(npc);
-        if (!isFlameCarouselActive(npc)) {
-            startFlameCarousel(npc);
-            return;
-        }
-        if (refreshFlameZonesLifetime(npc) == 0) {
-            startFlameCarousel(npc);
-            return;
-        }
-        // Каждый тик: плавно едем по замкнутому маршруту 0→1→2→3→0.
-        advanceFlameCarousel(npc);
-    }
-
-    private static boolean startFlameCarousel(final ICustomNpc npc) {
-        if (npc == null || !isFlameCarouselLeader(npc)) {
-            return false;
-        }
-        ensureFlameConfigFromPartner(npc);
-        if (!hasFlameConfig(npc)) {
-            return false;
-        }
-        stopFlameCarouselEntities(npc);
-        final List<String> uuids = new ArrayList<>();
-        final List<String> slots = new ArrayList<>();
-        final IWorld world = npc.getWorld();
-        final long now = world.getTotalTime();
-        flameTempPut(npc, FLAME_EPOCH, String.valueOf(now));
-        for (int i = 0; i < FLAME_ZONE_COUNT; i++) {
-            final double[] point = sampleFlamePath(npc, i);
-            if (point == null) {
-                continue;
-            }
-            final EntityAbilityZone zone = spawnFlameZoneAt(npc, point);
-            if (zone == null) {
-                continue;
-            }
-            try {
-                uuids.add(zone.getUUID().toString());
-                slots.add(String.valueOf(i));
-                spawnFlameVfx(world, point, true);
-            } catch (final Exception e) {
-                ZoneAPI.remove(zone);
-            }
-        }
-        if (uuids.isEmpty()) {
-            return false;
-        }
-        flameTempPut(npc, FLAME_ACTIVE, "1");
-        flameTempPut(npc, FLAME_UUIDS, joinList(uuids));
-        flameTempPut(npc, FLAME_SLOTS, joinList(slots));
-        return true;
-    }
-
-    private static int refreshFlameZonesLifetime(final ICustomNpc npc) {
-        final List<String> uuids = parseList(flameTempGet(npc, FLAME_UUIDS));
-        final List<String> slotsRaw = parseList(flameTempGet(npc, FLAME_SLOTS));
-        final IWorld world = npc.getWorld();
-        final List<String> alive = new ArrayList<>();
-        final List<String> slots = new ArrayList<>();
-        final Set<Integer> usedSlots = new HashSet<>();
-        final double segments = flamePathSegments(npc);
-
-        for (int i = 0; i < uuids.size(); i++) {
-            final EntityAbilityZone zone = resolveFlameZone(world, uuids.get(i));
-            if (zone == null || zone.removed) {
-                continue;
-            }
-            try {
-                zone.setLifetimeTicks(FLAME_LIFETIME);
-            } catch (final Exception ignored) {
-            }
-            int slot = i;
-            try {
-                if (i < slotsRaw.size()) {
-                    slot = Integer.parseInt(slotsRaw.get(i));
-                }
-            } catch (final Exception ignored) {
-            }
-            slot = Math.floorMod(slot, FLAME_ZONE_COUNT);
-            if (!usedSlots.add(slot)) {
-                continue;
-            }
-            alive.add(uuids.get(i));
-            slots.add(String.valueOf(slot));
-        }
-
-        for (int s = 0; s < FLAME_ZONE_COUNT; s++) {
-            if (usedSlots.contains(s)) {
-                continue;
-            }
-            final double[] point = sampleFlamePath(npc, segments + s);
-            final EntityAbilityZone spawned = spawnFlameZoneAt(npc, point);
-            if (spawned == null) {
-                continue;
-            }
-            try {
-                alive.add(spawned.getUUID().toString());
-                slots.add(String.valueOf(s));
-                usedSlots.add(s);
-                spawnFlameVfx(world, point, false);
-            } catch (final Exception e) {
-                ZoneAPI.remove(spawned);
-            }
-        }
-        flameTempPut(npc, FLAME_UUIDS, joinList(alive));
-        flameTempPut(npc, FLAME_SLOTS, joinList(slots));
-        return alive.size();
-    }
-
-    /**
-     * Move all flame zones along the 4-point loop. Zone {@code i} stays offset by {@code i}
-     * segments so the four pillars remain evenly spaced while circling.
-     */
-    private static void advanceFlameCarousel(final ICustomNpc npc) {
-        final IWorld world = npc.getWorld();
-        final List<String> uuids = parseList(flameTempGet(npc, FLAME_UUIDS));
-        final List<String> slots = parseList(flameTempGet(npc, FLAME_SLOTS));
-        if (uuids.isEmpty()) {
-            return;
-        }
-        final double segments = flamePathSegments(npc);
-        for (int i = 0; i < uuids.size(); i++) {
-            final EntityAbilityZone zone = resolveFlameZone(world, uuids.get(i));
-            if (zone == null || zone.removed) {
-                continue;
-            }
-            int slot = i;
-            try {
-                if (i < slots.size()) {
-                    slot = Integer.parseInt(slots.get(i));
-                }
-            } catch (final Exception ignored) {
-            }
-            slot = Math.floorMod(slot, FLAME_ZONE_COUNT);
-            final double[] point = sampleFlamePath(npc, segments + slot);
-            if (point == null) {
-                continue;
-            }
-            try {
-                zone.moveTo(point[0], point[1], point[2], 0, 0);
-                zone.setLifetimeTicks(FLAME_LIFETIME);
-            } catch (final Exception ignored) {
-            }
-        }
-    }
-
-    /** How many path segments have been traveled since {@link #FLAME_EPOCH}. */
-    private static double flamePathSegments(final ICustomNpc npc) {
-        long epoch = 0L;
-        try {
-            epoch = Long.parseLong(flameTempGet(npc, FLAME_EPOCH));
-        } catch (final Exception ignored) {
-        }
-        if (epoch <= 0L) {
-            epoch = npc.getWorld().getTotalTime();
-            flameTempPut(npc, FLAME_EPOCH, String.valueOf(epoch));
-        }
-        final long elapsed = Math.max(0L, npc.getWorld().getTotalTime() - epoch);
-        return elapsed / (double) Math.max(1, FLAME_SEGMENT_TICKS);
-    }
-
-    /**
-     * Sample the closed polyline FLAME0→1→2→3→0.
-     * {@code pathPos} in segment units (integer = corner, +0.5 = midpoint of an edge).
-     */
-    private static double[] sampleFlamePath(final ICustomNpc npc, final double pathPos) {
-        if (npc == null || FLAME_ZONE_COUNT <= 0) {
-            return null;
-        }
-        double p = pathPos % FLAME_ZONE_COUNT;
-        if (p < 0.0) {
-            p += FLAME_ZONE_COUNT;
-        }
-        final int from = (int) Math.floor(p) % FLAME_ZONE_COUNT;
-        final int to = (from + 1) % FLAME_ZONE_COUNT;
-        final double t = p - Math.floor(p);
-        final double[] a = resolveFlameWorldPoint(npc, from);
-        final double[] b = resolveFlameWorldPoint(npc, to);
-        if (a == null || b == null) {
-            return a != null ? a : b;
-        }
         return new double[]{
-                a[0] + (b[0] - a[0]) * t,
-                a[1] + (b[1] - a[1]) * t,
-                a[2] + (b[2] - a[2]) * t
+                ScriptDataUtil.getFloat(data, HOME_X),
+                ScriptDataUtil.getFloat(data, HOME_Y),
+                ScriptDataUtil.getFloat(data, HOME_Z)
         };
     }
 
-    private static EntityAbilityZone spawnFlameZoneAt(final ICustomNpc npc, final double[] point) {
-        if (npc == null || point == null) {
-            return null;
+    public static void onMonkDeath(final ICustomNpc monk) {
+        final ICustomNpc boss = findBossForAdd(monk);
+        if (boss != null) {
+            setAbsorb(boss, 0.0F);
         }
-        EntityAbilityZone zone;
-        try {
-            zone = ZoneAPI.hazardCircle(
-                    npc, point[0], point[1], point[2],
-                    FLAME_RADIUS, FLAME_LIFETIME, FLAME_DAMAGE, FLAME_DAMAGE_INTERVAL);
-        } catch (final Exception e) {
-            return null;
-        }
-        if (zone == null) {
-            return null;
-        }
-        configureFlameZone(zone);
-        return zone;
     }
 
-    /** Config slot → world XYZ with feet snapped to ground. */
-    private static double[] resolveFlameWorldPoint(final ICustomNpc npc, final int index) {
-        final double[] raw = flamePoint(npc, index);
-        if (raw == null || npc == null) {
-            return raw;
-        }
-        double y = raw[1];
-        try {
-            y = AbilityCombatHelper.findFeetGroundY(npc.getWorld(), raw[0], raw[2], y) + 0.05;
-        } catch (final Exception ignored) {
-        }
-        return new double[]{raw[0], y, raw[2]};
-    }
-
-    private static void configureFlameZone(final EntityAbilityZone zone) {
-        if (zone == null) {
+    public static void onVesselDeath(final ICustomNpc vessel) {
+        final ICustomNpc boss = findBossForAdd(vessel);
+        if (boss == null) {
             return;
         }
-        try {
-            zone.setColor(FLAME_COLOR);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.setFireSeconds(FLAME_FIRE_SECONDS);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.setZoneHeight(FLAME_ZONE_HEIGHT);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.setVisible(true);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.setGroundFill(true);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.setBorder(true);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.setLifetimeTicks(FLAME_LIFETIME);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.setDamageInterval(FLAME_DAMAGE_INTERVAL);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.setDamage(FLAME_DAMAGE);
-        } catch (final Exception ignored) {
-        }
-        try {
-            zone.addTag(FLAME_TAG);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void spawnFlameVfx(final IWorld world, final double[] point) {
-        spawnFlameVfx(world, point, true);
-    }
-
-    private static void spawnFlameVfx(final IWorld world, final double[] point, final boolean withSound) {
-        if (world == null || point == null) {
-            return;
-        }
-        try {
-            final double x = point[0];
-            final double y = point[1];
-            final double z = point[2];
-            for (int h = 0; h < 5; h++) {
-                final double py = y + 0.3 + h * 1.4;
-                world.spawnParticle("minecraft:flame", x, py, z, 0.25, 0.35, 0.25, 0.02, 10);
-                world.spawnParticle("minecraft:soul_fire_flame", x, py + 0.2, z, 0.15, 0.25, 0.15, 0.01, 4);
+        final IData vData = vessel.getStoreddata();
+        final int slot = ScriptDataUtil.getInt(vData, VESSEL_SLOT);
+        final double x = vessel.getX();
+        final double y = vessel.getY();
+        final double z = vessel.getZ();
+        scheduleShardSpawn(boss, slot, x, y, z);
+        // Dying vessel may still be counted until removed — treat as already dead.
+        int alive = 0;
+        for (final ICustomNpc v : findTagged(boss, TAG_VESSEL)) {
+            if (v != null && v.isAlive() && !String.valueOf(v.getUUID()).equals(String.valueOf(vessel.getUUID()))) {
+                alive++;
             }
-            world.spawnParticle("minecraft:smoke", x, y + 1.2, z, 0.35, 0.6, 0.35, 0.01, 12);
-            if (withSound) {
-                world.playSoundAt(
-                        NpcAPI.Instance().getIPos(x, y, z),
-                        "minecraft:block.fire.ambient", 0.85F, 0.9F);
-            }
-        } catch (final Exception ignored) {
+        }
+        if (alive <= 0) {
+            startCarrierWindow(boss);
         }
     }
 
-    /** Ambient pillar particles ~1/s while carousel is up. */
-    private static void pulseFlamePillarVfx(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
+    public static void onShardDeath(final ICustomNpc shard) {
+        // no heal — already handled if contact; death just removes
+    }
+
+    public static void spawnLeperPhantoms(
+            final ICustomNpc boss, final int tab, final String cloneName, final double damage) {
+        final double[] c = getArenaCenter(boss);
+        final double spawnR = DrachenfelsConfig.getD(boss, "leperSpawnRadius", 11.0);
+        final int life = DrachenfelsConfig.getI(boss, "leperDuration", 60);
+        final double[] angles = {0.0, 90.0, 180.0, 270.0};
+        for (int i = 0; i < angles.length; i++) {
+            final double rad = Math.toRadians(angles[i]);
+            final double x = c[0] + Math.cos(rad) * spawnR;
+            final double z = c[2] + Math.sin(rad) * spawnR;
+            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+            final ICustomNpc phantom = spawnClone(boss, tab, cloneName, x, y, z);
+            if (phantom == null) {
+                continue;
+            }
+            tagAdd(phantom, TAG_PHANTOM);
+            put(phantom.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
+            put(phantom.getStoreddata(), PHANTOM_LIFE, String.valueOf(life));
+            put(phantom.getStoreddata(), "df_dmg", String.valueOf(damage));
+            put(phantom.getStoreddata(), HOME_X, String.valueOf(x));
+            put(phantom.getStoreddata(), HOME_Y, String.valueOf(y));
+            put(phantom.getStoreddata(), HOME_Z, String.valueOf(z));
+            setNoPhysics(phantom, true);
+            setAiNone(phantom);
         }
-        final IWorld world = npc.getWorld();
-        final double segments = flamePathSegments(npc);
-        final List<String> slots = parseList(flameTempGet(npc, FLAME_SLOTS));
-        for (final String slotRaw : slots) {
+    }
+
+    public static void castFalseHost(final ICustomNpc boss, final int tab, final String cloneName) {
+        final double ox = boss.getX();
+        final double oy = boss.getY();
+        final double oz = boss.getZ();
+        final double copyDist = DrachenfelsConfig.getD(boss, "falseCopyDist", 3.0);
+        for (int i = 0; i < 3; i++) {
+            final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
+            final double x = ox + Math.cos(ang) * copyDist;
+            final double z = oz + Math.sin(ang) * copyDist;
+            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, oy);
+            final ICustomNpc copy = spawnClone(boss, tab, cloneName, x, y, z);
+            if (copy == null) {
+                continue;
+            }
+            tagAdd(copy, TAG_FALSE);
+            put(copy.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
             try {
-                final int slot = Integer.parseInt(slotRaw);
-                final double[] point = sampleFlamePath(npc, segments + slot);
-                if (point != null) {
-                    spawnFlameVfx(world, point, false);
+                copy.setMaxHealth(1);
+                final Object mc = copy.getMCEntity();
+                if (mc instanceof LivingEntity) {
+                    ((LivingEntity) mc).setHealth(1.0F);
+                }
+            } catch (final Exception ignored) {
+            }
+            setAiNone(copy);
+        }
+        final double[] c = getArenaCenter(boss);
+        final double ring = DrachenfelsConfig.getD(boss, "falseTeleportRing", 5.0);
+        final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
+        final double x = c[0] + Math.cos(ang) * ring;
+        final double z = c[2] + Math.sin(ang) * ring;
+        final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+        boss.setPosition(x, y, z);
+    }
+
+    public static void despawnFalseHosts(final ICustomNpc boss) {
+        killTaggedNear(boss, TAG_FALSE);
+    }
+
+    public static boolean pickNamelessStepTarget(final ActiveAbility active, final AbilityContext ctx) {
+        final double[] c = getArenaCenter(ctx.npc);
+        final double px = ctx.target != null ? ctx.target.getX() : c[0];
+        final double pz = ctx.target != null ? ctx.target.getZ() : c[2];
+        final double minPlayer = DrachenfelsConfig.getD(ctx.npc, "stepMinPlayerDist", 5.0);
+        final double arenaR = getArenaRadius(ctx.npc);
+        for (int i = 0; i < 24; i++) {
+            final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
+            final double dist = 2.0 + RANDOM.nextDouble() * (arenaR - 2.5);
+            final double x = c[0] + Math.cos(ang) * dist;
+            final double z = c[2] + Math.sin(ang) * dist;
+            if (AbilityCombatHelper.flatDistance(x, z, px, pz) < minPlayer) {
+                continue;
+            }
+            if (AbilityCombatHelper.flatDistance(x, z, c[0], c[2]) > arenaR - 0.5) {
+                continue;
+            }
+            active.sx = ctx.npc.getX();
+            active.sy = ctx.npc.getY();
+            active.sz = ctx.npc.getZ();
+            active.ex = x;
+            active.ez = z;
+            active.ey = AbilityCombatHelper.findGroundY(ctx.world, x, z, c[1]);
+            return true;
+        }
+        return false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase logic
+    // -------------------------------------------------------------------------
+
+    private static void updatePhase(final ICustomNpc npc, final IData data, final long now) {
+        final int phase = ScriptDataUtil.getInt(data, PHASE_KEY);
+        final double ratio = hpRatio(npc);
+        if (phase == 1 && ratio <= DrachenfelsConfig.getD(data, "phase2Ratio", PHASE2_RATIO)) {
+            beginTransition(npc, data, now, 2);
+        } else if (phase == 2 && ratio <= DrachenfelsConfig.getD(data, "phase3Ratio", PHASE3_RATIO)) {
+            beginTransition(npc, data, now, 3);
+        }
+    }
+
+    private static void beginTransition(
+            final ICustomNpc npc, final IData data, final long now, final int nextPhase) {
+        AbilityAPI.cancel(npc);
+        put(data, TRANSITION, "1");
+        final int invuln = DrachenfelsConfig.getI(data, "invulnTicks", INVULN_TICKS);
+        put(data, INVULN_UNTIL, String.valueOf(now + invuln));
+        put(data, PHASE_KEY, String.valueOf(nextPhase));
+        put(data, ABSORB_KEY, "0");
+        put(data, PENDING_FALSE, "0");
+        setAbsorb(npc, 0.0F);
+        killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
+                TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
+        clearOwnerZones(npc);
+        final double[] c = getArenaCenter(npc);
+        final double y = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
+        npc.setPosition(c[0], y, c[2]);
+        if (nextPhase == 2) {
+            say(npc, "Садитесь. Пир уже накрыт.");
+            applyPhase2Ai(npc);
+        } else if (nextPhase == 3) {
+            say(npc, "Тело — лишь маска. Имя остаётся.");
+            put(data, SPIRIT_MODE, "1");
+            applySpiritAi(npc);
+        }
+        put(data, "df_next_phase_ready", String.valueOf(now + invuln));
+    }
+
+    private static void tickTransition(final ICustomNpc npc, final IData data, final long now) {
+        if (!ScriptDataUtil.isFlag(data, TRANSITION)) {
+            return;
+        }
+        if (now < ScriptDataUtil.getInt(data, "df_next_phase_ready")) {
+            AbilityCombatHelper.holdInPlace(npc, npc.getX(), npc.getY(), npc.getZ());
+            return;
+        }
+        put(data, TRANSITION, "0");
+        final int phase = ScriptDataUtil.getInt(data, PHASE_KEY);
+        if (phase == 2) {
+            put(data, CYCLE_ORIGIN, String.valueOf(now));
+            put(data, CYCLE_SHIFT, "0");
+            put(data, CYCLE_SLOT, "0");
+        } else if (phase == 3) {
+            spawnVesselSet(npc, true);
+            put(data, STEP_READY, String.valueOf(now + 40));
+            put(data, WHISPER_READY, String.valueOf(now + 60));
+            put(data, STEAL_READY, String.valueOf(now + 40));
+        }
+    }
+
+    private static void enforcePhaseCap(final ICustomNpc npc, final IData data) {
+        final float cap = phaseHpCap(npc);
+        if (cap <= 0.0F) {
+            return;
+        }
+        if (npc.getHealth() > cap + 0.05F) {
+            try {
+                final Object mc = npc.getMCEntity();
+                if (mc instanceof LivingEntity) {
+                    ((LivingEntity) mc).setHealth(cap);
                 }
             } catch (final Exception ignored) {
             }
         }
     }
 
-    private static void stopFlameCarouselEntities(final ICustomNpc npc) {
-        if (npc == null) {
+    private static void tickPhase1(final ICustomNpc npc, final IData data, final long now) {
+        maintainKite(npc, DrachenfelsConfig.getD(data, "kiteDistance", 6.0));
+        tickBell(npc, data, now);
+        if (AbilityAPI.isBusy(npc)) {
             return;
         }
-        final IWorld world = npc.getWorld();
-        for (final String uuid : parseList(flameTempGet(npc, FLAME_UUIDS))) {
-            final EntityAbilityZone zone = resolveFlameZone(world, uuid);
-            if (zone != null) {
-                ZoneAPI.remove(zone);
+        final IEntityLiving target = npc.getAttackTarget();
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+        if (tryGaze(npc, data, now, target)) {
+            return;
+        }
+        if (tryCourt(npc, data, now)) {
+            return;
+        }
+        if (now >= ScriptDataUtil.getInt(data, SEAL_READY)) {
+            AbilityAPI.start(npc, DfBlackSealAbility.ID, target, DrachenfelsConfig.sealParams(npc));
+        }
+    }
+
+    private static void tickBell(final ICustomNpc npc, final IData data, final long now) {
+        if (now < ScriptDataUtil.getInt(data, BELL_READY)) {
+            return;
+        }
+        final double ratio = hpRatio(npc);
+        final String fired = str(data, BELL_FIRED);
+        final double[] bellRatios = DrachenfelsConfig.getRatios(data, "bellRatios", BELL_RATIOS);
+        for (int i = 0; i < bellRatios.length; i++) {
+            final String mark = DrachenfelsConfig.mark(bellRatios[i]);
+            if (fired.contains(mark)) {
+                continue;
+            }
+            if (ratio > bellRatios[i]) {
+                continue;
+            }
+            put(data, BELL_FIRED, fired.isEmpty() ? mark : fired + ";" + mark);
+            put(data, BELL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "bellCd", BELL_CD)));
+            applyBellShield(npc, data);
+            return;
+        }
+    }
+
+    private static void applyBellShield(final ICustomNpc npc, final IData data) {
+        final float absorb = (float) (npc.getMaxHealth()
+                * DrachenfelsConfig.getD(data, "absorbRatio", ABSORB_RATIO));
+        setAbsorb(npc, absorb);
+        ICustomNpc monk = findFirstTagged(npc, TAG_MONK);
+        if (monk == null) {
+            final int tab = ScriptDataUtil.getInt(data, CLONE_TAB);
+            final String name = str(data, CLONE_MONK);
+            if (name.isEmpty()) {
+                return;
+            }
+            final double x = npc.getX() + 1.5;
+            final double z = npc.getZ() + 1.5;
+            final double y = AbilityCombatHelper.findGroundY(npc.getWorld(), x, z, npc.getY());
+            monk = spawnClone(npc, tab <= 0 ? 1 : tab, name, x, y, z);
+            if (monk == null) {
+                return;
+            }
+            tagAdd(monk, TAG_MONK);
+            put(monk.getStoreddata(), BOSS_UUID, String.valueOf(npc.getUUID()));
+            setAiNone(monk);
+            final float monkHp = (float) DrachenfelsConfig.getD(data, "monkHp", 40.0);
+            try {
+                monk.setMaxHealth(monkHp);
+                final Object mc = monk.getMCEntity();
+                if (mc instanceof LivingEntity) {
+                    ((LivingEntity) mc).setHealth(monkHp);
+                }
+            } catch (final Exception ignored) {
             }
         }
+    }
+
+    private static boolean tryGaze(
+            final ICustomNpc npc, final IData data, final long now, final IEntityLiving target) {
+        final double dist = AbilityCombatHelper.flatDistance(
+                npc.getX(), npc.getZ(), target.getX(), target.getZ());
+        final double gazeRange = DrachenfelsConfig.getD(data, "gazeRange", GAZE_RANGE);
+        if (dist > gazeRange) {
+            if (ScriptDataUtil.getInt(data, GAZE_FAR_SINCE) <= 0) {
+                put(data, GAZE_FAR_SINCE, String.valueOf(now));
+            }
+        } else {
+            put(data, GAZE_FAR_SINCE, "0");
+            return false;
+        }
+        final long since = ScriptDataUtil.getInt(data, GAZE_FAR_SINCE);
+        if (since <= 0 || now - since < DrachenfelsConfig.getI(data, "gazeFarTicks", GAZE_FAR_TICKS)) {
+            return false;
+        }
+        if (now < ScriptDataUtil.getInt(data, GAZE_READY)) {
+            return false;
+        }
+        return AbilityAPI.start(npc, DfMaskGazeAbility.ID, target, DrachenfelsConfig.gazeParams(npc));
+    }
+
+    private static boolean tryCourt(final ICustomNpc npc, final IData data, final long now) {
+        if (now < ScriptDataUtil.getInt(data, COURT_READY)) {
+            return false;
+        }
+        put(data, COURT_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "courtCd", COURT_CD)));
+        final int court = countTaggedNear(npc, TAG_COURT);
+        final int monk = countTaggedNear(npc, TAG_MONK);
+        if (court >= 2 || court + monk >= 3) {
+            return false;
+        }
+        final int tab = ScriptDataUtil.getInt(data, CLONE_TAB);
+        final boolean cultist = RANDOM.nextBoolean();
+        final String name = cultist ? str(data, CLONE_CULTIST) : str(data, CLONE_GUARD);
+        if (name.isEmpty()) {
+            return false;
+        }
+        final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
+        final double x = npc.getX() + Math.cos(ang) * 2.5;
+        final double z = npc.getZ() + Math.sin(ang) * 2.5;
+        final double y = AbilityCombatHelper.findGroundY(npc.getWorld(), x, z, npc.getY());
+        final ICustomNpc add = spawnClone(npc, tab <= 0 ? 1 : tab, name, x, y, z);
+        if (add == null) {
+            return false;
+        }
+        tagAdd(add, TAG_COURT);
+        tagAdd(add, cultist ? TAG_CULTIST : TAG_GUARD);
+        put(add.getStoreddata(), BOSS_UUID, String.valueOf(npc.getUUID()));
+        put(add.getStoreddata(), ADD_NEXT_ATK, String.valueOf(now + 20));
         try {
-            final IPos pos = NpcAPI.Instance().getIPos(ritualX(npc), ritualY(npc), ritualZ(npc));
-            final IEntity[] near = world.getNearbyEntities(pos, 48, -1);
-            for (final IEntity ent : near) {
-                final EntityAbilityZone z = asAbilityZone(ent);
-                if (z == null) {
+            final float hp = cultist
+                    ? (float) DrachenfelsConfig.getD(data, "cultistHp", 30.0)
+                    : (float) DrachenfelsConfig.getD(data, "guardHp", 50.0);
+            add.setMaxHealth(hp);
+            final Object mc = add.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                ((LivingEntity) mc).setHealth(hp);
+            }
+        } catch (final Exception ignored) {
+        }
+        return false; // court is not an AbilityAPI cast
+    }
+
+    private static void tickPhase2(final ICustomNpc npc, final IData data, final long now) {
+        AbilityCombatHelper.holdInPlace(npc,
+                ScriptDataUtil.getFloat(data, HOME_X),
+                ScriptDataUtil.getFloat(data, HOME_Y),
+                ScriptDataUtil.getFloat(data, HOME_Z));
+        tickFalseHostTrigger(npc, data, now);
+        if (AbilityAPI.isBusy(npc)) {
+            return;
+        }
+        if (ScriptDataUtil.isFlag(data, PENDING_FALSE)) {
+            final IEntityLiving target = npc.getAttackTarget();
+            AbilityAPI.start(npc, DfFalseHostAbility.ID, target, DrachenfelsConfig.falseHostParams(npc));
+            return;
+        }
+        long origin = ScriptDataUtil.getInt(data, CYCLE_ORIGIN);
+        if (origin <= 0) {
+            put(data, CYCLE_ORIGIN, String.valueOf(now));
+            origin = now;
+        }
+        final int shift = ScriptDataUtil.getInt(data, CYCLE_SHIFT);
+        final long elapsed = now - origin - shift;
+        final int cycleLen = DrachenfelsConfig.getI(data, "cycleLength", CYCLE_LENGTH);
+        if (elapsed >= cycleLen) {
+            put(data, CYCLE_ORIGIN, String.valueOf(now));
+            put(data, CYCLE_SHIFT, "0");
+            put(data, CYCLE_SLOT, "0");
+            return;
+        }
+        final int slot = ScriptDataUtil.getInt(data, CYCLE_SLOT);
+        final IEntityLiving target = npc.getAttackTarget();
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+        if (slot == 0 && elapsed >= 0) {
+            if (AbilityAPI.start(npc, DfImperialPoisonAbility.ID, target, DrachenfelsConfig.imperialParams(npc))) {
+                put(data, CYCLE_SLOT, "1");
+            }
+        } else if (slot == 1 && elapsed >= DrachenfelsConfig.getI(data, "cycleFeastAt", 120)) {
+            if (AbilityAPI.start(npc, DfFeastSeatsAbility.ID, target, DrachenfelsConfig.feastParams(npc))) {
+                put(data, CYCLE_SLOT, "2");
+            }
+        } else if (slot == 2 && elapsed >= DrachenfelsConfig.getI(data, "cycleLeperAt", 220)) {
+            if (AbilityAPI.start(npc, DfLeperBallAbility.ID, target, DrachenfelsConfig.leperParams(npc))) {
+                put(data, CYCLE_SLOT, "3");
+            }
+        }
+    }
+
+    private static void tickFalseHostTrigger(final ICustomNpc npc, final IData data, final long now) {
+        final double ratio = hpRatio(npc);
+        final String fired = str(data, FALSE_FIRED);
+        int count = 0;
+        if (!fired.isEmpty()) {
+            count = fired.split(";").length;
+        }
+        final int maxFalse = DrachenfelsConfig.getI(data, "falseMax", 3);
+        if (count >= maxFalse) {
+            return;
+        }
+        final double[] falseRatios = DrachenfelsConfig.getRatios(data, "falseRatios", FALSE_RATIOS);
+        for (int i = 0; i < falseRatios.length; i++) {
+            final String mark = DrachenfelsConfig.mark(falseRatios[i]);
+            if (fired.contains(mark)) {
+                continue;
+            }
+            if (ratio > falseRatios[i]) {
+                continue;
+            }
+            put(data, FALSE_FIRED, fired.isEmpty() ? mark : fired + ";" + mark);
+            put(data, PENDING_FALSE, "1");
+            return;
+        }
+    }
+
+    private static void tickPhase3(final ICustomNpc npc, final IData data, final long now) {
+        final boolean carrier = ScriptDataUtil.isFlag(data, IN_CARRIER);
+        final boolean hasVessels = hasLivingVessels(npc);
+        if (!carrier && !hasVessels && ScriptDataUtil.getInt(data, VESSEL_ROUND) > 0) {
+            // waiting for carrier start handled in vessel death
+        }
+        if (AbilityAPI.isBusy(npc)) {
+            return;
+        }
+        final IEntityLiving target = npc.getAttackTarget();
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+        if (hasVessels && AbilityCombatHelper.flatDistance(
+                npc.getX(), npc.getZ(), target.getX(), target.getZ())
+                <= DrachenfelsConfig.getD(data, "stealRange", 3.0)
+                && now >= ScriptDataUtil.getInt(data, STEAL_READY)) {
+            if (AbilityAPI.start(npc, DfNameStealAbility.ID, target, DrachenfelsConfig.stealParams(npc))) {
+                return;
+            }
+        }
+        if (now >= ScriptDataUtil.getInt(data, WHISPER_READY)) {
+            if (AbilityAPI.start(npc, DfNamelessWhisperAbility.ID, target, DrachenfelsConfig.whisperParams(npc))) {
+                return;
+            }
+        }
+        if (hasVessels && !carrier && now >= ScriptDataUtil.getInt(data, STEP_READY)) {
+            AbilityAPI.start(npc, DfNamelessStepAbility.ID, target, DrachenfelsConfig.stepParams(npc));
+        }
+        if (carrier) {
+            tickCarrierArc(npc, data, now, target);
+        }
+    }
+
+    private static void startCarrierWindow(final ICustomNpc boss) {
+        final IData data = boss.getStoreddata();
+        final long now = now(boss);
+        put(data, IN_CARRIER, "1");
+        put(data, CARRIER_UNTIL, String.valueOf(now + DrachenfelsConfig.getI(data, "carrierTicks", CARRIER_TICKS)));
+        put(data, SPIRIT_MODE, "0");
+        put(data, ARC_CD, String.valueOf(now + 20));
+        put(data, ARC_CAST, "0");
+        applyCarrierAi(boss);
+        say(boss, "Нет сосуда — нет хозяина. Бейте, пока я ещё плоть.");
+    }
+
+    private static void tickCarrier(final ICustomNpc npc, final IData data, final long now) {
+        if (!ScriptDataUtil.isFlag(data, IN_CARRIER)) {
+            return;
+        }
+        if (now < ScriptDataUtil.getInt(data, CARRIER_UNTIL)) {
+            return;
+        }
+        if (!npc.isAlive() || npc.getHealth() <= 0.05F) {
+            return;
+        }
+        // Missed window
+        put(data, IN_CARRIER, "0");
+        put(data, SPIRIT_MODE, "1");
+        killTaggedNear(npc, TAG_SHARD);
+        applySpiritAi(npc);
+        spawnVesselSet(npc, false);
+    }
+
+    private static void tickCarrierArc(
+            final ICustomNpc npc, final IData data, final long now, final IEntityLiving target) {
+        if (AbilityAPI.isBusy(npc)) {
+            return;
+        }
+        final int casting = ScriptDataUtil.getInt(data, ARC_CAST);
+        if (casting > 0) {
+            put(data, ARC_CAST, String.valueOf(casting - 1));
+            AbilityCombatHelper.stopNavigation(npc);
+            if (casting == 1) {
+                face(npc, target);
+                final double damage = DrachenfelsConfig.getD(data, "carrierArcDamage", 15.0);
+                final double radius = DrachenfelsConfig.getD(data, "carrierArcRadius", 3.0);
+                final IEntity[] list = npc.getWorld().getNearbyEntities(npc.getPos(), 4, -1);
+                for (final IEntity ent : list) {
+                    if (!AbilityCombatHelper.isHostileToBoss(npc, ent)) {
+                        continue;
+                    }
+                    if (AbilityCombatHelper.flatDistance(
+                            npc.getX(), npc.getZ(), ent.getX(), ent.getZ()) > radius) {
+                        continue;
+                    }
+                    if (!isInFront(npc, ent, 70.0)) {
+                        continue;
+                    }
+                    if (!AbilityCombatHelper.dealPureDamage(ent, (float) damage, false)) {
+                        ent.damage((float) damage);
+                    }
+                    AbilityVfx.spawnHitParticle(npc.getWorld(), ent);
+                }
+                put(data, ARC_CD, String.valueOf(now + DrachenfelsConfig.getI(data, "carrierArcInterval", 50)));
+            }
+            return;
+        }
+        if (now < ScriptDataUtil.getInt(data, ARC_CD)) {
+            return;
+        }
+        put(data, ARC_CAST, String.valueOf(DrachenfelsConfig.getI(data, "carrierArcCastTicks", 12)));
+    }
+
+    // -------------------------------------------------------------------------
+    // Vessels / shards / adds
+    // -------------------------------------------------------------------------
+
+    private static void spawnVesselSet(final ICustomNpc boss, final boolean first) {
+        final IData data = boss.getStoreddata();
+        final int tab = ScriptDataUtil.getInt(data, CLONE_TAB);
+        final String name = str(data, CLONE_VESSEL);
+        if (name.isEmpty()) {
+            return;
+        }
+        final double[] c = getArenaCenter(boss);
+        final int[] slots = first ? new int[]{0, 1, 2} : new int[]{0, 1};
+        final int hp = first
+                ? DrachenfelsConfig.getI(data, "vesselHpFirst", 45)
+                : DrachenfelsConfig.getI(data, "vesselHpRepeat", 30);
+        final double vesselRing = DrachenfelsConfig.getD(data, "vesselRing", 10.0);
+        final double[] angles = {0.0, 120.0, 240.0};
+        for (int i = 0; i < slots.length; i++) {
+            final int slot = slots[i];
+            final double rad = Math.toRadians(angles[slot]);
+            final double x = c[0] + Math.cos(rad) * vesselRing;
+            final double z = c[2] + Math.sin(rad) * vesselRing;
+            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+            final ICustomNpc vessel = spawnClone(boss, tab <= 0 ? 1 : tab, name, x, y, z);
+            if (vessel == null) {
+                continue;
+            }
+            tagAdd(vessel, TAG_VESSEL);
+            put(vessel.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
+            put(vessel.getStoreddata(), VESSEL_SLOT, String.valueOf(slot));
+            setNoPhysics(vessel, true);
+            setAiNone(vessel);
+            try {
+                vessel.setMaxHealth(hp);
+                final Object mc = vessel.getMCEntity();
+                if (mc instanceof LivingEntity) {
+                    ((LivingEntity) mc).setHealth((float) hp);
+                }
+            } catch (final Exception ignored) {
+            }
+        }
+        put(data, VESSEL_ROUND, String.valueOf(ScriptDataUtil.getInt(data, VESSEL_ROUND) + 1));
+    }
+
+    private static void scheduleShardSpawn(
+            final ICustomNpc boss, final int slot, final double x, final double y, final double z) {
+        final IData data = boss.getStoreddata();
+        final long at = now(boss) + DrachenfelsConfig.getI(data, "shardDelayTicks", 5);
+        final String pending = str(data, SHARD_SPAWN_AT);
+        final String entry = slot + "," + x + "," + y + "," + z + "," + at;
+        put(data, SHARD_SPAWN_AT, pending.isEmpty() ? entry : pending + ";" + entry);
+    }
+
+    private static void tickShards(final ICustomNpc boss, final IData data) {
+        final long now = now(boss);
+        final String pending = str(data, SHARD_SPAWN_AT);
+        if (!pending.isEmpty()) {
+            final StringBuilder remain = new StringBuilder();
+            final String[] parts = pending.split(";");
+            for (int i = 0; i < parts.length; i++) {
+                final String p = parts[i].trim();
+                if (p.isEmpty()) {
                     continue;
                 }
-                boolean tagged = false;
+                final String[] f = p.split(",");
+                if (f.length < 5) {
+                    continue;
+                }
+                final long at = parseLong(f[4]);
+                if (now < at) {
+                    if (remain.length() > 0) {
+                        remain.append(';');
+                    }
+                    remain.append(p);
+                    continue;
+                }
+                spawnShard(boss, data, parseDouble(f[1]), parseDouble(f[2]), parseDouble(f[3]));
+            }
+            put(data, SHARD_SPAWN_AT, remain.toString());
+        }
+        final List<ICustomNpc> shards = findTagged(boss, TAG_SHARD);
+        for (final ICustomNpc shard : shards) {
+            final double dx = boss.getX() - shard.getX();
+            final double dz = boss.getZ() - shard.getZ();
+            final double dist = Math.sqrt(dx * dx + dz * dz);
+            final double touch = DrachenfelsConfig.getD(data, "shardTouchDist", 1.0);
+            if (dist <= touch) {
+                healBossFromShard(boss, data);
+                shard.despawn();
+                continue;
+            }
+            final double speed = DrachenfelsConfig.getD(data, "shardSpeed", 0.35);
+            final double nx = shard.getX() + (dx / Math.max(0.01, dist)) * speed;
+            final double nz = shard.getZ() + (dz / Math.max(0.01, dist)) * speed;
+            final double ny = AbilityCombatHelper.findGroundY(boss.getWorld(), nx, nz, shard.getY());
+            shard.setPosition(nx, ny, nz);
+        }
+    }
+
+    private static void spawnShard(
+            final ICustomNpc boss, final IData data, final double x, final double y, final double z) {
+        final int tab = ScriptDataUtil.getInt(data, CLONE_TAB);
+        final String name = str(data, CLONE_SHARD);
+        if (name.isEmpty()) {
+            return;
+        }
+        final ICustomNpc shard = spawnClone(boss, tab <= 0 ? 1 : tab, name, x, y, z);
+        if (shard == null) {
+            return;
+        }
+        tagAdd(shard, TAG_SHARD);
+        put(shard.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
+        setAiNone(shard);
+        final float shardHp = (float) DrachenfelsConfig.getD(data, "shardHp", 20.0);
+        try {
+            shard.setMaxHealth(shardHp);
+            final Object mc = shard.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                ((LivingEntity) mc).setHealth(shardHp);
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    private static void healBossFromShard(final ICustomNpc boss, final IData data) {
+        final float heal = (float) (boss.getMaxHealth()
+                * DrachenfelsConfig.getD(data, "shardHealRatio", SHARD_HEAL_RATIO));
+        final float cap = (float) (boss.getMaxHealth()
+                * DrachenfelsConfig.getD(data, "phase3Ratio", PHASE3_RATIO));
+        try {
+            final Object mc = boss.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                final LivingEntity living = (LivingEntity) mc;
+                living.setHealth(Math.min(cap, living.getHealth() + heal));
+            }
+        } catch (final Exception ignored) {
+        }
+        if (hasLivingVessels(boss)) {
+            put(data, STEP_READY, "0");
+        }
+    }
+
+    private static void tickVesselVfx(final ICustomNpc boss, final IData data, final long now) {
+        if ((now % 8) != 0) {
+            return;
+        }
+        final List<ICustomNpc> vessels = findTagged(boss, TAG_VESSEL);
+        for (final ICustomNpc v : vessels) {
+            AbilityVfx.spawnSoulThread(
+                    boss.getWorld(),
+                    v.getX(), v.getY() + 1.5, v.getZ(),
+                    boss.getX(), boss.getY() + 1.2, boss.getZ());
+        }
+    }
+
+    private static void tickPhantoms(final ICustomNpc boss, final IData data) {
+        final double[] c = getArenaCenter(boss);
+        final List<ICustomNpc> phantoms = findTagged(boss, TAG_PHANTOM);
+        for (final ICustomNpc p : phantoms) {
+            final IData pd = p.getStoreddata();
+            int life = ScriptDataUtil.getInt(pd, PHANTOM_LIFE);
+            final int maxLife = Math.max(1, DrachenfelsConfig.getI(data, "leperDuration", 60));
+            life--;
+            put(pd, PHANTOM_LIFE, String.valueOf(life));
+            if (life <= 0) {
+                p.despawn();
+                continue;
+            }
+            final double sx = ScriptDataUtil.getFloat(pd, HOME_X);
+            final double sz = ScriptDataUtil.getFloat(pd, HOME_Z);
+            final double t = (maxLife - life) / (double) maxLife;
+            final double x = sx + (c[0] - sx) * t;
+            final double z = sz + (c[2] - sz) * t;
+            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+            p.setPosition(x, y, z);
+            final float dmg = ScriptDataUtil.getFloat(pd, "df_dmg");
+            final double hitR = DrachenfelsConfig.getD(data, "leperHitRadius", 1.0);
+            final IEntity[] near = p.getWorld().getNearbyEntities(p.getPos(), 2, 1);
+            for (final IEntity ent : near) {
+                if (!(ent instanceof IPlayer) || !ent.isAlive()) {
+                    continue;
+                }
+                if (AbilityCombatHelper.flatDistance(p.getX(), p.getZ(), ent.getX(), ent.getZ()) > hitR) {
+                    continue;
+                }
+                final String hitKey = "df_hit_" + ent.getUUID();
+                if (ScriptDataUtil.isFlag(pd, hitKey)) {
+                    continue;
+                }
+                ScriptDataUtil.setFlag(pd, hitKey, true);
+                if (!AbilityCombatHelper.dealPureDamage(ent, dmg <= 0 ? 10.0F : dmg, false)) {
+                    ent.damage(dmg <= 0 ? 10.0F : dmg);
+                }
+                AbilityCombatHelper.applyEffect(
+                        ent,
+                        Effects.MOVEMENT_SLOWDOWN,
+                        DrachenfelsConfig.getI(data, "leperSlowDuration", 30),
+                        DrachenfelsConfig.getI(data, "leperSlowAmp", 1));
+            }
+        }
+    }
+
+    private static void tickAdds(final ICustomNpc boss, final IData data, final long now) {
+        final List<ICustomNpc> cultists = findTagged(boss, TAG_CULTIST);
+        for (final ICustomNpc c : cultists) {
+            if (now < ScriptDataUtil.getInt(c.getStoreddata(), ADD_NEXT_ATK)) {
+                continue;
+            }
+            put(c.getStoreddata(), ADD_NEXT_ATK,
+                    String.valueOf(now + DrachenfelsConfig.getI(data, "cultistInterval", 50)));
+            final IEntityLiving target = boss.getAttackTarget();
+            if (target == null || !target.isAlive()) {
+                continue;
+            }
+            try {
+                c.shootItem(target, c.getWorld().createItem("minecraft:snowball", 1), 40);
+            } catch (final Exception ignored) {
+            }
+            if (AbilityCombatHelper.flatDistance(c.getX(), c.getZ(), target.getX(), target.getZ()) < 12) {
+                if (RANDOM.nextFloat() < 0.35F) {
+                    final float dmg = (float) DrachenfelsConfig.getD(data, "cultistDamage", 6.0);
+                    if (!AbilityCombatHelper.dealPureDamage(target, dmg, false)) {
+                        target.damage(dmg);
+                    }
+                }
+            }
+        }
+        final List<ICustomNpc> guards = findTagged(boss, TAG_GUARD);
+        for (final ICustomNpc g : guards) {
+            final IData gd = g.getStoreddata();
+            final int casting = ScriptDataUtil.getInt(gd, ARC_CAST);
+            if (casting > 0) {
+                put(gd, ARC_CAST, String.valueOf(casting - 1));
+                AbilityCombatHelper.stopNavigation(g);
+                if (casting == 1) {
+                    final IEntityLiving target = boss.getAttackTarget();
+                    if (target != null) {
+                        face(g, target);
+                    }
+                    final double arcR = DrachenfelsConfig.getD(data, "guardArcRadius", 3.0);
+                    final float gDmg = (float) DrachenfelsConfig.getD(data, "guardDamage", 10.0);
+                    final IEntity[] list = g.getWorld().getNearbyEntities(g.getPos(), 4, -1);
+                    for (final IEntity ent : list) {
+                        if (!AbilityCombatHelper.isHostileToBoss(boss, ent)) {
+                            continue;
+                        }
+                        if (AbilityCombatHelper.flatDistance(g.getX(), g.getZ(), ent.getX(), ent.getZ()) > arcR) {
+                            continue;
+                        }
+                        if (!isInFront(g, ent, 70.0)) {
+                            continue;
+                        }
+                        if (!AbilityCombatHelper.dealPureDamage(ent, gDmg, false)) {
+                            ent.damage(gDmg);
+                        }
+                    }
+                    put(gd, ADD_NEXT_ATK,
+                            String.valueOf(now + DrachenfelsConfig.getI(data, "guardInterval", 60)));
+                }
+                continue;
+            }
+            if (now < ScriptDataUtil.getInt(gd, ADD_NEXT_ATK)) {
+                continue;
+            }
+            put(gd, ARC_CAST, String.valueOf(DrachenfelsConfig.getI(data, "guardCastTicks", 16)));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // AI helpers
+    // -------------------------------------------------------------------------
+
+    private static void applyPhase1Ai(final ICustomNpc npc) {
+        try {
+            final INPCAi ai = npc.getAi();
+            ai.setWalkingSpeed(1);
+            ai.setRetaliateType(0);
+            ai.setMovingType(0);
+        } catch (final Exception ignored) {
+        }
+        setMoveSpeed(npc, DrachenfelsConfig.getD(npc, "phase1Speed", 0.15));
+    }
+
+    private static void applyPhase2Ai(final ICustomNpc npc) {
+        try {
+            final INPCAi ai = npc.getAi();
+            ai.setWalkingSpeed(0);
+            ai.setRetaliateType(3);
+            ai.setMovingType(0);
+        } catch (final Exception ignored) {
+        }
+        setMoveSpeed(npc, 0.0);
+    }
+
+    private static void applySpiritAi(final ICustomNpc npc) {
+        try {
+            final INPCAi ai = npc.getAi();
+            ai.setWalkingSpeed(0);
+            ai.setRetaliateType(3);
+            ai.setMovingType(0);
+        } catch (final Exception ignored) {
+        }
+        setMoveSpeed(npc, 0.0);
+    }
+
+    private static void applyCarrierAi(final ICustomNpc npc) {
+        try {
+            final INPCAi ai = npc.getAi();
+            ai.setWalkingSpeed(2);
+            ai.setRetaliateType(0);
+            ai.setMovingType(0);
+        } catch (final Exception ignored) {
+        }
+        setMoveSpeed(npc, DrachenfelsConfig.getD(npc, "carrierSpeed", 0.2));
+    }
+
+    private static void maintainKite(final ICustomNpc npc, final double preferred) {
+        final IEntityLiving target = npc.getAttackTarget();
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+        if (AbilityAPI.isBusy(npc)) {
+            return;
+        }
+        final double dist = AbilityCombatHelper.flatDistance(
+                npc.getX(), npc.getZ(), target.getX(), target.getZ());
+        if (dist < preferred - 1.5) {
+            final double dx = npc.getX() - target.getX();
+            final double dz = npc.getZ() - target.getZ();
+            final double len = Math.sqrt(dx * dx + dz * dz);
+            if (len < 0.01) {
+                return;
+            }
+            final double[] c = getArenaCenter(npc);
+            final double arenaR = getArenaRadius(npc);
+            double nx = npc.getX() + (dx / len) * 0.35;
+            double nz = npc.getZ() + (dz / len) * 0.35;
+            if (AbilityCombatHelper.flatDistance(nx, nz, c[0], c[2]) > arenaR - 1.0) {
+                return;
+            }
+            final double ny = AbilityCombatHelper.findGroundY(npc.getWorld(), nx, nz, npc.getY());
+            npc.setPosition(nx, ny, nz);
+        }
+    }
+
+    private static void setAiNone(final ICustomNpc npc) {
+        try {
+            final INPCAi ai = npc.getAi();
+            ai.setWalkingSpeed(0);
+            ai.setRetaliateType(3);
+            ai.setMovingType(0);
+        } catch (final Exception ignored) {
+        }
+    }
+
+    private static void setMoveSpeed(final ICustomNpc npc, final double speed) {
+        try {
+            final Object mc = npc.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                final LivingEntity living = (LivingEntity) mc;
+                if (living.getAttribute(Attributes.MOVEMENT_SPEED) != null) {
+                    living.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(speed);
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    private static void setNoPhysics(final ICustomNpc npc, final boolean value) {
+        try {
+            final Object mc = npc.getMCEntity();
+            if (mc instanceof Entity) {
+                ((Entity) mc).noPhysics = value;
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    private static void face(final ICustomNpc npc, final IEntityLiving target) {
+        if (target == null) {
+            return;
+        }
+        final double dx = target.getX() - npc.getX();
+        final double dz = target.getZ() - npc.getZ();
+        npc.setRotation(AbilityCombatHelper.computeYaw(dx, dz));
+    }
+
+    private static boolean isInFront(final ICustomNpc npc, final IEntity ent, final double halfAngle) {
+        final double dx = ent.getX() - npc.getX();
+        final double dz = ent.getZ() - npc.getZ();
+        final double targetYaw = AbilityCombatHelper.computeYaw(dx, dz);
+        double diff = Math.abs(targetYaw - npc.getRotation()) % 360.0;
+        if (diff > 180.0) {
+            diff = 360.0 - diff;
+        }
+        return diff <= halfAngle;
+    }
+
+    // -------------------------------------------------------------------------
+    // Spawn / find / kill
+    // -------------------------------------------------------------------------
+
+    private static ICustomNpc spawnClone(
+            final ICustomNpc boss,
+            final int tab,
+            final String name,
+            final double x,
+            final double y,
+            final double z) {
+        try {
+            final IEntity spawned = boss.getWorld().spawnClone(x, y, z, tab, name);
+            if (spawned instanceof ICustomNpc) {
+                return (ICustomNpc) spawned;
+            }
+        } catch (final Exception ignored) {
+        }
+        return null;
+    }
+
+    private static void tagAdd(final ICustomNpc npc, final String tag) {
+        if (npc != null && !npc.hasTag(tag)) {
+            npc.addTag(tag);
+        }
+    }
+
+    private static int countTaggedNear(final ICustomNpc boss, final String tag) {
+        return findTagged(boss, tag).size();
+    }
+
+    private static List<ICustomNpc> findTagged(final ICustomNpc boss, final String tag) {
+        final List<ICustomNpc> out = new ArrayList<>();
+        if (boss == null) {
+            return out;
+        }
+        try {
+            final IEntity[] list = boss.getWorld().getNearbyEntities(boss.getPos(), 48, 2);
+            for (final IEntity ent : list) {
+                if (ent instanceof ICustomNpc && ent.isAlive() && ent.hasTag(tag)) {
+                    out.add((ICustomNpc) ent);
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        return out;
+    }
+
+    private static ICustomNpc findFirstTagged(final ICustomNpc boss, final String tag) {
+        final List<ICustomNpc> list = findTagged(boss, tag);
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    private static void killTaggedNear(final ICustomNpc boss, final String... tags) {
+        for (final String tag : tags) {
+            for (final ICustomNpc npc : findTagged(boss, tag)) {
                 try {
-                    tagged = z.getTags().contains(FLAME_TAG);
+                    npc.despawn();
                 } catch (final Exception ignored) {
                 }
-                if (!tagged) {
-                    try {
-                        final java.util.UUID owner = z.getOwnerUuid();
-                        if (owner != null) {
-                            final String ou = owner.toString();
-                            if (ou.equals(String.valueOf(npc.getUUID()))) {
-                                tagged = true;
-                            } else {
-                                final ICustomNpc partner = findPartner(npc);
-                                if (partner != null && ou.equals(String.valueOf(partner.getUUID()))) {
-                                    tagged = true;
-                                }
-                            }
-                        }
-                    } catch (final Exception ignored) {
+            }
+        }
+    }
+
+    private static ICustomNpc findBossForAdd(final ICustomNpc add) {
+        if (add == null) {
+            return null;
+        }
+        final String uuid = str(add.getStoreddata(), BOSS_UUID);
+        if (!uuid.isEmpty()) {
+            try {
+                final IEntity[] list = add.getWorld().getNearbyEntities(add.getPos(), 64, 2);
+                for (final IEntity ent : list) {
+                    if (ent instanceof ICustomNpc && uuid.equals(String.valueOf(ent.getUUID()))) {
+                        return (ICustomNpc) ent;
                     }
                 }
-                if (tagged) {
-                    ZoneAPI.remove(z);
-                }
-            }
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void stopFlameCarousel(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        if (!isFlameCarouselActive(npc) && parseList(flameTempGet(npc, FLAME_UUIDS)).isEmpty()) {
-            return;
-        }
-        stopFlameCarouselEntities(npc);
-        flameTempClear(npc);
-    }
-
-    private static void tryStopFlameCarouselOnDeath(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null && partner.isAlive() && !isDowned(partner)) {
-            if (isEncounterAggroActive(partner) || hasCombatTarget(partner) || findPlayerInLeash(partner) != null) {
-                return;
+            } catch (final Exception ignored) {
             }
         }
-        stopFlameCarousel(npc);
-    }
-
-    /**
-     * Restore boards when no survival player is near the <b>arena center</b> (home/ritual),
-     * not near the NPC: the pair can follow the player and would otherwise never “leave agro”.
-     * Flame stop is separate ({@link #isFlameCarouselWanted}).
-     */
-    private static void tryRestoreBoardsAndStopFlame(final ICustomNpc npc) {
-        final ICustomNpc partner = findPartner(npc);
-        if (hasPlayerNearArena(npc, AGRO_RANGE)) {
-            clearLostAggroTimer(npc);
-            if (partner != null) {
-                clearLostAggroTimer(partner);
-            }
-            return;
-        }
-        markLostAggro(npc);
-        if (partner != null && partner.isAlive() && !isDowned(partner)) {
-            markLostAggro(partner);
-        }
-        final boolean npcReady = hasLostAggroLongEnough(npc);
-        final boolean partnerReady = partner != null && partner.isAlive() && !isDowned(partner)
-                && hasLostAggroLongEnough(partner);
-        if (!npcReady && !partnerReady) {
-            return;
-        }
-        restoreArenaFloor(npc);
-        if (!isFlameCarouselWanted(npc)) {
-            stopFlameCarousel(npc);
-        }
-        clearLostAggroTimer(npc);
-        if (partner != null) {
-            clearLostAggroTimer(partner);
-        }
-        if (!isInBondPhase(npc)) {
-            tryReturnHomeIfIdle(npc);
-        }
-        if (partner != null && partner.isAlive() && !isDowned(partner) && !isInBondPhase(partner)) {
-            tryReturnHomeIfIdle(partner);
-        }
-    }
-
-    /**
-     * After lost aggro: restore snapped planks, then fill remaining air with oak_planks
-     * in radius 30 on the actual arena floor layer. Prefer ritual/body home so spirit hover Y
-     * does not shift the floor layer.
-     */
-    private static void restoreArenaFloor(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
         try {
-            final IData throttleData = npc.getStoreddata();
-            final long now = npc.getWorld().getTotalTime();
-            final long last = getStoredLong(throttleData, LAST_FLOOR_RESTORE_KEY);
-            if (last > 0L && now - last < 20L) {
-                return;
-            }
-            put(throttleData, LAST_FLOOR_RESTORE_KEY, String.valueOf(now));
-        } catch (final Exception ignored) {
-        }
-        ICustomNpc anchor = npc;
-        try {
-            if (!"body".equals(getRole(npc.getStoreddata()))) {
-                final ICustomNpc partner = findPartner(npc);
-                if (partner != null && partner.isAlive() && "body".equals(getRole(partner.getStoreddata()))) {
-                    anchor = partner;
-                }
-            }
-        } catch (final Exception ignored) {
-        }
-        AbilityCombatHelper.restoreBrokenBoards(npc);
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null) {
-            AbilityCombatHelper.restoreBrokenBoards(partner);
-        }
-
-        final IData data = anchor.getStoreddata();
-        double hx;
-        double hy;
-        double hz;
-        if (!isBlank(str(data, CFG_RITUAL_X)) && !isBlank(str(data, CFG_RITUAL_Z))) {
-            hx = ScriptDataUtil.getFloat(data, CFG_RITUAL_X);
-            hy = ScriptDataUtil.getFloat(data, CFG_RITUAL_Y);
-            hz = ScriptDataUtil.getFloat(data, CFG_RITUAL_Z);
-        } else if (hasHome(data)) {
-            hx = ScriptDataUtil.getFloat(data, HOME_X_KEY);
-            hy = ScriptDataUtil.getFloat(data, HOME_Y_KEY);
-            hz = ScriptDataUtil.getFloat(data, HOME_Z_KEY);
-        } else {
-            hx = npc.getX();
-            hy = npc.getY();
-            hz = npc.getZ();
-        }
-        AbilityCombatHelper.fillHomeFloorAirWithOakPlanks(anchor, hx, hy, hz);
-    }
-
-    /**
-     * Survival/adventure player within {@code range} of arena home/ritual XZ (not NPC feet).
-     */
-    private static boolean hasPlayerNearArena(final ICustomNpc npc, final double range) {
-        if (npc == null || range <= 0.0) {
-            return false;
-        }
-        final double[] center = resolveArenaCenter(npc);
-        final double hx = center[0];
-        final double hz = center[1];
-        try {
-            for (final IPlayer p : npc.getWorld().getAllPlayers()) {
-                if (!isValidCombatPlayer(p)) {
-                    continue;
-                }
-                final double dx = p.getX() - hx;
-                final double dz = p.getZ() - hz;
-                if (dx * dx + dz * dz <= range * range) {
-                    return true;
-                }
-            }
-        } catch (final Exception ignored) {
-        }
-        return false;
-    }
-
-    /** Ritual XZ if configured, else body/npc home XZ, else current NPC XZ. */
-    private static double[] resolveArenaCenter(final ICustomNpc npc) {
-        ICustomNpc anchor = npc;
-        try {
-            if (!"body".equals(getRole(npc.getStoreddata()))) {
-                final ICustomNpc partner = findPartner(npc);
-                if (partner != null && partner.isAlive() && "body".equals(getRole(partner.getStoreddata()))) {
-                    anchor = partner;
-                }
-            }
-        } catch (final Exception ignored) {
-        }
-        final IData data = anchor.getStoreddata();
-        if (!isBlank(str(data, CFG_RITUAL_X)) && !isBlank(str(data, CFG_RITUAL_Z))) {
-            return new double[] {
-                    ScriptDataUtil.getFloat(data, CFG_RITUAL_X),
-                    ScriptDataUtil.getFloat(data, CFG_RITUAL_Z)
-            };
-        }
-        if (hasHome(data)) {
-            return new double[] {
-                    ScriptDataUtil.getFloat(data, HOME_X_KEY),
-                    ScriptDataUtil.getFloat(data, HOME_Z_KEY)
-            };
-        }
-        return new double[] { npc.getX(), npc.getZ() };
-    }
-
-    private static boolean isFlameCarouselActive(final ICustomNpc npc) {
-        return "1".equals(flameTempGet(npc, FLAME_ACTIVE));
-    }
-
-    /**
-     * Нужна ли карусель: survival/adventure рядом с любой половиной (flat AGRO),
-     * либо у пары есть player-target. Не зависит от HOME/LEASH — иначе при кривом home
-     * столбы никогда не стартуют, хотя бой идёт.
-     */
-    private static boolean isFlameCarouselWanted(final ICustomNpc npc) {
-        if (npc == null) {
-            return false;
-        }
-        if (hasCombatTarget(npc) || hasNearbyCombatPlayer(npc, AGRO_RANGE)) {
-            return true;
-        }
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null && partner.isAlive() && !isDowned(partner)) {
-            return hasCombatTarget(partner) || hasNearbyCombatPlayer(partner, AGRO_RANGE);
-        }
-        return false;
-    }
-
-    private static boolean hasNearbyCombatPlayer(final ICustomNpc npc, final double range) {
-        if (npc == null || range <= 0.0) {
-            return false;
-        }
-        try {
-            for (final IPlayer p : npc.getWorld().getAllPlayers()) {
-                if (!isValidCombatPlayer(p)) {
-                    continue;
-                }
-                if (flatDistance(npc, p) <= range) {
-                    return true;
-                }
-            }
-        } catch (final Exception ignored) {
-        }
-        return false;
-    }
-
-    private static boolean isEncounterAggroActive(final ICustomNpc npc) {
-        if (npc == null) {
-            return false;
-        }
-        if (isFlameCarouselWanted(npc) || isInActiveCombat(npc) || findPlayerInLeash(npc) != null) {
-            return true;
-        }
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null && partner.isAlive()) {
-            return hasCombatTarget(partner) || findPlayerInLeash(partner) != null || isInActiveCombat(partner);
-        }
-        return false;
-    }
-
-    /**
-     * Flame carousel — механика арены Души: лидер = живая Душа (с конфигом),
-     * иначе Тело. Раньше предпочиталось Тело без проверки {@code df_cfg_flames},
-     * и при отсутствии конфига у Тела зоны никогда не спавнились.
-     */
-    private static ICustomNpc getFlameCarouselLeader(final ICustomNpc npc) {
-        if (npc == null) {
-            return null;
-        }
-        final ICustomNpc partner = findPartner(npc);
-        final ICustomNpc body;
-        final ICustomNpc spirit;
-        if ("spirit".equals(getRole(npc.getStoreddata()))) {
-            spirit = npc;
-            body = partner;
-        } else {
-            body = npc;
-            spirit = partner;
-        }
-        if (isFlameLeaderCandidate(spirit) && hasFlameConfig(spirit)) {
-            return spirit;
-        }
-        if (isFlameLeaderCandidate(body) && hasFlameConfig(body)) {
-            return body;
-        }
-        if (isFlameLeaderCandidate(spirit)) {
-            return spirit;
-        }
-        if (isFlameLeaderCandidate(body)) {
-            return body;
-        }
-        return null;
-    }
-
-    private static boolean isFlameLeaderCandidate(final ICustomNpc npc) {
-        return npc != null && npc.isAlive() && !isDowned(npc);
-    }
-
-    /** Если у лидера нет точек — скопировать арену с партнёра. */
-    private static void ensureFlameConfigFromPartner(final ICustomNpc npc) {
-        if (npc == null || hasFlameConfig(npc)) {
-            return;
-        }
-        final ICustomNpc partner = findPartner(npc);
-        if (partner != null && hasFlameConfig(partner)) {
-            copyArenaConfig(partner.getStoreddata(), npc.getStoreddata());
-        }
-    }
-
-    private static boolean isFlameCarouselLeader(final ICustomNpc npc) {
-        final ICustomNpc leader = getFlameCarouselLeader(npc);
-        return leader != null && npc != null
-                && String.valueOf(leader.getUUID()).equals(String.valueOf(npc.getUUID()));
-    }
-
-    private static String flameEncounterId(final ICustomNpc npc) {
-        if (npc == null) {
-            return "";
-        }
-        try {
-            final String pair = str(npc.getStoreddata(), PAIR_ID_KEY);
-            if (!pair.isEmpty() && !"null".equals(pair) && !"undefined".equals(pair)) {
-                return pair;
-            }
-        } catch (final Exception ignored) {
-        }
-        try {
-            return String.valueOf(npc.getUUID());
-        } catch (final Exception e) {
-            return "";
-        }
-    }
-
-    private static String flameTempKey(final ICustomNpc npc, final String suffix) {
-        return "df_flame_" + flameEncounterId(npc) + "_" + suffix;
-    }
-
-    private static String flameTempGet(final ICustomNpc npc, final String suffix) {
-        try {
-            return str(npc.getWorld().getTempdata(), flameTempKey(npc, suffix));
-        } catch (final Exception e) {
-            return "";
-        }
-    }
-
-    private static void flameTempPut(final ICustomNpc npc, final String suffix, final String value) {
-        try {
-            npc.getWorld().getTempdata().put(flameTempKey(npc, suffix), value);
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static void flameTempClear(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        try {
-            final IData td = npc.getWorld().getTempdata();
-            td.remove(flameTempKey(npc, FLAME_ACTIVE));
-            td.remove(flameTempKey(npc, FLAME_UUIDS));
-            td.remove(flameTempKey(npc, FLAME_SLOTS));
-            td.remove(flameTempKey(npc, FLAME_EPOCH));
-        } catch (final Exception ignored) {
-        }
-    }
-
-    private static EntityAbilityZone resolveFlameZone(final IWorld world, final String uuid) {
-        if (world == null || uuid == null || uuid.isEmpty()) {
-            return null;
-        }
-        try {
-            final UUID id = UUID.fromString(uuid);
-            if (world instanceof WorldWrapper) {
-                final ServerWorld sw = ((WorldWrapper) world).getMCWorld();
-                if (sw != null) {
-                    final Entity e = sw.getEntity(id);
-                    if (e instanceof EntityAbilityZone && !e.removed) {
-                        return (EntityAbilityZone) e;
-                    }
-                }
-            }
-            return asAbilityZone(world.getEntity(uuid));
-        } catch (final Exception e) {
-            return null;
-        }
-    }
-
-    private static EntityAbilityZone asAbilityZone(final IEntity wrapped) {
-        if (wrapped == null) {
-            return null;
-        }
-        try {
-            final Object mc = wrapped.getMCEntity();
-            if (mc instanceof EntityAbilityZone) {
-                return (EntityAbilityZone) mc;
-            }
-        } catch (final Exception ignored) {
-        }
-        return null;
-    }
-
-    // -------------------------------------------------------------------------
-    // Combat helpers
-    // -------------------------------------------------------------------------
-
-    private static IEntityLiving findValidPlayer(
-            final ICustomNpc npc, final double maxNpcDist, final double maxHomeDist) {
-        if (npc == null) {
-            return null;
-        }
-        IEntityLiving best = null;
-        double bestDist = maxNpcDist + 1.0;
-        try {
-            for (final IPlayer p : npc.getWorld().getAllPlayers()) {
-                if (!isValidCombatPlayer(p)) {
-                    continue;
-                }
-                if (distEntityToHome(npc, p) > maxHomeDist) {
-                    continue;
-                }
-                final double d = flatDistance(npc, p);
-                if (d < bestDist) {
-                    bestDist = d;
-                    best = p;
-                }
-            }
-        } catch (final Exception ignored) {
-        }
-        return best;
-    }
-
-    private static IEntityLiving findPlayerInLeash(final ICustomNpc npc) {
-        if (npc == null) {
-            return null;
-        }
-        IEntityLiving best = null;
-        double bestDist = LEASH_RANGE + 1.0;
-        try {
-            for (final IPlayer p : npc.getWorld().getAllPlayers()) {
-                if (!isValidCombatPlayer(p)) {
-                    continue;
-                }
-                final double dh = distEntityToHome(npc, p);
-                if (dh > LEASH_RANGE) {
-                    continue;
-                }
-                if (dh < bestDist) {
-                    bestDist = dh;
-                    best = p;
-                }
-            }
-        } catch (final Exception ignored) {
-        }
-        return best;
-    }
-
-    private static boolean isValidCombatPlayer(final IPlayer p) {
-        if (p == null || !p.isAlive()) {
-            return false;
-        }
-        try {
-            final int gm = p.getGamemode();
-            if (gm == 1 || gm == 3) {
-                return false;
-            }
-        } catch (final Exception ignored) {
-        }
-        return true;
-    }
-
-    private static boolean isInActiveCombat(final ICustomNpc npc) {
-        return hasCombatTarget(npc) || findValidPlayer(npc, AGRO_RANGE, LEASH_RANGE) != null;
-    }
-
-    private static boolean hasCombatTarget(final ICustomNpc npc) {
-        try {
-            final IEntityLiving t = npc.getAttackTarget();
-            return t != null && t.isAlive() && isCombatPlayerTarget(t);
-        } catch (final Exception e) {
-            return false;
-        }
-    }
-
-    /** Только выживание/приключение-игроки; не NPC и не креатив/спек. */
-    private static boolean isCombatPlayerTarget(final IEntityLiving ent) {
-        if (!(ent instanceof IPlayer)) {
-            return false;
-        }
-        return isValidCombatPlayer((IPlayer) ent);
-    }
-
-    private static boolean isInBondPhase(final ICustomNpc npc) {
-        if (npc == null) {
-            return false;
-        }
-        return "1".equals(str(npc.getStoreddata(), PARTNER_DEAD_KEY)) || isDowned(npc);
-    }
-
-    private static void clearLostAggroTimer(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        put(npc.getStoreddata(), LOST_AGGRO_SINCE_KEY, "0");
-    }
-
-    private static void markLostAggro(final ICustomNpc npc) {
-        if (npc == null) {
-            return;
-        }
-        final IData data = npc.getStoreddata();
-        // gameTime — long; int-parse ломал таймер на старых мирах (NumberFormat → 0 → never restore).
-        if (getLostAggroSince(data) > 0L) {
-            return;
-        }
-        put(data, LOST_AGGRO_SINCE_KEY, String.valueOf(npc.getWorld().getTotalTime()));
-    }
-
-    private static boolean hasLostAggroLongEnough(final ICustomNpc npc) {
-        if (npc == null) {
-            return false;
-        }
-        final long since = getLostAggroSince(npc.getStoreddata());
-        if (since <= 0L) {
-            return false;
-        }
-        return npc.getWorld().getTotalTime() - since >= HOME_RETURN_DELAY_TICKS;
-    }
-
-    private static long getLostAggroSince(final IData data) {
-        return getStoredLong(data, LOST_AGGRO_SINCE_KEY);
-    }
-
-    private static long getStoredLong(final IData data, final String key) {
-        if (data == null || key == null || !data.has(key)) {
-            return 0L;
-        }
-        try {
-            final Object raw = data.get(key);
-            if (raw == null) {
-                return 0L;
-            }
-            if (raw instanceof Number) {
-                return ((Number) raw).longValue();
-            }
-            final String s = String.valueOf(raw).trim();
-            if (s.isEmpty()) {
-                return 0L;
-            }
-            return Long.parseLong(s);
-        } catch (final Exception ignored) {
-            return 0L;
-        }
-    }
-
-    private static boolean hasHome(final IData data) {
-        return data != null && data.has(HOME_X_KEY) && !isBlank(str(data, HOME_X_KEY));
-    }
-
-    private static double distToHomeFlat(final ICustomNpc npc) {
-        final IData data = npc.getStoreddata();
-        if (!hasHome(data)) {
-            return 0.0;
-        }
-        final double dx = npc.getX() - ScriptDataUtil.getFloat(data, HOME_X_KEY);
-        final double dz = npc.getZ() - ScriptDataUtil.getFloat(data, HOME_Z_KEY);
-        return Math.sqrt(dx * dx + dz * dz);
-    }
-
-    private static double distEntityToHome(final ICustomNpc npc, final IEntity ent) {
-        final IData data = npc.getStoreddata();
-        if (!hasHome(data) || ent == null) {
-            return 9999.0;
-        }
-        final double dx = ent.getX() - ScriptDataUtil.getFloat(data, HOME_X_KEY);
-        final double dz = ent.getZ() - ScriptDataUtil.getFloat(data, HOME_Z_KEY);
-        return Math.sqrt(dx * dx + dz * dz);
-    }
-
-    private static ICustomNpc findNpcByUuid(final IWorld world, final String uuid) {
-        if (world == null || uuid == null || uuid.isEmpty()) {
-            return null;
-        }
-        try {
-            final IEntity[] all = world.getAllEntities(ENTITY_LIVING);
-            for (final IEntity ent : all) {
-                if (ent instanceof ICustomNpc && uuid.equals(String.valueOf(ent.getUUID()))) {
+            final IEntity[] list = add.getWorld().getNearbyEntities(add.getPos(), 64, 2);
+            for (final IEntity ent : list) {
+                if (ent instanceof ICustomNpc && ((ICustomNpc) ent).hasTag(BOSS_TAG)) {
                     return (ICustomNpc) ent;
                 }
             }
@@ -2504,50 +1324,65 @@ public final class DrachenfelsEncounterHelper {
         return null;
     }
 
-    private static double flatDistance(final IEntity a, final IEntity b) {
-        final double dx = a.getX() - b.getX();
-        final double dz = a.getZ() - b.getZ();
-        return Math.sqrt(dx * dx + dz * dz);
-    }
-
-    private static float hpRatio(final ICustomNpc npc) {
+    private static void clearOwnerZones(final ICustomNpc boss) {
         try {
-            final float max = npc.getMaxHealth();
-            if (!(max > 0.0F)) {
-                return 1.0F;
+            final Object mc = boss.getMCEntity();
+            if (!(mc instanceof Entity)) {
+                return;
             }
-            return npc.getHealth() / max;
-        } catch (final Exception e) {
-            return 1.0F;
+            final World world = ((Entity) mc).level;
+            if (!(world instanceof ServerWorld)) {
+                return;
+            }
+            final UUID bossUuid = UUID.fromString(String.valueOf(boss.getUUID()));
+            final AxisAlignedBB box = new AxisAlignedBB(
+                    boss.getX() - 40, boss.getY() - 10, boss.getZ() - 40,
+                    boss.getX() + 40, boss.getY() + 10, boss.getZ() + 40);
+            final List<EntityAbilityZone> zones =
+                    ((ServerWorld) world).getEntitiesOfClass(EntityAbilityZone.class, box);
+            for (final EntityAbilityZone zone : zones) {
+                if (zone == null || zone.removed) {
+                    continue;
+                }
+                ZoneAPI.remove(zone);
+            }
+        } catch (final Exception ignored) {
         }
     }
 
-    private static String hpPhase(final ICustomNpc npc) {
-        return hpRatio(npc) <= 0.5F ? "2" : "1";
+    // -------------------------------------------------------------------------
+    // Utils
+    // -------------------------------------------------------------------------
+
+    private static double hpRatio(final ICustomNpc npc) {
+        final double max = npc.getMaxHealth();
+        if (max <= 0.01) {
+            return 1.0;
+        }
+        return npc.getHealth() / max;
     }
 
-    private static boolean isCooldownReady(final IData data, final long now, final String abilityId) {
-        return now >= ScriptDataUtil.getInt(data, CD_PREFIX + abilityId);
-    }
-
-    private static void zeroMotion(final ICustomNpc npc) {
+    private static long now(final ICustomNpc npc) {
         try {
-            npc.setMotionX(0);
-            npc.setMotionY(0);
-            npc.setMotionZ(0);
-        } catch (final Exception ignored) {
+            return npc.getWorld().getTotalTime();
+        } catch (final Exception e) {
+            return 0L;
         }
     }
 
     private static boolean isClient(final ICustomNpc npc) {
         try {
             final Object mc = npc.getMCEntity();
-            if (mc instanceof Entity) {
-                return ((Entity) mc).level == null || ((Entity) mc).level.isClientSide;
-            }
-        } catch (final Exception ignored) {
+            return mc instanceof Entity && ((Entity) mc).level != null && ((Entity) mc).level.isClientSide;
+        } catch (final Exception e) {
+            return true;
         }
-        return false;
+    }
+
+    private static void put(final IData data, final String key, final Object value) {
+        if (data != null && key != null) {
+            data.put(key, String.valueOf(value));
+        }
     }
 
     private static String str(final IData data, final String key) {
@@ -2558,38 +1393,26 @@ public final class DrachenfelsEncounterHelper {
         return raw == null ? "" : String.valueOf(raw);
     }
 
-    private static void put(final IData data, final String key, final Object value) {
-        if (data == null || key == null) {
-            return;
+    private static void say(final ICustomNpc npc, final String msg) {
+        try {
+            npc.say(msg);
+        } catch (final Exception ignored) {
         }
-        data.put(key, value == null ? "" : String.valueOf(value));
     }
 
-    private static boolean isBlank(final String s) {
-        return s == null || s.isEmpty() || "null".equals(s) || "undefined".equals(s);
+    private static long parseLong(final String s) {
+        try {
+            return Long.parseLong(s.trim());
+        } catch (final Exception e) {
+            return 0L;
+        }
     }
 
-    private static List<String> parseList(final String raw) {
-        final List<String> out = new ArrayList<>();
-        if (raw == null || raw.isEmpty() || "null".equals(raw) || "undefined".equals(raw)) {
-            return out;
+    private static double parseDouble(final String s) {
+        try {
+            return Double.parseDouble(s.trim());
+        } catch (final Exception e) {
+            return 0.0;
         }
-        for (final String part : raw.split(";")) {
-            if (part != null && !part.isEmpty()) {
-                out.add(part);
-            }
-        }
-        return out;
-    }
-
-    private static String joinList(final List<String> arr) {
-        if (arr == null || arr.isEmpty()) {
-            return "";
-        }
-        final StringBuilder sb = new StringBuilder(arr.get(0));
-        for (int i = 1; i < arr.size(); i++) {
-            sb.append(';').append(arr.get(i));
-        }
-        return sb.toString();
     }
 }

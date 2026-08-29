@@ -251,180 +251,117 @@ public final class AbilityDefaults {
         return map;
     }
 
-    public static Map<String, Object> drachenfelsPoisonFeast() {
+    public static Map<String, Object> dfBlackSeal() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 36);
-        map.put(AbilityParamKeys.DAMAGE, 14.0);
-        map.put(AbilityParamKeys.RADIUS, 5.0);
-        map.put(AbilityParamKeys.KNOCKBACK, 0.9);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 30);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 1);
+        map.put(AbilityParamKeys.DAMAGE, 12.0);
+        map.put(AbilityParamKeys.RADIUS, 2.0);
+        map.put(AbilityParamKeys.ZONE_TICKS, 100);
+        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
+        map.put(AbilityParamKeys.DAMAGE_PER_TICK, 3.0);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
+    public static Map<String, Object> dfMaskGaze() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 15);
+        map.put(AbilityParamKeys.DISTANCE, 16.0);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.5);
+        map.put(AbilityParamKeys.DAMAGE, 18.0);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
+    public static Map<String, Object> dfImperialPoison() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 30);
+        map.put(AbilityParamKeys.RADIUS, 12.0);
+        map.put(AbilityParamKeys.INNER_RADIUS, 2.0);
+        map.put(AbilityParamKeys.DAMAGE, 8.0);
         map.put(AbilityParamKeys.EFFECT_TYPE, "poison");
         map.put(AbilityParamKeys.EFFECT_DURATION, 80);
-        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 1);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
         return map;
     }
 
-    public static Map<String, Object> drachenfelsDarkCleave() {
+    public static Map<String, Object> dfFeastSeats() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.DISTANCE, 5.5);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 26);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
-        map.put(AbilityParamKeys.DAMAGE, 13.0);
-        map.put(AbilityParamKeys.RADIUS, 2.4);
-        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 65.0);
-        map.put(AbilityParamKeys.KNOCKBACK, 1.4);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.3);
-        return map;
-    }
-
-    public static Map<String, Object> drachenfelsSoulRend() {
-        final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 34);
-        map.put(AbilityParamKeys.DAMAGE, 12.0);
-        map.put(AbilityParamKeys.RADIUS, 6.0);
-        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 40.0);
-        map.put(AbilityParamKeys.KNOCKBACK, 0.7);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.2);
-        map.put(AbilityParamKeys.EFFECT_TYPE, "wither");
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 40);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 1);
+        map.put(AbilityParamKeys.RADIUS, 1.5);
+        map.put(AbilityParamKeys.SPREAD_RADIUS, 6.0);
+        map.put(AbilityParamKeys.MAX_RANGE, 12.0);
+        map.put(AbilityParamKeys.DAMAGE, 14.0);
+        map.put(AbilityParamKeys.EFFECT_TYPE, "poison");
         map.put(AbilityParamKeys.EFFECT_DURATION, 60);
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FFFFFF);
         return map;
     }
 
-    public static Map<String, Object> drachenfelsSpiritBarrage() {
+    public static Map<String, Object> dfLeperBall() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 28);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 16);
-        map.put(AbilityParamKeys.SHOTS, 4);
-        map.put(AbilityParamKeys.DISTANCE, 14.0);
-        map.put(AbilityParamKeys.DAMAGE, 7.0);
-        map.put(AbilityParamKeys.HIT_RADIUS, 1.8);
-        map.put(AbilityParamKeys.KNOCKBACK, 0.5);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.15);
-        return map;
-    }
-
-    public static Map<String, Object> drachenfelsSoulSeeker() {
-        final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 30);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 14);
-        map.put(AbilityParamKeys.SHOTS, 2);
-        map.put(AbilityParamKeys.DISTANCE, 40.0);
-        map.put(AbilityParamKeys.MAX_RANGE, 40.0);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 1);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 60);
         map.put(AbilityParamKeys.DAMAGE, 10.0);
-        map.put(AbilityParamKeys.HIT_RADIUS, 2.2);
-        map.put(AbilityParamKeys.KNOCKBACK, 0.65);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.18);
-        return map;
-    }
-
-    public static Map<String, Object> drachenfelsRaiseThralls() {
-        final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.CHARGE_TICKS, 32);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 18);
-        map.put(AbilityParamKeys.RADIUS, 4.0);
-        map.put(AbilityParamKeys.EFFECT_TYPE, "slowness");
-        map.put(AbilityParamKeys.EFFECT_DURATION, 40);
-        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
-        map.put(AbilityParamKeys.SUMMON_COUNT, 2);
-        map.put(AbilityParamKeys.SUMMON_RADIUS, 3.5);
-        map.put(AbilityParamKeys.MAX_SUMMONED_NEAR_BOSS, 4);
         map.put(AbilityParamKeys.CLONE_TAB, 1);
-        map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels Thrall");
+        map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels Leper Phantom");
         return map;
     }
 
-    public static Map<String, Object> drachenfelsShadowStep() {
+    public static Map<String, Object> dfFalseHost() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.DISTANCE, 10.0);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 18);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 5);
-        map.put(AbilityParamKeys.DAMAGE, 8.0);
-        map.put(AbilityParamKeys.KNOCKBACK, 1.1);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
-        map.put(AbilityParamKeys.HIT_RADIUS, 1.5);
-        return map;
-    }
-
-    public static Map<String, Object> drachenfelsSoulOrbs() {
-        final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.TELEGRAPH, 0); // circles spawned manually per landing
-        map.put(AbilityParamKeys.CHARGE_TICKS, 32);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 18);
-        map.put(AbilityParamKeys.SHOTS, 3);
-        map.put(AbilityParamKeys.DAMAGE, 9.0);
-        map.put(AbilityParamKeys.LAND_RADIUS, 2.5);
-        map.put(AbilityParamKeys.SPREAD_RADIUS, 4.5);
-        map.put(AbilityParamKeys.MAX_RANGE, 28.0);
-        map.put(AbilityParamKeys.KNOCKBACK, 0.7);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.22);
-        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
-        return map;
-    }
-
-    /** Soul dark blast under target: telegraph → 15 pure + break wooden planks. */
-    public static Map<String, Object> drachenfelsDarkBlast() {
-        final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.TELEGRAPH, 0); // circle спавнится вручную под целью
-        map.put(AbilityParamKeys.CHARGE_TICKS, 32);
-        map.put(AbilityParamKeys.DAMAGE, 15.0);
-        map.put(AbilityParamKeys.RADIUS, 3.5);
-        map.put(AbilityParamKeys.KNOCKBACK, 0.55);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.2);
-        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
-        return map;
-    }
-
-    /** Soul parasite ghost: charge → homing NPC → grab + 2 pure DPS until ghost dies. */
-    public static Map<String, Object> drachenfelsGhostParasite() {
-        final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.TELEGRAPH, 0); // круг под жертвой в GrabHandler (SEEK), не line
-        map.put(AbilityParamKeys.CHARGE_TICKS, 28);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 600);
-        map.put(AbilityParamKeys.APPROACH_SPEED, 0.55);
-        map.put(AbilityParamKeys.HIT_RADIUS, 1.4);
-        map.put(AbilityParamKeys.LAND_RADIUS, 2.0);
-        map.put(AbilityParamKeys.HOVER_OFFSET, 1.1);
-        map.put(AbilityParamKeys.DAMAGE, 2.0);
-        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 20);
-        map.put(AbilityParamKeys.DISTANCE, 40.0);
-        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 1);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 30);
         map.put(AbilityParamKeys.CLONE_TAB, 1);
-        map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels Ghost Parasite");
+        map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels False Host");
         return map;
     }
 
-    /** Body pull → delayed circle under caster (15 pure). Follow-up cast is JS-forced. */
-    public static Map<String, Object> drachenfelsBodyPull() {
+    public static Map<String, Object> dfNamelessStep() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.TELEGRAPH, 0); // круг вручную после стяжки (circleAt + feet Y)
-        map.put(AbilityParamKeys.CHARGE_TICKS, 16);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 36); // dodge-window после pull
-        map.put(AbilityParamKeys.DAMAGE, 15.0);
-        map.put(AbilityParamKeys.RADIUS, 7.5);
-        map.put(AbilityParamKeys.MAX_RANGE, 18.0);
-        map.put(AbilityParamKeys.HIT_RADIUS, 2.0);
-        map.put(AbilityParamKeys.KNOCKBACK, 0.7);
-        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.25);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 8);
+        map.put(AbilityParamKeys.DAMAGE, 12.0);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.0);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
 
-    /** Body curse on ≤3 players + 3 cleanse puddles; fail → heal 10 HP each. */
-    public static Map<String, Object> drachenfelsCursePuddles() {
+    public static Map<String, Object> dfNamelessWhisper() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
         map.put(AbilityParamKeys.CHARGE_TICKS, 24);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 1);
-        map.put(AbilityParamKeys.MAX_RANGE, 18.0);
-        map.put(AbilityParamKeys.HIT_COUNT, 3);
-        map.put(AbilityParamKeys.SUMMON_COUNT, 3);
-        map.put(AbilityParamKeys.HIT_RADIUS, 2.0);
-        map.put(AbilityParamKeys.SPREAD_RADIUS, 20.0);
-        map.put(AbilityParamKeys.ZONE_TICKS, 200); // 10s curse / puddle lifetime
-        map.put(AbilityParamKeys.ZONE_COLOR, 0xC040E0D0);
-        map.put(AbilityParamKeys.HEAL_ON_FAIL, 10.0);
+        map.put(AbilityParamKeys.DAMAGE, 7.0);
+        map.put(AbilityParamKeys.EFFECT_DURATION, 20);
+        map.put(AbilityParamKeys.RING1_DISTANCE, 2.0);
+        map.put(AbilityParamKeys.RING2_DISTANCE, 5.0);
+        map.put(AbilityParamKeys.RING3_DISTANCE, 8.0);
+        map.put(AbilityParamKeys.RING1_RADIUS, 1.2);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
+    public static Map<String, Object> dfNameSteal() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 1);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 40); // blindness duration when used as steal param
+        map.put(AbilityParamKeys.DAMAGE, 6.0);
+        map.put(AbilityParamKeys.EFFECT_DURATION, 40); // weakness duration
         return map;
     }
 

@@ -20,8 +20,7 @@ noppes.npcs.abilities/
 │   ├── AbilityTickHandler.java
 │   ├── ShieldBlockDamageHandler.java
 │   ├── OtrodieCombatHandler.java   # front DR / vomit meter / devour
-│   ├── DrachenfelsGhostGrabHandler.java # parasite SEEK/GRAB + pure DPS
-│   ├── DrachenfelsCursePuddlesHandler.java # curse marks + cleanse puddles + heal on fail
+│   ├── DrachenfelsCombatHandler.java # absorb / vessel immunity / phase HP caps
 │   └── VampireCrimsonBatHealHandler.java # bat melee → heal owner
 └── impl/
     ├── DashAbility.java           # id: dash
@@ -32,19 +31,15 @@ noppes.npcs.abilities/
     ├── HolyWaterSplashAbility.java # id: holy_water_splash
     ├── BurningBrandAbility.java   # id: burning_brand
     ├── RetreatDashAbility.java    # id: retreat_dash
-    ├── DrachenfelsPoisonFeastAbility.java  # id: drachenfels_poison_feast
-    ├── DrachenfelsDarkCleaveAbility.java   # id: drachenfels_dark_cleave
-    ├── DrachenfelsSoulRendAbility.java     # id: drachenfels_soul_rend
-    ├── DrachenfelsSpiritBarrageAbility.java # id: drachenfels_spirit_barrage
-    ├── DrachenfelsSoulSeekerAbility.java    # id: drachenfels_soul_seeker
-    ├── DrachenfelsRaiseThrallsAbility.java # id: drachenfels_raise_thralls
-    ├── DrachenfelsShadowStepAbility.java   # id: drachenfels_shadow_step
-    ├── DrachenfelsBodyPullAbility.java     # id: drachenfels_body_pull
-    ├── DrachenfelsCursePuddlesAbility.java  # id: drachenfels_curse_puddles
-    ├── DrachenfelsSoulOrbsAbility.java     # id: drachenfels_soul_orbs
-    ├── DrachenfelsDarkBlastAbility.java    # id: drachenfels_dark_blast
-    ├── DrachenfelsGhostParasiteAbility.java # id: drachenfels_ghost_parasite
-    ├── DrachenfelsBodyPullAbility.java     # id: drachenfels_body_pull
+    ├── DfBlackSealAbility.java         # id: df_black_seal
+    ├── DfMaskGazeAbility.java          # id: df_mask_gaze
+    ├── DfImperialPoisonAbility.java    # id: df_imperial_poison
+    ├── DfFeastSeatsAbility.java        # id: df_feast_seats
+    ├── DfLeperBallAbility.java         # id: df_leper_ball
+    ├── DfFalseHostAbility.java         # id: df_false_host
+    ├── DfNamelessStepAbility.java      # id: df_nameless_step
+    ├── DfNamelessWhisperAbility.java   # id: df_nameless_whisper
+    ├── DfNameStealAbility.java         # id: df_name_steal
     ├── WhFlamingStrikeAbility.java         # id: wh_flaming_strike
     ├── WhLungeAbility.java                 # id: wh_lunge
     ├── WhFlamingCrossbowAbility.java       # id: wh_flaming_crossbow
@@ -91,7 +86,6 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 | `isBusy(npc)` | Активна ли абилка |
 | `getActiveId(npc)` | id или `""` |
 | `cancel(npc)` | Сброс |
-| `transferDrachenfelsRitualHp(a, b)` | Encounter: асимметричный HP-transfer Тело↔Душа |
 
 ## Зарегистрированные абилки
 
@@ -301,85 +295,26 @@ final double cz = active.sz + (active.ez - active.sz) * progress;
 
 Дуга (jump_slam): `cy = baseY + Math.sin(t * Math.PI) * arcHeight`.
 
-### `drachenfels_*` — парный босс Constant Drachenfels
+### `df_*` — соло-босс Constant Drachenfels
 
-| id | Роль | Суть |
+Один NPC, тег `df_constant`. Оркестратор: `DrachenfelsEncounterHelper` + JS `scripts/drachenfels/drachenfels_constant.js`.
+Пороги по **% maxHealth**: фаза 2 ≤66%, фаза 3 ≤33%; Колокол 88%/76%; Ложный Хозяин 56%/46%/36%; щит 13.3% max; хилл осколка 2.67% max (кап 33%).
+Combat: `DrachenfelsCombatHandler` — absorb, иммунитет при живых сосудах, кап лечения по фазе.
+
+| id | Фаза | Суть |
 |----|------|------|
-| `drachenfels_poison_feast` | body | AoE poison + damage |
-| `drachenfels_dark_cleave` | body | короткий dash + cone |
-| `drachenfels_soul_rend` | spirit | cone wither |
-| `drachenfels_spirit_barrage` | spirit | импульсы к цели |
-| `drachenfels_soul_seeker` | оба | дальние soul-импульсы (punish kite) |
-| `drachenfels_raise_thralls` | оба | spawnClone thralls |
-| `drachenfels_shadow_step` | оба | soul dash |
-| `drachenfels_soul_orbs` | spirit | несколько кругов под целью |
-| `drachenfels_dark_blast` | spirit | telegraph-круг под целью → 15 pure + ломка досок (snapshot) |
-| `drachenfels_ghost_parasite` | spirit | homing-призрак → grab + 2 pure DPS до убийства призрака |
-| `drachenfels_body_pull` | body | стяжка игроков → delayed круг 15 pure → JS forced follow-up |
-| `drachenfels_curse_puddles` | body | метка ≤3 игроков на 10с + 3 лужи-очистителя; fail → +10 HP боссу |
+| `df_black_seal` | 1 | 3 круга → burst 12 + hazard 3/0.5с ×5с |
+| `df_mask_gaze` | 1 | луч 16×1.5, 18 урона (фикс. yaw) |
+| `df_imperial_poison` | 2 | расширяющееся кольцо, 1 прок: 8+Poison IV+Slow I |
+| `df_feast_seats` | 2 | 6 белых safe-кругов; удар арены 14+Poison |
+| `df_leper_ball` | 2 | 4 фантома к центру |
+| `df_false_host` | 2 | 3 копии + TP на R=5, 1.5с пауза |
+| `df_nameless_step` | 3 | dash по линии, 12 |
+| `df_nameless_whisper` | 3 | 3 кольца сразу, 7+Blind |
+| `df_name_steal` | 3 | мили 6+Weak+Blind |
 
-Encounter (не AbilityAPI id): `df_hp_ritual` в `drachenfels_boss_rework.js` — телепорт на `24379 28 -60298` / `+5Y`, particle-link, фиксация AI, HP через `AbilityAPI.transferDrachenfelsRitualHp` / `AbilityCombatHelper.transferDrachenfelsRitualHp` (слабый хиллится сильнее, донор теряет ~18% от heal).
-
-Дефолты — `AbilityDefaults.drachenfels*()`. Эффекты `poison` / `wither` — в `AbilityEffectType`.
-
-### `drachenfels_dark_blast` — DrachenfelsDarkBlastAbility
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` | int | 32 | Warning circle под целью |
-| `damage` | double | 15.0 | Чистый MAGIC (`damageNearbyPure`) |
-| `radius` | double | 3.5 | Радиус AoE / telegraph / ломки досок |
-| `knockback` / `knockbackY` | double | 0.55 / 0.2 | Отброс |
-
-На `onStart` фиксирует точку под целью (`ex/ey/ez`). Ломает только `BlockTags.PLANKS`; snapshot в `AbilityCombatHelper` по `df_pair_id` — `restoreBrokenBoards(npc)` / `clearBrokenBoards(npc)`.
-
-### `drachenfels_ghost_parasite` — DrachenfelsGhostParasiteAbility
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `chargeTicks` | int | 28 | Каст Души перед запуском |
-| `activeTicks` | int | 600 | Safety-лимит grab (тики) |
-| `approachSpeed` | double | 0.55 | Скорость homing (блоки/тик) |
-| `hitRadius` | double | 1.4 | Радиус контакта → grab |
-| `hoverOffset` | double | 1.1 | Высота призрака над жертвой |
-| `damage` | double | 2.0 | Чистый MAGIC / тик урона |
-| `damageInterval` | int | 20 | Интервал DoT (= 2 DPS) |
-| `distance` | double | 40.0 | Бюджет полёта (блоки → тики) |
-| `cloneTab` / `cloneName` | | 1 / `Drachenfels Ghost Parasite` | Опциональный клон; иначе `spawnNPC` fallback |
-
-После charge спавнит killable NPC (тег `drachenfels_ghost_parasite`) и передаёт в `DrachenfelsGhostGrabHandler`: SEEK → GRAB. Grab: `AbilityCombatHelper.pinLiving` + `dealPureDamage(..., ignoreIframes=true)`. Убийство призрака снимает захват. Без клиентских пакетов. JS: `drachenfels_boss_rework.js`.
-
-### `drachenfels_body_pull` — DrachenfelsBodyPullAbility
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `telegraph` | int | 0 | Авто-TG на charge выключен |
-| `chargeTicks` | int | 16 | Windup до стяжки |
-| `activeTicks` | int | 28 | Длительность warning-круга после pull |
-| `damage` | double | 15.0 | Чистый MAGIC (`damageNearbyPure`) |
-| `radius` | double | 5.0 | Радиус blast / telegraph |
-| `maxRange` | double | 12.0 | Радиус стяжки игроков |
-| `hitRadius` | double | 2.0 | Stand-off от босса после pull |
-| `knockback` / `knockbackY` | double | 0.7 / 0.25 | Отброс на blast |
-
-CHARGE → `pullPlayersToward` → ручной `TelegraphAPI.circle` → delayed blast. Follow-up body-каст ставит JS (`df_forced_ability` → `drachenfels_curse_puddles`).
-
-### `drachenfels_curse_puddles` — DrachenfelsCursePuddlesAbility
-
-| Ключ | Тип | Дефолт | Описание |
-|------|-----|--------|----------|
-| `telegraph` | int | 0 | Авто-TG выключен |
-| `chargeTicks` | int | 24 | Windup перед метками |
-| `maxRange` | double | 18.0 | Радиус выбора игроков |
-| `hitCount` | int | 3 | Макс. проклятых игроков |
-| `summonCount` | int | 3 | Число очищающих луж |
-| `hitRadius` | double | 2.0 | Радиус лужи |
-| `spreadRadius` | double | 12.0 | Разброс луж вокруг кастера |
-| `zoneTicks` | int | 200 | Длительность curse / луж (10с) |
-| `zoneColor` | int | `0xC040E0D0` | Цвет cleanse-лужи |
-| `healOnFail` | double | 10.0 | Хил боссу за каждого неуспевшего |
-
-CHARGE → выбор ≤3 игроков → `DrachenfelsCursePuddlesHandler`: glowing-метка, 3 visual ZoneAPI-лужи (0 dmg). Вход в свободную лужу снимает curse и удаляет лужу; истечение таймера → `healLiving(+10)`. JS: `drachenfels_boss_rework.js` (в т.ч. forced follow-up после `body_pull`).
+Колокол / Поклон / сосуды / осколки / дуга Носителя — в `DrachenfelsEncounterHelper` (не AbilityAPI id).
+Дефолты — `AbilityDefaults.df*()`.
 
 ### `shield_block` — ShieldBlockAbility
 
@@ -620,7 +555,7 @@ Homing-рывок в текущую позицию цели: charge 18 тико�
 | `scripts/boss_dash_jump/boss_periodic_abilities.js` | Чередование dash/jump, фикс. params |
 | `scripts/boss_dash_jump/boss_dash_jump.js` | То же + бонус урона при низком HP |
 | `scripts/witch_hunter/witch_hunter_boss.js` | Охотник: strike/net/lunge/crossbow/fire_bomb + цепочки |
-| `scripts/drachenfels/drachenfels_boss.js` | Тело+дух, Immortal Bond revive, фазы 1/2/bond |
+| `scripts/drachenfels/drachenfels_constant.js` | Соло Констант: фазы %HP, AbilityAPI + EncounterHelper |
 | `scripts/utility/npc_shield_block.js` | Блок щитом: damaged → `shield_block` |
 | `scripts/utility/crimson_blob.js` | Навес сгустка → слепая лужа |
 | `scripts/otrodie/otrodie_boss.js` | Отродье: CD/forced chain + SpreadingFilth.trigger |

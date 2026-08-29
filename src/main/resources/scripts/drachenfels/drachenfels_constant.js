@@ -1,0 +1,341 @@
+/**
+ * Констант Драхенфельс — соло-энкаунтер.
+ * Механика в Java. Здесь — клоны и ВСЕ числовые константы.
+ *
+ * Меняй цифры ниже → Encounter.configure пишет их в storeddata (df_c_*).
+ * Длительности эффектов в ТИКАХ (20 тиков = 1с), amp Poison IV = 3.
+ */
+var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
+var Encounter = Java.type("noppes.npcs.abilities.DrachenfelsEncounterHelper");
+
+var TIMER_ID = 881;
+
+// =========================
+// КЛОНЫ (имена в CNPC Clone tab)
+// =========================
+var CLONE_TAB = 1;
+var CLONE_MONK = "Drachenfels Monk";
+var CLONE_CULTIST = "Drachenfels Cultist";
+var CLONE_GUARD = "Drachenfels Guard";
+var CLONE_PHANTOM = "Drachenfels Leper Phantom";
+var CLONE_FALSE = "Drachenfels False Host";
+var CLONE_VESSEL = "Drachenfels Vessel";
+var CLONE_SHARD = "Drachenfels Shard";
+
+// =========================
+// АРЕНА / ФАЗЫ / ГЛОБАЛЬНОЕ
+// =========================
+var ARENA_RADIUS = 12.0;
+var PHASE2_RATIO = 0.66;
+var PHASE3_RATIO = 0.33;
+var INVULN_TICKS = 60;
+var KITE_DISTANCE = 6.0;
+var PHASE1_SPEED = 0.15;
+var TELEGRAPH_COLOR = 0xC0FF3030;
+var SEAL_FIRST_DELAY = 40;
+var GAZE_FIRST_DELAY = 80;
+var COURT_FIRST_DELAY = 80;
+
+// =========================
+// ФАЗА 1 — Чёрная Печать
+// =========================
+var SEAL_CD = 200;
+var SEAL_CHARGE_TICKS = 30;
+var SEAL_ACTIVE_TICKS = 1;
+var SEAL_DAMAGE = 12.0;
+var SEAL_RADIUS = 2.0;
+var SEAL_ZONE_TICKS = 100;
+var SEAL_ZONE_DAMAGE = 3.0;
+var SEAL_ZONE_INTERVAL = 10;
+var SEAL_MIN_BOSS_DIST = 2.0;
+var SEAL_MIN_CIRCLE_DIST = 4.0;
+
+// =========================
+// ФАЗА 1 — Взгляд Под Маской
+// =========================
+var GAZE_CD = 160;
+var GAZE_RANGE = 8.0;
+var GAZE_FAR_TICKS = 40;
+var GAZE_CHARGE_TICKS = 20;
+var GAZE_ACTIVE_TICKS = 15;
+var GAZE_DISTANCE = 16.0;
+var GAZE_WIDTH = 1.5;
+var GAZE_DAMAGE = 18.0;
+
+// =========================
+// ФАЗА 1 — Колокол Мёртвых
+// =========================
+var BELL_RATIOS = "0.88,0.76";
+var BELL_CD = 400;
+var ABSORB_RATIO = 0.133;
+var MONK_HP = 40.0;
+
+// =========================
+// ФАЗА 1 — Поклон Свиты
+// =========================
+var COURT_CD = 320;
+var CULTIST_HP = 30.0;
+var CULTIST_DAMAGE = 6.0;
+var CULTIST_INTERVAL = 50;
+var GUARD_HP = 50.0;
+var GUARD_DAMAGE = 10.0;
+var GUARD_ARC_RADIUS = 3.0;
+var GUARD_CAST_TICKS = 16;
+var GUARD_INTERVAL = 60;
+
+// =========================
+// ФАЗА 2 — цикл / Яд / Места / Бал / Ложный Хозяин
+// =========================
+var CYCLE_LENGTH = 360;
+var CYCLE_FEAST_AT = 120;
+var CYCLE_LEPER_AT = 220;
+
+var IMPERIAL_CHARGE_TICKS = 10;
+var IMPERIAL_ACTIVE_TICKS = 30;
+var IMPERIAL_ARENA_RADIUS = 12.0;
+var IMPERIAL_THICKNESS = 2.0;
+var IMPERIAL_DAMAGE = 8.0;
+var IMPERIAL_POISON_DURATION = 80;
+var IMPERIAL_POISON_AMP = 3;
+var IMPERIAL_SLOW_DURATION = 40;
+
+var FEAST_CHARGE_TICKS = 40;
+var FEAST_ACTIVE_TICKS = 1;
+var FEAST_SEAT_RADIUS = 1.5;
+var FEAST_SEAT_RING = 6.0;
+var FEAST_ARENA_RADIUS = 12.0;
+var FEAST_DAMAGE = 14.0;
+var FEAST_POISON_DURATION = 60;
+var FEAST_POISON_AMP = 0;
+var FEAST_COLOR = 0xC0FFFFFF;
+
+var LEPER_CHARGE_TICKS = 1;
+var LEPER_ACTIVE_TICKS = 60;
+var LEPER_DAMAGE = 10.0;
+var LEPER_SPAWN_RADIUS = 11.0;
+var LEPER_DURATION = 60;
+var LEPER_HIT_RADIUS = 1.0;
+var LEPER_SLOW_DURATION = 30;
+var LEPER_SLOW_AMP = 1;
+
+var FALSE_RATIOS = "0.56,0.46,0.36";
+var FALSE_MAX = 3;
+var FALSE_SHIFT = 30;
+var FALSE_ACTIVE_TICKS = 30;
+var FALSE_COPY_DIST = 3.0;
+var FALSE_TELEPORT_RING = 5.0;
+
+// =========================
+// ФАЗА 3 — сосуды / осколки / спеллы / Носитель
+// =========================
+var VESSEL_RING = 10.0;
+var VESSEL_HP_FIRST = 45;
+var VESSEL_HP_REPEAT = 30;
+var SHARD_HP = 20.0;
+var SHARD_SPEED = 0.35;
+var SHARD_HEAL_RATIO = 0.0267;
+var SHARD_TOUCH_DIST = 1.0;
+var SHARD_DELAY_TICKS = 5;
+
+var STEP_CD = 120;
+var STEP_CHARGE_TICKS = 10;
+var STEP_ACTIVE_TICKS = 8;
+var STEP_DAMAGE = 12.0;
+var STEP_WIDTH = 1.0;
+var STEP_MIN_PLAYER_DIST = 5.0;
+
+var WHISPER_CD = 180;
+var WHISPER_CHARGE_TICKS = 24;
+var WHISPER_ACTIVE_TICKS = 1;
+var WHISPER_DAMAGE = 7.0;
+var WHISPER_BLIND_DURATION = 20;
+var WHISPER_THICKNESS = 1.2;
+var WHISPER_RING1 = 2.0;
+var WHISPER_RING2 = 5.0;
+var WHISPER_RING3 = 8.0;
+
+var STEAL_CD = 160;
+var STEAL_RANGE = 3.0;
+var STEAL_DAMAGE = 6.0;
+var STEAL_WEAK_DURATION = 40;
+var STEAL_BLIND_DURATION = 40;
+
+var CARRIER_TICKS = 240;
+var CARRIER_SPEED = 0.2;
+var CARRIER_ARC_DAMAGE = 15.0;
+var CARRIER_ARC_RADIUS = 3.0;
+var CARRIER_ARC_CAST_TICKS = 12;
+var CARRIER_ARC_INTERVAL = 50;
+
+function init(event) {
+    var npc = event.npc;
+    Encounter.configureClones(
+        npc,
+        CLONE_TAB,
+        CLONE_MONK,
+        CLONE_CULTIST,
+        CLONE_GUARD,
+        CLONE_PHANTOM,
+        CLONE_FALSE,
+        CLONE_VESSEL,
+        CLONE_SHARD
+    );
+    Encounter.configure(npc,
+        "arenaRadius", ARENA_RADIUS,
+        "phase2Ratio", PHASE2_RATIO,
+        "phase3Ratio", PHASE3_RATIO,
+        "invulnTicks", INVULN_TICKS,
+        "kiteDistance", KITE_DISTANCE,
+        "phase1Speed", PHASE1_SPEED,
+        "telegraphColor", TELEGRAPH_COLOR,
+        "sealFirstDelay", SEAL_FIRST_DELAY,
+        "gazeFirstDelay", GAZE_FIRST_DELAY,
+        "courtFirstDelay", COURT_FIRST_DELAY,
+
+        "sealCd", SEAL_CD,
+        "sealChargeTicks", SEAL_CHARGE_TICKS,
+        "sealActiveTicks", SEAL_ACTIVE_TICKS,
+        "sealDamage", SEAL_DAMAGE,
+        "sealRadius", SEAL_RADIUS,
+        "sealZoneTicks", SEAL_ZONE_TICKS,
+        "sealZoneDamage", SEAL_ZONE_DAMAGE,
+        "sealZoneInterval", SEAL_ZONE_INTERVAL,
+        "sealMinBossDist", SEAL_MIN_BOSS_DIST,
+        "sealMinCircleDist", SEAL_MIN_CIRCLE_DIST,
+
+        "gazeCd", GAZE_CD,
+        "gazeRange", GAZE_RANGE,
+        "gazeFarTicks", GAZE_FAR_TICKS,
+        "gazeChargeTicks", GAZE_CHARGE_TICKS,
+        "gazeActiveTicks", GAZE_ACTIVE_TICKS,
+        "gazeDistance", GAZE_DISTANCE,
+        "gazeWidth", GAZE_WIDTH,
+        "gazeDamage", GAZE_DAMAGE,
+
+        "bellRatios", BELL_RATIOS,
+        "bellCd", BELL_CD,
+        "absorbRatio", ABSORB_RATIO,
+        "monkHp", MONK_HP,
+
+        "courtCd", COURT_CD,
+        "cultistHp", CULTIST_HP,
+        "cultistDamage", CULTIST_DAMAGE,
+        "cultistInterval", CULTIST_INTERVAL,
+        "guardHp", GUARD_HP,
+        "guardDamage", GUARD_DAMAGE,
+        "guardArcRadius", GUARD_ARC_RADIUS,
+        "guardCastTicks", GUARD_CAST_TICKS,
+        "guardInterval", GUARD_INTERVAL,
+
+        "cycleLength", CYCLE_LENGTH,
+        "cycleFeastAt", CYCLE_FEAST_AT,
+        "cycleLeperAt", CYCLE_LEPER_AT,
+
+        "imperialChargeTicks", IMPERIAL_CHARGE_TICKS,
+        "imperialActiveTicks", IMPERIAL_ACTIVE_TICKS,
+        "imperialArenaRadius", IMPERIAL_ARENA_RADIUS,
+        "imperialThickness", IMPERIAL_THICKNESS,
+        "imperialDamage", IMPERIAL_DAMAGE,
+        "imperialPoisonDuration", IMPERIAL_POISON_DURATION,
+        "imperialPoisonAmp", IMPERIAL_POISON_AMP,
+        "imperialSlowDuration", IMPERIAL_SLOW_DURATION,
+
+        "feastChargeTicks", FEAST_CHARGE_TICKS,
+        "feastActiveTicks", FEAST_ACTIVE_TICKS,
+        "feastSeatRadius", FEAST_SEAT_RADIUS,
+        "feastSeatRing", FEAST_SEAT_RING,
+        "feastArenaRadius", FEAST_ARENA_RADIUS,
+        "feastDamage", FEAST_DAMAGE,
+        "feastPoisonDuration", FEAST_POISON_DURATION,
+        "feastPoisonAmp", FEAST_POISON_AMP,
+        "feastColor", FEAST_COLOR,
+
+        "leperChargeTicks", LEPER_CHARGE_TICKS,
+        "leperActiveTicks", LEPER_ACTIVE_TICKS,
+        "leperDamage", LEPER_DAMAGE,
+        "leperSpawnRadius", LEPER_SPAWN_RADIUS,
+        "leperDuration", LEPER_DURATION,
+        "leperHitRadius", LEPER_HIT_RADIUS,
+        "leperSlowDuration", LEPER_SLOW_DURATION,
+        "leperSlowAmp", LEPER_SLOW_AMP,
+
+        "falseRatios", FALSE_RATIOS,
+        "falseMax", FALSE_MAX,
+        "falseShift", FALSE_SHIFT,
+        "falseActiveTicks", FALSE_ACTIVE_TICKS,
+        "falseCopyDist", FALSE_COPY_DIST,
+        "falseTeleportRing", FALSE_TELEPORT_RING,
+
+        "vesselRing", VESSEL_RING,
+        "vesselHpFirst", VESSEL_HP_FIRST,
+        "vesselHpRepeat", VESSEL_HP_REPEAT,
+        "shardHp", SHARD_HP,
+        "shardSpeed", SHARD_SPEED,
+        "shardHealRatio", SHARD_HEAL_RATIO,
+        "shardTouchDist", SHARD_TOUCH_DIST,
+        "shardDelayTicks", SHARD_DELAY_TICKS,
+
+        "stepCd", STEP_CD,
+        "stepChargeTicks", STEP_CHARGE_TICKS,
+        "stepActiveTicks", STEP_ACTIVE_TICKS,
+        "stepDamage", STEP_DAMAGE,
+        "stepWidth", STEP_WIDTH,
+        "stepMinPlayerDist", STEP_MIN_PLAYER_DIST,
+
+        "whisperCd", WHISPER_CD,
+        "whisperChargeTicks", WHISPER_CHARGE_TICKS,
+        "whisperActiveTicks", WHISPER_ACTIVE_TICKS,
+        "whisperDamage", WHISPER_DAMAGE,
+        "whisperBlindDuration", WHISPER_BLIND_DURATION,
+        "whisperThickness", WHISPER_THICKNESS,
+        "whisperRing1", WHISPER_RING1,
+        "whisperRing2", WHISPER_RING2,
+        "whisperRing3", WHISPER_RING3,
+
+        "stealCd", STEAL_CD,
+        "stealRange", STEAL_RANGE,
+        "stealDamage", STEAL_DAMAGE,
+        "stealWeakDuration", STEAL_WEAK_DURATION,
+        "stealBlindDuration", STEAL_BLIND_DURATION,
+
+        "carrierTicks", CARRIER_TICKS,
+        "carrierSpeed", CARRIER_SPEED,
+        "carrierArcDamage", CARRIER_ARC_DAMAGE,
+        "carrierArcRadius", CARRIER_ARC_RADIUS,
+        "carrierArcCastTicks", CARRIER_ARC_CAST_TICKS,
+        "carrierArcInterval", CARRIER_ARC_INTERVAL
+    );
+    Encounter.init(npc);
+    startTimers(npc);
+}
+
+function timer(event) {
+    if (event.id != TIMER_ID) return;
+    var npc = event.npc;
+    if (!npc.isAlive()) {
+        AbilityAPI.cancel(npc);
+        Encounter.cleanup(npc);
+        return;
+    }
+    Encounter.tick(npc);
+}
+
+function died(event) {
+    AbilityAPI.cancel(event.npc);
+    Encounter.cleanup(event.npc);
+}
+
+function targetLost(event) {
+}
+
+function startTimers(npc) {
+    try {
+        if (!npc.getTimers().has(TIMER_ID)) {
+            npc.getTimers().forceStart(TIMER_ID, 1, true);
+        }
+    } catch (e) {
+        try {
+            npc.getTimers().start(TIMER_ID, 1, true);
+        } catch (e2) {}
+    }
+}

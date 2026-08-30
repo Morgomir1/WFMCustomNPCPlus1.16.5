@@ -199,6 +199,8 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "leperActiveTicks", 60));
         m.put(AbilityParamKeys.DAMAGE, getD(npc, "leperDamage", 10.0));
         m.put(AbilityParamKeys.RADIUS, getD(npc, "leperHitRadius", 1.0));
+        m.put(AbilityParamKeys.SHOT_INTERVAL, getI(npc, "leperVolleyInterval", 18));
+        m.put(AbilityParamKeys.SUMMON_COUNT, getI(npc, "leperVolleys", 3));
         m.put(AbilityParamKeys.CLONE_TAB, ScriptDataUtil.getInt(data, "df_clone_tab") <= 0
                 ? 1 : ScriptDataUtil.getInt(data, "df_clone_tab"));
         final Object name = data.has("df_clone_phantom") ? data.get("df_clone_phantom") : "Drachenfels Leper Phantom";

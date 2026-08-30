@@ -39,7 +39,7 @@ Imperial: `imperialChargeTicks`, `imperialActiveTicks` (expand duration; higher 
 
 Feast: `feastChargeTicks`, `feastActiveTicks`, `feastSeatRadius`, `feastSeatRing` (max scatter from boss, default 9.5), `feastSeatMinBossDist` (default 2.5), `feastArenaRadius`, `feastDamage`, `feastPoisonDuration`, `feastPoisonAmp`, `feastColor`. Seats spawn at random positions near the boss (not a fixed ring).
 
-Leper: `leperChargeTicks`, `leperActiveTicks`, `leperDamage`, `leperSpawnRadius`, `leperDuration`, `leperHitRadius`, `leperSlowDuration`, `leperSlowAmp`.
+Leper: `leperChargeTicks`, `leperActiveTicks`, `leperDamage`, `leperStartRadius` (spawn near boss), `leperSpawnRadius` (outward end, default 24), `leperDuration` (flight ticks), `leperHitRadius` (red following hazard), `leperSlowDuration`, `leperSlowAmp`, `leperVolleys` (3), `leperVolleyInterval`, `leperWiggleAmp`, `leperWiggleFreq`, `leperHover` (locked Y above spawn floor). Three staggered-angle salvos fly **away** from the boss with a sine weave; each spirit has a red ZoneAPI circle that moves with it and deals damage.
 
 False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActiveTicks`, `falseCopyDist`, `falseTeleportRing`, `falseTelegraphRadius`.
 

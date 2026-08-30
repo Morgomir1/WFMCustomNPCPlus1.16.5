@@ -400,16 +400,31 @@ public final class DrachenfelsEncounterHelper {
         // no heal — already handled if contact; death just removes
     }
 
+    /** Cardinal / diagonal / half-diagonal salvoes — 4 spirits each. */
+    private static final double[][] LEPER_VOLLEY_ANGLES = {
+            {0.0, 90.0, 180.0, 270.0},
+            {45.0, 135.0, 225.0, 315.0},
+            {22.5, 112.5, 202.5, 292.5}
+    };
+
     public static double[][] leperSpawnPoints(final ICustomNpc boss) {
-        final double[] c = getArenaCenter(boss);
-        final double spawnR = DrachenfelsConfig.getD(boss, "leperSpawnRadius", 11.0);
-        final double[] angles = {0.0, 90.0, 180.0, 270.0};
+        return leperSpawnPoints(boss, 0);
+    }
+
+    /** Spawn points near the boss for telegraph / volley {@code volleyIndex}. */
+    public static double[][] leperSpawnPoints(final ICustomNpc boss, final int volleyIndex) {
+        final double[] angles = leperVolleyAngles(volleyIndex);
+        final double startR = DrachenfelsConfig.getD(boss, "leperStartRadius", 1.5);
+        final double bx = boss.getX();
+        final double by = boss.getY();
+        final double bz = boss.getZ();
         final double[][] out = new double[angles.length][3];
         for (int i = 0; i < angles.length; i++) {
             final double rad = Math.toRadians(angles[i]);
-            final double x = c[0] + Math.cos(rad) * spawnR;
-            final double z = c[2] + Math.sin(rad) * spawnR;
-            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+            final double x = bx + Math.cos(rad) * startR;
+            final double z = bz + Math.sin(rad) * startR;
+            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, by)
+                    + DrachenfelsConfig.getD(boss, "leperHover", 1.0);
             out[i][0] = x;
             out[i][1] = y;
             out[i][2] = z;
@@ -417,9 +432,14 @@ public final class DrachenfelsEncounterHelper {
         return out;
     }
 
+    private static double[] leperVolleyAngles(final int volleyIndex) {
+        final int idx = Math.floorMod(volleyIndex, LEPER_VOLLEY_ANGLES.length);
+        return LEPER_VOLLEY_ANGLES[idx];
+    }
+
     public static void spawnLeperPhantoms(
             final ICustomNpc boss, final int tab, final String cloneName, final double damage) {
-        spawnLeperPhantoms(boss, tab, cloneName, damage, null);
+        spawnLeperVolley(boss, tab, cloneName, damage, 0);
     }
 
     public static void spawnLeperPhantoms(
@@ -428,33 +448,75 @@ public final class DrachenfelsEncounterHelper {
             final String cloneName,
             final double damage,
             final List<double[]> markers) {
-        final int life = DrachenfelsConfig.getI(boss, "leperDuration", 60);
-        final double[][] points;
+        // Legacy single-salvo path: treat markers as starts of volley 0 if provided.
         if (markers != null && !markers.isEmpty()) {
-            points = new double[markers.size()][3];
-            for (int i = 0; i < markers.size(); i++) {
-                points[i] = markers.get(i);
-            }
-        } else {
-            points = leperSpawnPoints(boss);
+            spawnLeperVolley(boss, tab, cloneName, damage, 0);
+            return;
         }
-        for (int i = 0; i < points.length; i++) {
-            final double x = points[i][0];
-            final double y = points[i][1];
-            final double z = points[i][2];
-            final ICustomNpc phantom = spawnClone(boss, tab, cloneName, x, y, z);
+        spawnLeperVolley(boss, tab, cloneName, damage, 0);
+    }
+
+    /** Spawn one outward salvo of leper spirits (away from the boss). */
+    public static void spawnLeperVolley(
+            final ICustomNpc boss,
+            final int tab,
+            final String cloneName,
+            final double damage,
+            final int volleyIndex) {
+        final int life = DrachenfelsConfig.getI(boss, "leperDuration", 70);
+        final double startR = DrachenfelsConfig.getD(boss, "leperStartRadius", 1.5);
+        final double endR = DrachenfelsConfig.getD(boss, "leperSpawnRadius", 24.0);
+        final double hover = DrachenfelsConfig.getD(boss, "leperHover", 1.0);
+        final double hitR = DrachenfelsConfig.getD(boss, "leperHitRadius", 1.5);
+        final int zoneColor = DrachenfelsConfig.getI(boss, "telegraphColor", 0xC0FF3030);
+        final int slowDur = DrachenfelsConfig.getI(boss, "leperSlowDuration", 30);
+        final int slowAmp = DrachenfelsConfig.getI(boss, "leperSlowAmp", 1);
+        final double[] angles = leperVolleyAngles(volleyIndex);
+        final double bx = boss.getX();
+        final double by = boss.getY();
+        final double bz = boss.getZ();
+        for (int i = 0; i < angles.length; i++) {
+            final double rad = Math.toRadians(angles[i]);
+            final double cos = Math.cos(rad);
+            final double sin = Math.sin(rad);
+            final double sx = bx + cos * startR;
+            final double sz = bz + sin * startR;
+            final double ex = bx + cos * endR;
+            final double ez = bz + sin * endR;
+            final double baseY = AbilityCombatHelper.findGroundY(boss.getWorld(), sx, sz, by);
+            final double sy = baseY + hover;
+            final ICustomNpc phantom = spawnClone(boss, tab, cloneName, sx, sy, sz);
             if (phantom == null) {
                 continue;
             }
             tagAdd(phantom, TAG_PHANTOM);
-            put(phantom.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
-            put(phantom.getStoreddata(), PHANTOM_LIFE, String.valueOf(life));
-            put(phantom.getStoreddata(), "df_dmg", String.valueOf(damage));
-            put(phantom.getStoreddata(), HOME_X, String.valueOf(x));
-            put(phantom.getStoreddata(), HOME_Y, String.valueOf(y));
-            put(phantom.getStoreddata(), HOME_Z, String.valueOf(z));
-            setNoPhysics(phantom, true);
+            final IData pd = phantom.getStoreddata();
+            put(pd, BOSS_UUID, String.valueOf(boss.getUUID()));
+            put(pd, PHANTOM_LIFE, String.valueOf(life));
+            put(pd, "df_dmg", String.valueOf(damage));
+            put(pd, HOME_X, String.valueOf(sx));
+            put(pd, HOME_Y, String.valueOf(sy));
+            put(pd, HOME_Z, String.valueOf(sz));
+            put(pd, "df_ex", String.valueOf(ex));
+            put(pd, "df_ez", String.valueOf(ez));
+            put(pd, "df_ang", String.valueOf(angles[i]));
+            put(pd, "df_hover", String.valueOf(hover));
+            put(pd, "df_base_y", String.valueOf(baseY));
             setAiNone(phantom);
+            pinFlyingNpc(phantom, sx, sy, sz);
+
+            // Red ground hazard follows the spirit (owner = boss for hostile checks).
+            final EntityAbilityZone zone = ZoneAPI.hazardCircle(
+                    boss, sx, baseY + 0.05, sz, hitR, life + 10, damage, 5);
+            if (zone != null) {
+                zone.setColor(zoneColor);
+                zone.setZoneHeight(2.0f);
+                zone.setVisible(true);
+                zone.setGroundFill(true);
+                zone.setBorder(true);
+                zone.setEffect("minecraft:slowness", slowDur, slowAmp);
+                put(pd, "df_zone", String.valueOf(zone.getUUID()));
+            }
         }
     }
 
@@ -1162,50 +1224,107 @@ public final class DrachenfelsEncounterHelper {
     }
 
     private static void tickPhantoms(final ICustomNpc boss, final IData data) {
-        final double[] c = getArenaCenter(boss);
         final List<ICustomNpc> phantoms = findTagged(boss, TAG_PHANTOM);
+        final double wiggleAmp = DrachenfelsConfig.getD(data, "leperWiggleAmp", 1.4);
+        final double wiggleFreq = DrachenfelsConfig.getD(data, "leperWiggleFreq", 2.5);
         for (final ICustomNpc p : phantoms) {
             final IData pd = p.getStoreddata();
             int life = ScriptDataUtil.getInt(pd, PHANTOM_LIFE);
-            final int maxLife = Math.max(1, DrachenfelsConfig.getI(data, "leperDuration", 60));
+            final int maxLife = Math.max(1, DrachenfelsConfig.getI(data, "leperDuration", 70));
             life--;
             put(pd, PHANTOM_LIFE, String.valueOf(life));
             if (life <= 0) {
+                clearPhantomZone(boss, pd);
                 p.despawn();
                 continue;
             }
             final double sx = ScriptDataUtil.getFloat(pd, HOME_X);
             final double sz = ScriptDataUtil.getFloat(pd, HOME_Z);
-            final double t = (maxLife - life) / (double) maxLife;
-            final double x = sx + (c[0] - sx) * t;
-            final double z = sz + (c[2] - sz) * t;
-            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
-            p.setPosition(x, y, z);
-            final float dmg = ScriptDataUtil.getFloat(pd, "df_dmg");
-            final double hitR = DrachenfelsConfig.getD(data, "leperHitRadius", 1.0);
-            final IEntity[] near = p.getWorld().getNearbyEntities(p.getPos(), 2, 1);
-            for (final IEntity ent : near) {
-                if (!(ent instanceof IPlayer) || !ent.isAlive()) {
-                    continue;
-                }
-                if (AbilityCombatHelper.flatDistance(p.getX(), p.getZ(), ent.getX(), ent.getZ()) > hitR) {
-                    continue;
-                }
-                final String hitKey = "df_hit_" + ent.getUUID();
-                if (ScriptDataUtil.isFlag(pd, hitKey)) {
-                    continue;
-                }
-                ScriptDataUtil.setFlag(pd, hitKey, true);
-                if (!AbilityCombatHelper.dealPureDamage(ent, dmg <= 0 ? 10.0F : dmg, false)) {
-                    ent.damage(dmg <= 0 ? 10.0F : dmg);
-                }
-                AbilityCombatHelper.applyEffect(
-                        ent,
-                        Effects.MOVEMENT_SLOWDOWN,
-                        DrachenfelsConfig.getI(data, "leperSlowDuration", 30),
-                        DrachenfelsConfig.getI(data, "leperSlowAmp", 1));
+            final double ex = ScriptDataUtil.getFloat(pd, "df_ex");
+            final double ez = ScriptDataUtil.getFloat(pd, "df_ez");
+            final double hover = ScriptDataUtil.getFloat(pd, "df_hover");
+            final double baseY = ScriptDataUtil.getFloat(pd, "df_base_y");
+            final double ang = ScriptDataUtil.getFloat(pd, "df_ang");
+            final double t = 1.0 - (life / (double) maxLife);
+            final double dx = ex - sx;
+            final double dz = ez - sz;
+            final double len = Math.sqrt(dx * dx + dz * dz);
+            double px = 0.0;
+            double pz = 1.0;
+            if (len > 0.01) {
+                px = -dz / len;
+                pz = dx / len;
+            }
+            final double phase = Math.toRadians(ang);
+            final double wiggle =
+                    Math.sin(t * Math.PI * 2.0 * wiggleFreq + phase) * wiggleAmp
+                            + Math.sin(t * Math.PI * 2.0 * wiggleFreq * 1.7 + phase * 0.5)
+                                    * wiggleAmp
+                                    * 0.35;
+            final double x = sx + dx * t + px * wiggle;
+            final double z = sz + dz * t + pz * wiggle;
+            // Locked flight plane from spawn floor — never re-scan into caves / void.
+            final double floorY = baseY > 0.01 ? baseY : ScriptDataUtil.getFloat(pd, HOME_Y);
+            final double y = floorY + (hover > 0.01 ? hover : 1.0);
+            pinFlyingNpc(p, x, y, z);
+
+            final EntityAbilityZone zone = resolvePhantomZone(boss, pd);
+            if (zone != null) {
+                zone.moveTo(x, floorY + 0.05, z, 0, 0);
             }
         }
+    }
+
+    private static void pinFlyingNpc(
+            final ICustomNpc npc, final double x, final double y, final double z) {
+        try {
+            final Object mc = npc.getMCEntity();
+            if (mc instanceof Entity) {
+                final Entity entity = (Entity) mc;
+                entity.noPhysics = true;
+                entity.setNoGravity(true);
+                entity.setDeltaMovement(0.0, 0.0, 0.0);
+                entity.fallDistance = 0.0F;
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            npc.setMotionX(0.0);
+            npc.setMotionY(0.0);
+            npc.setMotionZ(0.0);
+        } catch (final Exception ignored) {
+        }
+        npc.setPosition(x, y, z);
+    }
+
+    private static EntityAbilityZone resolvePhantomZone(final ICustomNpc boss, final IData pd) {
+        final String raw = str(pd, "df_zone");
+        if (raw.isEmpty()) {
+            return null;
+        }
+        try {
+            final UUID zoneId = UUID.fromString(raw);
+            final Object mc = boss.getMCEntity();
+            if (!(mc instanceof Entity)) {
+                return null;
+            }
+            final World world = ((Entity) mc).level;
+            if (!(world instanceof ServerWorld)) {
+                return null;
+            }
+            final Entity entity = ((ServerWorld) world).getEntity(zoneId);
+            return entity instanceof EntityAbilityZone ? (EntityAbilityZone) entity : null;
+        } catch (final Exception e) {
+            return null;
+        }
+    }
+
+    private static void clearPhantomZone(final ICustomNpc boss, final IData pd) {
+        final EntityAbilityZone zone = resolvePhantomZone(boss, pd);
+        if (zone != null) {
+            ZoneAPI.remove(zone);
+        }
+        put(pd, "df_zone", "");
     }
 
     private static void tickAdds(final ICustomNpc boss, final IData data, final long now) {

@@ -129,11 +129,17 @@ var FEAST_COLOR = 0xC0FFFFFF | 0; // только safe seats (белый); ар�
 var LEPER_CHARGE_TICKS = 24;
 var LEPER_ACTIVE_TICKS = 60;
 var LEPER_DAMAGE = 10.0;
-var LEPER_SPAWN_RADIUS = 11.0;
-var LEPER_DURATION = 60;
-var LEPER_HIT_RADIUS = 1.0;
+var LEPER_START_RADIUS = 1.5; // spawn near boss
+var LEPER_SPAWN_RADIUS = 24.0; // fly outward to this radius
+var LEPER_DURATION = 70; // flight ticks per spirit
+var LEPER_HIT_RADIUS = 1.5; // red hazard under spirit
 var LEPER_SLOW_DURATION = 30;
 var LEPER_SLOW_AMP = 1;
+var LEPER_VOLLEYS = 3;
+var LEPER_VOLLEY_INTERVAL = 18;
+var LEPER_WIGGLE_AMP = 1.4;
+var LEPER_WIGGLE_FREQ = 2.5;
+var LEPER_HOVER = 1.0; // locked flight height above spawn floor
 
 var FALSE_RATIOS = "0.56,0.46,0.36";
 var FALSE_MAX = 3;
@@ -287,11 +293,17 @@ function init(event) {
         "leperChargeTicks", LEPER_CHARGE_TICKS,
         "leperActiveTicks", LEPER_ACTIVE_TICKS,
         "leperDamage", LEPER_DAMAGE,
+        "leperStartRadius", LEPER_START_RADIUS,
         "leperSpawnRadius", LEPER_SPAWN_RADIUS,
         "leperDuration", LEPER_DURATION,
         "leperHitRadius", LEPER_HIT_RADIUS,
         "leperSlowDuration", LEPER_SLOW_DURATION,
         "leperSlowAmp", LEPER_SLOW_AMP,
+        "leperVolleys", LEPER_VOLLEYS,
+        "leperVolleyInterval", LEPER_VOLLEY_INTERVAL,
+        "leperWiggleAmp", LEPER_WIGGLE_AMP,
+        "leperWiggleFreq", LEPER_WIGGLE_FREQ,
+        "leperHover", LEPER_HOVER,
 
         "falseRatios", FALSE_RATIOS,
         "falseMax", FALSE_MAX,

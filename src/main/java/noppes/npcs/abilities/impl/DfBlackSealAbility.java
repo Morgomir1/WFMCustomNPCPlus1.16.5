@@ -49,7 +49,9 @@ public final class DfBlackSealAbility implements CnpcAbility {
                 AbilityParamKeys.SPREAD_RADIUS,
                 AbilityParamKeys.TELEGRAPH,
                 AbilityParamKeys.TELEGRAPH_COLOR,
-                AbilityParamKeys.ZONE_COLOR);
+                AbilityParamKeys.ZONE_COLOR,
+                AbilityParamKeys.EFFECT_DURATION,
+                AbilityParamKeys.EFFECT_AMPLIFIER);
     }
 
     @Override
@@ -116,6 +118,11 @@ public final class DfBlackSealAbility implements CnpcAbility {
                 final int puddleColor = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, PUDDLE_COLOR);
                 zone.setColor(puddleColor);
                 zone.setZoneHeight(2.5f);
+                final int poisonDur = Math.max(0, ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 100));
+                final int poisonAmp = Math.max(0, ctx.params.getInt(AbilityParamKeys.EFFECT_AMPLIFIER, 1));
+                if (poisonDur > 0) {
+                    zone.setEffect("minecraft:poison", poisonDur, poisonAmp);
+                }
             }
             AbilityVfx.spawnSoulBurst(ctx.world, m[0], m[1] + 0.3, m[2], radius);
             ctx.world.playSoundAt(

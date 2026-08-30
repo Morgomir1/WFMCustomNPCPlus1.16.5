@@ -128,6 +128,8 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.DAMAGE_PER_TICK, getD(npc, "sealZoneDamage", 3.0));
         m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.ZONE_COLOR, getI(npc, "sealZoneColor", 0xC0143C14));
+        m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "sealPoisonDuration", 100));
+        m.put(AbilityParamKeys.EFFECT_AMPLIFIER, getI(npc, "sealPoisonAmp", 1));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
         m.put(AbilityParamKeys.SUMMON_RADIUS, getD(npc, "sealMinBossDist", 2.0));
         m.put(AbilityParamKeys.SPREAD_RADIUS, getD(npc, "sealMinCircleDist", 4.0));

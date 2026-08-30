@@ -14,13 +14,13 @@ var TIMER_ID = 881;
 // КЛОНЫ (имена в CNPC Clone tab)
 // =========================
 var CLONE_TAB = 1;
-var CLONE_MONK = "Drachenfels Monk";
-var CLONE_CULTIST = "Drachenfels Cultist";
-var CLONE_GUARD = "Drachenfels Guard";
-var CLONE_PHANTOM = "Drachenfels Leper Phantom";
-var CLONE_FALSE = "Drachenfels False Host";
-var CLONE_VESSEL = "Drachenfels Vessel";
-var CLONE_SHARD = "Drachenfels Shard";
+var CLONE_MONK = "Монах Дракенфельса";
+var CLONE_CULTIST = "Культист Дракенфельса";
+var CLONE_GUARD = "Страж Дракенфельса";
+var CLONE_PHANTOM = "Фантом Дракенфельса";
+var CLONE_FALSE = "Иллюзия Дракенфельса";
+var CLONE_VESSEL = "Сосуд Дракенфельса";
+var CLONE_SHARD = "Осколок Дракенфельса";
 
 // =========================
 // АРЕНА / ФАЗЫ / ГЛОБАЛЬНОЕ
@@ -44,18 +44,20 @@ var SEAL_CD = 200;
 var SEAL_CHARGE_TICKS = 30;
 var SEAL_ACTIVE_TICKS = 1;
 var SEAL_DAMAGE = 12.0;
-var SEAL_RADIUS = 2.0;
+var SEAL_RADIUS = 3.0;
 // Lifetime so puddles from 3 seals overlap: ~2*(CD + charge + active).
 var SEAL_ZONE_TICKS = 480;
-var SEAL_ZONE_DAMAGE = 3.0;
+var SEAL_ZONE_DAMAGE = 6.0;
 var SEAL_ZONE_INTERVAL = 10;
+var SEAL_POISON_DURATION = 100; // 5s
+var SEAL_POISON_AMP = 1; // Poison II
 var SEAL_MIN_BOSS_DIST = 2.0;
 var SEAL_MIN_CIRCLE_DIST = 4.0;
 
 // =========================
 // ФАЗА 1 — Взгляд Под Маской
 // =========================
-var GAZE_CD = 160;
+var GAZE_CD = 100;
 // Must be < kiteDistance so Gaze fires on the kite ring instead of idling 8–10s.
 var GAZE_RANGE = 5.0;
 var GAZE_FAR_TICKS = 8;
@@ -250,6 +252,8 @@ function init(event) {
         "sealZoneDamage", SEAL_ZONE_DAMAGE,
         "sealZoneInterval", SEAL_ZONE_INTERVAL,
         "sealZoneColor", SEAL_ZONE_COLOR,
+        "sealPoisonDuration", SEAL_POISON_DURATION,
+        "sealPoisonAmp", SEAL_POISON_AMP,
         "sealMinBossDist", SEAL_MIN_BOSS_DIST,
         "sealMinCircleDist", SEAL_MIN_CIRCLE_DIST,
 

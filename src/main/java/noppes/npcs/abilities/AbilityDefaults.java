@@ -263,6 +263,8 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.DAMAGE_PER_TICK, 3.0);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030); // attack warning red
         map.put(AbilityParamKeys.ZONE_COLOR, 0xC0143C14); // dark green puddles
+        map.put(AbilityParamKeys.EFFECT_DURATION, 100); // Poison II, 5s
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 1);
         return map;
     }
 

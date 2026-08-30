@@ -4,6 +4,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.attributes.Attributes;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.potion.Effects;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.World;
@@ -25,6 +26,8 @@ import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.api.entity.IPlayer;
 import noppes.npcs.api.entity.data.IData;
 import noppes.npcs.api.entity.data.INPCAi;
+import noppes.npcs.api.entity.data.INPCDisplay;
+import noppes.npcs.controllers.VisibilityController;
 import noppes.npcs.entity.EntityAbilityZone;
 import noppes.npcs.entity.EntityCloneStructureSpawner;
 import noppes.npcs.entity.EntityNPCInterface;
@@ -113,6 +116,8 @@ public final class DrachenfelsEncounterHelper {
     private static final String STEAL_READY = "df_steal_ready";
     private static final String PENDING_FALSE = "df_pending_false";
     private static final String FALSE_ACTIVE = "df_false_active";
+    /** Saved {@link INPCDisplay#getVisible()} while false-host hide is active. */
+    private static final String FALSE_PREV_VISIBLE = "df_false_prev_vis";
     private static final String FALSE_NEXT_PUDDLE = "df_false_puddle_at";
     private static final String SPIRIT_MODE = "df_spirit";
     private static final String QUOTE_INTRO = "df_quote_intro";
@@ -612,17 +617,34 @@ public final class DrachenfelsEncounterHelper {
         if (boss == null) {
             return;
         }
-        put(boss.getStoreddata(), FALSE_ACTIVE, "1");
+        final IData data = boss.getStoreddata();
+        final boolean alreadyHidden = ScriptDataUtil.isFlag(data, FALSE_ACTIVE);
+        put(data, FALSE_ACTIVE, "1");
         clearAttackTarget(boss);
         AbilityCombatHelper.stopNavigation(boss);
         try {
+            // CNPC overrides Entity.isInvisible() from Display Visible — vanilla
+            // setInvisible(true) does not hide the model on clients (esp. dedicated).
+            boolean needRefresh = !alreadyHidden;
+            final INPCDisplay display = boss.getDisplay();
+            if (display != null) {
+                if (!alreadyHidden) {
+                    put(data, FALSE_PREV_VISIBLE, String.valueOf(display.getVisible()));
+                }
+                if (display.getVisible() != 1) {
+                    display.setVisible(1);
+                    needRefresh = true;
+                }
+            }
             final Object mc = boss.getMCEntity();
             if (mc instanceof Entity) {
                 final Entity entity = (Entity) mc;
-                entity.setInvisible(true);
                 entity.setInvulnerable(true);
                 entity.setDeltaMovement(0.0, 0.0, 0.0);
                 entity.fallDistance = 0.0F;
+                if (needRefresh && entity instanceof EntityNPCInterface) {
+                    refreshSoftVisibility((EntityNPCInterface) entity);
+                }
             }
         } catch (final Exception ignored) {
         }
@@ -632,16 +654,41 @@ public final class DrachenfelsEncounterHelper {
         if (boss == null) {
             return;
         }
-        put(boss.getStoreddata(), FALSE_ACTIVE, "0");
+        final IData data = boss.getStoreddata();
+        put(data, FALSE_ACTIVE, "0");
         try {
+            final INPCDisplay display = boss.getDisplay();
+            final boolean hadPrev = data.has(FALSE_PREV_VISIBLE);
+            if (display != null && hadPrev) {
+                display.setVisible(ScriptDataUtil.getInt(data, FALSE_PREV_VISIBLE));
+                data.remove(FALSE_PREV_VISIBLE);
+            }
             final Object mc = boss.getMCEntity();
             if (mc instanceof Entity) {
                 final Entity entity = (Entity) mc;
-                entity.setInvisible(false);
                 entity.setInvulnerable(false);
                 entity.fallDistance = 0.0F;
+                if (hadPrev && entity instanceof EntityNPCInterface) {
+                    refreshSoftVisibility((EntityNPCInterface) entity);
+                }
             }
         } catch (final Exception ignored) {
+        }
+    }
+
+    /** Push Display Visible / soft-hide packets to nearby players immediately. */
+    private static void refreshSoftVisibility(final EntityNPCInterface npc) {
+        if (npc == null || npc.level == null || npc.level.isClientSide) {
+            return;
+        }
+        VisibilityController.instance.trackNpc(npc);
+        if (!(npc.level instanceof ServerWorld)) {
+            return;
+        }
+        final ServerWorld world = (ServerWorld) npc.level;
+        final AxisAlignedBB box = npc.getBoundingBox().inflate(64.0);
+        for (final ServerPlayerEntity player : world.getEntitiesOfClass(ServerPlayerEntity.class, box)) {
+            VisibilityController.checkIsVisible(npc, player);
         }
     }
 

@@ -31,7 +31,8 @@ var PHASE3_RATIO = 0.33;
 var INVULN_TICKS = 60;
 var KITE_DISTANCE = 6.0;
 var PHASE1_SPEED = 0.15;
-var TELEGRAPH_COLOR = 0xC0FF3030;
+var TELEGRAPH_COLOR = 0xC0FF3030 | 0; // signed int (Nashorn: bare 0xC0…… becomes Double → white)
+var SEAL_ZONE_COLOR = 0xC0143C14 | 0; // тёмно-зелёные лужи Чёрной Печати
 var SEAL_FIRST_DELAY = 40;
 var GAZE_FIRST_DELAY = 80;
 var COURT_FIRST_DELAY = 80;
@@ -116,12 +117,13 @@ var IMPERIAL_SLOW_DURATION = 40;
 var FEAST_CHARGE_TICKS = 40;
 var FEAST_ACTIVE_TICKS = 1;
 var FEAST_SEAT_RADIUS = 1.5;
-var FEAST_SEAT_RING = 6.0;
+var FEAST_SEAT_RING = 9.5; // max scatter from boss (was fixed ring 6)
+var FEAST_SEAT_MIN_BOSS_DIST = 2.5;
 var FEAST_ARENA_RADIUS = 12.0;
 var FEAST_DAMAGE = 14.0;
 var FEAST_POISON_DURATION = 60;
 var FEAST_POISON_AMP = 0;
-var FEAST_COLOR = 0xC0FFFFFF;
+var FEAST_COLOR = 0xC0FFFFFF | 0; // только safe seats (белый); арена — TELEGRAPH_COLOR
 
 var LEPER_CHARGE_TICKS = 24;
 var LEPER_ACTIVE_TICKS = 60;
@@ -219,6 +221,7 @@ function init(event) {
         "sealZoneTicks", SEAL_ZONE_TICKS,
         "sealZoneDamage", SEAL_ZONE_DAMAGE,
         "sealZoneInterval", SEAL_ZONE_INTERVAL,
+        "sealZoneColor", SEAL_ZONE_COLOR,
         "sealMinBossDist", SEAL_MIN_BOSS_DIST,
         "sealMinCircleDist", SEAL_MIN_CIRCLE_DIST,
 
@@ -272,6 +275,7 @@ function init(event) {
         "feastActiveTicks", FEAST_ACTIVE_TICKS,
         "feastSeatRadius", FEAST_SEAT_RADIUS,
         "feastSeatRing", FEAST_SEAT_RING,
+        "feastSeatMinBossDist", FEAST_SEAT_MIN_BOSS_DIST,
         "feastArenaRadius", FEAST_ARENA_RADIUS,
         "feastDamage", FEAST_DAMAGE,
         "feastPoisonDuration", FEAST_POISON_DURATION,

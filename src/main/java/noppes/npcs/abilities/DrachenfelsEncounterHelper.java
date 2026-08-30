@@ -3,6 +3,7 @@ package noppes.npcs.abilities;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.attributes.Attributes;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.potion.Effects;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.World;
@@ -24,6 +25,7 @@ import noppes.npcs.api.entity.IPlayer;
 import noppes.npcs.api.entity.data.IData;
 import noppes.npcs.api.entity.data.INPCAi;
 import noppes.npcs.entity.EntityAbilityZone;
+import noppes.npcs.entity.EntityCloneStructureSpawner;
 import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.script.ScriptDataUtil;
 import noppes.npcs.telegraph.TelegraphAPI;
@@ -181,6 +183,7 @@ public final class DrachenfelsEncounterHelper {
         put(data, STEP_READY, "0");
         put(data, WHISPER_READY, "0");
         put(data, STEAL_READY, "0");
+        restoreFullHealth(npc);
         applyPhase1Ai(npc);
         if (!ScriptDataUtil.isFlag(data, QUOTE_INTRO)) {
             say(npc, "Этот замок помнит вас дольше, чем вы — себя.");
@@ -224,7 +227,8 @@ public final class DrachenfelsEncounterHelper {
         if (npc == null || !npc.isAlive() || isClient(npc)) {
             return;
         }
-        if (!isBoss(npc)) {
+        // After death cleanup clears df_inited; re-init even if boss tag persisted across respawn.
+        if (!isBoss(npc) || !ScriptDataUtil.isFlag(npc.getStoreddata(), INITED)) {
             init(npc);
         }
         final IData data = npc.getStoreddata();
@@ -240,11 +244,12 @@ public final class DrachenfelsEncounterHelper {
         enforcePhaseCap(npc, data);
         updatePhase(npc, data, now);
         tickAbsorbVfx(npc, now);
-        // No players in engage range: stop casts, keep adds/shards ticking.
+        // No survival/adventure players in engage range: stop casts, drop aggro.
         if (!hasNearbyPlayers(npc)) {
             if (AbilityAPI.isBusy(npc)) {
                 AbilityAPI.cancel(npc);
             }
+            clearAttackTarget(npc);
             tickAdds(npc, data, now);
             tickPhantoms(npc, data);
             tickShards(npc, data);
@@ -252,6 +257,8 @@ public final class DrachenfelsEncounterHelper {
             tickCarrier(npc, data, now);
             return;
         }
+        // Keep CNPC AI target on survival/adventure only (drop creative if AI picked them).
+        resolveCombatTarget(npc);
         tickAdds(npc, data, now);
         tickPhantoms(npc, data);
         tickShards(npc, data);
@@ -276,6 +283,8 @@ public final class DrachenfelsEncounterHelper {
         killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
                 TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
         clearOwnerZones(npc);
+        // Allow full re-init on CNPC respawn (phase/HP must not stick from previous fight).
+        ScriptDataUtil.setFlag(npc.getStoreddata(), INITED, false);
         say(npc, "Замок не умрёт с этим телом.");
     }
 
@@ -1887,8 +1896,8 @@ public final class DrachenfelsEncounterHelper {
     }
 
     /**
-     * True if at least one living player is within engage range of the boss
-     * (arenaRadius + padding). Spectators / creative-invulnerable ignored via IPlayer alive check.
+     * True if at least one survival/adventure player is within engage range of the boss
+     * (arenaRadius + padding). Creative and spectator never count as engage targets.
      */
     private static boolean hasNearbyPlayers(final ICustomNpc npc) {
         return findNearestEngagePlayer(npc) != null;
@@ -1896,6 +1905,26 @@ public final class DrachenfelsEncounterHelper {
 
     private static double engageRange(final ICustomNpc npc) {
         return getArenaRadius(npc) + 4.0;
+    }
+
+    /** Survival or Adventure only — creative/spectator must not pull aggro. */
+    private static boolean isEngageablePlayer(final IEntity ent) {
+        if (!(ent instanceof IPlayer) || !ent.isAlive()) {
+            return false;
+        }
+        try {
+            final Object mc = ent.getMCEntity();
+            if (mc instanceof PlayerEntity) {
+                return EntityCloneStructureSpawner.isPlayablePlayer((PlayerEntity) mc);
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            final int gm = ((IPlayer) ent).getGamemode();
+            return gm == 0 || gm == 2; // SURVIVAL / ADVENTURE
+        } catch (final Exception ignored) {
+        }
+        return false;
     }
 
     private static IEntityLiving findNearestEngagePlayer(final ICustomNpc npc) {
@@ -1909,16 +1938,8 @@ public final class DrachenfelsEncounterHelper {
             final IEntity[] list = npc.getWorld().getNearbyEntities(
                     npc.getPos(), (int) Math.ceil(range + 1.0), 1);
             for (final IEntity ent : list) {
-                if (!(ent instanceof IPlayer) || !ent.isAlive()) {
+                if (!isEngageablePlayer(ent)) {
                     continue;
-                }
-                try {
-                    final Object mc = ent.getMCEntity();
-                    if (mc instanceof net.minecraft.entity.player.PlayerEntity
-                            && ((net.minecraft.entity.player.PlayerEntity) mc).isSpectator()) {
-                        continue;
-                    }
-                } catch (final Exception ignored) {
                 }
                 final double toBoss = AbilityCombatHelper.flatDistance(
                         npc.getX(), npc.getZ(), ent.getX(), ent.getZ());
@@ -1933,6 +1954,30 @@ public final class DrachenfelsEncounterHelper {
         } catch (final Exception ignored) {
         }
         return best;
+    }
+
+    private static void clearAttackTarget(final ICustomNpc npc) {
+        if (npc == null) {
+            return;
+        }
+        try {
+            npc.setAttackTarget(null);
+        } catch (final Exception ignored) {
+        }
+    }
+
+    private static void restoreFullHealth(final ICustomNpc npc) {
+        if (npc == null) {
+            return;
+        }
+        try {
+            final Object mc = npc.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                final LivingEntity living = (LivingEntity) mc;
+                living.setHealth(living.getMaxHealth());
+            }
+        } catch (final Exception ignored) {
+        }
     }
 
     /** CD from cast start so intervals match JS values (not castLength + CD). */
@@ -1964,7 +2009,7 @@ public final class DrachenfelsEncounterHelper {
         }
         final double range = engageRange(npc);
         final IEntityLiving current = npc.getAttackTarget();
-        if (current != null && current.isAlive()
+        if (current != null && current.isAlive() && isEngageablePlayer(current)
                 && AbilityCombatHelper.flatDistance(
                         npc.getX(), npc.getZ(), current.getX(), current.getZ()) <= range) {
             return current;
@@ -1976,10 +2021,7 @@ public final class DrachenfelsEncounterHelper {
             } catch (final Exception ignored) {
             }
         } else {
-            try {
-                npc.setAttackTarget(null);
-            } catch (final Exception ignored) {
-            }
+            clearAttackTarget(npc);
         }
         return nearest;
     }

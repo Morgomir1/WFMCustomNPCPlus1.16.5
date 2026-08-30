@@ -8,10 +8,11 @@ import noppes.npcs.telegraph.TelegraphAPI;
 import java.util.Map;
 import java.util.Set;
 
-/** Phase 2: six safe white seats; arena blast except inside seats. */
+/** Phase 2: six safe white seats scattered near boss; arena blast except inside seats. */
 public final class DfFeastSeatsAbility implements CnpcAbility {
     public static final String ID = "df_feast_seats";
     private static final int SEAT_COUNT = 6;
+    private static final int PLACE_ATTEMPTS = 48;
 
     @Override
     public String getId() {
@@ -40,6 +41,7 @@ public final class DfFeastSeatsAbility implements CnpcAbility {
                 AbilityParamKeys.ACTIVE_TICKS,
                 AbilityParamKeys.RADIUS,
                 AbilityParamKeys.SPREAD_RADIUS,
+                AbilityParamKeys.SUMMON_RADIUS,
                 AbilityParamKeys.MAX_RANGE,
                 AbilityParamKeys.DAMAGE,
                 AbilityParamKeys.EFFECT_TYPE,
@@ -57,7 +59,6 @@ public final class DfFeastSeatsAbility implements CnpcAbility {
         active.telegraphIds.clear();
         active.hitUuids.clear();
         final double[] center = DrachenfelsEncounterHelper.getArenaCenter(ctx.npc);
-        final double seatRing = ctx.params.getDouble(AbilityParamKeys.SPREAD_RADIUS, 6.0);
         final double seatR = ctx.params.getDouble(AbilityParamKeys.RADIUS, 1.5);
         final double arenaR = ctx.params.getDouble(AbilityParamKeys.MAX_RANGE, 12.0);
         final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 40));
@@ -68,13 +69,9 @@ public final class DfFeastSeatsAbility implements CnpcAbility {
         if (arenaId != null && !arenaId.isEmpty()) {
             active.telegraphIds.add(arenaId);
         }
-        for (int i = 0; i < SEAT_COUNT; i++) {
-            final double ang = (Math.PI * 2.0 * i) / SEAT_COUNT;
-            final double x = center[0] + Math.cos(ang) * seatRing;
-            final double z = center[2] + Math.sin(ang) * seatRing;
-            final double y = AbilityCombatHelper.findGroundY(ctx.world, x, z, center[1]);
-            active.markers.add(new double[]{x, y, z});
-            final String id = TelegraphAPI.circle(ctx.npc, x, y, z, seatR, charge, seatColor);
+        pickSeats(active, ctx, center, arenaR, seatR);
+        for (final double[] m : active.markers) {
+            final String id = TelegraphAPI.circle(ctx.npc, m[0], m[1], m[2], seatR, charge, seatColor);
             if (id != null && !id.isEmpty()) {
                 active.telegraphIds.add(id);
             }
@@ -87,6 +84,64 @@ public final class DfFeastSeatsAbility implements CnpcAbility {
         AbilityCombatHelper.freezeAiForCast(active, ctx.npc);
         AbilityCombatHelper.stopNavigation(ctx.npc);
         ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:block.bell.use", 0.7F, 0.55F);
+        return true;
+    }
+
+    /**
+     * Random seats around the boss within [{@code summonRadius}, {@code spreadRadius}],
+     * kept inside the arena and spaced apart so they do not stack.
+     */
+    private static void pickSeats(
+            final ActiveAbility active,
+            final AbilityContext ctx,
+            final double[] arenaCenter,
+            final double arenaR,
+            final double seatR) {
+        final double bx = ctx.npc.getX();
+        final double by = ctx.npc.getY();
+        final double bz = ctx.npc.getZ();
+        final double maxSpread = Math.max(seatR + 1.0, ctx.params.getDouble(AbilityParamKeys.SPREAD_RADIUS, 9.5));
+        final double minBoss = Math.max(0.5, ctx.params.getDouble(AbilityParamKeys.SUMMON_RADIUS, 2.5));
+        final double minSep = Math.max(seatR * 2.0 + 0.75, 3.5);
+        final double arenaLimit = Math.max(seatR + 0.5, arenaR - seatR - 0.25);
+        int placed = 0;
+        int attempts = 0;
+        while (placed < SEAT_COUNT && attempts < PLACE_ATTEMPTS) {
+            attempts++;
+            final double ang = AbilityCombatHelper.random().nextDouble() * Math.PI * 2.0;
+            final double dist = minBoss + AbilityCombatHelper.random().nextDouble() * Math.max(0.1, maxSpread - minBoss);
+            final double x = bx + Math.cos(ang) * dist;
+            final double z = bz + Math.sin(ang) * dist;
+            if (AbilityCombatHelper.flatDistance(x, z, arenaCenter[0], arenaCenter[2]) > arenaLimit) {
+                continue;
+            }
+            if (!seatClear(active, x, z, minSep)) {
+                continue;
+            }
+            final double y = AbilityCombatHelper.findGroundY(ctx.world, x, z, by);
+            active.markers.add(new double[]{x, y, z});
+            placed++;
+        }
+        // Fallback: jittered ring around boss if random packing failed.
+        while (placed < SEAT_COUNT) {
+            final double ang = (Math.PI * 2.0 * placed) / SEAT_COUNT
+                    + AbilityCombatHelper.random().nextDouble() * 0.45;
+            final double dist = Math.min(maxSpread, Math.max(minBoss, maxSpread * 0.7));
+            final double x = bx + Math.cos(ang) * dist;
+            final double z = bz + Math.sin(ang) * dist;
+            final double y = AbilityCombatHelper.findGroundY(ctx.world, x, z, by);
+            active.markers.add(new double[]{x, y, z});
+            placed++;
+        }
+    }
+
+    private static boolean seatClear(
+            final ActiveAbility active, final double x, final double z, final double minSep) {
+        for (final double[] m : active.markers) {
+            if (AbilityCombatHelper.flatDistance(x, z, m[0], m[2]) < minSep) {
+                return false;
+            }
+        }
         return true;
     }
 

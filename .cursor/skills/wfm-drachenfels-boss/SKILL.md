@@ -24,12 +24,15 @@ description: >-
 
 - Арена: круг **R≈12**, центр = spawn (`df_home_*`).
 - **Один** AbilityAPI-каст босса за раз (`isBusy`).
-- Без игроков в радиусе engage (`arenaRadius+4` от босса) — **не кастует** (активный каст cancel).
+- Аггро / engage только на **Survival/Adventure**; creative и spectator игнорируются (цель сбрасывается).
+- Без таких игроков в радиусе engage (`arenaRadius+4` от босса) — **не кастует** (активный каст cancel).
+- После смерти `cleanup` сбрасывает `df_inited` → респавн = фаза 1 и полное max HP (не cap прошлой фазы).
 - Урон спеллов — **pure MAGIC** (`dealPureDamage`).
 - Пороги фаз — **% maxHealth** (не абсолютные HP): phase2 **66%**, phase3 **33%**.
 - Переход фазы: cancel каста → invuln (~60t) → телепорт в центр → чистка аддов/зон.
 - Числа из JS → `df_c_<key>` в storeddata. Nashorn: `Encounter.configure(npc, AbilityAPI.params(...))`, не varargs после `npc`.
 - Warning на charge через `TelegraphAPI`; hazard DoT — `ZoneAPI`. Авто-телеграф отключён (`telegraph: 0`) — абилки спавнят зоны сами.
+- Цвета зон: **атака/warning = красный** `0xC0FF3030`; **лужи Seal = тёмно-зелёный** `0xC0143C14`; **белый только Feast safe seats**.
 
 ## Фазы
 
@@ -45,7 +48,7 @@ AI: scripted kite (walkingSpeed 0) к плотным seal-лужам **на kite
 
 | Id / механика | Что делает | Telegraph |
 |---------------|------------|-----------|
-| `df_black_seal` | 3 круга → burst + hazard puddles | 3× circle |
+| `df_black_seal` | 3 круга → burst + hazard puddles (тёмно-зелёные) | 3× circle (красные) |
 | `df_mask_gaze` | если цель далеко ≥`gazeFarTicks` — charge line + **летящий soul-снаряд** по лучу | line |
 | `df_repulse` | charge 1.5с → knockback игроков в R=3; CD 10с; если цель ≤`repulseTrigger` | circle |
 | **Bell** (helper) | HP marks ~88%/76% → absorb ~13.3% maxHP + spawn Monk; absorb = **кольцо партиклов** вокруг босса | — |
@@ -62,7 +65,7 @@ Absorb снимается уроном по боссу; Monk — отдельн�
 | Slot / elapsed | Ability | Telegraph |
 |----------------|---------|-----------|
 | 0 / start | `df_imperial_poison` — расширяющееся poison ring | circle арены → Zone ring |
-| 1 / ~120t | `df_feast_seats` — blast арены, safe = 6 белых seats | red arena + white seats |
+| 1 / ~120t | `df_feast_seats` — blast арены, safe = 6 белых seats (random near boss) | red arena + white seats |
 | 2 / ~220t | `df_leper_ball` — 4 phantoms по краю | 4× circle спавна |
 
 **False Host** на HP marks ~56%/46%/36% (макс 3): `df_false_host` — charge (копии + landing) → teleport + 3 false copies. Сдвигает cycle (`falseShift`).

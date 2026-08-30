@@ -51,6 +51,7 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
                 AbilityParamKeys.EFFECT_AMPLIFIER,
                 AbilityParamKeys.SHOT_INTERVAL,
                 AbilityParamKeys.ZONE_COLOR,
+                AbilityParamKeys.TELEGRAPH_COLOR,
                 AbilityParamKeys.TELEGRAPH);
     }
 
@@ -64,7 +65,7 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         active.meter = 0.0F; // 0 = not yet hit anyone with wave effects
         final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 24));
         final double arenaR = ctx.params.getDouble(AbilityParamKeys.RADIUS, 12.0);
-        final int color = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
+        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         final String warnId = TelegraphAPI.circle(
                 ctx.npc, active.sx, active.sy, active.sz, arenaR, charge, color);
         if (warnId != null && !warnId.isEmpty()) {
@@ -189,6 +190,9 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         }
         zone.setRadius((float) outer);
         zone.setInnerRadius((float) Math.max(0.05, inner));
+        // Keep the expanding ring centered on the boss (display + hit origin).
+        final double y = AbilityCombatHelper.findGroundY(ctx.world, active.sx, active.sz, active.sy) + 0.05;
+        zone.moveTo(active.sx, y, active.sz, 0, 0);
     }
 
     private static EntityAbilityZone resolveZone(final AbilityContext ctx, final UUID zoneId) {

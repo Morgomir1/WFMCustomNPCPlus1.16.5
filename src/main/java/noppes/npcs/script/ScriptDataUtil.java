@@ -7,14 +7,9 @@ public final class ScriptDataUtil {
     }
 
     public static int getInt(final IData data, final String key) {
-        final long value = getLong(data, key);
-        if (value > Integer.MAX_VALUE) {
-            return Integer.MAX_VALUE;
-        }
-        if (value < Integer.MIN_VALUE) {
-            return Integer.MIN_VALUE;
-        }
-        return (int) value;
+        // Low 32 bits: ARGB colors from Nashorn arrive as unsigned > Integer.MAX_VALUE
+        // (e.g. 0xC0FF3030). Clamping to MAX_VALUE turned them into near-white 0x7FFFFFFF.
+        return (int) getLong(data, key);
     }
 
     /** Absolute world-time / cooldown deadlines (game time can exceed int range). */

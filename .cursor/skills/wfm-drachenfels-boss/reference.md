@@ -21,11 +21,11 @@ Helper-only (не AbilityAPI): Bell, Court spawn, vessel/shard/carrier, guard/ca
 
 Глобальные: `arenaRadius`, `phase2Ratio`, `phase3Ratio`, `invulnTicks`, `kiteDistance`, `phase1Speed`, `telegraphColor`, `sealFirstDelay`, `gazeFirstDelay`, `courtFirstDelay`, `repulseFirstDelay`.
 
-Seal: `sealCd`, `sealChargeTicks`, `sealActiveTicks`, `sealDamage`, `sealRadius`, `sealZoneTicks` (≈480 — puddles from 3 seals overlap), `sealZoneDamage`, `sealZoneInterval`, `sealMinBossDist`, `sealMinCircleDist`.
+Seal: `sealCd`, `sealChargeTicks`, `sealActiveTicks`, `sealDamage`, `sealRadius`, `sealZoneTicks` (≈480 — puddles from 3 seals overlap), `sealZoneDamage`, `sealZoneInterval`, `sealZoneColor` (dark green puddles), `sealMinBossDist`, `sealMinCircleDist`.
 
 Gaze: `gazeCd`, `gazeRange` (5 — must be &lt; kite 6), `gazeFarTicks` (8), `gazeChargeTicks`, `gazeActiveTicks`, `gazeDistance`, `gazeWidth`, `gazeDamage` (telegraph = charge+flight; damage via flying soul projectile).
 
-Attacking telegraphs/hazard zones default **red** `0xC0FF3030` (Feast safe seats stay white). Bell absorb shows rotating enchant/end_rod particle ring while active.
+Attacking telegraphs/hazard waves default **red** `0xC0FF3030`. Seal **puddles** are dark green `0xC0143C14` (`sealZoneColor`). White `0xC0FFFFFF` only for Feast safe seats (`feastColor`); arena blast stays red. Bell absorb shows rotating enchant/end_rod particle ring while active.
 
 Repulse: `repulseCd` (200), `repulseChargeTicks` (30), `repulseActiveTicks`, `repulseRadius` (3), `repulseKnockback`, `repulseKnockbackY`, `repulseTrigger` (каст если цель ближе).
 
@@ -37,7 +37,7 @@ Phase 2 cycle: `cycleLength`, `cycleFeastAt`, `cycleLeperAt`.
 
 Imperial: `imperialChargeTicks`, `imperialActiveTicks`, `imperialArenaRadius`, `imperialThickness`, `imperialDamage`, `imperialPoisonDuration`, `imperialPoisonAmp`, `imperialSlowDuration`.
 
-Feast: `feastChargeTicks`, `feastActiveTicks`, `feastSeatRadius`, `feastSeatRing`, `feastArenaRadius`, `feastDamage`, `feastPoisonDuration`, `feastPoisonAmp`, `feastColor`.
+Feast: `feastChargeTicks`, `feastActiveTicks`, `feastSeatRadius`, `feastSeatRing` (max scatter from boss, default 9.5), `feastSeatMinBossDist` (default 2.5), `feastArenaRadius`, `feastDamage`, `feastPoisonDuration`, `feastPoisonAmp`, `feastColor`. Seats spawn at random positions near the boss (not a fixed ring).
 
 Leper: `leperChargeTicks`, `leperActiveTicks`, `leperDamage`, `leperSpawnRadius`, `leperDuration`, `leperHitRadius`, `leperSlowDuration`, `leperSlowAmp`.
 

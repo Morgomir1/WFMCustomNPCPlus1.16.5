@@ -12,6 +12,8 @@ import java.util.Set;
 /** Phase 1: three charge circles then burst + lingering hazard puddles. */
 public final class DfBlackSealAbility implements CnpcAbility {
     public static final String ID = "df_black_seal";
+    /** Dark green for lingering seal puddles (attack telegraphs stay red). */
+    private static final int PUDDLE_COLOR = 0xC0143C14;
 
     @Override
     public String getId() {
@@ -46,7 +48,8 @@ public final class DfBlackSealAbility implements CnpcAbility {
                 AbilityParamKeys.SUMMON_RADIUS,
                 AbilityParamKeys.SPREAD_RADIUS,
                 AbilityParamKeys.TELEGRAPH,
-                AbilityParamKeys.TELEGRAPH_COLOR);
+                AbilityParamKeys.TELEGRAPH_COLOR,
+                AbilityParamKeys.ZONE_COLOR);
     }
 
     @Override
@@ -110,7 +113,8 @@ public final class DfBlackSealAbility implements CnpcAbility {
             final EntityAbilityZone zone = ZoneAPI.hazardCircle(
                     ctx.npc, m[0], m[1] + 0.05, m[2], radius, zoneTicks, tickDmg, interval);
             if (zone != null) {
-                zone.setColor(0xC0FF3030);
+                final int puddleColor = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, PUDDLE_COLOR);
+                zone.setColor(puddleColor);
                 zone.setZoneHeight(2.5f);
             }
             AbilityVfx.spawnSoulBurst(ctx.world, m[0], m[1] + 0.3, m[2], radius);

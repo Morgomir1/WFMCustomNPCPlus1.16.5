@@ -482,13 +482,19 @@ public class EntityAbilityZone extends Entity {
     }
 
     private void refreshZoneDimensions() {
-        this.refreshDimensions();
-        final float diameter = Math.max(1.0f, getRadius() * 2.0f);
-        final float height = Math.max(1.0f, getZoneHeight());
-        final double half = diameter * 0.5;
+        // Vanilla Entity.refreshDimensions() recenters by moving when width grows;
+        // for a ground marker that must stay pinned, restore X/Y/Z after resize.
         final double x = this.getX();
         final double y = this.getY();
         final double z = this.getZ();
+        this.refreshDimensions();
+        this.setPos(x, y, z);
+        this.xo = x;
+        this.yo = y;
+        this.zo = z;
+        final float diameter = Math.max(1.0f, getRadius() * 2.0f);
+        final float height = Math.max(1.0f, getZoneHeight());
+        final double half = diameter * 0.5;
         this.setBoundingBox(new AxisAlignedBB(
                 x - half, y, z - half,
                 x + half, y + height, z + half));

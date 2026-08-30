@@ -32,8 +32,25 @@ public final class DrachenfelsConfig {
             if (e.getKey() == null || e.getValue() == null) {
                 continue;
             }
-            data.put(PREFIX + e.getKey(), String.valueOf(e.getValue()));
+            data.put(PREFIX + e.getKey(), stringifyConfigValue(e.getValue()));
         }
+    }
+
+    /**
+     * Nashorn passes ARGB hex &gt; 2^31 as Double; store signed 32-bit bits so getI
+     * does not clamp them to white ({@code Integer.MAX_VALUE}). Floats stay decimal.
+     */
+    private static String stringifyConfigValue(final Object v) {
+        if (!(v instanceof Number)) {
+            return String.valueOf(v);
+        }
+        final Number n = (Number) v;
+        final double d = n.doubleValue();
+        if (!Double.isFinite(d) || d != Math.rint(d)) {
+            return String.valueOf(d);
+        }
+        // Whole number: keep low 32 bits (ARGB / small ints).
+        return String.valueOf((int) n.longValue());
     }
 
     public static double getD(final ICustomNpc npc, final String key, final double def) {
@@ -110,6 +127,7 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.DAMAGE_INTERVAL, getI(npc, "sealZoneInterval", 10));
         m.put(AbilityParamKeys.DAMAGE_PER_TICK, getD(npc, "sealZoneDamage", 3.0));
         m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
+        m.put(AbilityParamKeys.ZONE_COLOR, getI(npc, "sealZoneColor", 0xC0143C14));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
         m.put(AbilityParamKeys.SUMMON_RADIUS, getD(npc, "sealMinBossDist", 2.0));
         m.put(AbilityParamKeys.SPREAD_RADIUS, getD(npc, "sealMinCircleDist", 4.0));
@@ -149,6 +167,7 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.DAMAGE, getD(npc, "imperialDamage", 8.0));
         m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "imperialPoisonDuration", 80));
         m.put(AbilityParamKeys.EFFECT_AMPLIFIER, getI(npc, "imperialPoisonAmp", 3));
+        m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.ZONE_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
         m.put(AbilityParamKeys.SHOT_INTERVAL, getI(npc, "imperialSlowDuration", 40));
@@ -160,7 +179,8 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.CHARGE_TICKS, getI(npc, "feastChargeTicks", 40));
         m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "feastActiveTicks", 1));
         m.put(AbilityParamKeys.RADIUS, getD(npc, "feastSeatRadius", 1.5));
-        m.put(AbilityParamKeys.SPREAD_RADIUS, getD(npc, "feastSeatRing", 6.0));
+        m.put(AbilityParamKeys.SPREAD_RADIUS, getD(npc, "feastSeatRing", 9.5));
+        m.put(AbilityParamKeys.SUMMON_RADIUS, getD(npc, "feastSeatMinBossDist", 2.5));
         m.put(AbilityParamKeys.MAX_RANGE, getD(npc, "feastArenaRadius", 12.0));
         m.put(AbilityParamKeys.DAMAGE, getD(npc, "feastDamage", 14.0));
         m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "feastPoisonDuration", 60));

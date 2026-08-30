@@ -261,7 +261,8 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.ZONE_TICKS, 480);
         map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
         map.put(AbilityParamKeys.DAMAGE_PER_TICK, 3.0);
-        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030); // attack warning red
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0143C14); // dark green puddles
         return map;
     }
 
@@ -300,7 +301,8 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.EFFECT_TYPE, "poison");
         map.put(AbilityParamKeys.EFFECT_DURATION, 80);
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
-        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030); // attack warning red
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030); // expanding wave stays red
         return map;
     }
 
@@ -310,7 +312,8 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.CHARGE_TICKS, 40);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 1);
         map.put(AbilityParamKeys.RADIUS, 1.5);
-        map.put(AbilityParamKeys.SPREAD_RADIUS, 6.0);
+        map.put(AbilityParamKeys.SPREAD_RADIUS, 9.5); // max scatter from boss
+        map.put(AbilityParamKeys.SUMMON_RADIUS, 2.5); // min distance from boss
         map.put(AbilityParamKeys.MAX_RANGE, 12.0);
         map.put(AbilityParamKeys.DAMAGE, 14.0);
         map.put(AbilityParamKeys.EFFECT_TYPE, "poison");

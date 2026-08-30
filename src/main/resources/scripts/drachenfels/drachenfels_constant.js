@@ -106,9 +106,10 @@ var CYCLE_FEAST_AT = 120;
 var CYCLE_LEPER_AT = 220;
 
 var IMPERIAL_CHARGE_TICKS = 24;
-var IMPERIAL_ACTIVE_TICKS = 30;
-var IMPERIAL_ARENA_RADIUS = 12.0;
-var IMPERIAL_THICKNESS = 2.0;
+var IMPERIAL_ACTIVE_TICKS = 120; // 2x slower expand (was 60)
+var IMPERIAL_ARENA_RADIUS = 30.0;
+var IMPERIAL_THICKNESS = 1.333; // 1.5x narrower (was 2.0)
+var IMPERIAL_HIT_HEIGHT = 1.0; // jumpable: feet above this clear the ring
 var IMPERIAL_DAMAGE = 8.0;
 var IMPERIAL_POISON_DURATION = 80;
 var IMPERIAL_POISON_AMP = 3;
@@ -118,8 +119,8 @@ var FEAST_CHARGE_TICKS = 40;
 var FEAST_ACTIVE_TICKS = 1;
 var FEAST_SEAT_RADIUS = 1.5;
 var FEAST_SEAT_RING = 9.5; // max scatter from boss (was fixed ring 6)
-var FEAST_SEAT_MIN_BOSS_DIST = 2.5;
-var FEAST_ARENA_RADIUS = 12.0;
+var FEAST_SEAT_MIN_BOSS_DIST = 5.5;
+var FEAST_ARENA_RADIUS = 30.0;
 var FEAST_DAMAGE = 14.0;
 var FEAST_POISON_DURATION = 60;
 var FEAST_POISON_AMP = 0;
@@ -266,6 +267,7 @@ function init(event) {
         "imperialActiveTicks", IMPERIAL_ACTIVE_TICKS,
         "imperialArenaRadius", IMPERIAL_ARENA_RADIUS,
         "imperialThickness", IMPERIAL_THICKNESS,
+        "imperialHitHeight", IMPERIAL_HIT_HEIGHT,
         "imperialDamage", IMPERIAL_DAMAGE,
         "imperialPoisonDuration", IMPERIAL_POISON_DURATION,
         "imperialPoisonAmp", IMPERIAL_POISON_AMP,

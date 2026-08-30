@@ -161,9 +161,10 @@ public final class DrachenfelsConfig {
     public static Map<String, Object> imperialParams(final ICustomNpc npc) {
         final Map<String, Object> m = new HashMap<>();
         m.put(AbilityParamKeys.CHARGE_TICKS, getI(npc, "imperialChargeTicks", 24));
-        m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "imperialActiveTicks", 30));
+        m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "imperialActiveTicks", 120));
         m.put(AbilityParamKeys.RADIUS, getD(npc, "imperialArenaRadius", 12.0));
-        m.put(AbilityParamKeys.INNER_RADIUS, getD(npc, "imperialThickness", 2.0));
+        m.put(AbilityParamKeys.INNER_RADIUS, getD(npc, "imperialThickness", 1.333));
+        m.put(AbilityParamKeys.ARC_HEIGHT, getD(npc, "imperialHitHeight", 1.0));
         m.put(AbilityParamKeys.DAMAGE, getD(npc, "imperialDamage", 8.0));
         m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "imperialPoisonDuration", 80));
         m.put(AbilityParamKeys.EFFECT_AMPLIFIER, getI(npc, "imperialPoisonAmp", 3));

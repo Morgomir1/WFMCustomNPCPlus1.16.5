@@ -294,9 +294,10 @@ public final class AbilityDefaults {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
         map.put(AbilityParamKeys.CHARGE_TICKS, 24);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 30);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 120);
         map.put(AbilityParamKeys.RADIUS, 12.0);
-        map.put(AbilityParamKeys.INNER_RADIUS, 2.0);
+        map.put(AbilityParamKeys.INNER_RADIUS, 1.333);
+        map.put(AbilityParamKeys.ARC_HEIGHT, 1.0); // jumpable band height
         map.put(AbilityParamKeys.DAMAGE, 8.0);
         map.put(AbilityParamKeys.EFFECT_TYPE, "poison");
         map.put(AbilityParamKeys.EFFECT_DURATION, 80);

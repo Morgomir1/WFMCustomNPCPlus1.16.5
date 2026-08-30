@@ -253,7 +253,7 @@ public final class DrachenfelsEncounterHelper {
             tickAdds(npc, data, now);
             tickPhantoms(npc, data);
             tickShards(npc, data);
-            tickVesselVfx(npc, data, now);
+            tickVessels(npc, data, now);
             tickCarrier(npc, data, now);
             return;
         }
@@ -262,7 +262,7 @@ public final class DrachenfelsEncounterHelper {
         tickAdds(npc, data, now);
         tickPhantoms(npc, data);
         tickShards(npc, data);
-        tickVesselVfx(npc, data, now);
+        tickVessels(npc, data, now);
         tickCarrier(npc, data, now);
 
         final int phase = ScriptDataUtil.getInt(data, PHASE_KEY);
@@ -378,9 +378,11 @@ public final class DrachenfelsEncounterHelper {
         }
         final IData vData = vessel.getStoreddata();
         final int slot = ScriptDataUtil.getInt(vData, VESSEL_SLOT);
-        final double x = vessel.getX();
-        final double y = vessel.getY();
-        final double z = vessel.getZ();
+        final double x = vData.has(HOME_X) ? ScriptDataUtil.getFloat(vData, HOME_X) : vessel.getX();
+        final double z = vData.has(HOME_Z) ? ScriptDataUtil.getFloat(vData, HOME_Z) : vessel.getZ();
+        final double[] c = getArenaCenter(boss);
+        final double yRef = vData.has(HOME_Y) ? ScriptDataUtil.getFloat(vData, HOME_Y) : c[1];
+        final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, yRef);
         scheduleShardSpawn(boss, slot, x, y, z);
         // Dying vessel may still be counted until removed — treat as already dead.
         int alive = 0;
@@ -792,51 +794,61 @@ public final class DrachenfelsEncounterHelper {
     }
 
     private static void tickPhase2(final ICustomNpc npc, final IData data, final long now) {
-        AbilityCombatHelper.holdInPlace(npc,
-                ScriptDataUtil.getFloat(data, HOME_X),
-                ScriptDataUtil.getFloat(data, HOME_Y),
-                ScriptDataUtil.getFloat(data, HOME_Z));
         tickFalseHostTrigger(npc, data, now);
-        if (AbilityAPI.isBusy(npc)) {
-            return;
-        }
-        if (ScriptDataUtil.isFlag(data, PENDING_FALSE)) {
-            final IEntityLiving target = resolveCombatTarget(npc);
-            startBossAbility(npc, DfFalseHostAbility.ID, target, DrachenfelsConfig.falseHostParams(npc));
-            return;
-        }
-        long origin = ScriptDataUtil.getLong(data, CYCLE_ORIGIN);
-        if (origin <= 0L) {
-            put(data, CYCLE_ORIGIN, String.valueOf(now));
-            origin = now;
-        }
-        final int shift = ScriptDataUtil.getInt(data, CYCLE_SHIFT);
-        final long elapsed = now - origin - shift;
-        final int cycleLen = DrachenfelsConfig.getI(data, "cycleLength", CYCLE_LENGTH);
-        if (elapsed >= cycleLen) {
-            put(data, CYCLE_ORIGIN, String.valueOf(now));
-            put(data, CYCLE_SHIFT, "0");
-            put(data, CYCLE_SLOT, "0");
-            return;
-        }
-        final int slot = ScriptDataUtil.getInt(data, CYCLE_SLOT);
-        final IEntityLiving target = resolveCombatTarget(npc);
-        if (target == null || !target.isAlive()) {
-            return;
-        }
-        if (slot == 0 && elapsed >= 0) {
-            if (startBossAbility(npc, DfImperialPoisonAbility.ID, target, DrachenfelsConfig.imperialParams(npc))) {
-                put(data, CYCLE_SLOT, "1");
+        if (!AbilityAPI.isBusy(npc)) {
+            if (ScriptDataUtil.isFlag(data, PENDING_FALSE)) {
+                final IEntityLiving target = resolveCombatTarget(npc);
+                startBossAbility(npc, DfFalseHostAbility.ID, target, DrachenfelsConfig.falseHostParams(npc));
+            } else {
+                long origin = ScriptDataUtil.getLong(data, CYCLE_ORIGIN);
+                if (origin <= 0L) {
+                    put(data, CYCLE_ORIGIN, String.valueOf(now));
+                    origin = now;
+                }
+                final int shift = ScriptDataUtil.getInt(data, CYCLE_SHIFT);
+                final long elapsed = now - origin - shift;
+                final int cycleLen = DrachenfelsConfig.getI(data, "cycleLength", CYCLE_LENGTH);
+                if (elapsed >= cycleLen) {
+                    put(data, CYCLE_ORIGIN, String.valueOf(now));
+                    put(data, CYCLE_SHIFT, "0");
+                    put(data, CYCLE_SLOT, "0");
+                } else {
+                    final int slot = ScriptDataUtil.getInt(data, CYCLE_SLOT);
+                    final IEntityLiving target = resolveCombatTarget(npc);
+                    if (target != null && target.isAlive()) {
+                        if (slot == 0 && elapsed >= 0) {
+                            if (startBossAbility(
+                                    npc,
+                                    DfImperialPoisonAbility.ID,
+                                    target,
+                                    DrachenfelsConfig.imperialParams(npc))) {
+                                put(data, CYCLE_SLOT, "1");
+                            }
+                        } else if (slot == 1
+                                && elapsed >= DrachenfelsConfig.getI(data, "cycleFeastAt", 120)) {
+                            if (startBossAbility(
+                                    npc,
+                                    DfFeastSeatsAbility.ID,
+                                    target,
+                                    DrachenfelsConfig.feastParams(npc))) {
+                                put(data, CYCLE_SLOT, "2");
+                            }
+                        } else if (slot == 2
+                                && elapsed >= DrachenfelsConfig.getI(data, "cycleLeperAt", 220)) {
+                            if (startBossAbility(
+                                    npc,
+                                    DfLeperBallAbility.ID,
+                                    target,
+                                    DrachenfelsConfig.leperParams(npc))) {
+                                put(data, CYCLE_SLOT, "3");
+                            }
+                        }
+                    }
+                }
             }
-        } else if (slot == 1 && elapsed >= DrachenfelsConfig.getI(data, "cycleFeastAt", 120)) {
-            if (startBossAbility(npc, DfFeastSeatsAbility.ID, target, DrachenfelsConfig.feastParams(npc))) {
-                put(data, CYCLE_SLOT, "2");
-            }
-        } else if (slot == 2 && elapsed >= DrachenfelsConfig.getI(data, "cycleLeperAt", 220)) {
-            if (startBossAbility(npc, DfLeperBallAbility.ID, target, DrachenfelsConfig.leperParams(npc))) {
-                put(data, CYCLE_SLOT, "3");
-            }
         }
+        // Same scripted kite as phase 1 (no seal puddles left after transition).
+        maintainPhase1Movement(npc, data, now);
     }
 
     private static void tickFalseHostTrigger(final ICustomNpc npc, final IData data, final long now) {
@@ -1009,7 +1021,10 @@ public final class DrachenfelsEncounterHelper {
             tagAdd(vessel, TAG_VESSEL);
             put(vessel.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
             put(vessel.getStoreddata(), VESSEL_SLOT, String.valueOf(slot));
-            setNoPhysics(vessel, true);
+            // No noPhysics: gravity + no collision sinks vessels through the floor.
+            put(vessel.getStoreddata(), HOME_X, String.valueOf(x));
+            put(vessel.getStoreddata(), HOME_Y, String.valueOf(y));
+            put(vessel.getStoreddata(), HOME_Z, String.valueOf(z));
             setAiNone(vessel);
             try {
                 vessel.setMaxHealth(hp);
@@ -1059,6 +1074,7 @@ public final class DrachenfelsEncounterHelper {
             }
             put(data, SHARD_SPAWN_AT, remain.toString());
         }
+        final double[] c = getArenaCenter(boss);
         final List<ICustomNpc> shards = findTagged(boss, TAG_SHARD);
         for (final ICustomNpc shard : shards) {
             final double dx = boss.getX() - shard.getX();
@@ -1073,7 +1089,8 @@ public final class DrachenfelsEncounterHelper {
             final double speed = DrachenfelsConfig.getD(data, "shardSpeed", 0.35);
             final double nx = shard.getX() + (dx / Math.max(0.01, dist)) * speed;
             final double nz = shard.getZ() + (dz / Math.max(0.01, dist)) * speed;
-            final double ny = AbilityCombatHelper.findGroundY(boss.getWorld(), nx, nz, shard.getY());
+            // Snap to arena ground (not shard Y — findGroundY only scans ±8 from start).
+            final double ny = AbilityCombatHelper.findGroundY(boss.getWorld(), nx, nz, c[1]);
             shard.setPosition(nx, ny, nz);
         }
     }
@@ -1085,7 +1102,9 @@ public final class DrachenfelsEncounterHelper {
         if (name.isEmpty()) {
             return;
         }
-        final ICustomNpc shard = spawnClone(boss, tab <= 0 ? 1 : tab, name, x, y, z);
+        final double[] c = getArenaCenter(boss);
+        final double gy = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+        final ICustomNpc shard = spawnClone(boss, tab <= 0 ? 1 : tab, name, x, gy, z);
         if (shard == null) {
             return;
         }
@@ -1121,12 +1140,20 @@ public final class DrachenfelsEncounterHelper {
         }
     }
 
-    private static void tickVesselVfx(final ICustomNpc boss, final IData data, final long now) {
-        if ((now % 8) != 0) {
-            return;
-        }
+    private static void tickVessels(final ICustomNpc boss, final IData data, final long now) {
         final List<ICustomNpc> vessels = findTagged(boss, TAG_VESSEL);
         for (final ICustomNpc v : vessels) {
+            final IData vd = v.getStoreddata();
+            if (vd.has(HOME_X) && vd.has(HOME_Y) && vd.has(HOME_Z)) {
+                AbilityCombatHelper.holdInPlace(
+                        v,
+                        ScriptDataUtil.getFloat(vd, HOME_X),
+                        ScriptDataUtil.getFloat(vd, HOME_Y),
+                        ScriptDataUtil.getFloat(vd, HOME_Z));
+            }
+            if ((now % 8) != 0) {
+                continue;
+            }
             AbilityVfx.spawnSoulThread(
                     boss.getWorld(),
                     v.getX(), v.getY() + 1.5, v.getZ(),
@@ -1310,14 +1337,15 @@ public final class DrachenfelsEncounterHelper {
     }
 
     private static void applyPhase2Ai(final ICustomNpc npc) {
+        // Same scripted kite as phase 1 — not rooted in arena center.
         try {
             final INPCAi ai = npc.getAi();
             ai.setWalkingSpeed(0);
-            ai.setRetaliateType(3);
+            ai.setRetaliateType(0);
             ai.setMovingType(0);
         } catch (final Exception ignored) {
         }
-        setMoveSpeed(npc, 0.0);
+        setMoveSpeed(npc, DrachenfelsConfig.getD(npc, "phase1Speed", 0.15));
     }
 
     private static void applySpiritAi(final ICustomNpc npc) {

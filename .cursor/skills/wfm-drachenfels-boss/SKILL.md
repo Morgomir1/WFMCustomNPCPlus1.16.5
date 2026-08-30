@@ -58,9 +58,9 @@ AI: scripted kite (walkingSpeed 0) к плотным seal-лужам **на kite
 
 Absorb снимается уроном по боссу; Monk — отдельный адд.
 
-### Phase 2 — пир (rooted)
+### Phase 2 — пир (kite)
 
-Босс стоит в центре. Цикл ~**360t** (слоты):
+AI: тот же scripted kite, что в фазе 1 (`kiteDistance` / `phase1Speed`); во время каста — freeze на месте. Цикл ~**360t** (слоты):
 
 | Slot / elapsed | Ability | Telegraph |
 |----------------|---------|-----------|

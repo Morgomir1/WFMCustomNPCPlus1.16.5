@@ -45,6 +45,7 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
                 AbilityParamKeys.ACTIVE_TICKS,
                 AbilityParamKeys.RADIUS,
                 AbilityParamKeys.INNER_RADIUS,
+                AbilityParamKeys.ARC_HEIGHT,
                 AbilityParamKeys.DAMAGE,
                 AbilityParamKeys.EFFECT_TYPE,
                 AbilityParamKeys.EFFECT_DURATION,
@@ -125,6 +126,9 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 8.0);
         final int poisonDur = ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 80);
         final int poisonAmp = ctx.params.getInt(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
+        final double hitHeight = Math.max(0.25, ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 1.0));
+        final double groundY =
+                AbilityCombatHelper.findGroundY(ctx.world, active.sx, active.sz, active.sy);
         final int range = (int) Math.ceil(outer + 1.0);
         final noppes.npcs.api.entity.IEntity[] list = ctx.world.getNearbyEntities(
                 noppes.npcs.api.NpcAPI.Instance().getIPos(active.sx, active.sy, active.sz),
@@ -141,6 +145,10 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
             final double dist = AbilityCombatHelper.flatDistance(
                     ent.getX(), ent.getZ(), active.sx, active.sz);
             if (dist < inner || dist > outer) {
+                continue;
+            }
+            // Jump over: feet above the thin ring band are safe.
+            if (ent.getY() - groundY > hitHeight) {
                 continue;
             }
             if (!AbilityCombatHelper.dealPureDamage(ent, (float) damage, false)) {
@@ -162,13 +170,15 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         clearZone(active, ctx);
         final double y = AbilityCombatHelper.findGroundY(ctx.world, active.sx, active.sz, active.sy) + 0.05;
         final int color = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
+        final float hitHeight =
+                (float) Math.max(0.25, ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 1.0));
         final EntityAbilityZone zone = ZoneAPI.hazardRing(
                 ctx.npc, active.sx, y, active.sz, 2.0, 0.05, 40, 0, 999);
         if (zone == null) {
             return;
         }
         zone.setColor(color);
-        zone.setZoneHeight(2.4f);
+        zone.setZoneHeight(hitHeight);
         zone.setVisible(true);
         zone.setGroundFill(true);
         zone.setBorder(true);

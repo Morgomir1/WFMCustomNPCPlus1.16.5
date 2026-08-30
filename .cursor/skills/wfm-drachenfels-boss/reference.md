@@ -35,7 +35,7 @@ Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `monkHp`, `
 
 Phase 2 cycle: `cycleLength`, `cycleFeastAt`, `cycleLeperAt`.
 
-Imperial: `imperialChargeTicks`, `imperialActiveTicks`, `imperialArenaRadius`, `imperialThickness`, `imperialDamage`, `imperialPoisonDuration`, `imperialPoisonAmp`, `imperialSlowDuration`.
+Imperial: `imperialChargeTicks`, `imperialActiveTicks` (expand duration; higher = slower), `imperialArenaRadius`, `imperialThickness` (ring band width), `imperialHitHeight` (jumpable: feet above this clear the ring), `imperialDamage`, `imperialPoisonDuration`, `imperialPoisonAmp`, `imperialSlowDuration`.
 
 Feast: `feastChargeTicks`, `feastActiveTicks`, `feastSeatRadius`, `feastSeatRing` (max scatter from boss, default 9.5), `feastSeatMinBossDist` (default 2.5), `feastArenaRadius`, `feastDamage`, `feastPoisonDuration`, `feastPoisonAmp`, `feastColor`. Seats spawn at random positions near the boss (not a fixed ring).
 

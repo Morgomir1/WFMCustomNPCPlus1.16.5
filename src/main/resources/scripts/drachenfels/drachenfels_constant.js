@@ -83,16 +83,13 @@ var REPULSE_TRIGGER = 4.0;
 var BELL_RATIOS = "0.88,0.76";
 var BELL_CD = 400;
 var ABSORB_RATIO = 0.133;
-var MONK_HP = 40.0;
 
 // =========================
 // ФАЗА 1 — Поклон Свиты
 // =========================
 var COURT_CD = 320;
-var CULTIST_HP = 30.0;
 var CULTIST_DAMAGE = 6.0;
 var CULTIST_INTERVAL = 50;
-var GUARD_HP = 50.0;
 var GUARD_DAMAGE = 10.0;
 var GUARD_ARC_RADIUS = 3.0;
 var GUARD_CAST_TICKS = 18;
@@ -129,6 +126,7 @@ var FEAST_COLOR = 0xC0FFFFFF | 0; // только safe seats (белый); ар�
 var LEPER_CHARGE_TICKS = 24;
 var LEPER_ACTIVE_TICKS = 60;
 var LEPER_DAMAGE = 10.0;
+var LEPER_HP = 1.0; // phantoms are hazard carriers; HP for rare player hits
 var LEPER_START_RADIUS = 1.5; // spawn near boss
 var LEPER_SPAWN_RADIUS = 24.0; // fly outward to this radius
 var LEPER_DURATION = 70; // flight ticks per spirit
@@ -146,7 +144,6 @@ var FALSE_MAX = 3;
 var FALSE_SHIFT = 30;
 var FALSE_CHARGE_TICKS = 20;
 var FALSE_ACTIVE_TICKS = 30;
-var FALSE_CLONE_HP = 50.0;
 var FALSE_COPY_DIST = 3.0;
 var FALSE_TELEPORT_RING = 5.0;
 var FALSE_TELEGRAPH_RADIUS = 1.2;
@@ -158,22 +155,35 @@ var FALSE_PUDDLE_DAMAGE_INTERVAL = 10;
 var FALSE_PUDDLE_INTERVAL = 12;
 
 // =========================
+// HP всех аддов (клон-спавн)
+// =========================
+var MONK_HP = 40.0;
+var CULTIST_HP = 30.0;
+var GUARD_HP = 50.0;
+var FALSE_CLONE_HP = 50.0;
+var VESSEL_HP_FIRST = 45.0;
+var VESSEL_HP_REPEAT = 30.0;
+var SHARD_HP = 20.0;
+// LEPER_HP выше в секции Leper Ball
+
+// =========================
 // ФАЗА 3 — сосуды / осколки / спеллы / Носитель
 // =========================
-var VESSEL_RING = 10.0;
-var VESSEL_HP_FIRST = 45;
-var VESSEL_HP_REPEAT = 30;
-var SHARD_HP = 20.0;
-var SHARD_SPEED = 0.35;
+var VESSEL_RING = 11.5;       // max dist from arena center
+var VESSEL_RING_MIN = 10.5;   // min dist from arena center
+var VESSEL_ANGLE_JITTER = 30.0; // ±degrees around even spacing
+var SHARD_SPEED = 0.06;
 var SHARD_HEAL_RATIO = 0.0267;
-var SHARD_TOUCH_DIST = 1.0;
+var SHARD_TOUCH_DIST = 2.75;
 var SHARD_DELAY_TICKS = 5;
 
 var STEP_CD = 120;
 var STEP_CHARGE_TICKS = 16;
-var STEP_ACTIVE_TICKS = 8;
+var STEP_ACTIVE_TICKS = 10;
 var STEP_DAMAGE = 12.0;
-var STEP_WIDTH = 1.0;
+var STEP_WIDTH = 1.25;
+var STEP_LAND_RADIUS = 1.6;
+var STEP_OVERSHOOT = 1.5;
 var STEP_MIN_PLAYER_DIST = 5.0;
 
 var WHISPER_CD = 180;
@@ -197,9 +207,13 @@ var STEAL_BLIND_DURATION = 40;
 var CARRIER_TICKS = 240;
 var CARRIER_SPEED = 0.2;
 var CARRIER_ARC_DAMAGE = 15.0;
-var CARRIER_ARC_RADIUS = 3.0;
+var CARRIER_ARC_DISTANCE = 4.5;
+var CARRIER_ARC_NEAR_WIDTH = 1.35;
+var CARRIER_ARC_HALF_ANGLE = 38.0;
 var CARRIER_ARC_CAST_TICKS = 18;
 var CARRIER_ARC_INTERVAL = 50;
+var CARRIER_ARC_KNOCKBACK = 0.85;
+var CARRIER_ARC_KNOCKBACK_Y = 0.18;
 
 function init(event) {
     var npc = event.npc;
@@ -260,17 +274,24 @@ function init(event) {
         "bellRatios", BELL_RATIOS,
         "bellCd", BELL_CD,
         "absorbRatio", ABSORB_RATIO,
-        "monkHp", MONK_HP,
 
         "courtCd", COURT_CD,
-        "cultistHp", CULTIST_HP,
         "cultistDamage", CULTIST_DAMAGE,
         "cultistInterval", CULTIST_INTERVAL,
-        "guardHp", GUARD_HP,
         "guardDamage", GUARD_DAMAGE,
         "guardArcRadius", GUARD_ARC_RADIUS,
         "guardCastTicks", GUARD_CAST_TICKS,
         "guardInterval", GUARD_INTERVAL,
+
+        // HP всех аддов
+        "monkHp", MONK_HP,
+        "cultistHp", CULTIST_HP,
+        "guardHp", GUARD_HP,
+        "leperHp", LEPER_HP,
+        "falseCloneHp", FALSE_CLONE_HP,
+        "vesselHpFirst", VESSEL_HP_FIRST,
+        "vesselHpRepeat", VESSEL_HP_REPEAT,
+        "shardHp", SHARD_HP,
 
         "cycleLength", CYCLE_LENGTH,
         "cycleFeastAt", CYCLE_FEAST_AT,
@@ -317,7 +338,6 @@ function init(event) {
         "falseShift", FALSE_SHIFT,
         "falseChargeTicks", FALSE_CHARGE_TICKS,
         "falseActiveTicks", FALSE_ACTIVE_TICKS,
-        "falseCloneHp", FALSE_CLONE_HP,
         "falseCopyDist", FALSE_COPY_DIST,
         "falseTeleportRing", FALSE_TELEPORT_RING,
         "falseTelegraphRadius", FALSE_TELEGRAPH_RADIUS,
@@ -329,9 +349,8 @@ function init(event) {
         "falsePuddleInterval", FALSE_PUDDLE_INTERVAL,
 
         "vesselRing", VESSEL_RING,
-        "vesselHpFirst", VESSEL_HP_FIRST,
-        "vesselHpRepeat", VESSEL_HP_REPEAT,
-        "shardHp", SHARD_HP,
+        "vesselRingMin", VESSEL_RING_MIN,
+        "vesselAngleJitter", VESSEL_ANGLE_JITTER,
         "shardSpeed", SHARD_SPEED,
         "shardHealRatio", SHARD_HEAL_RATIO,
         "shardTouchDist", SHARD_TOUCH_DIST,
@@ -342,6 +361,8 @@ function init(event) {
         "stepActiveTicks", STEP_ACTIVE_TICKS,
         "stepDamage", STEP_DAMAGE,
         "stepWidth", STEP_WIDTH,
+        "stepLandRadius", STEP_LAND_RADIUS,
+        "stepOvershoot", STEP_OVERSHOOT,
         "stepMinPlayerDist", STEP_MIN_PLAYER_DIST,
 
         "whisperCd", WHISPER_CD,
@@ -365,9 +386,13 @@ function init(event) {
         "carrierTicks", CARRIER_TICKS,
         "carrierSpeed", CARRIER_SPEED,
         "carrierArcDamage", CARRIER_ARC_DAMAGE,
-        "carrierArcRadius", CARRIER_ARC_RADIUS,
+        "carrierArcDistance", CARRIER_ARC_DISTANCE,
+        "carrierArcNearWidth", CARRIER_ARC_NEAR_WIDTH,
+        "carrierArcHalfAngle", CARRIER_ARC_HALF_ANGLE,
         "carrierArcCastTicks", CARRIER_ARC_CAST_TICKS,
-        "carrierArcInterval", CARRIER_ARC_INTERVAL
+        "carrierArcInterval", CARRIER_ARC_INTERVAL,
+        "carrierArcKnockback", CARRIER_ARC_KNOCKBACK,
+        "carrierArcKnockbackY", CARRIER_ARC_KNOCKBACK_Y
     ));
     Encounter.init(npc);
     startTimers(npc);

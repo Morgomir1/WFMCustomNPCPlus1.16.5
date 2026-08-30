@@ -356,9 +356,10 @@ public final class AbilityDefaults {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
         map.put(AbilityParamKeys.CHARGE_TICKS, 16);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 8);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 10);
         map.put(AbilityParamKeys.DAMAGE, 12.0);
-        map.put(AbilityParamKeys.HIT_RADIUS, 1.0);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.25);
+        map.put(AbilityParamKeys.LAND_RADIUS, 1.6);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
@@ -386,6 +387,20 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.DAMAGE, 6.0);
         map.put(AbilityParamKeys.RADIUS, 1.5);
         map.put(AbilityParamKeys.EFFECT_DURATION, 40); // weakness duration
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
+    public static Map<String, Object> dfCarrierSlash() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 4.5);
+        map.put(AbilityParamKeys.RADIUS, 1.35);
+        map.put(AbilityParamKeys.CONE_HALF_ANGLE, 38.0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 18);
+        map.put(AbilityParamKeys.DAMAGE, 15.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.85);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.18);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }

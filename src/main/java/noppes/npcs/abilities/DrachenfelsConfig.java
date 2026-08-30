@@ -228,9 +228,10 @@ public final class DrachenfelsConfig {
     public static Map<String, Object> stepParams(final ICustomNpc npc) {
         final Map<String, Object> m = new HashMap<>();
         m.put(AbilityParamKeys.CHARGE_TICKS, getI(npc, "stepChargeTicks", 16));
-        m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "stepActiveTicks", 8));
+        m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "stepActiveTicks", 10));
         m.put(AbilityParamKeys.DAMAGE, getD(npc, "stepDamage", 12.0));
-        m.put(AbilityParamKeys.HIT_RADIUS, getD(npc, "stepWidth", 1.0));
+        m.put(AbilityParamKeys.HIT_RADIUS, getD(npc, "stepWidth", 1.25));
+        m.put(AbilityParamKeys.LAND_RADIUS, getD(npc, "stepLandRadius", 1.6));
         m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
         return m;
@@ -258,6 +259,20 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.RADIUS, getD(npc, "stealTelegraphRadius", 1.5));
         m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "stealWeakDuration", 40));
         m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "stealBlindDuration", 40));
+        m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
+        m.put(AbilityParamKeys.TELEGRAPH, 0);
+        return m;
+    }
+
+    public static Map<String, Object> carrierSlashParams(final ICustomNpc npc) {
+        final Map<String, Object> m = new HashMap<>();
+        m.put(AbilityParamKeys.CHARGE_TICKS, getI(npc, "carrierArcCastTicks", 18));
+        m.put(AbilityParamKeys.DISTANCE, getD(npc, "carrierArcDistance", 4.5));
+        m.put(AbilityParamKeys.RADIUS, getD(npc, "carrierArcNearWidth", 1.35));
+        m.put(AbilityParamKeys.CONE_HALF_ANGLE, getD(npc, "carrierArcHalfAngle", 38.0));
+        m.put(AbilityParamKeys.DAMAGE, getD(npc, "carrierArcDamage", 15.0));
+        m.put(AbilityParamKeys.KNOCKBACK, getD(npc, "carrierArcKnockback", 0.85));
+        m.put(AbilityParamKeys.KNOCKBACK_Y, getD(npc, "carrierArcKnockbackY", 0.18));
         m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
         return m;

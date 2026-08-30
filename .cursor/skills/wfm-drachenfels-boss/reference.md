@@ -14,6 +14,7 @@
 | `df_nameless_step` | `DfNamelessStepAbility` | 3 |
 | `df_nameless_whisper` | `DfNamelessWhisperAbility` | 3 |
 | `df_name_steal` | `DfNameStealAbility` | 3 |
+| `df_carrier_slash` | `DfCarrierSlashAbility` | 3 carrier |
 
 Helper-only (не AbilityAPI): Bell, Court spawn, vessel/shard/carrier, guard/carrier arcs.
 
@@ -31,7 +32,9 @@ Repulse: `repulseCd` (200), `repulseChargeTicks` (30), `repulseActiveTicks`, `re
 
 Phase 1 CD notes: AbilityAPI CDs arm **on cast start**. `Encounter.init` is one-shot (`df_inited`) so JS reload does not rewind clocks. Court CD only after successful spawn.
 
-Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `monkHp`, `courtCd`, `cultistHp`/`Damage`/`Interval`, `guardHp`/`Damage`/`ArcRadius`/`CastTicks`/`Interval`.
+Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `courtCd`, `cultistDamage`/`Interval`, `guardDamage`/`ArcRadius`/`CastTicks`/`Interval`.
+
+**Add HP (all spawnable adds):** `monkHp`, `cultistHp`, `guardHp`, `leperHp`, `falseCloneHp`, `vesselHpFirst`, `vesselHpRepeat`, `shardHp`.
 
 Phase 2 cycle: `cycleLength`, `cycleFeastAt`, `cycleLeperAt`.
 
@@ -39,11 +42,13 @@ Imperial: `imperialChargeTicks`, `imperialActiveTicks` (expand duration; higher 
 
 Feast: `feastChargeTicks`, `feastActiveTicks`, `feastSeatRadius`, `feastSeatRing` (max scatter from boss, default 9.5), `feastSeatMinBossDist` (default 2.5), `feastArenaRadius`, `feastDamage`, `feastPoisonDuration`, `feastPoisonAmp`, `feastColor`. Seats spawn at random positions near the boss (not a fixed ring).
 
-Leper: `leperChargeTicks`, `leperActiveTicks`, `leperDamage`, `leperStartRadius` (spawn near boss), `leperSpawnRadius` (outward end, default 24), `leperDuration` (flight ticks), `leperHitRadius` (red following hazard), `leperSlowDuration`, `leperSlowAmp`, `leperVolleys` (3), `leperVolleyInterval`, `leperWiggleAmp`, `leperWiggleFreq`, `leperHover` (locked Y above spawn floor). Three staggered-angle salvos fly **away** from the boss with a sine weave; each spirit has a red ZoneAPI circle that moves with it and deals damage.
+Leper: `leperChargeTicks`, `leperActiveTicks`, `leperDamage`, `leperHp`, `leperStartRadius` (spawn near boss), `leperSpawnRadius` (outward end, default 24), `leperDuration` (flight ticks), `leperHitRadius` (red following hazard), `leperSlowDuration`, `leperSlowAmp`, `leperVolleys` (3), `leperVolleyInterval`, `leperWiggleAmp`, `leperWiggleFreq`, `leperHover` (locked Y above spawn floor). Three staggered-angle salvos fly **away** from the boss with a sine weave; each spirit has a red ZoneAPI circle that moves with it and deals damage.
 
-False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActiveTicks`, `falseCopyDist`, `falseTeleportRing`, `falseTelegraphRadius`.
+False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActiveTicks`, `falseCloneHp`, `falseCopyDist`, `falseTeleportRing`, `falseTelegraphRadius`, `falseRunStep`, `falsePuddleRadius`/`Ticks`/`Damage`/`DamageInterval`/`Interval`.
 
-Phase 3: `vesselRing`, `vesselHpFirst`, `vesselHpRepeat`, `shardHp`, `shardSpeed`, `shardHealRatio`, `shardTouchDist`, `shardDelayTicks`, `stepCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`Width`/`MinPlayerDist`, `whisperCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`BlindDuration`/`Thickness`/`Ring1..3`, `stealCd`/`Range`/`Damage`/`ChargeTicks`/`TelegraphRadius`/`WeakDuration`/`BlindDuration`, `carrierTicks`/`Speed`/`ArcDamage`/`ArcRadius`/`ArcCastTicks`/`ArcInterval`.
+Phase 3 vessels: `vesselRing` (max dist from center, default 11.5), `vesselRingMin` (default 10.5), `vesselAngleJitter` (±deg around even spacing, default 30). Spawn uses random base rotation + jitter + random radius in `[min,max]` (clamped to arena). Also `vesselHpFirst`/`vesselHpRepeat`, `shardHp`, `shardSpeed` (default 0.06), `shardHealRatio`, `shardTouchDist` (default 2.75), `shardDelayTicks`.
+
+Phase 3 casts / carrier: `stepCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`Width`/`LandRadius`/`Overshoot`/`MinPlayerDist`, `whisperCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`BlindDuration`/`Thickness`/`Ring1..3`, `stealCd`/`Range`/`Damage`/`ChargeTicks`/`TelegraphRadius`/`WeakDuration`/`BlindDuration`, `carrierTicks`/`Speed`, carrier slash AbilityAPI `df_carrier_slash`: `carrierArcDamage`/`Distance`/`NearWidth`/`HalfAngle`/`CastTicks`/`Interval`/`Knockback`/`KnockbackY` (truncated cone like `wh_flaming_strike`, soul VFX, hold-in-place).
 
 ## JS bootstrap
 

@@ -74,13 +74,14 @@ AI: тот же scripted kite, что в фазе 1 (`kiteDistance` / `phase1Spe
 
 ### Phase 3 — дух / имя
 
-Spirit AI (без ходьбы). Сразу 3 **Vessel** на кольце. Касты (CD-очередь): Steal (ближний) → Whisper → Step.
+Spirit AI (без ходьбы). Сразу 3 **Vessel** на кольце (random base angle + jitter, radius в `[vesselRingMin, vesselRing]`). Касты (CD-очередь): Steal (ближний) → Whisper → Step.
 
 | Id | Что делает | Telegraph |
 |----|------------|-----------|
-| `df_nameless_step` | dash по линии к точке | line |
+| `df_nameless_step` | dash к текущей позиции игрока (retarget в конце charge + overshoot) | line + circle |
 | `df_nameless_whisper` | 3 кольца, hit только в bands + blind | 3× ring |
 | `df_name_steal` | charge на цели → damage + weak + blind | circle на цели |
+| `df_carrier_slash` | truncated cone (как wh_flaming_strike), soul VFX; hold-in-place | coneTruncated |
 
 **Сосуды / осколки / Носитель:**
 
@@ -130,6 +131,7 @@ abilities/impl/DfFalseHostAbility.java
 abilities/impl/DfNamelessStepAbility.java
 abilities/impl/DfNamelessWhisperAbility.java
 abilities/impl/DfNameStealAbility.java
+abilities/impl/DfCarrierSlashAbility.java
 resources/scripts/drachenfels/drachenfels_constant.js
 ```
 

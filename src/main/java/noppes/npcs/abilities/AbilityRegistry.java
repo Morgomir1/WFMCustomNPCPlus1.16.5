@@ -38,6 +38,7 @@ public final class AbilityRegistry {
         register(new DfNamelessStepAbility());
         register(new DfNamelessWhisperAbility());
         register(new DfNameStealAbility());
+        register(new DfCarrierSlashAbility());
         register(new ShieldBlockAbility());
         register(new CrimsonBlobAbility());
         register(new WhFlamingStrikeAbility());

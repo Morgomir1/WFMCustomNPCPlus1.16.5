@@ -9,6 +9,7 @@ import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.World;
 import net.minecraft.world.server.ServerWorld;
 import noppes.npcs.abilities.impl.DfBlackSealAbility;
+import noppes.npcs.abilities.impl.DfCarrierSlashAbility;
 import noppes.npcs.abilities.impl.DfFalseHostAbility;
 import noppes.npcs.abilities.impl.DfFeastSeatsAbility;
 import noppes.npcs.abilities.impl.DfImperialPoisonAbility;
@@ -77,6 +78,8 @@ public final class DrachenfelsEncounterHelper {
     private static final int STEAL_CD = 160;
     private static final int CYCLE_LENGTH = 360;
     private static final int FALSE_SHIFT = 30;
+    private static final double SHARD_SPEED = 0.06;
+    private static final double SHARD_TOUCH_DIST = 2.75;
 
     private static final String PHASE_KEY = "df_phase";
     private static final String ABSORB_KEY = "df_absorb";
@@ -489,6 +492,7 @@ public final class DrachenfelsEncounterHelper {
         final int slowDur = DrachenfelsConfig.getI(boss, "leperSlowDuration", 30);
         final int slowAmp = DrachenfelsConfig.getI(boss, "leperSlowAmp", 1);
         final double[] angles = leperVolleyAngles(volleyIndex);
+        final float phantomHp = (float) DrachenfelsConfig.getD(boss, "leperHp", 1.0);
         final double bx = boss.getX();
         final double by = boss.getY();
         final double bz = boss.getZ();
@@ -520,6 +524,7 @@ public final class DrachenfelsEncounterHelper {
             put(pd, "df_hover", String.valueOf(hover));
             put(pd, "df_base_y", String.valueOf(baseY));
             setAiNone(phantom);
+            applyAddHp(phantom, phantomHp);
             pinFlyingNpc(phantom, sx, sy, sz);
 
             // Red ground hazard follows the spirit (owner = boss for hostile checks).
@@ -579,15 +584,7 @@ public final class DrachenfelsEncounterHelper {
             }
             tagAdd(copy, TAG_FALSE);
             put(copy.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
-            final float copyHp = (float) DrachenfelsConfig.getD(boss, "falseCloneHp", 50.0);
-            try {
-                copy.setMaxHealth(copyHp);
-                final Object mc = copy.getMCEntity();
-                if (mc instanceof LivingEntity) {
-                    ((LivingEntity) mc).setHealth(copyHp);
-                }
-            } catch (final Exception ignored) {
-            }
+            applyAddHp(copy, (float) DrachenfelsConfig.getD(boss, "falseCloneHp", 50.0));
             setAiNone(copy);
             put(copy.getStoreddata(), FALSE_NEXT_PUDDLE, "0");
             spawned++;
@@ -649,31 +646,48 @@ public final class DrachenfelsEncounterHelper {
     }
 
     public static boolean pickNamelessStepTarget(final ActiveAbility active, final AbilityContext ctx) {
-        final double[] c = getArenaCenter(ctx.npc);
-        final double px = ctx.target != null ? ctx.target.getX() : c[0];
-        final double pz = ctx.target != null ? ctx.target.getZ() : c[2];
-        final double minPlayer = DrachenfelsConfig.getD(ctx.npc, "stepMinPlayerDist", 5.0);
-        final double arenaR = getArenaRadius(ctx.npc);
-        for (int i = 0; i < 24; i++) {
-            final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
-            final double dist = 2.0 + RANDOM.nextDouble() * (arenaR - 2.5);
-            final double x = c[0] + Math.cos(ang) * dist;
-            final double z = c[2] + Math.sin(ang) * dist;
-            if (AbilityCombatHelper.flatDistance(x, z, px, pz) < minPlayer) {
-                continue;
-            }
-            if (AbilityCombatHelper.flatDistance(x, z, c[0], c[2]) > arenaR - 0.5) {
-                continue;
-            }
-            active.sx = ctx.npc.getX();
-            active.sy = ctx.npc.getY();
-            active.sz = ctx.npc.getZ();
-            active.ex = x;
-            active.ez = z;
-            active.ey = AbilityCombatHelper.findGroundY(ctx.world, x, z, c[1]);
-            return true;
+        if (ctx.target == null || !ctx.target.isAlive()) {
+            return false;
         }
-        return false;
+        final double[] c = getArenaCenter(ctx.npc);
+        final double arenaR = Math.max(1.0, getArenaRadius(ctx.npc) - 0.5);
+        final double sx = ctx.npc.getX();
+        final double sy = ctx.npc.getY();
+        final double sz = ctx.npc.getZ();
+        final double px = ctx.target.getX();
+        final double pz = ctx.target.getZ();
+        double dx = px - sx;
+        double dz = pz - sz;
+        double len = Math.sqrt(dx * dx + dz * dz);
+        final double overshoot = Math.max(0.0, DrachenfelsConfig.getD(ctx.npc, "stepOvershoot", 1.5));
+        double x;
+        double z;
+        if (len < 0.05) {
+            final double yaw = Math.toRadians(ctx.npc.getRotation() + 90.0);
+            dx = Math.cos(yaw);
+            dz = Math.sin(yaw);
+            len = 1.0;
+            x = sx + dx * (2.0 + overshoot);
+            z = sz + dz * (2.0 + overshoot);
+        } else {
+            dx /= len;
+            dz /= len;
+            x = px + dx * overshoot;
+            z = pz + dz * overshoot;
+        }
+        final double fromCenter = Math.sqrt((x - c[0]) * (x - c[0]) + (z - c[2]) * (z - c[2]));
+        if (fromCenter > arenaR) {
+            x = c[0] + ((x - c[0]) / fromCenter) * arenaR;
+            z = c[2] + ((z - c[2]) / fromCenter) * arenaR;
+        }
+        active.sx = sx;
+        active.sy = sy;
+        active.sz = sz;
+        active.ex = x;
+        active.ez = z;
+        active.ey = AbilityCombatHelper.findGroundY(ctx.world, x, z, c[1]);
+        active.yaw = AbilityCombatHelper.computeYaw(active.ex - active.sx, active.ez - active.sz);
+        return true;
     }
 
     // -------------------------------------------------------------------------
@@ -823,15 +837,7 @@ public final class DrachenfelsEncounterHelper {
             tagAdd(monk, TAG_MONK);
             put(monk.getStoreddata(), BOSS_UUID, String.valueOf(npc.getUUID()));
             setAiNone(monk);
-            final float monkHp = (float) DrachenfelsConfig.getD(data, "monkHp", 40.0);
-            try {
-                monk.setMaxHealth(monkHp);
-                final Object mc = monk.getMCEntity();
-                if (mc instanceof LivingEntity) {
-                    ((LivingEntity) mc).setHealth(monkHp);
-                }
-            } catch (final Exception ignored) {
-            }
+            applyAddHp(monk, (float) DrachenfelsConfig.getD(data, "monkHp", 40.0));
         }
     }
 
@@ -906,17 +912,10 @@ public final class DrachenfelsEncounterHelper {
         tagAdd(add, cultist ? TAG_CULTIST : TAG_GUARD);
         put(add.getStoreddata(), BOSS_UUID, String.valueOf(npc.getUUID()));
         put(add.getStoreddata(), ADD_NEXT_ATK, String.valueOf(now + 20));
-        try {
-            final float hp = cultist
-                    ? (float) DrachenfelsConfig.getD(data, "cultistHp", 30.0)
-                    : (float) DrachenfelsConfig.getD(data, "guardHp", 50.0);
-            add.setMaxHealth(hp);
-            final Object mc = add.getMCEntity();
-            if (mc instanceof LivingEntity) {
-                ((LivingEntity) mc).setHealth(hp);
-            }
-        } catch (final Exception ignored) {
-        }
+        final float hp = cultist
+                ? (float) DrachenfelsConfig.getD(data, "cultistHp", 30.0)
+                : (float) DrachenfelsConfig.getD(data, "guardHp", 50.0);
+        applyAddHp(add, hp);
         return false; // court is not an AbilityAPI cast
     }
 
@@ -1021,6 +1020,13 @@ public final class DrachenfelsEncounterHelper {
         if (target == null || !target.isAlive()) {
             return;
         }
+        // Carrier window: only the truncated cone slash (AbilityAPI), no spirit spells.
+        if (carrier) {
+            if (now >= ScriptDataUtil.getLong(data, ARC_CD)) {
+                startBossAbility(npc, DfCarrierSlashAbility.ID, target, DrachenfelsConfig.carrierSlashParams(npc));
+            }
+            return;
+        }
         if (hasVessels && AbilityCombatHelper.flatDistance(
                 npc.getX(), npc.getZ(), target.getX(), target.getZ())
                 <= DrachenfelsConfig.getD(data, "stealRange", 3.0)
@@ -1034,11 +1040,8 @@ public final class DrachenfelsEncounterHelper {
                 return;
             }
         }
-        if (hasVessels && !carrier && now >= ScriptDataUtil.getLong(data, STEP_READY)) {
+        if (hasVessels && now >= ScriptDataUtil.getLong(data, STEP_READY)) {
             startBossAbility(npc, DfNamelessStepAbility.ID, target, DrachenfelsConfig.stepParams(npc));
-        }
-        if (carrier) {
-            tickCarrierArc(npc, data, now, target);
         }
     }
 
@@ -1072,55 +1075,6 @@ public final class DrachenfelsEncounterHelper {
         spawnVesselSet(npc, false);
     }
 
-    private static void tickCarrierArc(
-            final ICustomNpc npc, final IData data, final long now, final IEntityLiving target) {
-        if (AbilityAPI.isBusy(npc)) {
-            return;
-        }
-        final int casting = ScriptDataUtil.getInt(data, ARC_CAST);
-        if (casting > 0) {
-            put(data, ARC_CAST, String.valueOf(casting - 1));
-            AbilityCombatHelper.stopNavigation(npc);
-            if (casting == 1) {
-                clearArcTelegraph(data);
-                face(npc, target);
-                final double damage = DrachenfelsConfig.getD(data, "carrierArcDamage", 15.0);
-                final double radius = DrachenfelsConfig.getD(data, "carrierArcRadius", 3.0);
-                final IEntity[] list = npc.getWorld().getNearbyEntities(npc.getPos(), 4, -1);
-                for (final IEntity ent : list) {
-                    if (!AbilityCombatHelper.isHostileToBoss(npc, ent)) {
-                        continue;
-                    }
-                    if (AbilityCombatHelper.flatDistance(
-                            npc.getX(), npc.getZ(), ent.getX(), ent.getZ()) > radius) {
-                        continue;
-                    }
-                    if (!isInFront(npc, ent, ARC_HALF_ANGLE)) {
-                        continue;
-                    }
-                    if (!AbilityCombatHelper.dealPureDamage(ent, (float) damage, false)) {
-                        ent.damage((float) damage);
-                    }
-                    AbilityVfx.spawnHitParticle(npc.getWorld(), ent);
-                }
-                put(data, ARC_CD, String.valueOf(now + DrachenfelsConfig.getI(data, "carrierArcInterval", 50)));
-            }
-            return;
-        }
-        if (now < ScriptDataUtil.getLong(data, ARC_CD)) {
-            return;
-        }
-        final int castTicks = DrachenfelsConfig.getI(data, "carrierArcCastTicks", 12);
-        startArcTelegraph(
-                npc,
-                data,
-                target,
-                DrachenfelsConfig.getD(data, "carrierArcRadius", 3.0),
-                castTicks,
-                DrachenfelsConfig.getI(data, "telegraphColor", 0xC0FF3030));
-        put(data, ARC_CAST, String.valueOf(castTicks));
-    }
-
     // -------------------------------------------------------------------------
     // Vessels / shards / adds
     // -------------------------------------------------------------------------
@@ -1134,16 +1088,25 @@ public final class DrachenfelsEncounterHelper {
         }
         final double[] c = getArenaCenter(boss);
         final int[] slots = first ? new int[]{0, 1, 2} : new int[]{0, 1};
-        final int hp = first
-                ? DrachenfelsConfig.getI(data, "vesselHpFirst", 45)
-                : DrachenfelsConfig.getI(data, "vesselHpRepeat", 30);
-        final double vesselRing = DrachenfelsConfig.getD(data, "vesselRing", 10.0);
-        final double[] angles = {0.0, 120.0, 240.0};
-        for (int i = 0; i < slots.length; i++) {
+        final float hp = first
+                ? (float) DrachenfelsConfig.getD(data, "vesselHpFirst", 45.0)
+                : (float) DrachenfelsConfig.getD(data, "vesselHpRepeat", 30.0);
+        final double arenaCap = Math.max(1.0, getArenaRadius(boss) - 0.5);
+        final double ringMax = Math.min(
+                arenaCap, Math.max(1.0, DrachenfelsConfig.getD(data, "vesselRing", 11.5)));
+        final double ringMin = Math.min(
+                ringMax, Math.max(1.0, DrachenfelsConfig.getD(data, "vesselRingMin", 10.5)));
+        final double jitter = Math.max(0.0, DrachenfelsConfig.getD(data, "vesselAngleJitter", 30.0));
+        final int count = slots.length;
+        final double step = 360.0 / Math.max(1, count);
+        final double baseAng = RANDOM.nextDouble() * 360.0;
+        for (int i = 0; i < count; i++) {
             final int slot = slots[i];
-            final double rad = Math.toRadians(angles[slot]);
-            final double x = c[0] + Math.cos(rad) * vesselRing;
-            final double z = c[2] + Math.sin(rad) * vesselRing;
+            final double ang = baseAng + step * i + (RANDOM.nextDouble() * 2.0 - 1.0) * jitter;
+            final double dist = ringMin + RANDOM.nextDouble() * Math.max(0.0, ringMax - ringMin);
+            final double rad = Math.toRadians(ang);
+            final double x = c[0] + Math.cos(rad) * dist;
+            final double z = c[2] + Math.sin(rad) * dist;
             final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
             final ICustomNpc vessel = spawnClone(boss, tab <= 0 ? 1 : tab, name, x, y, z);
             if (vessel == null) {
@@ -1157,14 +1120,7 @@ public final class DrachenfelsEncounterHelper {
             put(vessel.getStoreddata(), HOME_Y, String.valueOf(y));
             put(vessel.getStoreddata(), HOME_Z, String.valueOf(z));
             setAiNone(vessel);
-            try {
-                vessel.setMaxHealth(hp);
-                final Object mc = vessel.getMCEntity();
-                if (mc instanceof LivingEntity) {
-                    ((LivingEntity) mc).setHealth((float) hp);
-                }
-            } catch (final Exception ignored) {
-            }
+            applyAddHp(vessel, hp);
         }
         put(data, VESSEL_ROUND, String.valueOf(ScriptDataUtil.getInt(data, VESSEL_ROUND) + 1));
     }
@@ -1208,21 +1164,28 @@ public final class DrachenfelsEncounterHelper {
         final double[] c = getArenaCenter(boss);
         final List<ICustomNpc> shards = findTagged(boss, TAG_SHARD);
         for (final ICustomNpc shard : shards) {
+            if (shard == null || !shard.isAlive()) {
+                continue;
+            }
+            pinShardFlight(shard);
             final double dx = boss.getX() - shard.getX();
             final double dz = boss.getZ() - shard.getZ();
             final double dist = Math.sqrt(dx * dx + dz * dz);
-            final double touch = DrachenfelsConfig.getD(data, "shardTouchDist", 1.0);
+            final double touch = DrachenfelsConfig.getD(data, "shardTouchDist", SHARD_TOUCH_DIST);
             if (dist <= touch) {
                 healBossFromShard(boss, data);
                 shard.despawn();
                 continue;
             }
-            final double speed = DrachenfelsConfig.getD(data, "shardSpeed", 0.35);
-            final double nx = shard.getX() + (dx / Math.max(0.01, dist)) * speed;
-            final double nz = shard.getZ() + (dz / Math.max(0.01, dist)) * speed;
+            final double speed = DrachenfelsConfig.getD(data, "shardSpeed", SHARD_SPEED);
+            // Step never overshoots past the boss — land exactly on touch ring if close.
+            final double step = Math.min(speed, Math.max(0.0, dist - touch * 0.35));
+            final double nx = shard.getX() + (dx / Math.max(0.01, dist)) * step;
+            final double nz = shard.getZ() + (dz / Math.max(0.01, dist)) * step;
             // Snap to arena ground (not shard Y — findGroundY only scans ±8 from start).
             final double ny = AbilityCombatHelper.findGroundY(boss.getWorld(), nx, nz, c[1]);
             shard.setPosition(nx, ny, nz);
+            pinShardFlight(shard);
         }
     }
 
@@ -1242,12 +1205,43 @@ public final class DrachenfelsEncounterHelper {
         tagAdd(shard, TAG_SHARD);
         put(shard.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
         setAiNone(shard);
-        final float shardHp = (float) DrachenfelsConfig.getD(data, "shardHp", 20.0);
+        applyAddHp(shard, (float) DrachenfelsConfig.getD(data, "shardHp", 20.0));
+        pinShardFlight(shard);
+    }
+
+    private static void pinShardFlight(final ICustomNpc shard) {
+        if (shard == null) {
+            return;
+        }
         try {
-            shard.setMaxHealth(shardHp);
             final Object mc = shard.getMCEntity();
+            if (mc instanceof Entity) {
+                final Entity entity = (Entity) mc;
+                entity.noPhysics = true;
+                entity.setNoGravity(true);
+                entity.setDeltaMovement(0.0, 0.0, 0.0);
+                entity.fallDistance = 0.0F;
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            shard.setMotionX(0.0);
+            shard.setMotionY(0.0);
+            shard.setMotionZ(0.0);
+        } catch (final Exception ignored) {
+        }
+    }
+
+    /** Apply configurable max/current HP to a spawned add clone. */
+    private static void applyAddHp(final ICustomNpc npc, final float hp) {
+        if (npc == null || hp <= 0.0F) {
+            return;
+        }
+        try {
+            npc.setMaxHealth(hp);
+            final Object mc = npc.getMCEntity();
             if (mc instanceof LivingEntity) {
-                ((LivingEntity) mc).setHealth(shardHp);
+                ((LivingEntity) mc).setHealth(hp);
             }
         } catch (final Exception ignored) {
         }
@@ -1258,13 +1252,25 @@ public final class DrachenfelsEncounterHelper {
                 * DrachenfelsConfig.getD(data, "shardHealRatio", SHARD_HEAL_RATIO));
         final float cap = (float) (boss.getMaxHealth()
                 * DrachenfelsConfig.getD(data, "phase3Ratio", PHASE3_RATIO));
+        float before = 0.0F;
+        float after = 0.0F;
         try {
             final Object mc = boss.getMCEntity();
             if (mc instanceof LivingEntity) {
                 final LivingEntity living = (LivingEntity) mc;
-                living.setHealth(Math.min(cap, living.getHealth() + heal));
+                before = living.getHealth();
+                after = Math.min(cap, before + heal);
+                // Bypass LivingHealEvent caps / CNPC quirks — direct set.
+                living.setHealth(after);
+                living.hurtTime = 0;
+                living.hurtDuration = 0;
             }
         } catch (final Exception ignored) {
+        }
+        AbilityVfx.spawnSoulBurst(boss.getWorld(), boss.getX(), boss.getY() + 0.4, boss.getZ(), 1.6);
+        AbilityVfx.spawnSoulWave(boss.getWorld(), boss.getX(), boss.getY() + 0.15, boss.getZ(), 2.2);
+        if (after > before + 0.05F) {
+            AbilityVfx.spawnAbsorbShield(boss.getWorld(), boss.getX(), boss.getY(), boss.getZ());
         }
         if (hasLivingVessels(boss)) {
             put(data, STEP_READY, "0");
@@ -2293,6 +2299,8 @@ public final class DrachenfelsEncounterHelper {
             put(data, WHISPER_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "whisperCd", WHISPER_CD)));
         } else if (DfNameStealAbility.ID.equals(abilityId)) {
             put(data, STEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "stealCd", STEAL_CD)));
+        } else if (DfCarrierSlashAbility.ID.equals(abilityId)) {
+            put(data, ARC_CD, String.valueOf(now + DrachenfelsConfig.getI(data, "carrierArcInterval", 50)));
         }
     }
 
@@ -2372,6 +2380,9 @@ public final class DrachenfelsEncounterHelper {
                 break;
             case DfNameStealAbility.ID:
                 say(npc, "Ваше имя теперь моё.");
+                break;
+            case DfCarrierSlashAbility.ID:
+                say(npc, "Плоть помнит клинок.");
                 break;
             default:
                 break;

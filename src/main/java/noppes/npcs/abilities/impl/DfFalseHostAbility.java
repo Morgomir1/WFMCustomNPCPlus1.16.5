@@ -79,18 +79,25 @@ public final class DfFalseHostAbility implements CnpcAbility {
             AbilityTelegraph.clear(active, ctx);
             final int tab = ctx.params.getInt(AbilityParamKeys.CLONE_TAB, 1);
             final String name = ctx.params.getString(AbilityParamKeys.CLONE_NAME, "Drachenfels False Host");
-            DrachenfelsEncounterHelper.executeFalseHost(ctx.npc, tab, name, active.markers);
+            final int spawned = DrachenfelsEncounterHelper.executeFalseHost(ctx.npc, tab, name, active.markers);
+            if (spawned <= 0) {
+                return TickResult.FINISHED;
+            }
+            active.sx = ctx.npc.getX();
+            active.sy = ctx.npc.getY();
+            active.sz = ctx.npc.getZ();
             active.phase = ActiveAbility.PHASE_ACTIVE;
-            active.ticksLeft = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 30));
             ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.illusioner.mirror_move", 1.0F, 0.9F);
             return TickResult.CONTINUE;
         }
-        active.ticksLeft--;
-        return active.ticksLeft > 0 ? TickResult.CONTINUE : TickResult.FINISHED;
+        return DrachenfelsEncounterHelper.hasLivingFalseHosts(ctx.npc)
+                ? TickResult.CONTINUE
+                : TickResult.FINISHED;
     }
 
     @Override
     public void onEnd(final ActiveAbility active, final AbilityContext ctx) {
+        DrachenfelsEncounterHelper.restoreBossAfterFalseHost(ctx.npc);
         DrachenfelsEncounterHelper.despawnFalseHosts(ctx.npc);
         AbilityCombatHelper.unfreezeAi(active, ctx.npc);
         DrachenfelsEncounterHelper.onAbilityEnded(ctx.npc, ID);
@@ -99,6 +106,7 @@ public final class DfFalseHostAbility implements CnpcAbility {
     @Override
     public void onCancel(final ActiveAbility active, final AbilityContext ctx) {
         AbilityTelegraph.clear(active, ctx);
+        DrachenfelsEncounterHelper.restoreBossAfterFalseHost(ctx.npc);
         DrachenfelsEncounterHelper.despawnFalseHosts(ctx.npc);
         AbilityCombatHelper.unfreezeAi(active, ctx.npc);
         AbilityCombatHelper.stopNavigation(ctx.npc);

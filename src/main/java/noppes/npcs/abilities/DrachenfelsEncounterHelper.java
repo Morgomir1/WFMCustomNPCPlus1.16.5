@@ -109,6 +109,8 @@ public final class DrachenfelsEncounterHelper {
     private static final String WHISPER_READY = "df_whisper_ready";
     private static final String STEAL_READY = "df_steal_ready";
     private static final String PENDING_FALSE = "df_pending_false";
+    private static final String FALSE_ACTIVE = "df_false_active";
+    private static final String FALSE_NEXT_PUDDLE = "df_false_puddle_at";
     private static final String SPIRIT_MODE = "df_spirit";
     private static final String QUOTE_INTRO = "df_quote_intro";
     private static final String ARC_CD = "df_arc_cd";
@@ -170,6 +172,7 @@ public final class DrachenfelsEncounterHelper {
         put(data, VESSEL_ROUND, "0");
         put(data, SPIRIT_MODE, "0");
         put(data, PENDING_FALSE, "0");
+        put(data, FALSE_ACTIVE, "0");
         final long now = now(npc);
         put(data, SEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "sealFirstDelay", 40)));
         put(data, GAZE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "gazeFirstDelay", 80)));
@@ -251,6 +254,7 @@ public final class DrachenfelsEncounterHelper {
             }
             clearAttackTarget(npc);
             tickAdds(npc, data, now);
+            tickFalseHosts(npc, data, now);
             tickPhantoms(npc, data);
             tickShards(npc, data);
             tickVessels(npc, data, now);
@@ -260,6 +264,7 @@ public final class DrachenfelsEncounterHelper {
         // Keep CNPC AI target on survival/adventure only (drop creative if AI picked them).
         resolveCombatTarget(npc);
         tickAdds(npc, data, now);
+        tickFalseHosts(npc, data, now);
         tickPhantoms(npc, data);
         tickShards(npc, data);
         tickVessels(npc, data, now);
@@ -280,6 +285,7 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         AbilityAPI.cancel(npc);
+        restoreBossAfterFalseHost(npc);
         killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
                 TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
         clearOwnerZones(npc);
@@ -311,7 +317,8 @@ public final class DrachenfelsEncounterHelper {
         }
         final IData data = npc.getStoreddata();
         return now(npc) < ScriptDataUtil.getLong(data, INVULN_UNTIL)
-                || ScriptDataUtil.isFlag(data, TRANSITION);
+                || ScriptDataUtil.isFlag(data, TRANSITION)
+                || ScriptDataUtil.isFlag(data, FALSE_ACTIVE);
     }
 
     public static float getAbsorb(final ICustomNpc npc) {
@@ -336,6 +343,10 @@ public final class DrachenfelsEncounterHelper {
 
     public static boolean hasLivingVessels(final ICustomNpc npc) {
         return countTaggedNear(npc, TAG_VESSEL) > 0;
+    }
+
+    public static boolean hasLivingFalseHosts(final ICustomNpc npc) {
+        return countTaggedNear(npc, TAG_FALSE) > 0;
     }
 
     public static float phaseHpCap(final ICustomNpc npc) {
@@ -543,7 +554,7 @@ public final class DrachenfelsEncounterHelper {
         markers.add(new double[]{x, y, z});
     }
 
-    public static void executeFalseHost(
+    public static int executeFalseHost(
             final ICustomNpc boss,
             final int tab,
             final String cloneName,
@@ -553,6 +564,7 @@ public final class DrachenfelsEncounterHelper {
             planFalseHost(boss, pts);
         }
         final int copyCount = Math.min(3, pts.size() - 1);
+        int spawned = 0;
         for (int i = 0; i < copyCount; i++) {
             final double[] m = pts.get(i);
             final ICustomNpc copy = spawnClone(boss, tab, cloneName, m[0], m[1], m[2]);
@@ -570,9 +582,16 @@ public final class DrachenfelsEncounterHelper {
             } catch (final Exception ignored) {
             }
             setAiNone(copy);
+            put(copy.getStoreddata(), FALSE_NEXT_PUDDLE, "0");
+            spawned++;
+        }
+        if (spawned <= 0) {
+            return 0;
         }
         final double[] land = pts.get(pts.size() - 1);
         boss.setPosition(land[0], land[1], land[2]);
+        hideBossForFalseHost(boss);
+        return spawned;
     }
 
     public static void castFalseHost(final ICustomNpc boss, final int tab, final String cloneName) {
@@ -583,6 +602,43 @@ public final class DrachenfelsEncounterHelper {
 
     public static void despawnFalseHosts(final ICustomNpc boss) {
         killTaggedNear(boss, TAG_FALSE);
+    }
+
+    public static void hideBossForFalseHost(final ICustomNpc boss) {
+        if (boss == null) {
+            return;
+        }
+        put(boss.getStoreddata(), FALSE_ACTIVE, "1");
+        clearAttackTarget(boss);
+        AbilityCombatHelper.stopNavigation(boss);
+        try {
+            final Object mc = boss.getMCEntity();
+            if (mc instanceof Entity) {
+                final Entity entity = (Entity) mc;
+                entity.setInvisible(true);
+                entity.setInvulnerable(true);
+                entity.setDeltaMovement(0.0, 0.0, 0.0);
+                entity.fallDistance = 0.0F;
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    public static void restoreBossAfterFalseHost(final ICustomNpc boss) {
+        if (boss == null) {
+            return;
+        }
+        put(boss.getStoreddata(), FALSE_ACTIVE, "0");
+        try {
+            final Object mc = boss.getMCEntity();
+            if (mc instanceof Entity) {
+                final Entity entity = (Entity) mc;
+                entity.setInvisible(false);
+                entity.setInvulnerable(false);
+                entity.fallDistance = 0.0F;
+            }
+        } catch (final Exception ignored) {
+        }
     }
 
     public static boolean pickNamelessStepTarget(final ActiveAbility active, final AbilityContext ctx) {
@@ -636,7 +692,9 @@ public final class DrachenfelsEncounterHelper {
         put(data, PHASE_KEY, String.valueOf(nextPhase));
         put(data, ABSORB_KEY, "0");
         put(data, PENDING_FALSE, "0");
+        put(data, FALSE_ACTIVE, "0");
         setAbsorb(npc, 0.0F);
+        restoreBossAfterFalseHost(npc);
         killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
                 TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
         clearOwnerZones(npc);
@@ -1403,6 +1461,72 @@ public final class DrachenfelsEncounterHelper {
         }
     }
 
+    private static void tickFalseHosts(final ICustomNpc boss, final IData data, final long now) {
+        final List<ICustomNpc> copies = findTagged(boss, TAG_FALSE);
+        if (copies.isEmpty()) {
+            return;
+        }
+        final double[] center = getArenaCenter(boss);
+        final double arenaR = Math.max(1.0, getArenaRadius(boss) - 0.5);
+        final double step = DrachenfelsConfig.getD(data, "falseRunStep", 0.28);
+        final int puddleEvery = Math.max(1, DrachenfelsConfig.getI(data, "falsePuddleInterval", 12));
+        for (final ICustomNpc copy : copies) {
+            if (copy == null || !copy.isAlive()) {
+                continue;
+            }
+            final IData cd = copy.getStoreddata();
+            if (now >= ScriptDataUtil.getLong(cd, FALSE_NEXT_PUDDLE)) {
+                spawnFalsePuddle(boss, data, copy.getX(), copy.getY(), copy.getZ());
+                put(cd, FALSE_NEXT_PUDDLE, String.valueOf(now + puddleEvery));
+            }
+            final IEntityLiving target = findNearestEngagePlayer(copy);
+            if (target == null || !target.isAlive()) {
+                AbilityCombatHelper.stopNavigation(copy);
+                continue;
+            }
+            double dx = copy.getX() - target.getX();
+            double dz = copy.getZ() - target.getZ();
+            double len = Math.sqrt(dx * dx + dz * dz);
+            if (len < 0.01) {
+                dx = copy.getX() - center[0];
+                dz = copy.getZ() - center[2];
+                len = Math.sqrt(dx * dx + dz * dz);
+            }
+            if (len < 0.01) {
+                continue;
+            }
+            double nx = copy.getX() + (dx / len) * step;
+            double nz = copy.getZ() + (dz / len) * step;
+            final double dcx = nx - center[0];
+            final double dcz = nz - center[2];
+            final double dcl = Math.sqrt(dcx * dcx + dcz * dcz);
+            if (dcl > arenaR) {
+                nx = center[0] + (dcx / Math.max(0.01, dcl)) * arenaR;
+                nz = center[2] + (dcz / Math.max(0.01, dcl)) * arenaR;
+            }
+            final double ny = AbilityCombatHelper.findGroundY(boss.getWorld(), nx, nz, copy.getY());
+            copy.setPosition(nx, ny, nz);
+            AbilityCombatHelper.stopNavigation(copy);
+        }
+    }
+
+    private static void spawnFalsePuddle(
+            final ICustomNpc boss, final IData data, final double x, final double y, final double z) {
+        final double radius = DrachenfelsConfig.getD(data, "falsePuddleRadius", 1.6);
+        final int duration = Math.max(1, DrachenfelsConfig.getI(data, "falsePuddleTicks", 100));
+        final double damage = DrachenfelsConfig.getD(data, "falsePuddleDamage", 4.0);
+        final int interval = Math.max(1, DrachenfelsConfig.getI(data, "falsePuddleDamageInterval", 10));
+        final EntityAbilityZone zone = ZoneAPI.hazardCircle(boss, x, y + 0.05, z, radius, duration, damage, interval);
+        if (zone == null) {
+            return;
+        }
+        zone.setColor(DrachenfelsConfig.getI(data, "sealZoneColor", 0xC0143C14));
+        zone.setZoneHeight(1.5f);
+        zone.setVisible(true);
+        zone.setGroundFill(true);
+        zone.setBorder(true);
+    }
+
     private static void startArcTelegraph(
             final ICustomNpc caster,
             final IData data,
@@ -2047,7 +2171,18 @@ public final class DrachenfelsEncounterHelper {
      * (arenaRadius + padding). Creative and spectator never count as engage targets.
      */
     private static boolean hasNearbyPlayers(final ICustomNpc npc) {
-        return findNearestEngagePlayer(npc) != null;
+        if (findNearestEngagePlayer(npc) != null) {
+            return true;
+        }
+        if (!ScriptDataUtil.isFlag(npc.getStoreddata(), FALSE_ACTIVE)) {
+            return false;
+        }
+        for (final ICustomNpc copy : findTagged(npc, TAG_FALSE)) {
+            if (copy != null && copy.isAlive() && findNearestEngagePlayer(copy) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static double engageRange(final ICustomNpc npc) {

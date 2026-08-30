@@ -149,6 +149,12 @@ var FALSE_ACTIVE_TICKS = 30;
 var FALSE_COPY_DIST = 3.0;
 var FALSE_TELEPORT_RING = 5.0;
 var FALSE_TELEGRAPH_RADIUS = 1.2;
+var FALSE_RUN_STEP = 0.28;
+var FALSE_PUDDLE_RADIUS = 1.6;
+var FALSE_PUDDLE_TICKS = 100;
+var FALSE_PUDDLE_DAMAGE = 4.0;
+var FALSE_PUDDLE_DAMAGE_INTERVAL = 10;
+var FALSE_PUDDLE_INTERVAL = 12;
 
 // =========================
 // ФАЗА 3 — сосуды / осколки / спеллы / Носитель
@@ -313,6 +319,12 @@ function init(event) {
         "falseCopyDist", FALSE_COPY_DIST,
         "falseTeleportRing", FALSE_TELEPORT_RING,
         "falseTelegraphRadius", FALSE_TELEGRAPH_RADIUS,
+        "falseRunStep", FALSE_RUN_STEP,
+        "falsePuddleRadius", FALSE_PUDDLE_RADIUS,
+        "falsePuddleTicks", FALSE_PUDDLE_TICKS,
+        "falsePuddleDamage", FALSE_PUDDLE_DAMAGE,
+        "falsePuddleDamageInterval", FALSE_PUDDLE_DAMAGE_INTERVAL,
+        "falsePuddleInterval", FALSE_PUDDLE_INTERVAL,
 
         "vesselRing", VESSEL_RING,
         "vesselHpFirst", VESSEL_HP_FIRST,

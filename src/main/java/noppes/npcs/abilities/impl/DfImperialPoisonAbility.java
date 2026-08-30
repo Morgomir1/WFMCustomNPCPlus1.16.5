@@ -62,14 +62,14 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         active.sz = ctx.npc.getZ();
         active.hitUuids.clear();
         active.meter = 0.0F; // 0 = not yet hit anyone with wave effects
-        final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 10));
-        final double thickness = ctx.params.getDouble(AbilityParamKeys.INNER_RADIUS, 2.0);
-        final int color = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, TelegraphAPI.DEFAULT_COLOR);
-        final String ringId = TelegraphAPI.ring(
-                ctx.npc, active.sx, active.sy, active.sz, thickness, 0.05, charge, color);
-        if (ringId != null && !ringId.isEmpty()) {
-            active.telegraphId = ringId;
-            active.telegraphIds.add(ringId);
+        final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 24));
+        final double arenaR = ctx.params.getDouble(AbilityParamKeys.RADIUS, 12.0);
+        final int color = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
+        final String warnId = TelegraphAPI.circle(
+                ctx.npc, active.sx, active.sy, active.sz, arenaR, charge, color);
+        if (warnId != null && !warnId.isEmpty()) {
+            active.telegraphId = warnId;
+            active.telegraphIds.add(warnId);
         }
         active.phase = ActiveAbility.PHASE_CHARGE;
         active.ticksLeft = charge;

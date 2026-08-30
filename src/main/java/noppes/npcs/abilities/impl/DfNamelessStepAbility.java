@@ -55,7 +55,7 @@ public final class DfNamelessStepAbility implements CnpcAbility {
         final double dz = active.ez - active.sz;
         final double dist = Math.sqrt(dx * dx + dz * dz);
         active.yaw = AbilityCombatHelper.computeYaw(dx, dz);
-        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, TelegraphAPI.DEFAULT_COLOR);
+        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         final String lineId = TelegraphAPI.line(
                 ctx.npc, active.sx, active.sy, active.sz, active.yaw, dist, width, charge, color);
         if (lineId != null && !lineId.isEmpty()) {

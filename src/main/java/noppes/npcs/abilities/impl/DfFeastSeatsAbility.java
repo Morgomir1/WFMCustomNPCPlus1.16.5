@@ -45,6 +45,7 @@ public final class DfFeastSeatsAbility implements CnpcAbility {
                 AbilityParamKeys.EFFECT_TYPE,
                 AbilityParamKeys.EFFECT_DURATION,
                 AbilityParamKeys.EFFECT_AMPLIFIER,
+                AbilityParamKeys.ZONE_COLOR,
                 AbilityParamKeys.TELEGRAPH,
                 AbilityParamKeys.TELEGRAPH_COLOR);
     }
@@ -58,15 +59,22 @@ public final class DfFeastSeatsAbility implements CnpcAbility {
         final double[] center = DrachenfelsEncounterHelper.getArenaCenter(ctx.npc);
         final double seatRing = ctx.params.getDouble(AbilityParamKeys.SPREAD_RADIUS, 6.0);
         final double seatR = ctx.params.getDouble(AbilityParamKeys.RADIUS, 1.5);
+        final double arenaR = ctx.params.getDouble(AbilityParamKeys.MAX_RANGE, 12.0);
         final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 40));
-        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FFFFFF);
+        final int seatColor = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FFFFFF);
+        final int dangerColor = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
+        final String arenaId = TelegraphAPI.circle(
+                ctx.npc, center[0], center[1], center[2], arenaR, charge, dangerColor);
+        if (arenaId != null && !arenaId.isEmpty()) {
+            active.telegraphIds.add(arenaId);
+        }
         for (int i = 0; i < SEAT_COUNT; i++) {
             final double ang = (Math.PI * 2.0 * i) / SEAT_COUNT;
             final double x = center[0] + Math.cos(ang) * seatRing;
             final double z = center[2] + Math.sin(ang) * seatRing;
             final double y = AbilityCombatHelper.findGroundY(ctx.world, x, z, center[1]);
             active.markers.add(new double[]{x, y, z});
-            final String id = TelegraphAPI.circle(ctx.npc, x, y, z, seatR, charge, color);
+            final String id = TelegraphAPI.circle(ctx.npc, x, y, z, seatR, charge, seatColor);
             if (id != null && !id.isEmpty()) {
                 active.telegraphIds.add(id);
             }

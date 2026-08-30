@@ -44,7 +44,8 @@ var SEAL_CHARGE_TICKS = 30;
 var SEAL_ACTIVE_TICKS = 1;
 var SEAL_DAMAGE = 12.0;
 var SEAL_RADIUS = 2.0;
-var SEAL_ZONE_TICKS = 100;
+// Lifetime so puddles from 3 seals overlap: ~2*(CD + charge + active).
+var SEAL_ZONE_TICKS = 480;
 var SEAL_ZONE_DAMAGE = 3.0;
 var SEAL_ZONE_INTERVAL = 10;
 var SEAL_MIN_BOSS_DIST = 2.0;
@@ -54,13 +55,26 @@ var SEAL_MIN_CIRCLE_DIST = 4.0;
 // ФАЗА 1 — Взгляд Под Маской
 // =========================
 var GAZE_CD = 160;
-var GAZE_RANGE = 8.0;
-var GAZE_FAR_TICKS = 40;
+// Must be < kiteDistance so Gaze fires on the kite ring instead of idling 8–10s.
+var GAZE_RANGE = 5.0;
+var GAZE_FAR_TICKS = 8;
 var GAZE_CHARGE_TICKS = 20;
 var GAZE_ACTIVE_TICKS = 15;
 var GAZE_DISTANCE = 16.0;
 var GAZE_WIDTH = 1.5;
 var GAZE_DAMAGE = 18.0;
+
+// =========================
+// ФАЗА 1 — Отторжение (repulse)
+// =========================
+var REPULSE_CD = 200;
+var REPULSE_FIRST_DELAY = 60;
+var REPULSE_CHARGE_TICKS = 30;
+var REPULSE_ACTIVE_TICKS = 1;
+var REPULSE_RADIUS = 5.0;
+var REPULSE_KNOCKBACK = 1.85;
+var REPULSE_KNOCKBACK_Y = 0.42;
+var REPULSE_TRIGGER = 4.0;
 
 // =========================
 // ФАЗА 1 — Колокол Мёртвых
@@ -80,7 +94,7 @@ var CULTIST_INTERVAL = 50;
 var GUARD_HP = 50.0;
 var GUARD_DAMAGE = 10.0;
 var GUARD_ARC_RADIUS = 3.0;
-var GUARD_CAST_TICKS = 16;
+var GUARD_CAST_TICKS = 18;
 var GUARD_INTERVAL = 60;
 
 // =========================
@@ -90,7 +104,7 @@ var CYCLE_LENGTH = 360;
 var CYCLE_FEAST_AT = 120;
 var CYCLE_LEPER_AT = 220;
 
-var IMPERIAL_CHARGE_TICKS = 10;
+var IMPERIAL_CHARGE_TICKS = 24;
 var IMPERIAL_ACTIVE_TICKS = 30;
 var IMPERIAL_ARENA_RADIUS = 12.0;
 var IMPERIAL_THICKNESS = 2.0;
@@ -109,7 +123,7 @@ var FEAST_POISON_DURATION = 60;
 var FEAST_POISON_AMP = 0;
 var FEAST_COLOR = 0xC0FFFFFF;
 
-var LEPER_CHARGE_TICKS = 1;
+var LEPER_CHARGE_TICKS = 24;
 var LEPER_ACTIVE_TICKS = 60;
 var LEPER_DAMAGE = 10.0;
 var LEPER_SPAWN_RADIUS = 11.0;
@@ -121,9 +135,11 @@ var LEPER_SLOW_AMP = 1;
 var FALSE_RATIOS = "0.56,0.46,0.36";
 var FALSE_MAX = 3;
 var FALSE_SHIFT = 30;
+var FALSE_CHARGE_TICKS = 20;
 var FALSE_ACTIVE_TICKS = 30;
 var FALSE_COPY_DIST = 3.0;
 var FALSE_TELEPORT_RING = 5.0;
+var FALSE_TELEGRAPH_RADIUS = 1.2;
 
 // =========================
 // ФАЗА 3 — сосуды / осколки / спеллы / Носитель
@@ -138,7 +154,7 @@ var SHARD_TOUCH_DIST = 1.0;
 var SHARD_DELAY_TICKS = 5;
 
 var STEP_CD = 120;
-var STEP_CHARGE_TICKS = 10;
+var STEP_CHARGE_TICKS = 16;
 var STEP_ACTIVE_TICKS = 8;
 var STEP_DAMAGE = 12.0;
 var STEP_WIDTH = 1.0;
@@ -157,6 +173,8 @@ var WHISPER_RING3 = 8.0;
 var STEAL_CD = 160;
 var STEAL_RANGE = 3.0;
 var STEAL_DAMAGE = 6.0;
+var STEAL_CHARGE_TICKS = 14;
+var STEAL_TELEGRAPH_RADIUS = 1.5;
 var STEAL_WEAK_DURATION = 40;
 var STEAL_BLIND_DURATION = 40;
 
@@ -164,7 +182,7 @@ var CARRIER_TICKS = 240;
 var CARRIER_SPEED = 0.2;
 var CARRIER_ARC_DAMAGE = 15.0;
 var CARRIER_ARC_RADIUS = 3.0;
-var CARRIER_ARC_CAST_TICKS = 12;
+var CARRIER_ARC_CAST_TICKS = 18;
 var CARRIER_ARC_INTERVAL = 50;
 
 function init(event) {
@@ -180,7 +198,8 @@ function init(event) {
         CLONE_VESSEL,
         CLONE_SHARD
     );
-    Encounter.configure(npc,
+    // Nashorn: varargs после npc ломаются — передаём Map через AbilityAPI.params
+    Encounter.configure(npc, AbilityAPI.params(
         "arenaRadius", ARENA_RADIUS,
         "phase2Ratio", PHASE2_RATIO,
         "phase3Ratio", PHASE3_RATIO,
@@ -211,6 +230,15 @@ function init(event) {
         "gazeDistance", GAZE_DISTANCE,
         "gazeWidth", GAZE_WIDTH,
         "gazeDamage", GAZE_DAMAGE,
+
+        "repulseCd", REPULSE_CD,
+        "repulseFirstDelay", REPULSE_FIRST_DELAY,
+        "repulseChargeTicks", REPULSE_CHARGE_TICKS,
+        "repulseActiveTicks", REPULSE_ACTIVE_TICKS,
+        "repulseRadius", REPULSE_RADIUS,
+        "repulseKnockback", REPULSE_KNOCKBACK,
+        "repulseKnockbackY", REPULSE_KNOCKBACK_Y,
+        "repulseTrigger", REPULSE_TRIGGER,
 
         "bellRatios", BELL_RATIOS,
         "bellCd", BELL_CD,
@@ -262,9 +290,11 @@ function init(event) {
         "falseRatios", FALSE_RATIOS,
         "falseMax", FALSE_MAX,
         "falseShift", FALSE_SHIFT,
+        "falseChargeTicks", FALSE_CHARGE_TICKS,
         "falseActiveTicks", FALSE_ACTIVE_TICKS,
         "falseCopyDist", FALSE_COPY_DIST,
         "falseTeleportRing", FALSE_TELEPORT_RING,
+        "falseTelegraphRadius", FALSE_TELEGRAPH_RADIUS,
 
         "vesselRing", VESSEL_RING,
         "vesselHpFirst", VESSEL_HP_FIRST,
@@ -295,6 +325,8 @@ function init(event) {
         "stealCd", STEAL_CD,
         "stealRange", STEAL_RANGE,
         "stealDamage", STEAL_DAMAGE,
+        "stealChargeTicks", STEAL_CHARGE_TICKS,
+        "stealTelegraphRadius", STEAL_TELEGRAPH_RADIUS,
         "stealWeakDuration", STEAL_WEAK_DURATION,
         "stealBlindDuration", STEAL_BLIND_DURATION,
 
@@ -304,7 +336,7 @@ function init(event) {
         "carrierArcRadius", CARRIER_ARC_RADIUS,
         "carrierArcCastTicks", CARRIER_ARC_CAST_TICKS,
         "carrierArcInterval", CARRIER_ARC_INTERVAL
-    );
+    ));
     Encounter.init(npc);
     startTimers(npc);
 }
@@ -330,9 +362,7 @@ function targetLost(event) {
 
 function startTimers(npc) {
     try {
-        if (!npc.getTimers().has(TIMER_ID)) {
-            npc.getTimers().forceStart(TIMER_ID, 1, true);
-        }
+        npc.getTimers().forceStart(TIMER_ID, 1, true);
     } catch (e) {
         try {
             npc.getTimers().start(TIMER_ID, 1, true);

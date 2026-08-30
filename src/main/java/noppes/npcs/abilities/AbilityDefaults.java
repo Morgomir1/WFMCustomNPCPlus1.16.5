@@ -258,7 +258,7 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.ACTIVE_TICKS, 1);
         map.put(AbilityParamKeys.DAMAGE, 12.0);
         map.put(AbilityParamKeys.RADIUS, 2.0);
-        map.put(AbilityParamKeys.ZONE_TICKS, 100);
+        map.put(AbilityParamKeys.ZONE_TICKS, 480);
         map.put(AbilityParamKeys.DAMAGE_INTERVAL, 10);
         map.put(AbilityParamKeys.DAMAGE_PER_TICK, 3.0);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
@@ -277,10 +277,22 @@ public final class AbilityDefaults {
         return map;
     }
 
+    public static Map<String, Object> dfRepulse() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 30);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 1);
+        map.put(AbilityParamKeys.RADIUS, 3.0);
+        map.put(AbilityParamKeys.KNOCKBACK, 1.85);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.42);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
+
     public static Map<String, Object> dfImperialPoison() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 24);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 30);
         map.put(AbilityParamKeys.RADIUS, 12.0);
         map.put(AbilityParamKeys.INNER_RADIUS, 2.0);
@@ -305,34 +317,39 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.EFFECT_DURATION, 60);
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FFFFFF);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
         return map;
     }
 
     public static Map<String, Object> dfLeperBall() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 1);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 24);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 60);
         map.put(AbilityParamKeys.DAMAGE, 10.0);
+        map.put(AbilityParamKeys.RADIUS, 1.0);
         map.put(AbilityParamKeys.CLONE_TAB, 1);
         map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels Leper Phantom");
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
 
     public static Map<String, Object> dfFalseHost() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 1);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 20);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 30);
+        map.put(AbilityParamKeys.RADIUS, 1.2);
         map.put(AbilityParamKeys.CLONE_TAB, 1);
         map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels False Host");
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
 
     public static Map<String, Object> dfNamelessStep() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 10);
+        map.put(AbilityParamKeys.CHARGE_TICKS, 16);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 8);
         map.put(AbilityParamKeys.DAMAGE, 12.0);
         map.put(AbilityParamKeys.HIT_RADIUS, 1.0);
@@ -358,10 +375,12 @@ public final class AbilityDefaults {
     public static Map<String, Object> dfNameSteal() {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
-        map.put(AbilityParamKeys.CHARGE_TICKS, 1);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 40); // blindness duration when used as steal param
+        map.put(AbilityParamKeys.CHARGE_TICKS, 14);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 40); // blindness duration
         map.put(AbilityParamKeys.DAMAGE, 6.0);
+        map.put(AbilityParamKeys.RADIUS, 1.5);
         map.put(AbilityParamKeys.EFFECT_DURATION, 40); // weakness duration
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
 

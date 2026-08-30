@@ -4,6 +4,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingHealEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
@@ -22,6 +23,24 @@ import noppes.npcs.entity.EntityNPCInterface;
 @Mod.EventBusSubscriber(modid = "customnpcs", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class DrachenfelsCombatHandler {
     private DrachenfelsCombatHandler() {
+    }
+
+    @SubscribeEvent
+    public static void onLivingUpdate(final LivingEvent.LivingUpdateEvent event) {
+        final LivingEntity living = event.getEntityLiving();
+        if (living == null || living.level == null || living.level.isClientSide) {
+            return;
+        }
+        if (!(living instanceof EntityNPCInterface)) {
+            return;
+        }
+        if (!living.getTags().contains(DrachenfelsEncounterHelper.BOSS_TAG)) {
+            return;
+        }
+        final IEntity wrapped = wrap(living);
+        if (wrapped instanceof ICustomNpc) {
+            DrachenfelsEncounterHelper.tick((ICustomNpc) wrapped);
+        }
     }
 
     @SubscribeEvent(priority = EventPriority.HIGH)

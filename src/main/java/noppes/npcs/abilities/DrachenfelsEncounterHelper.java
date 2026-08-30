@@ -16,6 +16,7 @@ import noppes.npcs.abilities.impl.DfMaskGazeAbility;
 import noppes.npcs.abilities.impl.DfNameStealAbility;
 import noppes.npcs.abilities.impl.DfNamelessStepAbility;
 import noppes.npcs.abilities.impl.DfNamelessWhisperAbility;
+import noppes.npcs.abilities.impl.DfRepulseAbility;
 import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.api.entity.IEntityLiving;
@@ -23,12 +24,15 @@ import noppes.npcs.api.entity.IPlayer;
 import noppes.npcs.api.entity.data.IData;
 import noppes.npcs.api.entity.data.INPCAi;
 import noppes.npcs.entity.EntityAbilityZone;
+import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.script.ScriptDataUtil;
+import noppes.npcs.telegraph.TelegraphAPI;
 import noppes.npcs.zone.ZoneAPI;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
@@ -60,10 +64,12 @@ public final class DrachenfelsEncounterHelper {
     private static final int CARRIER_TICKS = 240;
     private static final int SEAL_CD = 200;
     private static final int GAZE_CD = 160;
+    private static final int REPULSE_CD = 200;
     private static final int BELL_CD = 400;
     private static final int COURT_CD = 320;
-    private static final int GAZE_FAR_TICKS = 40;
-    private static final int GAZE_RANGE = 8;
+    private static final int GAZE_FAR_TICKS = 8;
+    private static final int GAZE_RANGE = 5;
+    private static final double REPULSE_TRIGGER = 4.0;
     private static final int STEP_CD = 120;
     private static final int WHISPER_CD = 180;
     private static final int STEAL_CD = 160;
@@ -79,9 +85,16 @@ public final class DrachenfelsEncounterHelper {
     private static final String TRANSITION = "df_transition";
     private static final String SEAL_READY = "df_seal_ready";
     private static final String GAZE_READY = "df_gaze_ready";
+    private static final String REPULSE_READY = "df_repulse_ready";
     private static final String BELL_READY = "df_bell_ready";
     private static final String COURT_READY = "df_court_ready";
     private static final String GAZE_FAR_SINCE = "df_gaze_far";
+    private static final String PUDDLE_TX = "df_puddle_tx";
+    private static final String PUDDLE_TZ = "df_puddle_tz";
+    private static final String PUDDLE_REPATH = "df_puddle_repath";
+    private static final int PUDDLE_REPATH_TICKS = 20;
+    private static final double PUDDLE_STEP = 0.35;
+    private static final double PUDDLE_ARRIVE = 0.75;
     private static final String BELL_FIRED = "df_bell_fired";
     private static final String FALSE_FIRED = "df_false_fired";
     private static final String CYCLE_ORIGIN = "df_cycle_origin";
@@ -98,6 +111,8 @@ public final class DrachenfelsEncounterHelper {
     private static final String QUOTE_INTRO = "df_quote_intro";
     private static final String ARC_CD = "df_arc_cd";
     private static final String ARC_CAST = "df_arc_cast";
+    private static final String ARC_TG = "df_arc_tg";
+    private static final double ARC_HALF_ANGLE = 70.0;
     private static final String CLONE_TAB = "df_clone_tab";
     private static final String CLONE_MONK = "df_clone_monk";
     private static final String CLONE_CULTIST = "df_clone_cultist";
@@ -111,6 +126,8 @@ public final class DrachenfelsEncounterHelper {
     private static final String SHARD_SPAWN_AT = "df_shard_at";
     private static final String PHANTOM_LIFE = "df_phantom_life";
     private static final String ADD_NEXT_ATK = "df_add_atk";
+    private static final String INITED = "df_inited";
+    private static final String LAST_TICK = "df_tick_at";
 
     private static final Random RANDOM = new Random();
 
@@ -129,6 +146,11 @@ public final class DrachenfelsEncounterHelper {
         if (!npc.hasTag(BOSS_TAG)) {
             npc.addTag(BOSS_TAG);
         }
+        // JS init / chunk reload must not rewind CDs mid-fight.
+        if (ScriptDataUtil.isFlag(data, INITED)) {
+            return;
+        }
+        ScriptDataUtil.setFlag(data, INITED, true);
         put(data, HOME_X, npc.getX());
         put(data, HOME_Y, npc.getY());
         put(data, HOME_Z, npc.getZ());
@@ -149,9 +171,13 @@ public final class DrachenfelsEncounterHelper {
         final long now = now(npc);
         put(data, SEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "sealFirstDelay", 40)));
         put(data, GAZE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "gazeFirstDelay", 80)));
+        put(data, REPULSE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "repulseFirstDelay", 60)));
         put(data, BELL_READY, "0");
         put(data, COURT_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "courtFirstDelay", 80)));
         put(data, GAZE_FAR_SINCE, "0");
+        put(data, PUDDLE_TX, "");
+        put(data, PUDDLE_TZ, "");
+        put(data, PUDDLE_REPATH, "0");
         put(data, STEP_READY, "0");
         put(data, WHISPER_READY, "0");
         put(data, STEAL_READY, "0");
@@ -186,8 +212,11 @@ public final class DrachenfelsEncounterHelper {
         put(data, CLONE_SHARD, shard);
     }
 
-    /** JS: {@code Encounter.configure(npc, "sealDamage", 12, "arenaRadius", 12, ...)} */
-    public static void configure(final ICustomNpc npc, final Object... keyValues) {
+    /**
+     * JS (Nashorn-safe): {@code Encounter.configure(npc, AbilityAPI.params("sealDamage", 12, ...))}
+     * Do not pass bare varargs after npc — Nashorn packs them into one Object[].
+     */
+    public static void configure(final ICustomNpc npc, final Map<String, Object> keyValues) {
         DrachenfelsConfig.configure(npc, keyValues);
     }
 
@@ -200,12 +229,29 @@ public final class DrachenfelsEncounterHelper {
         }
         final IData data = npc.getStoreddata();
         final long now = now(npc);
+        if (now > 0L && ScriptDataUtil.getLong(data, LAST_TICK) == now) {
+            return;
+        }
+        put(data, LAST_TICK, String.valueOf(now));
         tickTransition(npc, data, now);
         if (ScriptDataUtil.isFlag(data, TRANSITION)) {
             return;
         }
         enforcePhaseCap(npc, data);
         updatePhase(npc, data, now);
+        tickAbsorbVfx(npc, now);
+        // No players in engage range: stop casts, keep adds/shards ticking.
+        if (!hasNearbyPlayers(npc)) {
+            if (AbilityAPI.isBusy(npc)) {
+                AbilityAPI.cancel(npc);
+            }
+            tickAdds(npc, data, now);
+            tickPhantoms(npc, data);
+            tickShards(npc, data);
+            tickVesselVfx(npc, data, now);
+            tickCarrier(npc, data, now);
+            return;
+        }
         tickAdds(npc, data, now);
         tickPhantoms(npc, data);
         tickShards(npc, data);
@@ -237,22 +283,12 @@ public final class DrachenfelsEncounterHelper {
         if (npc == null || abilityId == null) {
             return;
         }
-        final IData data = npc.getStoreddata();
-        final long now = now(npc);
-        if (DfBlackSealAbility.ID.equals(abilityId)) {
-            put(data, SEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "sealCd", SEAL_CD)));
-        } else if (DfMaskGazeAbility.ID.equals(abilityId)) {
-            put(data, GAZE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "gazeCd", GAZE_CD)));
-        } else if (DfFalseHostAbility.ID.equals(abilityId)) {
+        // Ability CDs are armed on cast start (startBossAbility) so intervals match configured CD.
+        if (DfFalseHostAbility.ID.equals(abilityId)) {
+            final IData data = npc.getStoreddata();
             final int shift = ScriptDataUtil.getInt(data, CYCLE_SHIFT);
             put(data, CYCLE_SHIFT, String.valueOf(shift + DrachenfelsConfig.getI(data, "falseShift", FALSE_SHIFT)));
             put(data, PENDING_FALSE, "0");
-        } else if (DfNamelessStepAbility.ID.equals(abilityId)) {
-            put(data, STEP_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "stepCd", STEP_CD)));
-        } else if (DfNamelessWhisperAbility.ID.equals(abilityId)) {
-            put(data, WHISPER_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "whisperCd", WHISPER_CD)));
-        } else if (DfNameStealAbility.ID.equals(abilityId)) {
-            put(data, STEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "stealCd", STEAL_CD)));
         }
     }
 
@@ -265,7 +301,7 @@ public final class DrachenfelsEncounterHelper {
             return false;
         }
         final IData data = npc.getStoreddata();
-        return now(npc) < ScriptDataUtil.getInt(data, INVULN_UNTIL)
+        return now(npc) < ScriptDataUtil.getLong(data, INVULN_UNTIL)
                 || ScriptDataUtil.isFlag(data, TRANSITION);
     }
 
@@ -275,6 +311,18 @@ public final class DrachenfelsEncounterHelper {
 
     public static void setAbsorb(final ICustomNpc npc, final float value) {
         put(npc.getStoreddata(), ABSORB_KEY, String.valueOf(Math.max(0.0F, value)));
+    }
+
+    /** Particle ring while Bell absorb shield is up. */
+    private static void tickAbsorbVfx(final ICustomNpc npc, final long now) {
+        if (getAbsorb(npc) <= 0.01F) {
+            return;
+        }
+        // Every other tick keeps it readable without flooding packets.
+        if ((now & 1L) != 0L) {
+            return;
+        }
+        AbilityVfx.spawnAbsorbShield(npc.getWorld(), npc.getX(), npc.getY(), npc.getZ());
     }
 
     public static boolean hasLivingVessels(final ICustomNpc npc) {
@@ -341,17 +389,48 @@ public final class DrachenfelsEncounterHelper {
         // no heal — already handled if contact; death just removes
     }
 
-    public static void spawnLeperPhantoms(
-            final ICustomNpc boss, final int tab, final String cloneName, final double damage) {
+    public static double[][] leperSpawnPoints(final ICustomNpc boss) {
         final double[] c = getArenaCenter(boss);
         final double spawnR = DrachenfelsConfig.getD(boss, "leperSpawnRadius", 11.0);
-        final int life = DrachenfelsConfig.getI(boss, "leperDuration", 60);
         final double[] angles = {0.0, 90.0, 180.0, 270.0};
+        final double[][] out = new double[angles.length][3];
         for (int i = 0; i < angles.length; i++) {
             final double rad = Math.toRadians(angles[i]);
             final double x = c[0] + Math.cos(rad) * spawnR;
             final double z = c[2] + Math.sin(rad) * spawnR;
             final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+            out[i][0] = x;
+            out[i][1] = y;
+            out[i][2] = z;
+        }
+        return out;
+    }
+
+    public static void spawnLeperPhantoms(
+            final ICustomNpc boss, final int tab, final String cloneName, final double damage) {
+        spawnLeperPhantoms(boss, tab, cloneName, damage, null);
+    }
+
+    public static void spawnLeperPhantoms(
+            final ICustomNpc boss,
+            final int tab,
+            final String cloneName,
+            final double damage,
+            final List<double[]> markers) {
+        final int life = DrachenfelsConfig.getI(boss, "leperDuration", 60);
+        final double[][] points;
+        if (markers != null && !markers.isEmpty()) {
+            points = new double[markers.size()][3];
+            for (int i = 0; i < markers.size(); i++) {
+                points[i] = markers.get(i);
+            }
+        } else {
+            points = leperSpawnPoints(boss);
+        }
+        for (int i = 0; i < points.length; i++) {
+            final double x = points[i][0];
+            final double y = points[i][1];
+            final double z = points[i][2];
             final ICustomNpc phantom = spawnClone(boss, tab, cloneName, x, y, z);
             if (phantom == null) {
                 continue;
@@ -368,7 +447,9 @@ public final class DrachenfelsEncounterHelper {
         }
     }
 
-    public static void castFalseHost(final ICustomNpc boss, final int tab, final String cloneName) {
+    /** Markers: 3 copy positions + 1 teleport landing. */
+    public static void planFalseHost(final ICustomNpc boss, final List<double[]> markers) {
+        markers.clear();
         final double ox = boss.getX();
         final double oy = boss.getY();
         final double oz = boss.getZ();
@@ -378,7 +459,30 @@ public final class DrachenfelsEncounterHelper {
             final double x = ox + Math.cos(ang) * copyDist;
             final double z = oz + Math.sin(ang) * copyDist;
             final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, oy);
-            final ICustomNpc copy = spawnClone(boss, tab, cloneName, x, y, z);
+            markers.add(new double[]{x, y, z});
+        }
+        final double[] c = getArenaCenter(boss);
+        final double ring = DrachenfelsConfig.getD(boss, "falseTeleportRing", 5.0);
+        final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
+        final double x = c[0] + Math.cos(ang) * ring;
+        final double z = c[2] + Math.sin(ang) * ring;
+        final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+        markers.add(new double[]{x, y, z});
+    }
+
+    public static void executeFalseHost(
+            final ICustomNpc boss,
+            final int tab,
+            final String cloneName,
+            final List<double[]> markers) {
+        final List<double[]> pts = markers == null ? new ArrayList<>() : markers;
+        if (pts.size() < 4) {
+            planFalseHost(boss, pts);
+        }
+        final int copyCount = Math.min(3, pts.size() - 1);
+        for (int i = 0; i < copyCount; i++) {
+            final double[] m = pts.get(i);
+            final ICustomNpc copy = spawnClone(boss, tab, cloneName, m[0], m[1], m[2]);
             if (copy == null) {
                 continue;
             }
@@ -394,13 +498,14 @@ public final class DrachenfelsEncounterHelper {
             }
             setAiNone(copy);
         }
-        final double[] c = getArenaCenter(boss);
-        final double ring = DrachenfelsConfig.getD(boss, "falseTeleportRing", 5.0);
-        final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
-        final double x = c[0] + Math.cos(ang) * ring;
-        final double z = c[2] + Math.sin(ang) * ring;
-        final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
-        boss.setPosition(x, y, z);
+        final double[] land = pts.get(pts.size() - 1);
+        boss.setPosition(land[0], land[1], land[2]);
+    }
+
+    public static void castFalseHost(final ICustomNpc boss, final int tab, final String cloneName) {
+        final List<double[]> markers = new ArrayList<>();
+        planFalseHost(boss, markers);
+        executeFalseHost(boss, tab, cloneName, markers);
     }
 
     public static void despawnFalseHosts(final ICustomNpc boss) {
@@ -480,7 +585,7 @@ public final class DrachenfelsEncounterHelper {
         if (!ScriptDataUtil.isFlag(data, TRANSITION)) {
             return;
         }
-        if (now < ScriptDataUtil.getInt(data, "df_next_phase_ready")) {
+        if (now < ScriptDataUtil.getLong(data, "df_next_phase_ready")) {
             AbilityCombatHelper.holdInPlace(npc, npc.getX(), npc.getY(), npc.getZ());
             return;
         }
@@ -515,28 +620,27 @@ public final class DrachenfelsEncounterHelper {
     }
 
     private static void tickPhase1(final ICustomNpc npc, final IData data, final long now) {
-        maintainKite(npc, DrachenfelsConfig.getD(data, "kiteDistance", 6.0));
         tickBell(npc, data, now);
-        if (AbilityAPI.isBusy(npc)) {
-            return;
+        if (!AbilityAPI.isBusy(npc)) {
+            final IEntityLiving target = resolveCombatTarget(npc);
+            if (target != null && target.isAlive()) {
+                // Distance gates must not idle the rotation: skip Gaze/Repulse instantly
+                // if their window is closed, then Court + Seal (Seal has no range gate).
+                if (!tryGaze(npc, data, now, target)
+                        && !tryRepulse(npc, data, now, target)) {
+                    tryCourt(npc, data, now);
+                    if (now >= ScriptDataUtil.getLong(data, SEAL_READY)) {
+                        startBossAbility(
+                                npc, DfBlackSealAbility.ID, target, DrachenfelsConfig.sealParams(npc));
+                    }
+                }
+            }
         }
-        final IEntityLiving target = npc.getAttackTarget();
-        if (target == null || !target.isAlive()) {
-            return;
-        }
-        if (tryGaze(npc, data, now, target)) {
-            return;
-        }
-        if (tryCourt(npc, data, now)) {
-            return;
-        }
-        if (now >= ScriptDataUtil.getInt(data, SEAL_READY)) {
-            AbilityAPI.start(npc, DfBlackSealAbility.ID, target, DrachenfelsConfig.sealParams(npc));
-        }
+        maintainPhase1Movement(npc, data, now);
     }
 
     private static void tickBell(final ICustomNpc npc, final IData data, final long now) {
-        if (now < ScriptDataUtil.getInt(data, BELL_READY)) {
+        if (now < ScriptDataUtil.getLong(data, BELL_READY)) {
             return;
         }
         final double ratio = hpRatio(npc);
@@ -552,7 +656,10 @@ public final class DrachenfelsEncounterHelper {
             }
             put(data, BELL_FIRED, fired.isEmpty() ? mark : fired + ";" + mark);
             put(data, BELL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "bellCd", BELL_CD)));
+            sayAbilityQuote(npc, "df_bell");
             applyBellShield(npc, data);
+            AbilityVfx.spawnAbsorbShield(npc.getWorld(), npc.getX(), npc.getY(), npc.getZ());
+            AbilityVfx.spawnSoulWave(npc.getWorld(), npc.getX(), npc.getY() + 0.2, npc.getZ(), 2.2);
             return;
         }
     }
@@ -594,33 +701,51 @@ public final class DrachenfelsEncounterHelper {
             final ICustomNpc npc, final IData data, final long now, final IEntityLiving target) {
         final double dist = AbilityCombatHelper.flatDistance(
                 npc.getX(), npc.getZ(), target.getX(), target.getZ());
-        final double gazeRange = DrachenfelsConfig.getD(data, "gazeRange", GAZE_RANGE);
+        final double gazeRange = effectiveGazeRange(data);
         if (dist > gazeRange) {
-            if (ScriptDataUtil.getInt(data, GAZE_FAR_SINCE) <= 0) {
+            if (ScriptDataUtil.getLong(data, GAZE_FAR_SINCE) <= 0L) {
                 put(data, GAZE_FAR_SINCE, String.valueOf(now));
             }
         } else {
             put(data, GAZE_FAR_SINCE, "0");
             return false;
         }
-        final long since = ScriptDataUtil.getInt(data, GAZE_FAR_SINCE);
-        if (since <= 0 || now - since < DrachenfelsConfig.getI(data, "gazeFarTicks", GAZE_FAR_TICKS)) {
+        final long since = ScriptDataUtil.getLong(data, GAZE_FAR_SINCE);
+        int farTicks = DrachenfelsConfig.getI(data, "gazeFarTicks", GAZE_FAR_TICKS);
+        if (farTicks > 12) {
+            farTicks = GAZE_FAR_TICKS;
+        }
+        if (since <= 0L || now - since < farTicks) {
             return false;
         }
-        if (now < ScriptDataUtil.getInt(data, GAZE_READY)) {
+        if (now < ScriptDataUtil.getLong(data, GAZE_READY)) {
             return false;
         }
-        return AbilityAPI.start(npc, DfMaskGazeAbility.ID, target, DrachenfelsConfig.gazeParams(npc));
+        return startBossAbility(npc, DfMaskGazeAbility.ID, target, DrachenfelsConfig.gazeParams(npc));
+    }
+
+    private static boolean tryRepulse(
+            final ICustomNpc npc, final IData data, final long now, final IEntityLiving target) {
+        if (now < ScriptDataUtil.getLong(data, REPULSE_READY)) {
+            return false;
+        }
+        final double trigger = DrachenfelsConfig.getD(data, "repulseTrigger", REPULSE_TRIGGER);
+        final double dist = AbilityCombatHelper.flatDistance(
+                npc.getX(), npc.getZ(), target.getX(), target.getZ());
+        if (dist > trigger) {
+            return false;
+        }
+        return startBossAbility(npc, DfRepulseAbility.ID, target, DrachenfelsConfig.repulseParams(npc));
     }
 
     private static boolean tryCourt(final ICustomNpc npc, final IData data, final long now) {
-        if (now < ScriptDataUtil.getInt(data, COURT_READY)) {
+        if (now < ScriptDataUtil.getLong(data, COURT_READY)) {
             return false;
         }
-        put(data, COURT_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "courtCd", COURT_CD)));
         final int court = countTaggedNear(npc, TAG_COURT);
         final int monk = countTaggedNear(npc, TAG_MONK);
         if (court >= 2 || court + monk >= 3) {
+            // Keep trying next ticks — do not burn CD when at escort cap.
             return false;
         }
         final int tab = ScriptDataUtil.getInt(data, CLONE_TAB);
@@ -637,6 +762,8 @@ public final class DrachenfelsEncounterHelper {
         if (add == null) {
             return false;
         }
+        put(data, COURT_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "courtCd", COURT_CD)));
+        sayAbilityQuote(npc, "df_court");
         tagAdd(add, TAG_COURT);
         tagAdd(add, cultist ? TAG_CULTIST : TAG_GUARD);
         put(add.getStoreddata(), BOSS_UUID, String.valueOf(npc.getUUID()));
@@ -665,12 +792,12 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         if (ScriptDataUtil.isFlag(data, PENDING_FALSE)) {
-            final IEntityLiving target = npc.getAttackTarget();
-            AbilityAPI.start(npc, DfFalseHostAbility.ID, target, DrachenfelsConfig.falseHostParams(npc));
+            final IEntityLiving target = resolveCombatTarget(npc);
+            startBossAbility(npc, DfFalseHostAbility.ID, target, DrachenfelsConfig.falseHostParams(npc));
             return;
         }
-        long origin = ScriptDataUtil.getInt(data, CYCLE_ORIGIN);
-        if (origin <= 0) {
+        long origin = ScriptDataUtil.getLong(data, CYCLE_ORIGIN);
+        if (origin <= 0L) {
             put(data, CYCLE_ORIGIN, String.valueOf(now));
             origin = now;
         }
@@ -684,20 +811,20 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         final int slot = ScriptDataUtil.getInt(data, CYCLE_SLOT);
-        final IEntityLiving target = npc.getAttackTarget();
+        final IEntityLiving target = resolveCombatTarget(npc);
         if (target == null || !target.isAlive()) {
             return;
         }
         if (slot == 0 && elapsed >= 0) {
-            if (AbilityAPI.start(npc, DfImperialPoisonAbility.ID, target, DrachenfelsConfig.imperialParams(npc))) {
+            if (startBossAbility(npc, DfImperialPoisonAbility.ID, target, DrachenfelsConfig.imperialParams(npc))) {
                 put(data, CYCLE_SLOT, "1");
             }
         } else if (slot == 1 && elapsed >= DrachenfelsConfig.getI(data, "cycleFeastAt", 120)) {
-            if (AbilityAPI.start(npc, DfFeastSeatsAbility.ID, target, DrachenfelsConfig.feastParams(npc))) {
+            if (startBossAbility(npc, DfFeastSeatsAbility.ID, target, DrachenfelsConfig.feastParams(npc))) {
                 put(data, CYCLE_SLOT, "2");
             }
         } else if (slot == 2 && elapsed >= DrachenfelsConfig.getI(data, "cycleLeperAt", 220)) {
-            if (AbilityAPI.start(npc, DfLeperBallAbility.ID, target, DrachenfelsConfig.leperParams(npc))) {
+            if (startBossAbility(npc, DfLeperBallAbility.ID, target, DrachenfelsConfig.leperParams(npc))) {
                 put(data, CYCLE_SLOT, "3");
             }
         }
@@ -738,25 +865,25 @@ public final class DrachenfelsEncounterHelper {
         if (AbilityAPI.isBusy(npc)) {
             return;
         }
-        final IEntityLiving target = npc.getAttackTarget();
+        final IEntityLiving target = resolveCombatTarget(npc);
         if (target == null || !target.isAlive()) {
             return;
         }
         if (hasVessels && AbilityCombatHelper.flatDistance(
                 npc.getX(), npc.getZ(), target.getX(), target.getZ())
                 <= DrachenfelsConfig.getD(data, "stealRange", 3.0)
-                && now >= ScriptDataUtil.getInt(data, STEAL_READY)) {
-            if (AbilityAPI.start(npc, DfNameStealAbility.ID, target, DrachenfelsConfig.stealParams(npc))) {
+                && now >= ScriptDataUtil.getLong(data, STEAL_READY)) {
+            if (startBossAbility(npc, DfNameStealAbility.ID, target, DrachenfelsConfig.stealParams(npc))) {
                 return;
             }
         }
-        if (now >= ScriptDataUtil.getInt(data, WHISPER_READY)) {
-            if (AbilityAPI.start(npc, DfNamelessWhisperAbility.ID, target, DrachenfelsConfig.whisperParams(npc))) {
+        if (now >= ScriptDataUtil.getLong(data, WHISPER_READY)) {
+            if (startBossAbility(npc, DfNamelessWhisperAbility.ID, target, DrachenfelsConfig.whisperParams(npc))) {
                 return;
             }
         }
-        if (hasVessels && !carrier && now >= ScriptDataUtil.getInt(data, STEP_READY)) {
-            AbilityAPI.start(npc, DfNamelessStepAbility.ID, target, DrachenfelsConfig.stepParams(npc));
+        if (hasVessels && !carrier && now >= ScriptDataUtil.getLong(data, STEP_READY)) {
+            startBossAbility(npc, DfNamelessStepAbility.ID, target, DrachenfelsConfig.stepParams(npc));
         }
         if (carrier) {
             tickCarrierArc(npc, data, now, target);
@@ -779,7 +906,7 @@ public final class DrachenfelsEncounterHelper {
         if (!ScriptDataUtil.isFlag(data, IN_CARRIER)) {
             return;
         }
-        if (now < ScriptDataUtil.getInt(data, CARRIER_UNTIL)) {
+        if (now < ScriptDataUtil.getLong(data, CARRIER_UNTIL)) {
             return;
         }
         if (!npc.isAlive() || npc.getHealth() <= 0.05F) {
@@ -803,6 +930,7 @@ public final class DrachenfelsEncounterHelper {
             put(data, ARC_CAST, String.valueOf(casting - 1));
             AbilityCombatHelper.stopNavigation(npc);
             if (casting == 1) {
+                clearArcTelegraph(data);
                 face(npc, target);
                 final double damage = DrachenfelsConfig.getD(data, "carrierArcDamage", 15.0);
                 final double radius = DrachenfelsConfig.getD(data, "carrierArcRadius", 3.0);
@@ -815,7 +943,7 @@ public final class DrachenfelsEncounterHelper {
                             npc.getX(), npc.getZ(), ent.getX(), ent.getZ()) > radius) {
                         continue;
                     }
-                    if (!isInFront(npc, ent, 70.0)) {
+                    if (!isInFront(npc, ent, ARC_HALF_ANGLE)) {
                         continue;
                     }
                     if (!AbilityCombatHelper.dealPureDamage(ent, (float) damage, false)) {
@@ -827,10 +955,18 @@ public final class DrachenfelsEncounterHelper {
             }
             return;
         }
-        if (now < ScriptDataUtil.getInt(data, ARC_CD)) {
+        if (now < ScriptDataUtil.getLong(data, ARC_CD)) {
             return;
         }
-        put(data, ARC_CAST, String.valueOf(DrachenfelsConfig.getI(data, "carrierArcCastTicks", 12)));
+        final int castTicks = DrachenfelsConfig.getI(data, "carrierArcCastTicks", 12);
+        startArcTelegraph(
+                npc,
+                data,
+                target,
+                DrachenfelsConfig.getD(data, "carrierArcRadius", 3.0),
+                castTicks,
+                DrachenfelsConfig.getI(data, "telegraphColor", 0xC0FF3030));
+        put(data, ARC_CAST, String.valueOf(castTicks));
     }
 
     // -------------------------------------------------------------------------
@@ -1039,7 +1175,7 @@ public final class DrachenfelsEncounterHelper {
     private static void tickAdds(final ICustomNpc boss, final IData data, final long now) {
         final List<ICustomNpc> cultists = findTagged(boss, TAG_CULTIST);
         for (final ICustomNpc c : cultists) {
-            if (now < ScriptDataUtil.getInt(c.getStoreddata(), ADD_NEXT_ATK)) {
+            if (now < ScriptDataUtil.getLong(c.getStoreddata(), ADD_NEXT_ATK)) {
                 continue;
             }
             put(c.getStoreddata(), ADD_NEXT_ATK,
@@ -1069,6 +1205,7 @@ public final class DrachenfelsEncounterHelper {
                 put(gd, ARC_CAST, String.valueOf(casting - 1));
                 AbilityCombatHelper.stopNavigation(g);
                 if (casting == 1) {
+                    clearArcTelegraph(gd);
                     final IEntityLiving target = boss.getAttackTarget();
                     if (target != null) {
                         face(g, target);
@@ -1083,7 +1220,7 @@ public final class DrachenfelsEncounterHelper {
                         if (AbilityCombatHelper.flatDistance(g.getX(), g.getZ(), ent.getX(), ent.getZ()) > arcR) {
                             continue;
                         }
-                        if (!isInFront(g, ent, 70.0)) {
+                        if (!isInFront(g, ent, ARC_HALF_ANGLE)) {
                             continue;
                         }
                         if (!AbilityCombatHelper.dealPureDamage(ent, gDmg, false)) {
@@ -1095,10 +1232,55 @@ public final class DrachenfelsEncounterHelper {
                 }
                 continue;
             }
-            if (now < ScriptDataUtil.getInt(gd, ADD_NEXT_ATK)) {
+            if (now < ScriptDataUtil.getLong(gd, ADD_NEXT_ATK)) {
                 continue;
             }
-            put(gd, ARC_CAST, String.valueOf(DrachenfelsConfig.getI(data, "guardCastTicks", 16)));
+            final IEntityLiving target = boss.getAttackTarget();
+            final int castTicks = DrachenfelsConfig.getI(data, "guardCastTicks", 16);
+            startArcTelegraph(
+                    g,
+                    gd,
+                    target,
+                    DrachenfelsConfig.getD(data, "guardArcRadius", 3.0),
+                    castTicks,
+                    DrachenfelsConfig.getI(data, "telegraphColor", 0xC0FF3030));
+            put(gd, ARC_CAST, String.valueOf(castTicks));
+        }
+    }
+
+    private static void startArcTelegraph(
+            final ICustomNpc caster,
+            final IData data,
+            final IEntityLiving target,
+            final double radius,
+            final int castTicks,
+            final int color) {
+        clearArcTelegraph(data);
+        if (target != null && target.isAlive()) {
+            face(caster, target);
+        }
+        final int dur = Math.max(1, castTicks);
+        final String id = TelegraphAPI.cone(
+                caster,
+                caster.getX(),
+                caster.getY(),
+                caster.getZ(),
+                caster.getRotation(),
+                radius,
+                ARC_HALF_ANGLE,
+                dur,
+                color);
+        put(data, ARC_TG, id == null ? "" : id);
+    }
+
+    private static void clearArcTelegraph(final IData data) {
+        final String id = str(data, ARC_TG);
+        if (!id.isEmpty()) {
+            try {
+                TelegraphAPI.remove(id);
+            } catch (final Exception ignored) {
+            }
+            put(data, ARC_TG, "");
         }
     }
 
@@ -1109,7 +1291,8 @@ public final class DrachenfelsEncounterHelper {
     private static void applyPhase1Ai(final ICustomNpc npc) {
         try {
             final INPCAi ai = npc.getAi();
-            ai.setWalkingSpeed(1);
+            // Scripted kite/puddle steps only — vanilla chase fights Gaze range.
+            ai.setWalkingSpeed(0);
             ai.setRetaliateType(0);
             ai.setMovingType(0);
         } catch (final Exception ignored) {
@@ -1150,6 +1333,255 @@ public final class DrachenfelsEncounterHelper {
         setMoveSpeed(npc, DrachenfelsConfig.getD(npc, "carrierSpeed", 0.2));
     }
 
+    /**
+     * Phase 1: move toward densest seal puddles while keeping kite range from the player.
+     * Diving onto player-footprint puddles breaks Gaze (needs dist &gt; gazeRange) and attack target.
+     */
+    private static void maintainPhase1Movement(final ICustomNpc npc, final IData data, final long now) {
+        if (AbilityAPI.isBusy(npc)) {
+            return;
+        }
+        final IEntityLiving keepTarget = resolveCombatTarget(npc);
+        final double kite = DrachenfelsConfig.getD(data, "kiteDistance", 6.0);
+        // Only rescan zones on repath ticks — casting must stay cheap every tick.
+        final boolean needRepath =
+                now >= ScriptDataUtil.getLong(data, PUDDLE_REPATH) || str(data, PUDDLE_TX).isEmpty();
+        if (needRepath) {
+            final List<EntityAbilityZone> puddles = collectSealPuddles(npc);
+            if (puddles.isEmpty()) {
+                put(data, PUDDLE_TX, "");
+                put(data, PUDDLE_TZ, "");
+                put(data, PUDDLE_REPATH, String.valueOf(now + PUDDLE_REPATH_TICKS));
+                maintainKite(npc, kite);
+                restoreCombatTarget(npc, keepTarget);
+                return;
+            }
+            final double[] best = findBestPuddleSpot(npc, puddles, kite);
+            if (best == null) {
+                put(data, PUDDLE_TX, "");
+                put(data, PUDDLE_TZ, "");
+                put(data, PUDDLE_REPATH, String.valueOf(now + PUDDLE_REPATH_TICKS));
+                maintainKite(npc, kite);
+                restoreCombatTarget(npc, keepTarget);
+                return;
+            }
+            put(data, PUDDLE_TX, String.valueOf(best[0]));
+            put(data, PUDDLE_TZ, String.valueOf(best[1]));
+            put(data, PUDDLE_REPATH, String.valueOf(now + PUDDLE_REPATH_TICKS));
+        }
+        if (str(data, PUDDLE_TX).isEmpty()) {
+            maintainKite(npc, kite);
+            restoreCombatTarget(npc, keepTarget);
+            return;
+        }
+        final double tx = ScriptDataUtil.getFloat(data, PUDDLE_TX);
+        final double tz = ScriptDataUtil.getFloat(data, PUDDLE_TZ);
+        stepToward(npc, tx, tz, PUDDLE_STEP, PUDDLE_ARRIVE);
+        restoreCombatTarget(npc, keepTarget);
+    }
+
+    private static List<EntityAbilityZone> collectSealPuddles(final ICustomNpc boss) {
+        final List<EntityAbilityZone> out = new ArrayList<>();
+        try {
+            final Object mc = boss.getMCEntity();
+            if (!(mc instanceof Entity)) {
+                return out;
+            }
+            final World world = ((Entity) mc).level;
+            if (!(world instanceof ServerWorld)) {
+                return out;
+            }
+            final UUID bossUuid = UUID.fromString(String.valueOf(boss.getUUID()));
+            final double[] c = getArenaCenter(boss);
+            final double arenaR = getArenaRadius(boss) + 4.0;
+            final AxisAlignedBB box = new AxisAlignedBB(
+                    c[0] - arenaR, c[1] - 8.0, c[2] - arenaR,
+                    c[0] + arenaR, c[1] + 8.0, c[2] + arenaR);
+            final List<EntityAbilityZone> zones =
+                    ((ServerWorld) world).getEntitiesOfClass(EntityAbilityZone.class, box);
+            for (final EntityAbilityZone zone : zones) {
+                if (zone == null || zone.removed) {
+                    continue;
+                }
+                if (zone.getZoneType() != EntityAbilityZone.ZoneType.HAZARD) {
+                    continue;
+                }
+                if (zone.getShape() != EntityAbilityZone.ZoneShape.CIRCLE) {
+                    continue;
+                }
+                if (zone.getDamage() <= 0.0f) {
+                    continue;
+                }
+                final UUID owner = zone.getOwnerUuid();
+                if (owner == null || !owner.equals(bossUuid)) {
+                    continue;
+                }
+                out.add(zone);
+            }
+        } catch (final Exception ignored) {
+        }
+        return out;
+    }
+
+    /**
+     * @return {@code {x, z}} or {@code null} if no safe kite-range puddle spot exists.
+     */
+    private static double[] findBestPuddleSpot(
+            final ICustomNpc npc,
+            final List<EntityAbilityZone> puddles,
+            final double kite) {
+        final double[] c = getArenaCenter(npc);
+        final double arenaR = getArenaRadius(npc) - 1.0;
+        final IEntityLiving target = npc.getAttackTarget();
+        final double curX = npc.getX();
+        final double curZ = npc.getZ();
+        // Stay on kite ring so Gaze (gazeRange ~5) can fire and Repulse stays a melee punish.
+        final double minPlayerDist = Math.max(kite - 0.5, 4.5);
+        final double maxPlayerDist = kite + 4.0;
+
+        double bestX = Double.NaN;
+        double bestZ = Double.NaN;
+        int bestScore = -1;
+        double bestTie = Double.NEGATIVE_INFINITY;
+
+        final int n = puddles.size();
+        if (n >= 3) {
+            double sx = 0.0;
+            double sz = 0.0;
+            for (final EntityAbilityZone zone : puddles) {
+                sx += zone.getX();
+                sz += zone.getZ();
+            }
+            final double[] r0 = tryPuddleCandidate(
+                    sx / n, sz / n, c, arenaR, target, kite, minPlayerDist, maxPlayerDist, puddles,
+                    curX, curZ, bestScore, bestTie, bestX, bestZ);
+            bestX = r0[0];
+            bestZ = r0[1];
+            bestScore = (int) r0[2];
+            bestTie = r0[3];
+        }
+        for (int i = 0; i < n; i++) {
+            final EntityAbilityZone a = puddles.get(i);
+            final double[] r1 = tryPuddleCandidate(
+                    a.getX(), a.getZ(), c, arenaR, target, kite, minPlayerDist, maxPlayerDist, puddles,
+                    curX, curZ, bestScore, bestTie, bestX, bestZ);
+            bestX = r1[0];
+            bestZ = r1[1];
+            bestScore = (int) r1[2];
+            bestTie = r1[3];
+            for (int j = i + 1; j < n; j++) {
+                final EntityAbilityZone b = puddles.get(j);
+                final double[] r2 = tryPuddleCandidate(
+                        (a.getX() + b.getX()) * 0.5,
+                        (a.getZ() + b.getZ()) * 0.5,
+                        c, arenaR, target, kite, minPlayerDist, maxPlayerDist, puddles,
+                        curX, curZ, bestScore, bestTie, bestX, bestZ);
+                bestX = r2[0];
+                bestZ = r2[1];
+                bestScore = (int) r2[2];
+                bestTie = r2[3];
+            }
+        }
+        if (bestScore < 0 || Double.isNaN(bestX)) {
+            return null;
+        }
+        return new double[]{bestX, bestZ};
+    }
+
+    private static double[] tryPuddleCandidate(
+            final double x,
+            final double z,
+            final double[] center,
+            final double arenaR,
+            final IEntityLiving target,
+            final double kite,
+            final double minPlayerDist,
+            final double maxPlayerDist,
+            final List<EntityAbilityZone> puddles,
+            final double curX,
+            final double curZ,
+            final int bestScore,
+            final double bestTie,
+            final double bestX,
+            final double bestZ) {
+        if (AbilityCombatHelper.flatDistance(x, z, center[0], center[2]) > arenaR) {
+            return packPuddleBest(bestX, bestZ, bestScore, bestTie);
+        }
+        if (target != null && target.isAlive()) {
+            final double pd = AbilityCombatHelper.flatDistance(x, z, target.getX(), target.getZ());
+            if (pd < minPlayerDist || pd > maxPlayerDist) {
+                return packPuddleBest(bestX, bestZ, bestScore, bestTie);
+            }
+        }
+        final int score = scorePuddleCoverage(x, z, puddles);
+        if (score <= 0) {
+            return packPuddleBest(bestX, bestZ, bestScore, bestTie);
+        }
+        final double tie = puddleTieBreak(x, z, curX, curZ, target, kite);
+        if (score > bestScore || (score == bestScore && tie > bestTie)) {
+            return new double[]{x, z, score, tie};
+        }
+        return packPuddleBest(bestX, bestZ, bestScore, bestTie);
+    }
+
+    private static double[] packPuddleBest(
+            final double bestX, final double bestZ, final int bestScore, final double bestTie) {
+        return new double[]{bestX, bestZ, bestScore, bestTie};
+    }
+
+    /** How many seal puddles this standing point is inside / touching. */
+    private static int scorePuddleCoverage(
+            final double x, final double z, final List<EntityAbilityZone> puddles) {
+        int score = 0;
+        for (final EntityAbilityZone zone : puddles) {
+            final double r = zone.getRadius() + 1.25;
+            if (AbilityCombatHelper.flatDistance(x, z, zone.getX(), zone.getZ()) <= r) {
+                score++;
+            }
+        }
+        return score;
+    }
+
+    /** Prefer kite distance from player, then less travel from current position. */
+    private static double puddleTieBreak(
+            final double x,
+            final double z,
+            final double curX,
+            final double curZ,
+            final IEntityLiving target,
+            final double kite) {
+        double tie = -AbilityCombatHelper.flatDistance(x, z, curX, curZ) * 0.05;
+        if (target != null && target.isAlive()) {
+            final double d = AbilityCombatHelper.flatDistance(x, z, target.getX(), target.getZ());
+            tie -= Math.abs(d - kite) * 0.25;
+        }
+        return tie;
+    }
+
+    private static void stepToward(
+            final ICustomNpc npc,
+            final double tx,
+            final double tz,
+            final double step,
+            final double arrive) {
+        final double dx = tx - npc.getX();
+        final double dz = tz - npc.getZ();
+        final double dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= arrive || dist < 0.01) {
+            return;
+        }
+        final double[] c = getArenaCenter(npc);
+        final double arenaR = getArenaRadius(npc);
+        final double move = Math.min(step, dist);
+        final double nx = npc.getX() + (dx / dist) * move;
+        final double nz = npc.getZ() + (dz / dist) * move;
+        if (AbilityCombatHelper.flatDistance(nx, nz, c[0], c[2]) > arenaR - 0.5) {
+            return;
+        }
+        final double ny = AbilityCombatHelper.findGroundY(npc.getWorld(), nx, nz, npc.getY());
+        npc.setPosition(nx, ny, nz);
+    }
+
     private static void maintainKite(final ICustomNpc npc, final double preferred) {
         final IEntityLiving target = npc.getAttackTarget();
         if (target == null || !target.isAlive()) {
@@ -1160,23 +1592,30 @@ public final class DrachenfelsEncounterHelper {
         }
         final double dist = AbilityCombatHelper.flatDistance(
                 npc.getX(), npc.getZ(), target.getX(), target.getZ());
-        if (dist < preferred - 1.5) {
-            final double dx = npc.getX() - target.getX();
-            final double dz = npc.getZ() - target.getZ();
-            final double len = Math.sqrt(dx * dx + dz * dz);
-            if (len < 0.01) {
-                return;
-            }
-            final double[] c = getArenaCenter(npc);
-            final double arenaR = getArenaRadius(npc);
-            double nx = npc.getX() + (dx / len) * 0.35;
-            double nz = npc.getZ() + (dz / len) * 0.35;
-            if (AbilityCombatHelper.flatDistance(nx, nz, c[0], c[2]) > arenaR - 1.0) {
-                return;
-            }
-            final double ny = AbilityCombatHelper.findGroundY(npc.getWorld(), nx, nz, npc.getY());
-            npc.setPosition(nx, ny, nz);
+        final double[] c = getArenaCenter(npc);
+        final double arenaR = getArenaRadius(npc);
+        double dx;
+        double dz;
+        if (dist < preferred - 0.75) {
+            dx = npc.getX() - target.getX();
+            dz = npc.getZ() - target.getZ();
+        } else if (dist > preferred + 1.25) {
+            dx = target.getX() - npc.getX();
+            dz = target.getZ() - npc.getZ();
+        } else {
+            return;
         }
+        final double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.01) {
+            return;
+        }
+        final double nx = npc.getX() + (dx / len) * PUDDLE_STEP;
+        final double nz = npc.getZ() + (dz / len) * PUDDLE_STEP;
+        if (AbilityCombatHelper.flatDistance(nx, nz, c[0], c[2]) > arenaR - 1.0) {
+            return;
+        }
+        final double ny = AbilityCombatHelper.findGroundY(npc.getWorld(), nx, nz, npc.getY());
+        npc.setPosition(nx, ny, nz);
     }
 
     private static void setAiNone(final ICustomNpc npc) {
@@ -1236,6 +1675,9 @@ public final class DrachenfelsEncounterHelper {
     // Spawn / find / kill
     // -------------------------------------------------------------------------
 
+    /** CustomNPC spawnCycle: 3 = No (не возрождается). */
+    private static final int SPAWN_CYCLE_NONE = 3;
+
     private static ICustomNpc spawnClone(
             final ICustomNpc boss,
             final int tab,
@@ -1246,11 +1688,29 @@ public final class DrachenfelsEncounterHelper {
         try {
             final IEntity spawned = boss.getWorld().spawnClone(x, y, z, tab, name);
             if (spawned instanceof ICustomNpc) {
+                disableRespawn(spawned);
                 return (ICustomNpc) spawned;
             }
         } catch (final Exception ignored) {
         }
         return null;
+    }
+
+    private static void disableRespawn(final IEntity entity) {
+        if (entity == null) {
+            return;
+        }
+        try {
+            final Object mc = entity.getMCEntity();
+            if (mc instanceof EntityNPCInterface) {
+                final EntityNPCInterface npc = (EntityNPCInterface) mc;
+                npc.stats.spawnCycle = SPAWN_CYCLE_NONE;
+                npc.stats.respawnTime = 0;
+                npc.killedtime = 0;
+                npc.updateClient = true;
+            }
+        } catch (final Exception ignored) {
+        }
     }
 
     private static void tagAdd(final ICustomNpc npc, final String tag) {
@@ -1397,6 +1857,189 @@ public final class DrachenfelsEncounterHelper {
         try {
             npc.say(msg);
         } catch (final Exception ignored) {
+        }
+    }
+
+    /** Gaze must be valid on the kite ring; old JS left gazeRange=8 ≥ kite=6 and starved the rotation. */
+    private static double effectiveGazeRange(final IData data) {
+        final double kite = DrachenfelsConfig.getD(data, "kiteDistance", 6.0);
+        final double configured = DrachenfelsConfig.getD(data, "gazeRange", GAZE_RANGE);
+        if (configured + 0.25 < kite) {
+            return configured;
+        }
+        return Math.max(1.0, kite - 1.0);
+    }
+
+    private static boolean startBossAbility(
+            final ICustomNpc npc,
+            final String abilityId,
+            final IEntityLiving target,
+            final Map<String, Object> params) {
+        if (!hasNearbyPlayers(npc)) {
+            return false;
+        }
+        if (!AbilityAPI.start(npc, abilityId, target, params)) {
+            return false;
+        }
+        armAbilityCooldown(npc, abilityId);
+        sayAbilityQuote(npc, abilityId);
+        return true;
+    }
+
+    /**
+     * True if at least one living player is within engage range of the boss
+     * (arenaRadius + padding). Spectators / creative-invulnerable ignored via IPlayer alive check.
+     */
+    private static boolean hasNearbyPlayers(final ICustomNpc npc) {
+        return findNearestEngagePlayer(npc) != null;
+    }
+
+    private static double engageRange(final ICustomNpc npc) {
+        return getArenaRadius(npc) + 4.0;
+    }
+
+    private static IEntityLiving findNearestEngagePlayer(final ICustomNpc npc) {
+        if (npc == null) {
+            return null;
+        }
+        IEntityLiving best = null;
+        double bestDist = Double.MAX_VALUE;
+        final double range = engageRange(npc);
+        try {
+            final IEntity[] list = npc.getWorld().getNearbyEntities(
+                    npc.getPos(), (int) Math.ceil(range + 1.0), 1);
+            for (final IEntity ent : list) {
+                if (!(ent instanceof IPlayer) || !ent.isAlive()) {
+                    continue;
+                }
+                try {
+                    final Object mc = ent.getMCEntity();
+                    if (mc instanceof net.minecraft.entity.player.PlayerEntity
+                            && ((net.minecraft.entity.player.PlayerEntity) mc).isSpectator()) {
+                        continue;
+                    }
+                } catch (final Exception ignored) {
+                }
+                final double toBoss = AbilityCombatHelper.flatDistance(
+                        npc.getX(), npc.getZ(), ent.getX(), ent.getZ());
+                if (toBoss > range) {
+                    continue;
+                }
+                if (toBoss < bestDist) {
+                    bestDist = toBoss;
+                    best = (IEntityLiving) ent;
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        return best;
+    }
+
+    /** CD from cast start so intervals match JS values (not castLength + CD). */
+    private static void armAbilityCooldown(final ICustomNpc npc, final String abilityId) {
+        if (npc == null || abilityId == null) {
+            return;
+        }
+        final IData data = npc.getStoreddata();
+        final long now = now(npc);
+        if (DfBlackSealAbility.ID.equals(abilityId)) {
+            put(data, SEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "sealCd", SEAL_CD)));
+        } else if (DfMaskGazeAbility.ID.equals(abilityId)) {
+            put(data, GAZE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "gazeCd", GAZE_CD)));
+            put(data, GAZE_FAR_SINCE, "0");
+        } else if (DfRepulseAbility.ID.equals(abilityId)) {
+            put(data, REPULSE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "repulseCd", REPULSE_CD)));
+        } else if (DfNamelessStepAbility.ID.equals(abilityId)) {
+            put(data, STEP_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "stepCd", STEP_CD)));
+        } else if (DfNamelessWhisperAbility.ID.equals(abilityId)) {
+            put(data, WHISPER_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "whisperCd", WHISPER_CD)));
+        } else if (DfNameStealAbility.ID.equals(abilityId)) {
+            put(data, STEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "stealCd", STEAL_CD)));
+        }
+    }
+
+    private static IEntityLiving resolveCombatTarget(final ICustomNpc npc) {
+        if (npc == null) {
+            return null;
+        }
+        final double range = engageRange(npc);
+        final IEntityLiving current = npc.getAttackTarget();
+        if (current != null && current.isAlive()
+                && AbilityCombatHelper.flatDistance(
+                        npc.getX(), npc.getZ(), current.getX(), current.getZ()) <= range) {
+            return current;
+        }
+        final IEntityLiving nearest = findNearestEngagePlayer(npc);
+        if (nearest != null) {
+            try {
+                npc.setAttackTarget(nearest);
+            } catch (final Exception ignored) {
+            }
+        } else {
+            try {
+                npc.setAttackTarget(null);
+            } catch (final Exception ignored) {
+            }
+        }
+        return nearest;
+    }
+
+    private static void restoreCombatTarget(final ICustomNpc npc, final IEntityLiving target) {
+        if (npc == null || target == null || !target.isAlive()) {
+            return;
+        }
+        try {
+            final IEntityLiving cur = npc.getAttackTarget();
+            if (cur == null || !cur.isAlive()) {
+                npc.setAttackTarget(target);
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    private static void sayAbilityQuote(final ICustomNpc npc, final String abilityId) {
+        if (abilityId == null) {
+            return;
+        }
+        switch (abilityId) {
+            case DfBlackSealAbility.ID:
+                say(npc, "Печать ложится. Земля запомнит.");
+                break;
+            case DfMaskGazeAbility.ID:
+                say(npc, "Смотрите в маску — и потеряете лицо.");
+                break;
+            case DfRepulseAbility.ID:
+                say(npc, "Прочь с порога замка.");
+                break;
+            case "df_bell":
+                say(npc, "Колокол мёртвых бьёт по вам.");
+                break;
+            case "df_court":
+                say(npc, "Свита склоняется. Вы — нет.");
+                break;
+            case DfImperialPoisonAbility.ID:
+                say(npc, "Пейте. Яд — вино этого пира.");
+                break;
+            case DfFeastSeatsAbility.ID:
+                say(npc, "Садитесь. Места уже заняты смертью.");
+                break;
+            case DfLeperBallAbility.ID:
+                say(npc, "Прокажённые танцуют для вас.");
+                break;
+            case DfFalseHostAbility.ID:
+                say(npc, "Кто из нас хозяин? Угадайте.");
+                break;
+            case DfNamelessStepAbility.ID:
+                say(npc, "Шаг без имени.");
+                break;
+            case DfNamelessWhisperAbility.ID:
+                say(npc, "Шёпот, который стирает вас.");
+                break;
+            case DfNameStealAbility.ID:
+                say(npc, "Ваше имя теперь моё.");
+                break;
+            default:
+                break;
         }
     }
 

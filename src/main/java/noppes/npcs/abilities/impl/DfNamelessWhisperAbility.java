@@ -56,7 +56,7 @@ public final class DfNamelessWhisperAbility implements CnpcAbility {
         active.hitUuids.clear();
         active.telegraphIds.clear();
         final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 24));
-        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, TelegraphAPI.DEFAULT_COLOR);
+        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         final double[] inners = resolveInners(ctx);
         final double thickness = ctx.params.getDouble(AbilityParamKeys.RING1_RADIUS, 1.2);
         for (int i = 0; i < inners.length; i++) {

@@ -61,7 +61,7 @@ public final class DfBlackSealAbility implements CnpcAbility {
         pickCircles(active, ctx);
         final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 30));
         final double radius = ctx.params.getDouble(AbilityParamKeys.RADIUS, 2.0);
-        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, TelegraphAPI.DEFAULT_COLOR);
+        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         for (final double[] m : active.markers) {
             final String id = TelegraphAPI.circle(ctx.npc, m[0], m[1], m[2], radius, charge, color);
             if (id != null && !id.isEmpty()) {
@@ -110,7 +110,7 @@ public final class DfBlackSealAbility implements CnpcAbility {
             final EntityAbilityZone zone = ZoneAPI.hazardCircle(
                     ctx.npc, m[0], m[1] + 0.05, m[2], radius, zoneTicks, tickDmg, interval);
             if (zone != null) {
-                zone.setColor(0xC0802020);
+                zone.setColor(0xC0FF3030);
                 zone.setZoneHeight(2.5f);
             }
             AbilityVfx.spawnSoulBurst(ctx.world, m[0], m[1] + 0.3, m[2], radius);

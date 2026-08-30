@@ -1,0 +1,83 @@
+# Drachenfels — reference
+
+## Ability ids
+
+| Id | Класс | Фаза |
+|----|-------|------|
+| `df_black_seal` | `DfBlackSealAbility` | 1 |
+| `df_mask_gaze` | `DfMaskGazeAbility` | 1 |
+| `df_repulse` | `DfRepulseAbility` | 1 |
+| `df_imperial_poison` | `DfImperialPoisonAbility` | 2 |
+| `df_feast_seats` | `DfFeastSeatsAbility` | 2 |
+| `df_leper_ball` | `DfLeperBallAbility` | 2 |
+| `df_false_host` | `DfFalseHostAbility` | 2 |
+| `df_nameless_step` | `DfNamelessStepAbility` | 3 |
+| `df_nameless_whisper` | `DfNamelessWhisperAbility` | 3 |
+| `df_name_steal` | `DfNameStealAbility` | 3 |
+
+Helper-only (не AbilityAPI): Bell, Court spawn, vessel/shard/carrier, guard/carrier arcs.
+
+## Config keys (`df_c_*`)
+
+Глобальные: `arenaRadius`, `phase2Ratio`, `phase3Ratio`, `invulnTicks`, `kiteDistance`, `phase1Speed`, `telegraphColor`, `sealFirstDelay`, `gazeFirstDelay`, `courtFirstDelay`, `repulseFirstDelay`.
+
+Seal: `sealCd`, `sealChargeTicks`, `sealActiveTicks`, `sealDamage`, `sealRadius`, `sealZoneTicks` (≈480 — puddles from 3 seals overlap), `sealZoneDamage`, `sealZoneInterval`, `sealMinBossDist`, `sealMinCircleDist`.
+
+Gaze: `gazeCd`, `gazeRange` (5 — must be &lt; kite 6), `gazeFarTicks` (8), `gazeChargeTicks`, `gazeActiveTicks`, `gazeDistance`, `gazeWidth`, `gazeDamage` (telegraph = charge+flight; damage via flying soul projectile).
+
+Attacking telegraphs/hazard zones default **red** `0xC0FF3030` (Feast safe seats stay white). Bell absorb shows rotating enchant/end_rod particle ring while active.
+
+Repulse: `repulseCd` (200), `repulseChargeTicks` (30), `repulseActiveTicks`, `repulseRadius` (3), `repulseKnockback`, `repulseKnockbackY`, `repulseTrigger` (каст если цель ближе).
+
+Phase 1 CD notes: AbilityAPI CDs arm **on cast start**. `Encounter.init` is one-shot (`df_inited`) so JS reload does not rewind clocks. Court CD only after successful spawn.
+
+Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `monkHp`, `courtCd`, `cultistHp`/`Damage`/`Interval`, `guardHp`/`Damage`/`ArcRadius`/`CastTicks`/`Interval`.
+
+Phase 2 cycle: `cycleLength`, `cycleFeastAt`, `cycleLeperAt`.
+
+Imperial: `imperialChargeTicks`, `imperialActiveTicks`, `imperialArenaRadius`, `imperialThickness`, `imperialDamage`, `imperialPoisonDuration`, `imperialPoisonAmp`, `imperialSlowDuration`.
+
+Feast: `feastChargeTicks`, `feastActiveTicks`, `feastSeatRadius`, `feastSeatRing`, `feastArenaRadius`, `feastDamage`, `feastPoisonDuration`, `feastPoisonAmp`, `feastColor`.
+
+Leper: `leperChargeTicks`, `leperActiveTicks`, `leperDamage`, `leperSpawnRadius`, `leperDuration`, `leperHitRadius`, `leperSlowDuration`, `leperSlowAmp`.
+
+False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActiveTicks`, `falseCopyDist`, `falseTeleportRing`, `falseTelegraphRadius`.
+
+Phase 3: `vesselRing`, `vesselHpFirst`, `vesselHpRepeat`, `shardHp`, `shardSpeed`, `shardHealRatio`, `shardTouchDist`, `shardDelayTicks`, `stepCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`Width`/`MinPlayerDist`, `whisperCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`BlindDuration`/`Thickness`/`Ring1..3`, `stealCd`/`Range`/`Damage`/`ChargeTicks`/`TelegraphRadius`/`WeakDuration`/`BlindDuration`, `carrierTicks`/`Speed`/`ArcDamage`/`ArcRadius`/`ArcCastTicks`/`ArcInterval`.
+
+## JS bootstrap
+
+```javascript
+var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
+var Encounter = Java.type("noppes.npcs.abilities.DrachenfelsEncounterHelper");
+
+function init(event) {
+    var npc = event.npc;
+    Encounter.configureClones(npc, CLONE_TAB, CLONE_MONK, /* ... */);
+    Encounter.configure(npc, AbilityAPI.params("arenaRadius", 12.0, "sealDamage", 12.0 /* ... */));
+    Encounter.init(npc);
+    // timer → Encounter.tick(npc)
+}
+```
+
+## Quotes (say)
+
+| Когда | Текст |
+|-------|-------|
+| Init | `Этот замок помнит вас дольше, чем вы — себя.` |
+| Phase 2 | `Садитесь. Пир уже накрыт.` |
+| Phase 3 | `Тело — лишь маска. Имя остаётся.` |
+| Carrier | `Нет сосуда — нет хозяина. Бейте, пока я ещё плоть.` |
+| (death path) | `Замок не умрёт с этим телом.` |
+| `df_black_seal` | `Печать ложится. Земля запомнит.` |
+| `df_mask_gaze` | `Смотрите в маску — и потеряете лицо.` |
+| `df_repulse` | `Прочь с порога замка.` |
+| Bell | `Колокол мёртвых бьёт по вам.` |
+| Court | `Свита склоняется. Вы — нет.` |
+| `df_imperial_poison` | `Пейте. Яд — вино этого пира.` |
+| `df_feast_seats` | `Садитесь. Места уже заняты смертью.` |
+| `df_leper_ball` | `Прокажённые танцуют для вас.` |
+| `df_false_host` | `Кто из нас хозяин? Угадайте.` |
+| `df_nameless_step` | `Шаг без имени.` |
+| `df_nameless_whisper` | `Шёпот, который стирает вас.` |
+| `df_name_steal` | `Ваше имя теперь моё.` |

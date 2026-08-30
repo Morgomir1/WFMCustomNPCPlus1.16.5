@@ -325,6 +325,41 @@ public final class AbilityVfx {
         }
     }
 
+    /**
+     * Bell absorb shield around Drachenfels: rotating ring of enchant/end_rod/witch
+     * so players can see the shield is still up.
+     */
+    public static void spawnAbsorbShield(final IWorld world, final double x, final double y, final double z) {
+        if (world == null) {
+            return;
+        }
+        final Random r = AbilityCombatHelper.random();
+        final double radius = 1.55;
+        final int points = 10;
+        final double spin = (System.currentTimeMillis() % 4000L) / 4000.0 * Math.PI * 2.0;
+        for (int i = 0; i < points; i++) {
+            final double a = spin + (i / (double) points) * Math.PI * 2.0;
+            final double px = x + Math.cos(a) * radius;
+            final double pz = z + Math.sin(a) * radius;
+            final double py = y + 0.35 + (i % 3) * 0.45;
+            safeSpawn(world, "minecraft:enchant", px, py, pz, 0, 0.02, 0, 0.01, 1);
+            if (i % 2 == 0) {
+                safeSpawn(world, "minecraft:end_rod", px, py + 0.1, pz, 0, 0.01, 0, 0.005, 1);
+            }
+            if (i % 3 == 0) {
+                safeSpawn(world, "minecraft:witch", px, py, pz, 0, 0.03, 0, 0.01, 1);
+            }
+        }
+        // Soft vertical column so the shield reads from any angle.
+        for (int h = 0; h < 3; h++) {
+            final double oy = 0.4 + h * 0.55 + r.nextDouble() * 0.15;
+            final double ox = (r.nextDouble() - 0.5) * 0.9;
+            final double oz = (r.nextDouble() - 0.5) * 0.9;
+            safeSpawn(world, "minecraft:enchant", x + ox, y + oy, z + oz, 0, 0.04, 0, 0.01, 1);
+        }
+        spawnWfmFog(world, x, y + 0.9, z, 0.85, 2);
+    }
+
     /** Зарядка Дракенфельса: огонь душ + песок душ + WFM fog. */
     public static void spawnDarkCharge(final IWorld world, final double x, final double y, final double z) {
         final Random r = AbilityCombatHelper.random();

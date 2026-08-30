@@ -30,6 +30,7 @@ public final class AbilityRegistry {
         register(new RatlingGunVolleyAbility());
         register(new DfBlackSealAbility());
         register(new DfMaskGazeAbility());
+        register(new DfRepulseAbility());
         register(new DfImperialPoisonAbility());
         register(new DfFeastSeatsAbility());
         register(new DfLeperBallAbility());

@@ -7,20 +7,40 @@ public final class ScriptDataUtil {
     }
 
     public static int getInt(final IData data, final String key) {
+        final long value = getLong(data, key);
+        if (value > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        if (value < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) value;
+    }
+
+    /** Absolute world-time / cooldown deadlines (game time can exceed int range). */
+    public static long getLong(final IData data, final String key) {
         if (data == null || !data.has(key)) {
-            return 0;
+            return 0L;
         }
         final Object raw = data.get(key);
         if (raw == null) {
-            return 0;
+            return 0L;
         }
         if (raw instanceof Number) {
-            return ((Number) raw).intValue();
+            return ((Number) raw).longValue();
+        }
+        final String text = String.valueOf(raw).trim();
+        if (text.isEmpty()) {
+            return 0L;
         }
         try {
-            return Integer.parseInt(String.valueOf(raw));
+            return Long.parseLong(text);
         } catch (final NumberFormatException ignored) {
-            return 0;
+            try {
+                return (long) Double.parseDouble(text);
+            } catch (final NumberFormatException ignored2) {
+                return 0L;
+            }
         }
     }
 
@@ -43,6 +63,10 @@ public final class ScriptDataUtil {
     }
 
     public static void putInt(final IData data, final String key, final int value) {
+        data.put(key, String.valueOf(value));
+    }
+
+    public static void putLong(final IData data, final String key, final long value) {
         data.put(key, String.valueOf(value));
     }
 
@@ -77,10 +101,10 @@ public final class ScriptDataUtil {
     }
 
     public static boolean isCooldownReady(final IData data, final String cdKey, final long now) {
-        return now >= getInt(data, cdKey);
+        return now >= getLong(data, cdKey);
     }
 
     public static void setCooldown(final IData data, final String cdKey, final long now, final int ticks) {
-        putInt(data, cdKey, (int) (now + ticks));
+        putLong(data, cdKey, now + ticks);
     }
 }

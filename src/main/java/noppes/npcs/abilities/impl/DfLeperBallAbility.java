@@ -1,11 +1,12 @@
 package noppes.npcs.abilities.impl;
 
 import noppes.npcs.abilities.*;
+import noppes.npcs.telegraph.TelegraphAPI;
 
 import java.util.Map;
 import java.util.Set;
 
-/** Phase 2: spawn four leper phantoms; movement handled by encounter helper. */
+/** Phase 2: telegraph spawn points, then four leper phantoms. */
 public final class DfLeperBallAbility implements CnpcAbility {
     public static final String ID = "df_leper_ball";
 
@@ -35,18 +36,35 @@ public final class DfLeperBallAbility implements CnpcAbility {
                 AbilityParamKeys.CHARGE_TICKS,
                 AbilityParamKeys.ACTIVE_TICKS,
                 AbilityParamKeys.DAMAGE,
+                AbilityParamKeys.RADIUS,
                 AbilityParamKeys.CLONE_TAB,
                 AbilityParamKeys.CLONE_NAME,
-                AbilityParamKeys.TELEGRAPH);
+                AbilityParamKeys.TELEGRAPH,
+                AbilityParamKeys.TELEGRAPH_COLOR);
     }
 
     @Override
     public boolean onStart(final ActiveAbility active, final AbilityContext ctx) {
         active.jumpStyle = false;
+        active.markers.clear();
+        active.telegraphIds.clear();
+        final double[][] points = DrachenfelsEncounterHelper.leperSpawnPoints(ctx.npc);
+        final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 24));
+        final double radius = ctx.params.getDouble(AbilityParamKeys.RADIUS, 1.0);
+        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        for (int i = 0; i < points.length; i++) {
+            final double[] p = points[i];
+            active.markers.add(p);
+            final String id = TelegraphAPI.circle(ctx.npc, p[0], p[1], p[2], radius, charge, color);
+            if (id != null && !id.isEmpty()) {
+                active.telegraphIds.add(id);
+            }
+        }
         active.phase = ActiveAbility.PHASE_CHARGE;
-        active.ticksLeft = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 1));
+        active.ticksLeft = charge;
         AbilityCombatHelper.freezeAiForCast(active, ctx.npc);
         AbilityCombatHelper.stopNavigation(ctx.npc);
+        ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.zombie.infect", 0.85F, 0.7F);
         return true;
     }
 
@@ -58,10 +76,11 @@ public final class DfLeperBallAbility implements CnpcAbility {
             if (active.ticksLeft > 0) {
                 return TickResult.CONTINUE;
             }
+            AbilityTelegraph.clear(active, ctx);
             final int tab = ctx.params.getInt(AbilityParamKeys.CLONE_TAB, 1);
             final String name = ctx.params.getString(AbilityParamKeys.CLONE_NAME, "Drachenfels Leper Phantom");
             final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 10.0);
-            DrachenfelsEncounterHelper.spawnLeperPhantoms(ctx.npc, tab, name, damage);
+            DrachenfelsEncounterHelper.spawnLeperPhantoms(ctx.npc, tab, name, damage, active.markers);
             active.phase = ActiveAbility.PHASE_ACTIVE;
             active.ticksLeft = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 60));
             return TickResult.CONTINUE;
@@ -78,6 +97,7 @@ public final class DfLeperBallAbility implements CnpcAbility {
 
     @Override
     public void onCancel(final ActiveAbility active, final AbilityContext ctx) {
+        AbilityTelegraph.clear(active, ctx);
         AbilityCombatHelper.unfreezeAi(active, ctx.npc);
         AbilityCombatHelper.stopNavigation(ctx.npc);
         DrachenfelsEncounterHelper.onAbilityEnded(ctx.npc, ID);

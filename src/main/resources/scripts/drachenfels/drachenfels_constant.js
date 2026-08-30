@@ -146,6 +146,7 @@ var FALSE_MAX = 3;
 var FALSE_SHIFT = 30;
 var FALSE_CHARGE_TICKS = 20;
 var FALSE_ACTIVE_TICKS = 30;
+var FALSE_CLONE_HP = 50.0;
 var FALSE_COPY_DIST = 3.0;
 var FALSE_TELEPORT_RING = 5.0;
 var FALSE_TELEGRAPH_RADIUS = 1.2;
@@ -316,6 +317,7 @@ function init(event) {
         "falseShift", FALSE_SHIFT,
         "falseChargeTicks", FALSE_CHARGE_TICKS,
         "falseActiveTicks", FALSE_ACTIVE_TICKS,
+        "falseCloneHp", FALSE_CLONE_HP,
         "falseCopyDist", FALSE_COPY_DIST,
         "falseTeleportRing", FALSE_TELEPORT_RING,
         "falseTelegraphRadius", FALSE_TELEGRAPH_RADIUS,

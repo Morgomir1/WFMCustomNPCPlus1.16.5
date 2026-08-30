@@ -247,6 +247,12 @@ public final class DrachenfelsEncounterHelper {
         enforcePhaseCap(npc, data);
         updatePhase(npc, data, now);
         tickAbsorbVfx(npc, now);
+        if (hasLivingFalseHosts(npc)) {
+            hideBossForFalseHost(npc);
+        } else if (ScriptDataUtil.isFlag(data, FALSE_ACTIVE)
+                && !DfFalseHostAbility.ID.equals(AbilityAPI.getActiveId(npc))) {
+            restoreBossAfterFalseHost(npc);
+        }
         // No survival/adventure players in engage range: stop casts, drop aggro.
         if (!hasNearbyPlayers(npc)) {
             if (AbilityAPI.isBusy(npc)) {
@@ -573,11 +579,12 @@ public final class DrachenfelsEncounterHelper {
             }
             tagAdd(copy, TAG_FALSE);
             put(copy.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
+            final float copyHp = (float) DrachenfelsConfig.getD(boss, "falseCloneHp", 50.0);
             try {
-                copy.setMaxHealth(1);
+                copy.setMaxHealth(copyHp);
                 final Object mc = copy.getMCEntity();
                 if (mc instanceof LivingEntity) {
-                    ((LivingEntity) mc).setHealth(1.0F);
+                    ((LivingEntity) mc).setHealth(copyHp);
                 }
             } catch (final Exception ignored) {
             }
@@ -993,6 +1000,10 @@ public final class DrachenfelsEncounterHelper {
             }
             put(data, FALSE_FIRED, fired.isEmpty() ? mark : fired + ";" + mark);
             put(data, PENDING_FALSE, "1");
+            final String activeId = AbilityAPI.getActiveId(npc);
+            if (AbilityAPI.isBusy(npc) && !DfFalseHostAbility.ID.equals(activeId)) {
+                AbilityAPI.cancel(npc);
+            }
             return;
         }
     }

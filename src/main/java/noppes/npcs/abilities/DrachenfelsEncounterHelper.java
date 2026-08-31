@@ -32,7 +32,6 @@ import noppes.npcs.entity.EntityAbilityZone;
 import noppes.npcs.entity.EntityCloneStructureSpawner;
 import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.script.ScriptDataUtil;
-import noppes.npcs.telegraph.TelegraphAPI;
 import noppes.npcs.zone.ZoneAPI;
 
 import java.util.ArrayList;
@@ -122,9 +121,7 @@ public final class DrachenfelsEncounterHelper {
     private static final String SPIRIT_MODE = "df_spirit";
     private static final String QUOTE_INTRO = "df_quote_intro";
     private static final String ARC_CD = "df_arc_cd";
-    private static final String ARC_CAST = "df_arc_cast";
-    private static final String ARC_TG = "df_arc_tg";
-    private static final double ARC_HALF_ANGLE = 70.0;
+    private static final int GUARD_SLASH_CD = 100;
     private static final String CLONE_TAB = "df_clone_tab";
     private static final String CLONE_MONK = "df_clone_monk";
     private static final String CLONE_CULTIST = "df_clone_cultist";
@@ -1099,7 +1096,6 @@ public final class DrachenfelsEncounterHelper {
         put(data, CARRIER_UNTIL, String.valueOf(now + DrachenfelsConfig.getI(data, "carrierTicks", CARRIER_TICKS)));
         put(data, SPIRIT_MODE, "0");
         put(data, ARC_CD, String.valueOf(now + 20));
-        put(data, ARC_CAST, "0");
         applyCarrierAi(boss);
         say(boss, "Нет сосуда — нет хозяина. Бейте, пока я ещё плоть.");
     }
@@ -1452,76 +1448,41 @@ public final class DrachenfelsEncounterHelper {
     private static void tickAdds(final ICustomNpc boss, final IData data, final long now) {
         final List<ICustomNpc> cultists = findTagged(boss, TAG_CULTIST);
         for (final ICustomNpc c : cultists) {
-            if (now < ScriptDataUtil.getLong(c.getStoreddata(), ADD_NEXT_ATK)) {
+            if (c == null || !c.isAlive()) {
                 continue;
             }
-            put(c.getStoreddata(), ADD_NEXT_ATK,
-                    String.valueOf(now + DrachenfelsConfig.getI(data, "cultistInterval", 50)));
-            final IEntityLiving target = boss.getAttackTarget();
+            final IData cd = c.getStoreddata();
+            if (AbilityAPI.isBusy(c) || now < ScriptDataUtil.getLong(cd, ADD_NEXT_ATK)) {
+                continue;
+            }
+            final IEntityLiving target = resolveAddTarget(boss, c);
             if (target == null || !target.isAlive()) {
                 continue;
             }
-            try {
-                c.shootItem(target, c.getWorld().createItem("minecraft:snowball", 1), 40);
-            } catch (final Exception ignored) {
+            if (!startAddAbility(c, DfMaskGazeAbility.ID, target, DrachenfelsConfig.gazeParams(boss))) {
+                continue;
             }
-            if (AbilityCombatHelper.flatDistance(c.getX(), c.getZ(), target.getX(), target.getZ()) < 12) {
-                if (RANDOM.nextFloat() < 0.35F) {
-                    final float dmg = (float) DrachenfelsConfig.getD(data, "cultistDamage", 6.0);
-                    if (!AbilityCombatHelper.dealPureDamage(target, dmg, false)) {
-                        target.damage(dmg);
-                    }
-                }
-            }
+            put(cd, ADD_NEXT_ATK,
+                    String.valueOf(now + DrachenfelsConfig.getI(data, "cultistInterval", 50)));
         }
         final List<ICustomNpc> guards = findTagged(boss, TAG_GUARD);
         for (final ICustomNpc g : guards) {
+            if (g == null || !g.isAlive()) {
+                continue;
+            }
             final IData gd = g.getStoreddata();
-            final int casting = ScriptDataUtil.getInt(gd, ARC_CAST);
-            if (casting > 0) {
-                put(gd, ARC_CAST, String.valueOf(casting - 1));
-                AbilityCombatHelper.stopNavigation(g);
-                if (casting == 1) {
-                    clearArcTelegraph(gd);
-                    final IEntityLiving target = boss.getAttackTarget();
-                    if (target != null) {
-                        face(g, target);
-                    }
-                    final double arcR = DrachenfelsConfig.getD(data, "guardArcRadius", 3.0);
-                    final float gDmg = (float) DrachenfelsConfig.getD(data, "guardDamage", 10.0);
-                    final IEntity[] list = g.getWorld().getNearbyEntities(g.getPos(), 4, -1);
-                    for (final IEntity ent : list) {
-                        if (!AbilityCombatHelper.isHostileToBoss(boss, ent)) {
-                            continue;
-                        }
-                        if (AbilityCombatHelper.flatDistance(g.getX(), g.getZ(), ent.getX(), ent.getZ()) > arcR) {
-                            continue;
-                        }
-                        if (!isInFront(g, ent, ARC_HALF_ANGLE)) {
-                            continue;
-                        }
-                        if (!AbilityCombatHelper.dealPureDamage(ent, gDmg, false)) {
-                            ent.damage(gDmg);
-                        }
-                    }
-                    put(gd, ADD_NEXT_ATK,
-                            String.valueOf(now + DrachenfelsConfig.getI(data, "guardInterval", 60)));
-                }
+            if (AbilityAPI.isBusy(g) || now < ScriptDataUtil.getLong(gd, ADD_NEXT_ATK)) {
                 continue;
             }
-            if (now < ScriptDataUtil.getLong(gd, ADD_NEXT_ATK)) {
+            final IEntityLiving target = resolveAddTarget(boss, g);
+            if (target == null || !target.isAlive()) {
                 continue;
             }
-            final IEntityLiving target = boss.getAttackTarget();
-            final int castTicks = DrachenfelsConfig.getI(data, "guardCastTicks", 16);
-            startArcTelegraph(
-                    g,
-                    gd,
-                    target,
-                    DrachenfelsConfig.getD(data, "guardArcRadius", 3.0),
-                    castTicks,
-                    DrachenfelsConfig.getI(data, "telegraphColor", 0xC0FF3030));
-            put(gd, ARC_CAST, String.valueOf(castTicks));
+            if (!startAddAbility(g, DfCarrierSlashAbility.ID, target, DrachenfelsConfig.carrierSlashParams(boss))) {
+                continue;
+            }
+            put(gd, ADD_NEXT_ATK,
+                    String.valueOf(now + DrachenfelsConfig.getI(data, "guardInterval", GUARD_SLASH_CD)));
         }
     }
 
@@ -1589,42 +1550,6 @@ public final class DrachenfelsEncounterHelper {
         zone.setVisible(true);
         zone.setGroundFill(true);
         zone.setBorder(true);
-    }
-
-    private static void startArcTelegraph(
-            final ICustomNpc caster,
-            final IData data,
-            final IEntityLiving target,
-            final double radius,
-            final int castTicks,
-            final int color) {
-        clearArcTelegraph(data);
-        if (target != null && target.isAlive()) {
-            face(caster, target);
-        }
-        final int dur = Math.max(1, castTicks);
-        final String id = TelegraphAPI.cone(
-                caster,
-                caster.getX(),
-                caster.getY(),
-                caster.getZ(),
-                caster.getRotation(),
-                radius,
-                ARC_HALF_ANGLE,
-                dur,
-                color);
-        put(data, ARC_TG, id == null ? "" : id);
-    }
-
-    private static void clearArcTelegraph(final IData data) {
-        final String id = str(data, ARC_TG);
-        if (!id.isEmpty()) {
-            try {
-                TelegraphAPI.remove(id);
-            } catch (final Exception ignored) {
-            }
-            put(data, ARC_TG, "");
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -1995,26 +1920,6 @@ public final class DrachenfelsEncounterHelper {
         }
     }
 
-    private static void face(final ICustomNpc npc, final IEntityLiving target) {
-        if (target == null) {
-            return;
-        }
-        final double dx = target.getX() - npc.getX();
-        final double dz = target.getZ() - npc.getZ();
-        npc.setRotation(AbilityCombatHelper.computeYaw(dx, dz));
-    }
-
-    private static boolean isInFront(final ICustomNpc npc, final IEntity ent, final double halfAngle) {
-        final double dx = ent.getX() - npc.getX();
-        final double dz = ent.getZ() - npc.getZ();
-        final double targetYaw = AbilityCombatHelper.computeYaw(dx, dz);
-        double diff = Math.abs(targetYaw - npc.getRotation()) % 360.0;
-        if (diff > 180.0) {
-            diff = 360.0 - diff;
-        }
-        return diff <= halfAngle;
-    }
-
     // -------------------------------------------------------------------------
     // Spawn / find / kill
     // -------------------------------------------------------------------------
@@ -2230,9 +2135,30 @@ public final class DrachenfelsEncounterHelper {
         return true;
     }
 
+    private static boolean startAddAbility(
+            final ICustomNpc add,
+            final String abilityId,
+            final IEntityLiving target,
+            final Map<String, Object> params) {
+        if (add == null || AbilityAPI.isBusy(add)) {
+            return false;
+        }
+        return AbilityAPI.start(add, abilityId, target, params);
+    }
+
+    private static IEntityLiving resolveAddTarget(final ICustomNpc boss, final ICustomNpc add) {
+        if (boss != null) {
+            final IEntityLiving bossTarget = boss.getAttackTarget();
+            if (bossTarget != null && bossTarget.isAlive() && isEngageablePlayer(bossTarget)) {
+                return bossTarget;
+            }
+        }
+        return findNearestEngagePlayer(add != null ? add : boss);
+    }
+
     /**
-     * True if at least one survival/adventure player is within engage range of the boss
-     * (arenaRadius + padding). Creative and spectator never count as engage targets.
+     * True if at least one survival/adventure player is within engage range of the boss.
+     * Range = max(arenaRadius+4, engageRadius config, Stats aggro). Creative/spectator ignored.
      */
     private static boolean hasNearbyPlayers(final ICustomNpc npc) {
         if (findNearestEngagePlayer(npc) != null) {
@@ -2249,8 +2175,21 @@ public final class DrachenfelsEncounterHelper {
         return false;
     }
 
+    /**
+     * Combat engage distance from the boss (not CNPC pathing aggro alone).
+     * Uses the largest of: arenaRadius+4, optional {@code engageRadius} config,
+     * and NPC Stats aggro range — so raising aggro in the CNPC GUI actually works.
+     */
     private static double engageRange(final ICustomNpc npc) {
-        return getArenaRadius(npc) + 4.0;
+        double range = getArenaRadius(npc) + 4.0;
+        range = Math.max(range, DrachenfelsConfig.getD(npc, "engageRadius", 0.0));
+        try {
+            if (npc.getStats() != null) {
+                range = Math.max(range, (double) npc.getStats().getAggroRange());
+            }
+        } catch (final Exception ignored) {
+        }
+        return Math.max(1.0, range);
     }
 
     /** Survival or Adventure only — creative/spectator must not pull aggro. */

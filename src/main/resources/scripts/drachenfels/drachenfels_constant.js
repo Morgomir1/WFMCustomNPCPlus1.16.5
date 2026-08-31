@@ -26,6 +26,8 @@ var CLONE_SHARD = "Осколок Дракенфельса";
 // АРЕНА / ФАЗЫ / ГЛОБАЛЬНОЕ
 // =========================
 var ARENA_RADIUS = 12.0;
+// Encounter cast/aggro gate (AbilityAPI). Independent of arena size; also uses max(Stats aggro).
+var ENGAGE_RADIUS = 60.0;
 var PHASE2_RATIO = 0.66;
 var PHASE3_RATIO = 0.33;
 var INVULN_TICKS = 60;
@@ -90,12 +92,8 @@ var ABSORB_RATIO = 0.133;
 // ФАЗА 1 — Поклон Свиты
 // =========================
 var COURT_CD = 320;
-var CULTIST_DAMAGE = 6.0;
 var CULTIST_INTERVAL = 50;
-var GUARD_DAMAGE = 10.0;
-var GUARD_ARC_RADIUS = 3.0;
-var GUARD_CAST_TICKS = 18;
-var GUARD_INTERVAL = 60;
+var GUARD_INTERVAL = 100;
 
 // =========================
 // ФАЗА 2 — цикл / Яд / Места / Бал / Ложный Хозяин
@@ -233,6 +231,7 @@ function init(event) {
     // Nashorn: varargs после npc ломаются — передаём Map через AbilityAPI.params
     Encounter.configure(npc, AbilityAPI.params(
         "arenaRadius", ARENA_RADIUS,
+        "engageRadius", ENGAGE_RADIUS,
         "phase2Ratio", PHASE2_RATIO,
         "phase3Ratio", PHASE3_RATIO,
         "invulnTicks", INVULN_TICKS,
@@ -280,11 +279,7 @@ function init(event) {
         "absorbRatio", ABSORB_RATIO,
 
         "courtCd", COURT_CD,
-        "cultistDamage", CULTIST_DAMAGE,
         "cultistInterval", CULTIST_INTERVAL,
-        "guardDamage", GUARD_DAMAGE,
-        "guardArcRadius", GUARD_ARC_RADIUS,
-        "guardCastTicks", GUARD_CAST_TICKS,
         "guardInterval", GUARD_INTERVAL,
 
         // HP всех аддов

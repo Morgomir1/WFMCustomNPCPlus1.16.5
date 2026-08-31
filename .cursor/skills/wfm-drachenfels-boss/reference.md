@@ -16,11 +16,11 @@
 | `df_name_steal` | `DfNameStealAbility` | 3 |
 | `df_carrier_slash` | `DfCarrierSlashAbility` | 3 carrier |
 
-Helper-only (не AbilityAPI): Bell, Court spawn, vessel/shard/carrier, guard/carrier arcs.
+Helper-only (не AbilityAPI): Bell, Court spawn, vessel/shard/carrier.
 
 ## Config keys (`df_c_*`)
 
-Глобальные: `arenaRadius`, `phase2Ratio`, `phase3Ratio`, `invulnTicks`, `kiteDistance`, `phase1Speed`, `telegraphColor`, `sealFirstDelay`, `gazeFirstDelay`, `courtFirstDelay`, `repulseFirstDelay`.
+Глобальные: `arenaRadius`, `engageRadius` (каст/цель; default 60; также берётся max со Stats aggro), `phase2Ratio`, `phase3Ratio`, `invulnTicks`, `kiteDistance`, `phase1Speed`, `telegraphColor`, `sealFirstDelay`, `gazeFirstDelay`, `courtFirstDelay`, `repulseFirstDelay`.
 
 Seal: `sealCd`, `sealChargeTicks`, `sealActiveTicks`, `sealDamage`, `sealRadius`, `sealZoneTicks` (≈480 — puddles from 3 seals overlap), `sealZoneDamage`, `sealZoneInterval`, `sealZoneColor` (dark green puddles), `sealPoisonDuration` (100 = 5s), `sealPoisonAmp` (1 = Poison II), `sealMinBossDist`, `sealMinCircleDist`.
 
@@ -32,7 +32,7 @@ Repulse: `repulseCd` (200), `repulseChargeTicks` (30), `repulseActiveTicks`, `re
 
 Phase 1 CD notes: AbilityAPI CDs arm **on cast start**. `Encounter.init` is one-shot (`df_inited`) so JS reload does not rewind clocks. Court CD only after successful spawn.
 
-Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `courtCd`, `cultistDamage`/`Interval`, `guardDamage`/`ArcRadius`/`CastTicks`/`Interval`.
+Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `courtCd`, `cultistInterval`, `guardInterval` (5с = 100t). Параметры кастов аддов берутся из `gaze*` / `carrierArc*` босса.
 
 **Add HP (all spawnable adds):** `monkHp`, `cultistHp`, `guardHp`, `leperHp`, `falseCloneHp`, `vesselHpFirst`, `vesselHpRepeat`, `shardHp`.
 

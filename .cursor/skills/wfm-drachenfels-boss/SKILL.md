@@ -25,7 +25,7 @@ description: >-
 - Арена: круг **R≈12**, центр = spawn (`df_home_*`).
 - **Один** AbilityAPI-каст босса за раз (`isBusy`).
 - Аггро / engage только на **Survival/Adventure**; creative и spectator игнорируются (цель сбрасывается).
-- Без таких игроков в радиусе engage (`arenaRadius+4` от босса) — **не кастует** (активный каст cancel).
+- Без таких игроков в радиусе engage — **не кастует** (активный каст cancel). Engage = `max(arenaRadius+4, engageRadius config, Stats aggro)`; JS default `engageRadius=60`.
 - После смерти `cleanup` сбрасывает `df_inited` → респавн = фаза 1 и полное max HP (не cap прошлой фазы).
 - Урон спеллов — **pure MAGIC** (`dealPureDamage`).
 - Пороги фаз — **% maxHealth** (не абсолютные HP): phase2 **66%**, phase3 **33%**.
@@ -52,7 +52,7 @@ AI: scripted kite (walkingSpeed 0) к плотным seal-лужам **на kite
 | `df_mask_gaze` | если цель далеко ≥`gazeFarTicks` — charge line + **летящий soul-снаряд** по лучу | line |
 | `df_repulse` | charge 1.5с → knockback игроков в R=3; CD 10с; если цель ≤`repulseTrigger` | circle |
 | **Bell** (helper) | HP marks ~88%/76% → absorb ~13.3% maxHP + spawn Monk; absorb = **кольцо партиклов** вокруг босса | — |
-| **Court** (helper) | spawn Cultist или Guard (лимит свиты) | guard arc = cone |
+| **Court** (helper) | spawn Cultist (`df_mask_gaze`) или Guard (`df_carrier_slash`, CD 5с) | line / coneTruncated |
 
 На каждый AbilityAPI-каст (и Bell/Court) босс говорит уникальную фразу.
 
@@ -97,8 +97,8 @@ Spirit AI (без ходьбы). Сразу 3 **Vessel** на кольце (rand
 | Клон | Роль |
 |------|------|
 | Monk | Bell add |
-| Cultist | ranged / периодический magic |
-| Guard | cone arc (telegraph) |
+| Cultist | `df_mask_gaze` (параметры босса) |
+| Guard | `df_carrier_slash` (параметры босса, CD `guardInterval` = 5с) |
 | Leper Phantom | 3 залпа от босса наружу, виляющий полёт |
 | False Host | 1 HP decoy |
 | Vessel / Shard | phase 3 mechanics |

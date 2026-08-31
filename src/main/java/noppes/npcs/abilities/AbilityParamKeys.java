@@ -73,6 +73,8 @@ public final class AbilityParamKeys {
     public static final String HEAL_ON_FAIL = "healOnFail";
     /** 1 = после абилки спавнить маленькую hazard-лужу (фаза 2 devour). */
     public static final String SPAWN_PUDDLE = "spawnPuddle";
+    /** 1 = перед основным кастом сделать дэш к цели (напр. guard carrier slash). */
+    public static final String PRE_DASH = "preDash";
     /** Скорость подлёта (блоки/тик), ghost_orbit_slam. */
     public static final String APPROACH_SPEED = "approachSpeed";
     /** Длительность орбиты вокруг цели (тики). */

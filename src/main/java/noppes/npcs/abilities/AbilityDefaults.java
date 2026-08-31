@@ -402,9 +402,13 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.RADIUS, 1.35);
         map.put(AbilityParamKeys.CONE_HALF_ANGLE, 38.0);
         map.put(AbilityParamKeys.CHARGE_TICKS, 18);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 8); // guard pre-dash duration
         map.put(AbilityParamKeys.DAMAGE, 15.0);
         map.put(AbilityParamKeys.KNOCKBACK, 0.85);
         map.put(AbilityParamKeys.KNOCKBACK_Y, 0.18);
+        map.put(AbilityParamKeys.MAX_RANGE, 10.0); // guard pre-dash max travel
+        map.put(AbilityParamKeys.LAND_RADIUS, 2.0); // stop this far from target
+        map.put(AbilityParamKeys.PRE_DASH, 0);
         map.put(AbilityParamKeys.TELEGRAPH, 0);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;

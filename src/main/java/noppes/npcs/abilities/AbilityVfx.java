@@ -326,8 +326,8 @@ public final class AbilityVfx {
     }
 
     /**
-     * Bell absorb shield around Drachenfels: rotating ring of enchant/end_rod/witch
-     * so players can see the shield is still up.
+     * Bell absorb shield: rotating ring of enchant/end_rod/witch
+     * so players can see the shield is still up (boss or Court ally).
      */
     public static void spawnAbsorbShield(final IWorld world, final double x, final double y, final double z) {
         if (world == null) {

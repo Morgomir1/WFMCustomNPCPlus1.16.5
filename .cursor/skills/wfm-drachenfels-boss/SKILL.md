@@ -51,12 +51,12 @@ AI: scripted kite (walkingSpeed 0) к плотным seal-лужам **на kite
 | `df_black_seal` | 3 круга → burst + hazard puddles (тёмно-зелёные) | 3× circle (красные) |
 | `df_mask_gaze` | если цель далеко ≥`gazeFarTicks` — charge line + **летящий soul-снаряд** по лучу | line |
 | `df_repulse` | charge 1.5с → knockback игроков в R=3; CD 10с; если цель ≤`repulseTrigger` | circle |
-| **Bell** (helper) | HP marks ~88%/76% → absorb ~13.3% maxHP + spawn Monk; absorb = **кольцо партиклов** вокруг босса | — |
-| **Court** (helper) | spawn Cultist (`df_mask_gaze`) или Guard (`df_carrier_slash`, CD 5с) | line / coneTruncated |
+| **Bell** (helper) | HP marks ~88%/76% → absorb ~13.3% maxHP на босса **и** Court (cultist/guard) + spawn Monk; absorb = **кольцо партиклов**; смерть монаха снимает щит со всех | — |
+| **Court** (helper) | spawn Cultist (`df_mask_gaze`) или Guard (`df_carrier_slash` + pre-dash, CD 5с) | line → coneTruncated |
 
 На каждый AbilityAPI-каст (и Bell/Court) босс говорит уникальную фразу.
 
-Absorb снимается уроном по боссу; Monk — отдельный адд.
+Absorb снимается уроном по щиту; Monk — отдельный адд. Смерть монаха сбрасывает absorb у босса и у всех Court.
 
 ### Phase 2 — пир (kite)
 
@@ -98,7 +98,7 @@ Spirit AI (без ходьбы). Сразу 3 **Vessel** на кольце (rand
 |------|------|
 | Monk | Bell add |
 | Cultist | `df_mask_gaze` (параметры босса) |
-| Guard | `df_carrier_slash` (параметры босса, CD `guardInterval` = 5с) |
+| Guard | `df_carrier_slash` + pre-dash к игроку (`guardDash*`); slash-параметры с босса; CD `guardInterval` = 5с |
 | Leper Phantom | 3 залпа от босса наружу, виляющий полёт |
 | False Host | 1 HP decoy |
 | Vessel / Shard | phase 3 mechanics |

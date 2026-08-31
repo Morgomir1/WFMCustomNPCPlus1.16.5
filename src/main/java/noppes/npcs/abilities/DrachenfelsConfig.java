@@ -280,6 +280,17 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.KNOCKBACK_Y, getD(npc, "carrierArcKnockbackY", 0.18));
         m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
+        m.put(AbilityParamKeys.PRE_DASH, 0);
+        return m;
+    }
+
+    /** Phase 1 Court guards: same slash as carrier, but dash toward the player first. */
+    public static Map<String, Object> guardSlashParams(final ICustomNpc npc) {
+        final Map<String, Object> m = carrierSlashParams(npc);
+        m.put(AbilityParamKeys.PRE_DASH, 1);
+        m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "guardDashTicks", 8));
+        m.put(AbilityParamKeys.MAX_RANGE, getD(npc, "guardDashRange", 10.0));
+        m.put(AbilityParamKeys.LAND_RADIUS, getD(npc, "guardDashStandoff", 2.0));
         return m;
     }
 

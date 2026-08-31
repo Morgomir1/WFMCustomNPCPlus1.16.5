@@ -17,8 +17,8 @@ import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.entity.EntityNPCInterface;
 
 /**
- * Solo Constant Drachenfels: absorb shield, phase HP caps, vessel immunity,
- * vessel-only player damage, monk death clears absorb.
+ * Solo Constant Drachenfels: absorb shield (boss + phase-1 Court), phase HP caps,
+ * vessel immunity, vessel-only player damage, monk death clears absorb.
  */
 @Mod.EventBusSubscriber(modid = "customnpcs", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class DrachenfelsCombatHandler {
@@ -71,9 +71,8 @@ public final class DrachenfelsCombatHandler {
         }
 
         if (!DrachenfelsEncounterHelper.isBoss(npc)) {
-            if (npc.hasTag(DrachenfelsEncounterHelper.TAG_MONK)
-                    && event.getAmount() >= target.getHealth()) {
-                // death handled in LivingDeathEvent
+            if (DrachenfelsEncounterHelper.isBellShieldAlly(npc)) {
+                applyAbsorb(event, npc);
             }
             return;
         }
@@ -90,17 +89,22 @@ public final class DrachenfelsCombatHandler {
             return;
         }
 
+        applyAbsorb(event, npc);
+    }
+
+    private static void applyAbsorb(final LivingHurtEvent event, final ICustomNpc npc) {
         final float absorb = DrachenfelsEncounterHelper.getAbsorb(npc);
-        if (absorb > 0.01F) {
-            final float dmg = event.getAmount();
-            if (dmg <= absorb) {
-                DrachenfelsEncounterHelper.setAbsorb(npc, absorb - dmg);
-                event.setCanceled(true);
-                event.setAmount(0.0F);
-            } else {
-                DrachenfelsEncounterHelper.setAbsorb(npc, 0.0F);
-                event.setAmount(dmg - absorb);
-            }
+        if (absorb <= 0.01F) {
+            return;
+        }
+        final float dmg = event.getAmount();
+        if (dmg <= absorb) {
+            DrachenfelsEncounterHelper.setAbsorb(npc, absorb - dmg);
+            event.setCanceled(true);
+            event.setAmount(0.0F);
+        } else {
+            DrachenfelsEncounterHelper.setAbsorb(npc, 0.0F);
+            event.setAmount(dmg - absorb);
         }
     }
 

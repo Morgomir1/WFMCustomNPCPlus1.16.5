@@ -26,13 +26,13 @@ Seal: `sealCd`, `sealChargeTicks`, `sealActiveTicks`, `sealDamage`, `sealRadius`
 
 Gaze: `gazeCd`, `gazeRange` (5 — must be &lt; kite 6), `gazeFarTicks` (8), `gazeChargeTicks`, `gazeActiveTicks`, `gazeDistance`, `gazeWidth`, `gazeDamage` (telegraph = charge+flight; damage via flying soul projectile).
 
-Attacking telegraphs/hazard waves default **red** `0xC0FF3030`. Seal **puddles** are dark green `0xC0143C14` (`sealZoneColor`). White `0xC0FFFFFF` only for Feast safe seats (`feastColor`); arena blast stays red. Bell absorb shows rotating enchant/end_rod particle ring while active.
+Attacking telegraphs/hazard waves default **red** `0xC0FF3030`. Seal **puddles** are dark green `0xC0143C14` (`sealZoneColor`). White `0xC0FFFFFF` only for Feast safe seats (`feastColor`); arena blast stays red. Bell absorb shows rotating enchant/end_rod particle ring while active (boss + Court cultist/guard). Monk death clears absorb on boss and all Court.
 
 Repulse: `repulseCd` (200), `repulseChargeTicks` (30), `repulseActiveTicks`, `repulseRadius` (3), `repulseKnockback`, `repulseKnockbackY`, `repulseTrigger` (каст если цель ближе).
 
 Phase 1 CD notes: AbilityAPI CDs arm **on cast start**. `Encounter.init` is one-shot (`df_inited`) so JS reload does not rewind clocks. Court CD only after successful spawn.
 
-Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `courtCd`, `cultistInterval`, `guardInterval` (5с = 100t). Параметры кастов аддов берутся из `gaze*` / `carrierArc*` босса.
+Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `courtCd`, `cultistInterval`, `guardInterval` (5с = 100t). Параметры кастов аддов берутся из `gaze*` / `carrierArc*` босса. Guard slash: `preDash` + `guardDashTicks` / `guardDashRange` / `guardDashStandoff` (дэш к игроку, затем cone).
 
 **Add HP (all spawnable adds):** `monkHp`, `cultistHp`, `guardHp`, `leperHp`, `falseCloneHp`, `vesselHpFirst`, `vesselHpRepeat`, `shardHp`.
 

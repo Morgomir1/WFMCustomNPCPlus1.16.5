@@ -355,16 +355,43 @@ public final class DrachenfelsEncounterHelper {
         put(npc.getStoreddata(), ABSORB_KEY, String.valueOf(Math.max(0.0F, value)));
     }
 
-    /** Particle ring while Bell absorb shield is up. */
+    /** Particle ring while Bell absorb shield is up (boss + phase-1 Court allies). */
     private static void tickAbsorbVfx(final ICustomNpc npc, final long now) {
-        if (getAbsorb(npc) <= 0.01F) {
-            return;
-        }
         // Every other tick keeps it readable without flooding packets.
         if ((now & 1L) != 0L) {
             return;
         }
+        tickAbsorbVfxOn(npc);
+        for (final ICustomNpc ally : findTagged(npc, TAG_COURT)) {
+            if (ally != null && ally.isAlive()) {
+                tickAbsorbVfxOn(ally);
+            }
+        }
+    }
+
+    private static void tickAbsorbVfxOn(final ICustomNpc npc) {
+        if (npc == null || getAbsorb(npc) <= 0.01F) {
+            return;
+        }
         AbilityVfx.spawnAbsorbShield(npc.getWorld(), npc.getX(), npc.getY(), npc.getZ());
+    }
+
+    /** True for phase-1 Court adds that can wear Bell absorb (not the monk). */
+    public static boolean isBellShieldAlly(final ICustomNpc npc) {
+        return npc != null && npc.hasTag(TAG_COURT);
+    }
+
+    /** Clears Bell absorb on boss and all living Court allies. */
+    public static void clearBellAbsorb(final ICustomNpc boss) {
+        if (boss == null) {
+            return;
+        }
+        setAbsorb(boss, 0.0F);
+        for (final ICustomNpc ally : findTagged(boss, TAG_COURT)) {
+            if (ally != null) {
+                setAbsorb(ally, 0.0F);
+            }
+        }
     }
 
     public static boolean hasLivingVessels(final ICustomNpc npc) {
@@ -402,10 +429,7 @@ public final class DrachenfelsEncounterHelper {
     }
 
     public static void onMonkDeath(final ICustomNpc monk) {
-        final ICustomNpc boss = findBossForAdd(monk);
-        if (boss != null) {
-            setAbsorb(boss, 0.0F);
-        }
+        clearBellAbsorb(findBossForAdd(monk));
     }
 
     public static void onVesselDeath(final ICustomNpc vessel) {
@@ -782,7 +806,7 @@ public final class DrachenfelsEncounterHelper {
         put(data, ABSORB_KEY, "0");
         put(data, PENDING_FALSE, "0");
         put(data, FALSE_ACTIVE, "0");
-        setAbsorb(npc, 0.0F);
+        clearBellAbsorb(npc);
         restoreBossAfterFalseHost(npc);
         killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
                 TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
@@ -888,6 +912,14 @@ public final class DrachenfelsEncounterHelper {
         final float absorb = (float) (npc.getMaxHealth()
                 * DrachenfelsConfig.getD(data, "absorbRatio", ABSORB_RATIO));
         setAbsorb(npc, absorb);
+        // Same Bell shield on living Court adds (cultists / guards), not the monk.
+        for (final ICustomNpc ally : findTagged(npc, TAG_COURT)) {
+            if (ally == null || !ally.isAlive()) {
+                continue;
+            }
+            setAbsorb(ally, absorb);
+            AbilityVfx.spawnAbsorbShield(ally.getWorld(), ally.getX(), ally.getY(), ally.getZ());
+        }
         ICustomNpc monk = findFirstTagged(npc, TAG_MONK);
         if (monk == null) {
             final int tab = ScriptDataUtil.getInt(data, CLONE_TAB);
@@ -907,6 +939,18 @@ public final class DrachenfelsEncounterHelper {
             setAiNone(monk);
             applyAddHp(monk, (float) DrachenfelsConfig.getD(data, "monkHp", 40.0));
         }
+    }
+
+    /** If Bell shield is still up (monk alive), new Court adds join under the same absorb. */
+    private static void maybeShareBellAbsorb(final ICustomNpc boss, final ICustomNpc add) {
+        if (boss == null || add == null || getAbsorb(boss) <= 0.01F) {
+            return;
+        }
+        if (findFirstTagged(boss, TAG_MONK) == null) {
+            return;
+        }
+        setAbsorb(add, getAbsorb(boss));
+        AbilityVfx.spawnAbsorbShield(add.getWorld(), add.getX(), add.getY(), add.getZ());
     }
 
     private static boolean tryGaze(
@@ -984,6 +1028,7 @@ public final class DrachenfelsEncounterHelper {
                 ? (float) DrachenfelsConfig.getD(data, "cultistHp", 30.0)
                 : (float) DrachenfelsConfig.getD(data, "guardHp", 50.0);
         applyAddHp(add, hp);
+        maybeShareBellAbsorb(npc, add);
         return false; // court is not an AbilityAPI cast
     }
 
@@ -1530,7 +1575,7 @@ public final class DrachenfelsEncounterHelper {
             if (target == null || !target.isAlive()) {
                 continue;
             }
-            if (!startAddAbility(g, DfCarrierSlashAbility.ID, target, DrachenfelsConfig.carrierSlashParams(boss))) {
+            if (!startAddAbility(g, DfCarrierSlashAbility.ID, target, DrachenfelsConfig.guardSlashParams(boss))) {
                 continue;
             }
             put(gd, ADD_NEXT_ATK,

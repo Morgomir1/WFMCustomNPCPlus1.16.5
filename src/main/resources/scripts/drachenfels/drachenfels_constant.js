@@ -48,7 +48,7 @@ var SEAL_ACTIVE_TICKS = 1;
 var SEAL_DAMAGE = 12.0;
 var SEAL_RADIUS = 3.0;
 // Lifetime so puddles from 3 seals overlap: ~2*(CD + charge + active).
-var SEAL_ZONE_TICKS = 480;
+var SEAL_ZONE_TICKS = 780;
 var SEAL_ZONE_DAMAGE = 6.0;
 var SEAL_ZONE_INTERVAL = 10;
 var SEAL_POISON_DURATION = 100; // 5s
@@ -94,6 +94,9 @@ var ABSORB_RATIO = 0.133;
 var COURT_CD = 320;
 var CULTIST_INTERVAL = 50;
 var GUARD_INTERVAL = 100;
+var GUARD_DASH_TICKS = 8;
+var GUARD_DASH_RANGE = 10.0;
+var GUARD_DASH_STANDOFF = 2.0;
 
 // =========================
 // ФАЗА 2 — цикл / Яд / Места / Бал / Ложный Хозяин
@@ -130,7 +133,7 @@ var LEPER_HP = 1.0; // phantoms are hazard carriers; HP for rare player hits
 var LEPER_START_RADIUS = 1.5; // spawn near boss
 var LEPER_SPAWN_RADIUS = 24.0; // fly outward to this radius
 var LEPER_DURATION = 70; // flight ticks per spirit
-var LEPER_HIT_RADIUS = 1.5; // red hazard under spirit
+var LEPER_HIT_RADIUS = 2.0; // red hazard under spirit
 var LEPER_SLOW_DURATION = 30;
 var LEPER_SLOW_AMP = 1;
 var LEPER_VOLLEYS = 3;
@@ -287,6 +290,9 @@ function init(event) {
         "courtCd", COURT_CD,
         "cultistInterval", CULTIST_INTERVAL,
         "guardInterval", GUARD_INTERVAL,
+        "guardDashTicks", GUARD_DASH_TICKS,
+        "guardDashRange", GUARD_DASH_RANGE,
+        "guardDashStandoff", GUARD_DASH_STANDOFF,
 
         // HP всех аддов
         "monkHp", MONK_HP,

@@ -18,11 +18,15 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Phase 3 carrier window: truncated cone slash like {@link WhFlamingStrikeAbility},
- * with soul/dark VFX. Holds the boss in place so knockback cannot interrupt.
+ * Truncated cone slash (phase 3 carrier / phase 1 guards).
+ * Guards pass {@code preDash=1}: approach dash toward the player, then cone telegraph + strike.
+ * Holds the caster in place during slash charge so knockback cannot interrupt.
  */
 public final class DfCarrierSlashAbility implements CnpcAbility {
     public static final String ID = "df_carrier_slash";
+
+    /** Dash toward target before slash telegraph. */
+    private static final int PHASE_DASH = 3;
 
     @Override
     public String getId() {
@@ -51,9 +55,13 @@ public final class DfCarrierSlashAbility implements CnpcAbility {
                 AbilityParamKeys.RADIUS,
                 AbilityParamKeys.CONE_HALF_ANGLE,
                 AbilityParamKeys.CHARGE_TICKS,
+                AbilityParamKeys.ACTIVE_TICKS,
                 AbilityParamKeys.DAMAGE,
                 AbilityParamKeys.KNOCKBACK,
                 AbilityParamKeys.KNOCKBACK_Y,
+                AbilityParamKeys.MAX_RANGE,
+                AbilityParamKeys.LAND_RADIUS,
+                AbilityParamKeys.PRE_DASH,
                 AbilityParamKeys.TELEGRAPH,
                 AbilityParamKeys.TELEGRAPH_COLOR);
     }
@@ -67,6 +75,128 @@ public final class DfCarrierSlashAbility implements CnpcAbility {
         active.jumpStyle = false;
         active.markers.clear();
         active.telegraphIds.clear();
+        active.hitUuids.clear();
+        AbilityCombatHelper.freezeAiForCast(active, ctx.npc);
+
+        if (ctx.params.getInt(AbilityParamKeys.PRE_DASH, 0) != 0
+                && beginApproachDash(active, ctx)) {
+            return true;
+        }
+        return beginSlashCharge(active, ctx);
+    }
+
+    @Override
+    public TickResult tick(final ActiveAbility active, final AbilityContext ctx) {
+        if (active.phase == PHASE_DASH) {
+            return tickDash(active, ctx);
+        }
+        if (active.phase == ActiveAbility.PHASE_CHARGE) {
+            return tickCharge(active, ctx);
+        }
+        if (active.phase == ActiveAbility.PHASE_ACTIVE) {
+            return doStrike(active, ctx);
+        }
+        return TickResult.FINISHED;
+    }
+
+    /**
+     * @return true if a dash phase was started; false if already in slash range (caller starts slash).
+     */
+    private boolean beginApproachDash(final ActiveAbility active, final AbilityContext ctx) {
+        final double sx = ctx.npc.getX();
+        final double sy = ctx.npc.getY();
+        final double sz = ctx.npc.getZ();
+        final double tx = ctx.target.getX();
+        final double tz = ctx.target.getZ();
+        final double dx = tx - sx;
+        final double dz = tz - sz;
+        final double len = Math.sqrt(dx * dx + dz * dz);
+        final double standoff = Math.max(0.8, ctx.params.getDouble(AbilityParamKeys.LAND_RADIUS, 2.0));
+        final double maxRange = Math.max(1.0, ctx.params.getDouble(AbilityParamKeys.MAX_RANGE, 10.0));
+
+        if (len <= standoff + 0.4) {
+            return false;
+        }
+
+        final double dirX;
+        final double dirZ;
+        if (len < 0.05) {
+            dirX = 0.0;
+            dirZ = 1.0;
+        } else {
+            dirX = dx / len;
+            dirZ = dz / len;
+        }
+
+        final double travel = Math.min(maxRange, len - standoff);
+        if (travel < 0.5) {
+            return false;
+        }
+
+        active.sx = sx;
+        active.sy = sy;
+        active.sz = sz;
+        active.ex = sx + dirX * travel;
+        active.ez = sz + dirZ * travel;
+        active.ey = AbilityCombatHelper.findGroundY(ctx.world, active.ex, active.ez, sy);
+        active.yaw = AbilityCombatHelper.computeYaw(dirX, dirZ);
+
+        final int dashTicks = Math.max(3, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 8));
+        active.markers.add(new double[]{dashTicks});
+
+        final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, TelegraphAPI.DEFAULT_COLOR);
+        final String lineId = TelegraphAPI.line(
+                ctx.npc, active.sx, active.sy, active.sz, active.yaw,
+                travel, 1.1, dashTicks, color);
+        if (lineId != null && !lineId.isEmpty()) {
+            active.telegraphIds.add(lineId);
+        }
+
+        active.phase = PHASE_DASH;
+        active.ticksLeft = dashTicks;
+        AbilityCombatHelper.stopNavigation(ctx.npc);
+        ctx.npc.setRotation(active.yaw);
+        ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.ravager.roar", 0.55F, 1.35F);
+        return true;
+    }
+
+    private TickResult tickDash(final ActiveAbility active, final AbilityContext ctx) {
+        final int total = !active.markers.isEmpty()
+                ? Math.max(1, (int) active.markers.get(0)[0])
+                : Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 8));
+        final double progress = 1.0 - (active.ticksLeft - 1) / (double) total;
+        final double[] point = AbilityCombatHelper.resolveDashPointAtProgress(
+                ctx, active.sx, active.sy, active.sz, active.ex, active.ez, progress);
+        AbilityCombatHelper.stopNavigation(ctx.npc);
+        ctx.npc.setPosition(point[0], point[1], point[2]);
+        ctx.npc.setRotation(active.yaw);
+        AbilityVfx.spawnShadowTrail(ctx.world, point[0], point[1], point[2]);
+
+        active.ticksLeft--;
+        if (active.ticksLeft > 0) {
+            return TickResult.CONTINUE;
+        }
+
+        final double[] end = AbilityCombatHelper.resolveDashPointAtProgress(
+                ctx, active.sx, active.sy, active.sz, active.ex, active.ez, 1.0);
+        ctx.npc.setPosition(end[0], end[1], end[2]);
+        AbilityTelegraph.clear(active, ctx);
+        AbilityVfx.spawnLandBurst(ctx.world, end[0], end[1], end[2], false);
+        ctx.world.playSoundAt(
+                NpcAPI.Instance().getIPos(end[0], end[1], end[2]),
+                "minecraft:entity.player.attack.strong",
+                0.75F,
+                0.95F);
+
+        if (!beginSlashCharge(active, ctx)) {
+            return TickResult.FINISHED;
+        }
+        return TickResult.CONTINUE;
+    }
+
+    private boolean beginSlashCharge(final ActiveAbility active, final AbilityContext ctx) {
+        active.markers.clear();
+        active.telegraphIds.clear();
 
         active.sx = ctx.npc.getX();
         active.sy = ctx.npc.getY();
@@ -76,8 +206,19 @@ public final class DfCarrierSlashAbility implements CnpcAbility {
         final double nearHalfWidth = ctx.params.getDouble(AbilityParamKeys.RADIUS, 1.35);
         final double halfAngle = ctx.params.getDouble(AbilityParamKeys.CONE_HALF_ANGLE, 38.0);
 
-        final double dx = ctx.target.getX() - active.sx;
-        final double dz = ctx.target.getZ() - active.sz;
+        final double aimX;
+        final double aimZ;
+        if (ctx.target != null && ctx.target.isAlive()) {
+            aimX = ctx.target.getX();
+            aimZ = ctx.target.getZ();
+        } else {
+            final double rad = (active.yaw + 90.0) * 0.0174532925;
+            aimX = active.sx + Math.cos(rad);
+            aimZ = active.sz + Math.sin(rad);
+        }
+
+        final double dx = aimX - active.sx;
+        final double dz = aimZ - active.sz;
         final double len = Math.sqrt(dx * dx + dz * dz);
         final double nx;
         final double nz;
@@ -117,22 +258,10 @@ public final class DfCarrierSlashAbility implements CnpcAbility {
         active.phase = ActiveAbility.PHASE_CHARGE;
         active.ticksLeft = chargeTicks;
         active.hitUuids.clear();
-        AbilityCombatHelper.freezeAiForCast(active, ctx.npc);
         AbilityCombatHelper.holdInPlace(ctx.npc, active.sx, active.sy, active.sz);
         ctx.npc.setRotation(active.yaw);
         ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.vex.ambient", 0.95F, 0.55F);
         return true;
-    }
-
-    @Override
-    public TickResult tick(final ActiveAbility active, final AbilityContext ctx) {
-        if (active.phase == ActiveAbility.PHASE_CHARGE) {
-            return tickCharge(active, ctx);
-        }
-        if (active.phase == ActiveAbility.PHASE_ACTIVE) {
-            return doStrike(active, ctx);
-        }
-        return TickResult.FINISHED;
     }
 
     private TickResult tickCharge(final ActiveAbility active, final AbilityContext ctx) {

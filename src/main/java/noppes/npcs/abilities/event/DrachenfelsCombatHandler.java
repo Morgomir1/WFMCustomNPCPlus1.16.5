@@ -62,7 +62,8 @@ public final class DrachenfelsCombatHandler {
         final ICustomNpc npc = (ICustomNpc) wrapped;
 
         if (npc.hasTag(DrachenfelsEncounterHelper.TAG_VESSEL)
-                || npc.hasTag(DrachenfelsEncounterHelper.TAG_SHARD)) {
+                || npc.hasTag(DrachenfelsEncounterHelper.TAG_SHARD)
+                || npc.hasTag(DrachenfelsEncounterHelper.TAG_DESP_SHARD)) {
             if (!isPlayerDamage(event.getSource().getEntity())) {
                 event.setCanceled(true);
                 event.setAmount(0.0F);
@@ -171,6 +172,10 @@ public final class DrachenfelsCombatHandler {
         }
         if (npc.hasTag(DrachenfelsEncounterHelper.TAG_SHARD)) {
             DrachenfelsEncounterHelper.onShardDeath(npc);
+            return;
+        }
+        if (npc.hasTag(DrachenfelsEncounterHelper.TAG_DESP_SHARD)) {
+            DrachenfelsEncounterHelper.onDespShardDeath(npc);
             return;
         }
         if (DrachenfelsEncounterHelper.isBoss(npc)) {

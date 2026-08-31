@@ -296,6 +296,25 @@ public final class DrachenfelsConfig {
         return m;
     }
 
+    /** Desperation Air blobs: crimson_blob flight → seal-style green puddles R=3. */
+    public static Map<String, Object> desperationBlobParams(final ICustomNpc npc) {
+        final Map<String, Object> m = new HashMap<>();
+        m.put(AbilityParamKeys.CHARGE_TICKS, getI(npc, "despBlobChargeTicks", 12));
+        m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "despBlobFlightTicks", 14));
+        m.put(AbilityParamKeys.ARC_HEIGHT, getD(npc, "despBlobArcHeight", 5.0));
+        m.put(AbilityParamKeys.MAX_RANGE, getD(npc, "engageRadius", 60.0));
+        m.put(AbilityParamKeys.LAND_RADIUS, getD(npc, "despBlobRadius", 3.0));
+        m.put(AbilityParamKeys.ZONE_TICKS, getI(npc, "despBlobZoneTicks", getI(npc, "sealZoneTicks", 480)));
+        m.put(AbilityParamKeys.DAMAGE, getD(npc, "despBlobDamage", getD(npc, "sealZoneDamage", 3.0)));
+        m.put(AbilityParamKeys.DAMAGE_INTERVAL, getI(npc, "despBlobDamageInterval", getI(npc, "sealZoneInterval", 10)));
+        m.put(AbilityParamKeys.ZONE_COLOR, getI(npc, "sealZoneColor", 0xC0143C14));
+        m.put(AbilityParamKeys.EFFECT_ID, "minecraft:poison");
+        m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "sealPoisonDuration", 100));
+        m.put(AbilityParamKeys.EFFECT_AMPLIFIER, getI(npc, "sealPoisonAmp", 1));
+        m.put(AbilityParamKeys.TELEGRAPH, 0);
+        return m;
+    }
+
     private static String str(final IData data, final String key) {
         if (data == null || !data.has(key)) {
             return "";

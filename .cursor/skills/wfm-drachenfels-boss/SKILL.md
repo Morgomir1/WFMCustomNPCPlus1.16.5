@@ -40,6 +40,7 @@ description: >-
 HP 100% ──► Phase 1 (kite + seal/gaze/bell/court)
      66% ──► Transition ──► Phase 2 (цикл яд/места/бал + false host)
      33% ──► Transition ──► Phase 3 spirit (сосуды/осколки + step/whisper/steal + carrier)
+     25% / 15% / 5% ──► Desperation Air (взлёт + rings/blobs + desp shards)
 ```
 
 ### Phase 1 — тело / kite
@@ -90,9 +91,11 @@ Spirit AI (без ходьбы). Сразу 3 **Vessel** на кольце (rand
 3. Все vessel мертвы → **Carrier window** (~240t): босс снова плоть, cone-атаки; убить до конца окна.
 4. Окно провалено → снова spirit + новый набор vessel (меньше HP).
 
+**Desperation Air** (HP marks **25% / 15% / 5%**, обычно в carrier): cancel → чистка vessel/shard → центр арены → взлёт (~5 блоков) + invuln. Пока в воздухе: чередует `df_imperial_poison` ↔ `df_nameless_whisper` с паузой **4с** между кольцами; в паузе — `crimson_blob` → seal-лужи R=3 (тёмно-зелёные). 3× `df_desp_shard` ползут с `dist≥10` к боссу. Touch любого → фуллхил + ресет в **фазу 1**. Все 3 убиты → падение + AFK 10с → spirit + новый vessel set (текущий HP; marks остаются).
+
 ## Адды (клоны)
 
-Имена задаются в JS → `configureClones`. Теги: `df_monk`, `df_court`/`df_cultist`/`df_guard`, `df_leper`, `df_false`, `df_vessel`, `df_shard`.
+Имена задаются в JS → `configureClones`. Теги: `df_monk`, `df_court`/`df_cultist`/`df_guard`, `df_leper`, `df_false`, `df_vessel`, `df_shard`, `df_desp_shard`.
 
 | Клон | Роль |
 |------|------|
@@ -102,6 +105,7 @@ Spirit AI (без ходьбы). Сразу 3 **Vessel** на кольце (rand
 | Leper Phantom | 3 залпа от босса наружу, виляющий полёт |
 | False Host | 1 HP decoy |
 | Vessel / Shard | phase 3 mechanics |
+| Desp Shard | Desperation Air crawl; touch = fail |
 
 ## При правках
 

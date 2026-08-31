@@ -186,6 +186,25 @@ var SHARD_HEAL_RATIO = 0.0267;
 var SHARD_TOUCH_DIST = 2.75;
 var SHARD_DELAY_TICKS = 5;
 
+// =========================
+// ФАЗА 3 — Desperation Air (25% / 15% / 5%)
+// =========================
+var DESPERATION_RATIOS = "0.25,0.15,0.05";
+var DESP_AIR_HEIGHT = 5.0;
+var DESP_RING_INTERVAL = 80;   // 4с пауза после кольца до следующего
+var DESP_BLOB_CD = 30;
+var DESP_STUN_TICKS = 200;     // 10с AFK после успеха
+var DESP_SHARD_MIN_DIST = 10.0;
+var DESP_SHARD_SPEED = 0.03;
+var DESP_SHARD_HP = 20.0;
+var DESP_BLOB_RADIUS = 3.0;
+var DESP_BLOB_CHARGE_TICKS = 12;
+var DESP_BLOB_FLIGHT_TICKS = 14;
+var DESP_BLOB_ARC_HEIGHT = 5.0;
+var DESP_BLOB_ZONE_TICKS = 480;
+var DESP_BLOB_DAMAGE = 6.0;
+var DESP_BLOB_DAMAGE_INTERVAL = 10;
+
 var STEP_CD = 120;
 var STEP_CHARGE_TICKS = 16;
 var STEP_ACTIVE_TICKS = 10;
@@ -374,6 +393,22 @@ function init(event) {
         "shardHealRatio", SHARD_HEAL_RATIO,
         "shardTouchDist", SHARD_TOUCH_DIST,
         "shardDelayTicks", SHARD_DELAY_TICKS,
+
+        "desperationRatios", DESPERATION_RATIOS,
+        "despAirHeight", DESP_AIR_HEIGHT,
+        "despRingInterval", DESP_RING_INTERVAL,
+        "despBlobCd", DESP_BLOB_CD,
+        "despStunTicks", DESP_STUN_TICKS,
+        "despShardMinDist", DESP_SHARD_MIN_DIST,
+        "despShardSpeed", DESP_SHARD_SPEED,
+        "despShardHp", DESP_SHARD_HP,
+        "despBlobRadius", DESP_BLOB_RADIUS,
+        "despBlobChargeTicks", DESP_BLOB_CHARGE_TICKS,
+        "despBlobFlightTicks", DESP_BLOB_FLIGHT_TICKS,
+        "despBlobArcHeight", DESP_BLOB_ARC_HEIGHT,
+        "despBlobZoneTicks", DESP_BLOB_ZONE_TICKS,
+        "despBlobDamage", DESP_BLOB_DAMAGE,
+        "despBlobDamageInterval", DESP_BLOB_DAMAGE_INTERVAL,
 
         "stepCd", STEP_CD,
         "stepChargeTicks", STEP_CHARGE_TICKS,

@@ -16,7 +16,9 @@
 | `df_name_steal` | `DfNameStealAbility` | 3 |
 | `df_carrier_slash` | `DfCarrierSlashAbility` | 3 carrier |
 
-Helper-only (не AbilityAPI): Bell, Court spawn, vessel/shard/carrier.
+Helper-only (не AbilityAPI): Bell, Court spawn, vessel/shard/carrier, **Desperation Air**.
+
+Desperation Air reuse: `df_imperial_poison` / `df_nameless_whisper` (rings) + `crimson_blob` (blobs → seal puddles). Tag `df_desp_shard`.
 
 ## Config keys (`df_c_*`)
 
@@ -49,6 +51,8 @@ False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActive
 Phase 3 vessels: `vesselRing` (max dist from center, default 11.5), `vesselRingMin` (default 10.5), `vesselAngleJitter` (±deg around even spacing, default 30). Spawn uses random base rotation + jitter + random radius in `[min,max]` (clamped to arena). Also `vesselHpFirst`/`vesselHpRepeat`, `shardHp`, `shardSpeed` (default 0.06), `shardHealRatio`, `shardTouchDist` (default 2.75), `shardDelayTicks`.
 
 Phase 3 casts / carrier: `stepCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`Width`/`LandRadius`/`Overshoot`/`MinPlayerDist`, `whisperCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`BlindDuration`/`Thickness`/`Ring1..3`, `stealCd`/`Range`/`Damage`/`ChargeTicks`/`TelegraphRadius`/`WeakDuration`/`BlindDuration`, `carrierTicks`/`Speed`, carrier slash AbilityAPI `df_carrier_slash`: `carrierArcDamage`/`Distance`/`NearWidth`/`HalfAngle`/`CastTicks`/`Interval`/`Knockback`/`KnockbackY` (truncated cone like `wh_flaming_strike`, soul VFX, hold-in-place).
+
+Desperation Air: `desperationRatios` (`"0.25,0.15,0.05"`), `despAirHeight` (5), `despRingInterval` (80 = 4s gap after ring ends), `despBlobCd` (30), `despStunTicks` (200), `despShardMinDist` (10), `despShardSpeed` (0.03), `despShardHp`, `despBlobRadius` (3), `despBlobChargeTicks`/`FlightTicks`/`ArcHeight`/`ZoneTicks`/`Damage`/`DamageInterval`. Blob puddles use `sealZoneColor` + seal poison. Fail → full heal + phase 1 (marks reset). Success → stun then spirit + `spawnVesselSet(false)`.
 
 ## JS bootstrap
 
@@ -86,3 +90,6 @@ function init(event) {
 | `df_nameless_step` | `Шаг без имени.` |
 | `df_nameless_whisper` | `Шёпот, который стирает вас.` |
 | `df_name_steal` | `Ваше имя теперь моё.` |
+| Desperation start | `Взлетаю. Разбейте осколки — или замок начнётся снова.` |
+| Desperation fail | `Осколок коснулся. Пир начинается сначала.` |
+| Desperation success | `Осколки разбиты. Падаю…` |

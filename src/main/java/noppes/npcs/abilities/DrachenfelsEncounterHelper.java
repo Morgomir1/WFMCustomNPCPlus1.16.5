@@ -9,6 +9,7 @@ import net.minecraft.potion.Effects;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.world.World;
 import net.minecraft.world.server.ServerWorld;
+import noppes.npcs.abilities.impl.CrimsonBlobAbility;
 import noppes.npcs.abilities.impl.DfBlackSealAbility;
 import noppes.npcs.abilities.impl.DfCarrierSlashAbility;
 import noppes.npcs.abilities.impl.DfFalseHostAbility;
@@ -55,6 +56,7 @@ public final class DrachenfelsEncounterHelper {
     public static final String TAG_FALSE = "df_false";
     public static final String TAG_VESSEL = "df_vessel";
     public static final String TAG_SHARD = "df_shard";
+    public static final String TAG_DESP_SHARD = "df_desp_shard";
 
     public static final double ARENA_RADIUS = 12.0;
 
@@ -62,6 +64,7 @@ public final class DrachenfelsEncounterHelper {
     private static final double PHASE3_RATIO = 0.33;
     private static final double[] BELL_RATIOS = {0.88, 0.76};
     private static final double[] FALSE_RATIOS = {0.56, 0.46, 0.36};
+    private static final double[] DESPERATION_RATIOS = {0.25, 0.15, 0.05};
     private static final double ABSORB_RATIO = 0.133;
     private static final double SHARD_HEAL_RATIO = 0.0267;
 
@@ -89,6 +92,13 @@ public final class DrachenfelsEncounterHelper {
     private static final int FALSE_PANIC_SPEED = 6;
     private static final double SHARD_SPEED = 0.06;
     private static final double SHARD_TOUCH_DIST = 2.75;
+    private static final double DESP_AIR_HEIGHT = 5.0;
+    private static final int DESP_RING_INTERVAL = 80;
+    private static final int DESP_BLOB_CD = 30;
+    private static final int DESP_STUN_TICKS = 200;
+    private static final double DESP_SHARD_MIN_DIST = 10.0;
+    private static final double DESP_SHARD_SPEED = 0.03;
+    private static final double DESP_BLOB_RADIUS = 3.0;
 
     private static final String PHASE_KEY = "df_phase";
     private static final String ABSORB_KEY = "df_absorb";
@@ -111,6 +121,14 @@ public final class DrachenfelsEncounterHelper {
     private static final double PUDDLE_ARRIVE = 0.75;
     private static final String BELL_FIRED = "df_bell_fired";
     private static final String FALSE_FIRED = "df_false_fired";
+    private static final String DESPERATION = "df_desperation";
+    private static final String DESPERATION_FIRED = "df_desperation_fired";
+    private static final String DESP_RING_AT = "df_desp_ring_at";
+    private static final String DESP_RING_ALT = "df_desp_ring_alt";
+    private static final String DESP_BLOB_AT = "df_desp_blob_at";
+    private static final String DESP_STUN_UNTIL = "df_desp_stun_until";
+    private static final String DESP_AIR_Y = "df_desp_air_y";
+    private static final String DESP_SPAWNED = "df_desp_spawned";
     private static final String CYCLE_ORIGIN = "df_cycle_origin";
     private static final String CYCLE_SHIFT = "df_cycle_shift";
     private static final String CYCLE_SLOT = "df_cycle_slot";
@@ -183,6 +201,14 @@ public final class DrachenfelsEncounterHelper {
         put(data, TRANSITION, "0");
         put(data, BELL_FIRED, "");
         put(data, FALSE_FIRED, "");
+        put(data, DESPERATION, "0");
+        put(data, DESPERATION_FIRED, "");
+        put(data, DESP_RING_AT, "0");
+        put(data, DESP_RING_ALT, "0");
+        put(data, DESP_BLOB_AT, "0");
+        put(data, DESP_STUN_UNTIL, "0");
+        put(data, DESP_AIR_Y, "0");
+        put(data, DESP_SPAWNED, "0");
         put(data, CYCLE_ORIGIN, "0");
         put(data, CYCLE_SHIFT, "0");
         put(data, CYCLE_SLOT, "0");
@@ -264,7 +290,9 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         enforcePhaseCap(npc, data);
-        updatePhase(npc, data, now);
+        if (!isDesperationActive(data) && !isDesperationStunned(data, now)) {
+            updatePhase(npc, data, now);
+        }
         tickAbsorbVfx(npc, now);
         if (hasLivingFalseHosts(npc)) {
             hideBossForFalseHost(npc);
@@ -272,6 +300,21 @@ public final class DrachenfelsEncounterHelper {
                 && !DfFalseHostAbility.ID.equals(AbilityAPI.getActiveId(npc))) {
             restoreBossAfterFalseHost(npc);
         }
+
+        final int phase = ScriptDataUtil.getInt(data, PHASE_KEY);
+        if (phase == 3 && !isDesperationActive(data) && !isDesperationStunned(data, now)) {
+            tickDesperationTrigger(npc, data, now);
+        }
+        if (isDesperationActive(data)) {
+            resolveCombatTarget(npc);
+            tickDesperation(npc, data, now);
+            return;
+        }
+        if (isDesperationStunned(data, now)) {
+            tickDesperationStun(npc, data, now);
+            return;
+        }
+
         // No survival/adventure players in engage range: stop casts, drop aggro.
         if (!hasNearbyPlayers(npc)) {
             if (AbilityAPI.isBusy(npc)) {
@@ -295,7 +338,6 @@ public final class DrachenfelsEncounterHelper {
         tickVessels(npc, data, now);
         tickCarrier(npc, data, now);
 
-        final int phase = ScriptDataUtil.getInt(data, PHASE_KEY);
         if (phase == 1) {
             tickPhase1(npc, data, now);
         } else if (phase == 2) {
@@ -317,7 +359,7 @@ public final class DrachenfelsEncounterHelper {
         AbilityAPI.cancel(npc);
         restoreBossAfterFalseHost(npc);
         killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
-                TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
+                TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD, TAG_DESP_SHARD);
         clearOwnerZones(npc);
         // Allow full re-init on CNPC respawn (phase/HP must not stick from previous fight).
         ScriptDataUtil.setFlag(data, INITED, false);
@@ -328,9 +370,16 @@ public final class DrachenfelsEncounterHelper {
         if (npc == null || abilityId == null) {
             return;
         }
+        final IData data = npc.getStoreddata();
+        // Desperation ring finished → arm 4s gap before next ring (blobs fill the gap).
+        if (ScriptDataUtil.isFlag(data, DESPERATION)
+                && (DfImperialPoisonAbility.ID.equals(abilityId)
+                || DfNamelessWhisperAbility.ID.equals(abilityId))) {
+            put(data, DESP_RING_AT, String.valueOf(now(npc)
+                    + DrachenfelsConfig.getI(data, "despRingInterval", DESP_RING_INTERVAL)));
+        }
         // Ability CDs are armed on cast start (startBossAbility) so intervals match configured CD.
         if (DfFalseHostAbility.ID.equals(abilityId)) {
-            final IData data = npc.getStoreddata();
             final int shift = ScriptDataUtil.getInt(data, CYCLE_SHIFT);
             put(data, CYCLE_SHIFT, String.valueOf(shift + DrachenfelsConfig.getI(data, "falseShift", FALSE_SHIFT)));
             put(data, PENDING_FALSE, "0");
@@ -346,9 +395,12 @@ public final class DrachenfelsEncounterHelper {
             return false;
         }
         final IData data = npc.getStoreddata();
-        return now(npc) < ScriptDataUtil.getLong(data, INVULN_UNTIL)
+        final long now = now(npc);
+        return now < ScriptDataUtil.getLong(data, INVULN_UNTIL)
                 || ScriptDataUtil.isFlag(data, TRANSITION)
-                || ScriptDataUtil.isFlag(data, FALSE_ACTIVE);
+                || ScriptDataUtil.isFlag(data, FALSE_ACTIVE)
+                || ScriptDataUtil.isFlag(data, DESPERATION)
+                || now < ScriptDataUtil.getLong(data, DESP_STUN_UNTIL);
     }
 
     public static float getAbsorb(final ICustomNpc npc) {
@@ -463,6 +515,28 @@ public final class DrachenfelsEncounterHelper {
 
     public static void onShardDeath(final ICustomNpc shard) {
         // no heal — already handled if contact; death just removes
+    }
+
+    public static void onDespShardDeath(final ICustomNpc shard) {
+        final ICustomNpc boss = findBossForAdd(shard);
+        if (boss == null) {
+            return;
+        }
+        final IData data = boss.getStoreddata();
+        if (!ScriptDataUtil.isFlag(data, DESPERATION)) {
+            return;
+        }
+        // Dying shard may still be counted until removed — treat as already dead.
+        int alive = 0;
+        final String dyingUuid = String.valueOf(shard.getUUID());
+        for (final ICustomNpc s : findTagged(boss, TAG_DESP_SHARD)) {
+            if (s != null && s.isAlive() && !dyingUuid.equals(String.valueOf(s.getUUID()))) {
+                alive++;
+            }
+        }
+        if (alive <= 0) {
+            succeedDesperation(boss, data, now(boss));
+        }
     }
 
     /** Cardinal / diagonal / half-diagonal salvoes — 4 spirits each. */
@@ -811,10 +885,13 @@ public final class DrachenfelsEncounterHelper {
         put(data, ABSORB_KEY, "0");
         put(data, PENDING_FALSE, "0");
         put(data, FALSE_ACTIVE, "0");
+        put(data, DESPERATION, "0");
+        put(data, DESP_STUN_UNTIL, "0");
+        put(data, DESP_SPAWNED, "0");
         clearBellAbsorb(npc);
         restoreBossAfterFalseHost(npc);
         killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
-                TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
+                TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD, TAG_DESP_SHARD);
         clearOwnerZones(npc);
         final double[] c = getArenaCenter(npc);
         final double y = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
@@ -1123,6 +1200,267 @@ public final class DrachenfelsEncounterHelper {
             }
             return;
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Desperation Air (25% / 15% / 5%)
+    // -------------------------------------------------------------------------
+
+    private static boolean isDesperationActive(final IData data) {
+        return ScriptDataUtil.isFlag(data, DESPERATION);
+    }
+
+    private static boolean isDesperationStunned(final IData data, final long now) {
+        return now < ScriptDataUtil.getLong(data, DESP_STUN_UNTIL);
+    }
+
+    private static void tickDesperationTrigger(final ICustomNpc npc, final IData data, final long now) {
+        final double ratio = hpRatio(npc);
+        final String fired = str(data, DESPERATION_FIRED);
+        final double[] ratios = DrachenfelsConfig.getRatios(data, "desperationRatios", DESPERATION_RATIOS);
+        for (int i = 0; i < ratios.length; i++) {
+            final String mark = DrachenfelsConfig.mark(ratios[i]);
+            if (fired.contains(mark)) {
+                continue;
+            }
+            if (ratio > ratios[i]) {
+                continue;
+            }
+            put(data, DESPERATION_FIRED, fired.isEmpty() ? mark : fired + ";" + mark);
+            beginDesperation(npc, data, now);
+            return;
+        }
+    }
+
+    private static void beginDesperation(final ICustomNpc npc, final IData data, final long now) {
+        AbilityAPI.cancel(npc);
+        put(data, DESPERATION, "1");
+        put(data, DESP_SPAWNED, "0");
+        put(data, IN_CARRIER, "0");
+        put(data, SPIRIT_MODE, "0");
+        put(data, DESP_STUN_UNTIL, "0");
+        put(data, ABSORB_KEY, "0");
+        clearBellAbsorb(npc);
+        killTaggedNear(npc, TAG_VESSEL, TAG_SHARD, TAG_DESP_SHARD, TAG_PHANTOM, TAG_FALSE);
+        clearOwnerZones(npc);
+        put(data, SHARD_SPAWN_AT, "");
+
+        final double[] c = getArenaCenter(npc);
+        final double gy = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
+        final double airY = gy + DrachenfelsConfig.getD(data, "despAirHeight", DESP_AIR_HEIGHT);
+        put(data, DESP_AIR_Y, String.valueOf(airY));
+        npc.setPosition(c[0], airY, c[2]);
+        applySpiritAi(npc);
+
+        put(data, DESP_RING_AT, String.valueOf(now));
+        put(data, DESP_RING_ALT, "0");
+        put(data, DESP_BLOB_AT, String.valueOf(now));
+        spawnDesperationShards(npc, data);
+        put(data, DESP_SPAWNED, "1");
+        say(npc, "Взлетаю. Разбейте осколки — или замок начнётся снова.");
+        AbilityVfx.spawnSoulBurst(npc.getWorld(), c[0], airY, c[2], 2.2);
+    }
+
+    private static void tickDesperation(final ICustomNpc npc, final IData data, final long now) {
+        final double[] c = getArenaCenter(npc);
+        final double airY = ScriptDataUtil.getFloat(data, DESP_AIR_Y);
+        final double holdY = airY > 0.1 ? airY : c[1] + DESP_AIR_HEIGHT;
+        AbilityCombatHelper.holdInPlace(npc, c[0], holdY, c[2]);
+
+        if (tickDesperationShards(npc, data)) {
+            return; // fail triggered
+        }
+
+        if (ScriptDataUtil.isFlag(data, DESP_SPAWNED) && countTaggedNear(npc, TAG_DESP_SHARD) <= 0) {
+            succeedDesperation(npc, data, now);
+            return;
+        }
+
+        if (!hasNearbyPlayers(npc)) {
+            if (AbilityAPI.isBusy(npc)) {
+                AbilityAPI.cancel(npc);
+            }
+            return;
+        }
+
+        if (AbilityAPI.isBusy(npc)) {
+            return;
+        }
+
+        final IEntityLiving target = resolveCombatTarget(npc);
+        if (target == null || !target.isAlive()) {
+            return;
+        }
+
+        if (now >= ScriptDataUtil.getLong(data, DESP_RING_AT)) {
+            final int alt = ScriptDataUtil.getInt(data, DESP_RING_ALT);
+            final boolean poison = (alt & 1) == 0;
+            final String id = poison ? DfImperialPoisonAbility.ID : DfNamelessWhisperAbility.ID;
+            final Map<String, Object> params = poison
+                    ? DrachenfelsConfig.imperialParams(npc)
+                    : DrachenfelsConfig.whisperParams(npc);
+            if (AbilityAPI.start(npc, id, target, params)) {
+                put(data, DESP_RING_ALT, String.valueOf(alt + 1));
+                // Gap armed in onAbilityEnded; push far so blobs fill until then.
+                put(data, DESP_RING_AT, String.valueOf(now + 10_000));
+                say(npc, poison
+                        ? "Пейте. Яд — вино этого пира."
+                        : "Шёпот, который стирает вас.");
+            }
+            return;
+        }
+
+        if (now >= ScriptDataUtil.getLong(data, DESP_BLOB_AT)) {
+            if (AbilityAPI.start(npc, CrimsonBlobAbility.ID, target, DrachenfelsConfig.desperationBlobParams(npc))) {
+                put(data, DESP_BLOB_AT, String.valueOf(now
+                        + DrachenfelsConfig.getI(data, "despBlobCd", DESP_BLOB_CD)));
+            }
+        }
+    }
+
+    /** @return true if fail was triggered (shard touched boss). */
+    private static boolean tickDesperationShards(final ICustomNpc boss, final IData data) {
+        final double[] c = getArenaCenter(boss);
+        final List<ICustomNpc> shards = findTagged(boss, TAG_DESP_SHARD);
+        final double touch = DrachenfelsConfig.getD(data, "shardTouchDist", SHARD_TOUCH_DIST);
+        final double speed = DrachenfelsConfig.getD(data, "despShardSpeed", DESP_SHARD_SPEED);
+        for (final ICustomNpc shard : shards) {
+            if (shard == null || !shard.isAlive()) {
+                continue;
+            }
+            pinShardFlight(shard);
+            final double dx = boss.getX() - shard.getX();
+            final double dz = boss.getZ() - shard.getZ();
+            final double dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist <= touch) {
+                shard.despawn();
+                failDesperationToPhase1(boss, data);
+                return true;
+            }
+            final double step = Math.min(speed, Math.max(0.0, dist - touch * 0.35));
+            final double nx = shard.getX() + (dx / Math.max(0.01, dist)) * step;
+            final double nz = shard.getZ() + (dz / Math.max(0.01, dist)) * step;
+            final double ny = AbilityCombatHelper.findGroundY(boss.getWorld(), nx, nz, c[1]);
+            shard.setPosition(nx, ny, nz);
+            pinShardFlight(shard);
+        }
+        return false;
+    }
+
+    private static void spawnDesperationShards(final ICustomNpc boss, final IData data) {
+        final int tab = ScriptDataUtil.getInt(data, CLONE_TAB);
+        final String name = str(data, CLONE_SHARD);
+        if (name.isEmpty()) {
+            return;
+        }
+        final double[] c = getArenaCenter(boss);
+        final double arenaR = Math.max(1.0, getArenaRadius(boss) - 0.25);
+        final double minDist = Math.min(
+                arenaR, Math.max(1.0, DrachenfelsConfig.getD(data, "despShardMinDist", DESP_SHARD_MIN_DIST)));
+        final float hp = (float) DrachenfelsConfig.getD(data, "despShardHp",
+                DrachenfelsConfig.getD(data, "shardHp", 20.0));
+        final double baseAng = RANDOM.nextDouble() * 360.0;
+        final double step = 120.0;
+        final double jitter = 25.0;
+        for (int i = 0; i < 3; i++) {
+            final double ang = baseAng + step * i + (RANDOM.nextDouble() * 2.0 - 1.0) * jitter;
+            final double dist = minDist + RANDOM.nextDouble() * Math.max(0.0, arenaR - minDist);
+            final double rad = Math.toRadians(ang);
+            final double x = c[0] + Math.cos(rad) * dist;
+            final double z = c[2] + Math.sin(rad) * dist;
+            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
+            final ICustomNpc shard = spawnClone(boss, tab <= 0 ? 1 : tab, name, x, y, z);
+            if (shard == null) {
+                continue;
+            }
+            tagAdd(shard, TAG_DESP_SHARD);
+            put(shard.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
+            setAiNone(shard);
+            applyAddHp(shard, hp);
+            pinShardFlight(shard);
+        }
+    }
+
+    private static void failDesperationToPhase1(final ICustomNpc npc, final IData data) {
+        AbilityAPI.cancel(npc);
+        put(data, DESPERATION, "0");
+        put(data, DESP_SPAWNED, "0");
+        put(data, DESP_STUN_UNTIL, "0");
+        put(data, DESPERATION_FIRED, "");
+        put(data, IN_CARRIER, "0");
+        put(data, SPIRIT_MODE, "0");
+        put(data, VESSEL_ROUND, "0");
+        put(data, ABSORB_KEY, "0");
+        put(data, SHARD_SPAWN_AT, "");
+        clearBellAbsorb(npc);
+        killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
+                TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD, TAG_DESP_SHARD);
+        clearOwnerZones(npc);
+
+        put(data, PHASE_KEY, "1");
+        restoreFullHealth(npc);
+        final double[] c = getArenaCenter(npc);
+        final double gy = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
+        npc.setPosition(c[0], gy, c[2]);
+        applyPhase1Ai(npc);
+
+        final long now = now(npc);
+        put(data, SEAL_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "sealFirstDelay", 40)));
+        put(data, GAZE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "gazeFirstDelay", 80)));
+        put(data, REPULSE_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "repulseFirstDelay", 60)));
+        put(data, COURT_READY, String.valueOf(now + DrachenfelsConfig.getI(data, "courtFirstDelay", 80)));
+        put(data, BELL_READY, "0");
+        put(data, BELL_FIRED, "");
+        put(data, FALSE_FIRED, "");
+        put(data, PENDING_FALSE, "0");
+        put(data, FALSE_ACTIVE, "0");
+        put(data, CYCLE_ORIGIN, "0");
+        put(data, CYCLE_SHIFT, "0");
+        put(data, CYCLE_SLOT, "0");
+        put(data, GAZE_FAR_SINCE, "0");
+        say(npc, "Осколок коснулся. Пир начинается сначала.");
+        AbilityVfx.spawnSoulWave(npc.getWorld(), c[0], gy + 0.2, c[2], 3.0);
+        AbilityVfx.spawnAbsorbShield(npc.getWorld(), c[0], gy, c[2]);
+    }
+
+    private static void succeedDesperation(final ICustomNpc npc, final IData data, final long now) {
+        if (!ScriptDataUtil.isFlag(data, DESPERATION)) {
+            return;
+        }
+        AbilityAPI.cancel(npc);
+        put(data, DESPERATION, "0");
+        put(data, DESP_SPAWNED, "0");
+        killTaggedNear(npc, TAG_DESP_SHARD);
+        final double[] c = getArenaCenter(npc);
+        final double gy = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
+        npc.setPosition(c[0], gy, c[2]);
+        final int stun = DrachenfelsConfig.getI(data, "despStunTicks", DESP_STUN_TICKS);
+        put(data, DESP_STUN_UNTIL, String.valueOf(now + stun));
+        applySpiritAi(npc);
+        AbilityCombatHelper.holdInPlace(npc, c[0], gy, c[2]);
+        say(npc, "Осколки разбиты. Падаю…");
+        AbilityVfx.spawnSoulBurst(npc.getWorld(), c[0], gy + 0.5, c[2], 1.8);
+    }
+
+    private static void tickDesperationStun(final ICustomNpc npc, final IData data, final long now) {
+        final double[] c = getArenaCenter(npc);
+        final double gy = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
+        AbilityCombatHelper.holdInPlace(npc, c[0], gy, c[2]);
+        if (AbilityAPI.isBusy(npc)) {
+            AbilityAPI.cancel(npc);
+        }
+        if (now < ScriptDataUtil.getLong(data, DESP_STUN_UNTIL)) {
+            return;
+        }
+        put(data, DESP_STUN_UNTIL, "0");
+        put(data, SPIRIT_MODE, "1");
+        put(data, IN_CARRIER, "0");
+        applySpiritAi(npc);
+        spawnVesselSet(npc, false);
+        put(data, STEP_READY, String.valueOf(now + 40));
+        put(data, WHISPER_READY, String.valueOf(now + 60));
+        put(data, STEAL_READY, String.valueOf(now + 40));
+        say(npc, "Тело — лишь маска. Имя остаётся.");
     }
 
     private static void tickPhase3(final ICustomNpc npc, final IData data, final long now) {

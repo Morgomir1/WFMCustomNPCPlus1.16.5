@@ -1,12 +1,14 @@
 package noppes.npcs.abilities.impl;
 
 import noppes.npcs.abilities.*;
+import noppes.npcs.api.NpcAPI;
+import noppes.npcs.api.entity.IEntity;
 import noppes.npcs.telegraph.TelegraphAPI;
 
 import java.util.Map;
 import java.util.Set;
 
-/** Phase 3: nameless step dash that lands on / past the player. */
+/** Phase 3: nameless step dash; damage on landing only. */
 public final class DfNamelessStepAbility implements CnpcAbility {
     public static final String ID = "df_nameless_step";
 
@@ -129,16 +131,45 @@ public final class DfNamelessStepAbility implements CnpcAbility {
         final double cy = AbilityCombatHelper.findGroundY(ctx.world, cx, cz, active.sy);
         ctx.npc.setPosition(cx, cy, cz);
         ctx.npc.setRotation(active.yaw);
-        final double halfWidth = ctx.params.getDouble(AbilityParamKeys.HIT_RADIUS, 1.25) * 0.55;
-        final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 12.0);
-        AbilityCombatHelper.damageInCorridor(
-                active, ctx,
-                active.sx, active.sy + 0.5, active.sz,
-                active.ex, active.ey + 0.5, active.ez,
-                halfWidth, damage, 0, 0, 0, "", 0, 0);
         AbilityVfx.spawnShadowTrail(ctx.world, cx, cy, cz);
         active.ticksLeft--;
-        return active.ticksLeft > 0 ? TickResult.CONTINUE : TickResult.FINISHED;
+        if (active.ticksLeft > 0) {
+            return TickResult.CONTINUE;
+        }
+        applyLandingHit(active, ctx);
+        return TickResult.FINISHED;
+    }
+
+    private void applyLandingHit(final ActiveAbility active, final AbilityContext ctx) {
+        final double landR = ctx.params.getDouble(AbilityParamKeys.LAND_RADIUS, 1.6);
+        final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 12.0);
+        final double lx = ctx.npc.getX();
+        final double ly = ctx.npc.getY();
+        final double lz = ctx.npc.getZ();
+        active.hitUuids.clear();
+        final int range = (int) Math.ceil(landR + 0.5);
+        final IEntity[] list = ctx.world.getNearbyEntities(
+                NpcAPI.Instance().getIPos(lx, ly, lz),
+                range,
+                -1);
+        for (final IEntity ent : list) {
+            if (!AbilityCombatHelper.isHostileToBoss(ctx.npc, ent)) {
+                continue;
+            }
+            final String id = String.valueOf(ent.getUUID());
+            if (active.hitUuids.contains(id)) {
+                continue;
+            }
+            if (AbilityCombatHelper.flatDistance(ent.getX(), ent.getZ(), lx, lz) > landR) {
+                continue;
+            }
+            if (!AbilityCombatHelper.dealPureDamage(ent, (float) damage, false)) {
+                ent.damage((float) damage);
+            }
+            AbilityVfx.spawnHitParticle(ctx.world, ent);
+            active.hitUuids.add(id);
+        }
+        ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.enderman.teleport", 1.0F, 0.45F);
     }
 
     @Override

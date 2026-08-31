@@ -80,6 +80,10 @@ public final class DrachenfelsEncounterHelper {
     private static final int STEAL_CD = 160;
     private static final int CYCLE_LENGTH = 360;
     private static final int FALSE_SHIFT = 30;
+    private static final double FALSE_COPY_DIST_MIN = 4.0;
+    private static final double FALSE_COPY_DIST_MAX = 10.0;
+    private static final double FALSE_COPY_ANGLE_JITTER = 45.0;
+    private static final double FALSE_HEAL_PER_COPY = 1.0;
     private static final double SHARD_SPEED = 0.06;
     private static final double SHARD_TOUCH_DIST = 2.75;
 
@@ -547,18 +551,27 @@ public final class DrachenfelsEncounterHelper {
     /** Markers: 3 copy positions + 1 teleport landing. */
     public static void planFalseHost(final ICustomNpc boss, final List<double[]> markers) {
         markers.clear();
-        final double ox = boss.getX();
-        final double oy = boss.getY();
-        final double oz = boss.getZ();
-        final double copyDist = DrachenfelsConfig.getD(boss, "falseCopyDist", 3.0);
+        final double[] c = getArenaCenter(boss);
+        final double arenaCap = Math.max(1.0, getArenaRadius(boss) - 0.5);
+        final double legacyDist = DrachenfelsConfig.getD(boss, "falseCopyDist", FALSE_COPY_DIST_MIN);
+        final double distMin = Math.min(
+                arenaCap,
+                Math.max(1.0, DrachenfelsConfig.getD(boss, "falseCopyDistMin", legacyDist)));
+        final double distMax = Math.min(
+                arenaCap,
+                Math.max(distMin, DrachenfelsConfig.getD(boss, "falseCopyDistMax", FALSE_COPY_DIST_MAX)));
+        final double jitter = Math.max(
+                0.0, DrachenfelsConfig.getD(boss, "falseCopyAngleJitter", FALSE_COPY_ANGLE_JITTER));
+        final double baseAng = RANDOM.nextDouble() * 360.0;
         for (int i = 0; i < 3; i++) {
-            final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
-            final double x = ox + Math.cos(ang) * copyDist;
-            final double z = oz + Math.sin(ang) * copyDist;
-            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, oy);
+            final double ang = baseAng + 120.0 * i + (RANDOM.nextDouble() * 2.0 - 1.0) * jitter;
+            final double dist = distMin + RANDOM.nextDouble() * Math.max(0.0, distMax - distMin);
+            final double rad = Math.toRadians(ang);
+            final double x = c[0] + Math.cos(rad) * dist;
+            final double z = c[2] + Math.sin(rad) * dist;
+            final double y = AbilityCombatHelper.findGroundY(boss.getWorld(), x, z, c[1]);
             markers.add(new double[]{x, y, z});
         }
-        final double[] c = getArenaCenter(boss);
         final double ring = DrachenfelsConfig.getD(boss, "falseTeleportRing", 5.0);
         final double ang = RANDOM.nextDouble() * Math.PI * 2.0;
         final double x = c[0] + Math.cos(ang) * ring;
@@ -1290,6 +1303,34 @@ public final class DrachenfelsEncounterHelper {
         }
     }
 
+    private static void healBossFromFalseHosts(final ICustomNpc boss, final IData data, final int livingCopies) {
+        if (livingCopies <= 0 || ScriptDataUtil.getInt(data, PHASE_KEY) != 2) {
+            return;
+        }
+        final float heal = (float) (livingCopies
+                * DrachenfelsConfig.getD(data, "falseHealPerCopy", FALSE_HEAL_PER_COPY));
+        if (heal <= 0.0F) {
+            return;
+        }
+        final float cap = phaseHpCap(boss);
+        try {
+            final Object mc = boss.getMCEntity();
+            if (mc instanceof LivingEntity) {
+                final LivingEntity living = (LivingEntity) mc;
+                final float before = living.getHealth();
+                final float maxHeal = cap > 0.0F ? cap : living.getMaxHealth();
+                final float after = Math.min(maxHeal, before + heal);
+                if (after <= before + 0.001F) {
+                    return;
+                }
+                living.setHealth(after);
+                living.hurtTime = 0;
+                living.hurtDuration = 0;
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
     private static void healBossFromShard(final ICustomNpc boss, final IData data) {
         final float heal = (float) (boss.getMaxHealth()
                 * DrachenfelsConfig.getD(data, "shardHealRatio", SHARD_HEAL_RATIO));
@@ -1491,6 +1532,13 @@ public final class DrachenfelsEncounterHelper {
         if (copies.isEmpty()) {
             return;
         }
+        int livingCopies = 0;
+        for (final ICustomNpc copy : copies) {
+            if (copy != null && copy.isAlive()) {
+                livingCopies++;
+            }
+        }
+        healBossFromFalseHosts(boss, data, livingCopies);
         final double[] center = getArenaCenter(boss);
         final double arenaR = Math.max(1.0, getArenaRadius(boss) - 0.5);
         final double step = DrachenfelsConfig.getD(data, "falseRunStep", 0.28);

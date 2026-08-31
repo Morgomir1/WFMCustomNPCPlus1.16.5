@@ -370,14 +370,17 @@ public final class AbilityDefaults {
         final Map<String, Object> map = new HashMap<>();
         map.put(AbilityParamKeys.TELEGRAPH, 0);
         map.put(AbilityParamKeys.CHARGE_TICKS, 24);
-        map.put(AbilityParamKeys.ACTIVE_TICKS, 1);
-        map.put(AbilityParamKeys.DAMAGE, 7.0);
-        map.put(AbilityParamKeys.EFFECT_DURATION, 20);
-        map.put(AbilityParamKeys.RING1_DISTANCE, 2.0);
-        map.put(AbilityParamKeys.RING2_DISTANCE, 5.0);
-        map.put(AbilityParamKeys.RING3_DISTANCE, 8.0);
-        map.put(AbilityParamKeys.RING1_RADIUS, 1.2);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 60);
+        map.put(AbilityParamKeys.RADIUS, 12.0);
+        map.put(AbilityParamKeys.INNER_RADIUS, 1.333);
+        map.put(AbilityParamKeys.ARC_HEIGHT, 1.0);
+        map.put(AbilityParamKeys.EFFECT_DURATION, 40);
+        map.put(AbilityParamKeys.TRAIL_TICKS, 60);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 0);
+        map.put(AbilityParamKeys.SUMMON_COUNT, 3);
+        map.put(AbilityParamKeys.SHOT_INTERVAL, 40);
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        map.put(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
         return map;
     }
 

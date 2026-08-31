@@ -242,14 +242,17 @@ public final class DrachenfelsConfig {
     public static Map<String, Object> whisperParams(final ICustomNpc npc) {
         final Map<String, Object> m = new HashMap<>();
         m.put(AbilityParamKeys.CHARGE_TICKS, getI(npc, "whisperChargeTicks", 24));
-        m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "whisperActiveTicks", 1));
-        m.put(AbilityParamKeys.DAMAGE, getD(npc, "whisperDamage", 7.0));
+        m.put(AbilityParamKeys.ACTIVE_TICKS, getI(npc, "whisperActiveTicks", 60));
+        m.put(AbilityParamKeys.RADIUS, getD(npc, "whisperArenaRadius", 12.0));
+        m.put(AbilityParamKeys.INNER_RADIUS, getD(npc, "whisperThickness", 1.333));
+        m.put(AbilityParamKeys.ARC_HEIGHT, getD(npc, "whisperHitHeight", 1.0));
+        m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "whisperBlindDuration", 40));
+        m.put(AbilityParamKeys.TRAIL_TICKS, getI(npc, "whisperWitherDuration", 60));
+        m.put(AbilityParamKeys.EFFECT_AMPLIFIER, getI(npc, "whisperWitherAmp", 0));
+        m.put(AbilityParamKeys.SUMMON_COUNT, getI(npc, "whisperRingCount", 3));
+        m.put(AbilityParamKeys.SHOT_INTERVAL, getI(npc, "whisperRingInterval", 40));
         m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
-        m.put(AbilityParamKeys.RING1_DISTANCE, getD(npc, "whisperRing1", 2.0));
-        m.put(AbilityParamKeys.RING2_DISTANCE, getD(npc, "whisperRing2", 5.0));
-        m.put(AbilityParamKeys.RING3_DISTANCE, getD(npc, "whisperRing3", 8.0));
-        m.put(AbilityParamKeys.RING1_RADIUS, getD(npc, "whisperThickness", 1.2));
-        m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "whisperBlindDuration", 20));
+        m.put(AbilityParamKeys.ZONE_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
         return m;
     }

@@ -144,7 +144,10 @@ var FALSE_MAX = 3;
 var FALSE_SHIFT = 30;
 var FALSE_CHARGE_TICKS = 20;
 var FALSE_ACTIVE_TICKS = 30;
-var FALSE_COPY_DIST = 3.0;
+var FALSE_COPY_DIST_MIN = 4.0;
+var FALSE_COPY_DIST_MAX = 10.0;
+var FALSE_COPY_ANGLE_JITTER = 45.0;
+var FALSE_HEAL_PER_COPY = 1.0;
 var FALSE_TELEPORT_RING = 5.0;
 var FALSE_TELEGRAPH_RADIUS = 1.2;
 var FALSE_RUN_STEP = 0.28;
@@ -188,13 +191,15 @@ var STEP_MIN_PLAYER_DIST = 5.0;
 
 var WHISPER_CD = 180;
 var WHISPER_CHARGE_TICKS = 24;
-var WHISPER_ACTIVE_TICKS = 1;
-var WHISPER_DAMAGE = 7.0;
-var WHISPER_BLIND_DURATION = 20;
-var WHISPER_THICKNESS = 1.2;
-var WHISPER_RING1 = 2.0;
-var WHISPER_RING2 = 5.0;
-var WHISPER_RING3 = 8.0;
+var WHISPER_ACTIVE_TICKS = 60;
+var WHISPER_ARENA_RADIUS = 12.0;
+var WHISPER_THICKNESS = 1.333;
+var WHISPER_HIT_HEIGHT = 1.0;
+var WHISPER_BLIND_DURATION = 40;
+var WHISPER_WITHER_DURATION = 60;
+var WHISPER_WITHER_AMP = 0;
+var WHISPER_RING_COUNT = 3;
+var WHISPER_RING_INTERVAL = 40;
 
 var STEAL_CD = 160;
 var STEAL_RANGE = 3.0;
@@ -337,7 +342,10 @@ function init(event) {
         "falseShift", FALSE_SHIFT,
         "falseChargeTicks", FALSE_CHARGE_TICKS,
         "falseActiveTicks", FALSE_ACTIVE_TICKS,
-        "falseCopyDist", FALSE_COPY_DIST,
+        "falseCopyDistMin", FALSE_COPY_DIST_MIN,
+        "falseCopyDistMax", FALSE_COPY_DIST_MAX,
+        "falseCopyAngleJitter", FALSE_COPY_ANGLE_JITTER,
+        "falseHealPerCopy", FALSE_HEAL_PER_COPY,
         "falseTeleportRing", FALSE_TELEPORT_RING,
         "falseTelegraphRadius", FALSE_TELEGRAPH_RADIUS,
         "falseRunStep", FALSE_RUN_STEP,
@@ -367,12 +375,14 @@ function init(event) {
         "whisperCd", WHISPER_CD,
         "whisperChargeTicks", WHISPER_CHARGE_TICKS,
         "whisperActiveTicks", WHISPER_ACTIVE_TICKS,
-        "whisperDamage", WHISPER_DAMAGE,
-        "whisperBlindDuration", WHISPER_BLIND_DURATION,
+        "whisperArenaRadius", WHISPER_ARENA_RADIUS,
         "whisperThickness", WHISPER_THICKNESS,
-        "whisperRing1", WHISPER_RING1,
-        "whisperRing2", WHISPER_RING2,
-        "whisperRing3", WHISPER_RING3,
+        "whisperHitHeight", WHISPER_HIT_HEIGHT,
+        "whisperBlindDuration", WHISPER_BLIND_DURATION,
+        "whisperWitherDuration", WHISPER_WITHER_DURATION,
+        "whisperWitherAmp", WHISPER_WITHER_AMP,
+        "whisperRingCount", WHISPER_RING_COUNT,
+        "whisperRingInterval", WHISPER_RING_INTERVAL,
 
         "stealCd", STEAL_CD,
         "stealRange", STEAL_RANGE,

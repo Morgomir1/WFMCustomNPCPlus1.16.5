@@ -84,6 +84,9 @@ public final class DrachenfelsEncounterHelper {
     private static final double FALSE_COPY_DIST_MAX = 10.0;
     private static final double FALSE_COPY_ANGLE_JITTER = 45.0;
     private static final double FALSE_HEAL_PER_COPY = 1.0;
+    /** CNPC OnAttack: Panic — chaotic flee from target. */
+    private static final int RETALIATE_PANIC = 1;
+    private static final int FALSE_PANIC_SPEED = 6;
     private static final double SHARD_SPEED = 0.06;
     private static final double SHARD_TOUCH_DIST = 2.75;
 
@@ -124,6 +127,8 @@ public final class DrachenfelsEncounterHelper {
     private static final String FALSE_NEXT_PUDDLE = "df_false_puddle_at";
     private static final String SPIRIT_MODE = "df_spirit";
     private static final String QUOTE_INTRO = "df_quote_intro";
+    /** One-shot guard: death cleanup may run from JS timer + died + Forge handler. */
+    private static final String CLEANED = "df_cleaned";
     private static final String ARC_CD = "df_arc_cd";
     private static final int GUARD_SLASH_CD = 100;
     private static final String CLONE_TAB = "df_clone_tab";
@@ -164,6 +169,7 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         ScriptDataUtil.setFlag(data, INITED, true);
+        ScriptDataUtil.setFlag(data, CLEANED, false);
         put(data, HOME_X, npc.getX());
         put(data, HOME_Y, npc.getY());
         put(data, HOME_Z, npc.getZ());
@@ -299,13 +305,18 @@ public final class DrachenfelsEncounterHelper {
         if (npc == null) {
             return;
         }
+        final IData data = npc.getStoreddata();
+        if (ScriptDataUtil.isFlag(data, CLEANED)) {
+            return;
+        }
+        ScriptDataUtil.setFlag(data, CLEANED, true);
         AbilityAPI.cancel(npc);
         restoreBossAfterFalseHost(npc);
         killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
                 TAG_PHANTOM, TAG_FALSE, TAG_VESSEL, TAG_SHARD);
         clearOwnerZones(npc);
         // Allow full re-init on CNPC respawn (phase/HP must not stick from previous fight).
-        ScriptDataUtil.setFlag(npc.getStoreddata(), INITED, false);
+        ScriptDataUtil.setFlag(data, INITED, false);
         say(npc, "Замок не умрёт с этим телом.");
     }
 
@@ -600,7 +611,7 @@ public final class DrachenfelsEncounterHelper {
             tagAdd(copy, TAG_FALSE);
             put(copy.getStoreddata(), BOSS_UUID, String.valueOf(boss.getUUID()));
             applyAddHp(copy, (float) DrachenfelsConfig.getD(boss, "falseCloneHp", 50.0));
-            setAiNone(copy);
+            applyFalseCopyAi(copy, boss.getStoreddata());
             put(copy.getStoreddata(), FALSE_NEXT_PUDDLE, "0");
             spawned++;
         }
@@ -1541,12 +1552,12 @@ public final class DrachenfelsEncounterHelper {
         healBossFromFalseHosts(boss, data, livingCopies);
         final double[] center = getArenaCenter(boss);
         final double arenaR = Math.max(1.0, getArenaRadius(boss) - 0.5);
-        final double step = DrachenfelsConfig.getD(data, "falseRunStep", 0.28);
         final int puddleEvery = Math.max(1, DrachenfelsConfig.getI(data, "falsePuddleInterval", 12));
         for (final ICustomNpc copy : copies) {
             if (copy == null || !copy.isAlive()) {
                 continue;
             }
+            applyFalseCopyAi(copy, data);
             final IData cd = copy.getStoreddata();
             if (now >= ScriptDataUtil.getLong(cd, FALSE_NEXT_PUDDLE)) {
                 spawnFalsePuddle(boss, data, copy.getX(), copy.getY(), copy.getZ());
@@ -1554,32 +1565,15 @@ public final class DrachenfelsEncounterHelper {
             }
             final IEntityLiving target = findNearestEngagePlayer(copy);
             if (target == null || !target.isAlive()) {
+                clearAttackTarget(copy);
                 AbilityCombatHelper.stopNavigation(copy);
                 continue;
             }
-            double dx = copy.getX() - target.getX();
-            double dz = copy.getZ() - target.getZ();
-            double len = Math.sqrt(dx * dx + dz * dz);
-            if (len < 0.01) {
-                dx = copy.getX() - center[0];
-                dz = copy.getZ() - center[2];
-                len = Math.sqrt(dx * dx + dz * dz);
+            try {
+                copy.setAttackTarget(target);
+            } catch (final Exception ignored) {
             }
-            if (len < 0.01) {
-                continue;
-            }
-            double nx = copy.getX() + (dx / len) * step;
-            double nz = copy.getZ() + (dz / len) * step;
-            final double dcx = nx - center[0];
-            final double dcz = nz - center[2];
-            final double dcl = Math.sqrt(dcx * dcx + dcz * dcz);
-            if (dcl > arenaR) {
-                nx = center[0] + (dcx / Math.max(0.01, dcl)) * arenaR;
-                nz = center[2] + (dcz / Math.max(0.01, dcl)) * arenaR;
-            }
-            final double ny = AbilityCombatHelper.findGroundY(boss.getWorld(), nx, nz, copy.getY());
-            copy.setPosition(nx, ny, nz);
-            AbilityCombatHelper.stopNavigation(copy);
+            clampFalseCopyToArena(copy, boss.getWorld(), center, arenaR);
         }
     }
 
@@ -1943,6 +1937,42 @@ public final class DrachenfelsEncounterHelper {
             ai.setMovingType(0);
         } catch (final Exception ignored) {
         }
+    }
+
+    /** False-host illusions: CNPC Panic flee from nearest engage player. */
+    private static void applyFalseCopyAi(final ICustomNpc copy, final IData bossData) {
+        if (copy == null) {
+            return;
+        }
+        final int speed = DrachenfelsConfig.getI(bossData, "falsePanicSpeed", FALSE_PANIC_SPEED);
+        try {
+            final INPCAi ai = copy.getAi();
+            ai.setRetaliateType(RETALIATE_PANIC);
+            ai.setWalkingSpeed(speed);
+            ai.setMovingType(0);
+        } catch (final Exception ignored) {
+        }
+    }
+
+    private static void clampFalseCopyToArena(
+            final ICustomNpc copy,
+            final noppes.npcs.api.IWorld world,
+            final double[] center,
+            final double arenaR) {
+        if (copy == null || center == null || center.length < 3) {
+            return;
+        }
+        final double dx = copy.getX() - center[0];
+        final double dz = copy.getZ() - center[2];
+        final double dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist <= arenaR) {
+            return;
+        }
+        final double nx = center[0] + (dx / Math.max(0.01, dist)) * arenaR;
+        final double nz = center[2] + (dz / Math.max(0.01, dist)) * arenaR;
+        final double ny = AbilityCombatHelper.findGroundY(world, nx, nz, copy.getY());
+        copy.setPosition(nx, ny, nz);
+        AbilityCombatHelper.stopNavigation(copy);
     }
 
     private static void setMoveSpeed(final ICustomNpc npc, final double speed) {

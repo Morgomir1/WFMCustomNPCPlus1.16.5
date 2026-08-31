@@ -64,11 +64,11 @@ AI: тот же scripted kite, что в фазе 1 (`kiteDistance` / `phase1Spe
 
 | Slot / elapsed | Ability | Telegraph |
 |----------------|---------|-----------|
-| 0 / start | `df_imperial_poison` — расширяющееся poison ring | circle арены → Zone ring |
+| 0 / start | `df_imperial_poison` — 3 волны expanding poison ring, пауза 2с | circle арены → Zone ring ×3 |
 | 1 / ~120t | `df_feast_seats` — blast арены, safe = 6 белых seats (random near boss) | red arena + white seats |
 | 2 / ~220t | `df_leper_ball` — 3 залпа × 4 духа **от** босса наружу (R≈24), виляют; красная зона урона под каждым | circle у босса перед каждым залпом |
 
-**False Host** на HP marks ~56%/46%/36% (макс 3): `df_false_host` — charge (копии + landing) → teleport + 3 false copies. Сдвигает cycle (`falseShift`).
+**False Host** на HP marks ~56%/46%/36% (макс 3): `df_false_host` — charge (копии + landing) → teleport + 3 false copies. Копии оставляют тёмно-зелёные лужи (живут до смерти копии; не стакаются на одной точке). Сдвигает cycle (`falseShift`).
 
 Цикл рестартует после `cycleLength`.
 

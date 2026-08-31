@@ -114,6 +114,8 @@ var IMPERIAL_DAMAGE = 8.0;
 var IMPERIAL_POISON_DURATION = 80;
 var IMPERIAL_POISON_AMP = 3;
 var IMPERIAL_SLOW_DURATION = 40;
+var IMPERIAL_WAVE_COUNT = 3;
+var IMPERIAL_WAVE_INTERVAL = 40; // 2s between waves (like whisper)
 
 var FEAST_CHARGE_TICKS = 40;
 var FEAST_ACTIVE_TICKS = 1;
@@ -317,6 +319,8 @@ function init(event) {
         "imperialPoisonDuration", IMPERIAL_POISON_DURATION,
         "imperialPoisonAmp", IMPERIAL_POISON_AMP,
         "imperialSlowDuration", IMPERIAL_SLOW_DURATION,
+        "imperialWaveCount", IMPERIAL_WAVE_COUNT,
+        "imperialWaveInterval", IMPERIAL_WAVE_INTERVAL,
 
         "feastChargeTicks", FEAST_CHARGE_TICKS,
         "feastActiveTicks", FEAST_ACTIVE_TICKS,

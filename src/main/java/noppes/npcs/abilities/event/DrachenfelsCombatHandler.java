@@ -161,6 +161,10 @@ public final class DrachenfelsCombatHandler {
             DrachenfelsEncounterHelper.onMonkDeath(npc);
             return;
         }
+        if (npc.hasTag(DrachenfelsEncounterHelper.TAG_FALSE)) {
+            DrachenfelsEncounterHelper.onFalseCopyDeath(npc);
+            return;
+        }
         if (npc.hasTag(DrachenfelsEncounterHelper.TAG_VESSEL)) {
             DrachenfelsEncounterHelper.onVesselDeath(npc);
             return;

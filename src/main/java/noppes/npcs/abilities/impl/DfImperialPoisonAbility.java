@@ -13,9 +13,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Phase 2: expanding poison ring — one proc per wave. */
+/** Phase 2: expanding poison ring — 3 waves with a gap between (like nameless whisper). */
 public final class DfImperialPoisonAbility implements CnpcAbility {
     public static final String ID = "df_imperial_poison";
+    private static final int DEFAULT_WAVE_COUNT = 3;
+    private static final int DEFAULT_WAVE_INTERVAL = 40; // 2s
+    private static final int SUB_EXPAND = 0;
+    private static final int SUB_WAIT = 1;
     private static final ConcurrentHashMap<UUID, UUID> ZONE_BY_NPC = new ConcurrentHashMap<>();
 
     @Override
@@ -50,7 +54,9 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
                 AbilityParamKeys.EFFECT_TYPE,
                 AbilityParamKeys.EFFECT_DURATION,
                 AbilityParamKeys.EFFECT_AMPLIFIER,
+                AbilityParamKeys.TRAIL_TICKS,
                 AbilityParamKeys.SHOT_INTERVAL,
+                AbilityParamKeys.SUMMON_COUNT,
                 AbilityParamKeys.ZONE_COLOR,
                 AbilityParamKeys.TELEGRAPH_COLOR,
                 AbilityParamKeys.TELEGRAPH);
@@ -63,7 +69,10 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         active.sy = ctx.npc.getY();
         active.sz = ctx.npc.getZ();
         active.hitUuids.clear();
-        active.meter = 0.0F; // 0 = not yet hit anyone with wave effects
+        active.markers.clear();
+        active.markers.add(new double[]{0.0, SUB_EXPAND});
+        active.meter = 0.0F;
+        active.elapsedTicks = 0;
         final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 24));
         final double arenaR = ctx.params.getDouble(AbilityParamKeys.RADIUS, 12.0);
         final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
@@ -90,17 +99,24 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
                 return TickResult.CONTINUE;
             }
             AbilityTelegraph.clear(active, ctx);
-            spawnRing(active, ctx);
+            beginWave(active, ctx, 0);
             active.phase = ActiveAbility.PHASE_ACTIVE;
-            active.ticksLeft = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 30));
-            active.elapsedTicks = 0;
+            return TickResult.CONTINUE;
+        }
+        if (subState(active) == SUB_WAIT) {
+            active.ticksLeft--;
+            if (active.ticksLeft > 0) {
+                return TickResult.CONTINUE;
+            }
+            final int nextWave = (int) active.meter + 1;
+            beginWave(active, ctx, nextWave);
             return TickResult.CONTINUE;
         }
         return tickExpand(active, ctx);
     }
 
     private TickResult tickExpand(final ActiveAbility active, final AbilityContext ctx) {
-        final int total = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 30));
+        final int total = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 120));
         final double arenaR = ctx.params.getDouble(AbilityParamKeys.RADIUS, 12.0);
         final double thickness = ctx.params.getDouble(AbilityParamKeys.INNER_RADIUS, 2.0);
         active.elapsedTicks++;
@@ -110,12 +126,38 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         updateZoneRadii(active, ctx, outer, inner);
         tickHit(active, ctx, inner, outer);
         AbilityVfx.spawnDarkSoulRing(ctx.world, active.sx, active.sy + 0.05, active.sz, inner, outer);
-        active.ticksLeft--;
-        if (active.ticksLeft > 0) {
+        if (active.elapsedTicks < total) {
             return TickResult.CONTINUE;
         }
+        return finishWave(active, ctx);
+    }
+
+    private TickResult finishWave(final ActiveAbility active, final AbilityContext ctx) {
         clearZone(active, ctx);
-        return TickResult.FINISHED;
+        final int wave = (int) active.meter;
+        active.meter = wave + 1.0F;
+        if (active.meter >= waveCount(ctx)) {
+            ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.witch.death", 0.7F, 0.85F);
+            return TickResult.FINISHED;
+        }
+        active.hitUuids.clear();
+        setSubState(active, SUB_WAIT);
+        active.ticksLeft = waveInterval(ctx);
+        ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.witch.ambient", 0.7F, 0.75F);
+        return TickResult.CONTINUE;
+    }
+
+    private void beginWave(final ActiveAbility active, final AbilityContext ctx, final int waveIndex) {
+        active.meter = waveIndex;
+        active.elapsedTicks = 0;
+        active.hitUuids.clear();
+        setSubState(active, SUB_EXPAND);
+        spawnRing(active, ctx);
+        ctx.world.playSoundAt(
+                ctx.npc.getPos(),
+                "minecraft:entity.witch.celebrate",
+                0.85F,
+                0.7F + waveIndex * 0.12F);
     }
 
     private void tickHit(
@@ -126,6 +168,7 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         final double damage = ctx.params.getDouble(AbilityParamKeys.DAMAGE, 8.0);
         final int poisonDur = ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 80);
         final int poisonAmp = ctx.params.getInt(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
+        final int slowDur = ctx.params.getInt(AbilityParamKeys.TRAIL_TICKS, 40);
         final double hitHeight = Math.max(0.25, ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 1.0));
         final double groundY =
                 AbilityCombatHelper.findGroundY(ctx.world, active.sx, active.sz, active.sy);
@@ -157,10 +200,7 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
             AbilityCombatHelper.applyEffect(
                     ent, AbilityEffectType.POISON.toMcEffect(), poisonDur, poisonAmp);
             AbilityCombatHelper.applyEffect(
-                    ent,
-                    AbilityEffectType.SLOWNESS.toMcEffect(),
-                    ctx.params.getInt(AbilityParamKeys.SHOT_INTERVAL, 40),
-                    0);
+                    ent, AbilityEffectType.SLOWNESS.toMcEffect(), slowDur, 0);
             AbilityVfx.spawnHitParticle(ctx.world, ent);
             active.hitUuids.add(id);
         }
@@ -200,7 +240,6 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         }
         zone.setRadius((float) outer);
         zone.setInnerRadius((float) Math.max(0.05, inner));
-        // Keep the expanding ring centered on the boss (display + hit origin).
         final double y = AbilityCombatHelper.findGroundY(ctx.world, active.sx, active.sz, active.sy) + 0.05;
         zone.moveTo(active.sx, y, active.sz, 0, 0);
     }
@@ -229,6 +268,26 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         }
         final EntityAbilityZone zone = resolveZone(ctx, zoneId);
         ZoneAPI.remove(zone);
+    }
+
+    private static int waveCount(final AbilityContext ctx) {
+        return Math.max(1, ctx.params.getInt(AbilityParamKeys.SUMMON_COUNT, DEFAULT_WAVE_COUNT));
+    }
+
+    private static int waveInterval(final AbilityContext ctx) {
+        return Math.max(1, ctx.params.getInt(AbilityParamKeys.SHOT_INTERVAL, DEFAULT_WAVE_INTERVAL));
+    }
+
+    private static int subState(final ActiveAbility active) {
+        return active.markers.isEmpty() ? SUB_EXPAND : (int) active.markers.get(0)[1];
+    }
+
+    private static void setSubState(final ActiveAbility active, final int state) {
+        if (active.markers.isEmpty()) {
+            active.markers.add(new double[]{0.0, state});
+            return;
+        }
+        active.markers.get(0)[1] = state;
     }
 
     @Override

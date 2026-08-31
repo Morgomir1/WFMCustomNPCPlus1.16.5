@@ -170,10 +170,12 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.DAMAGE, getD(npc, "imperialDamage", 8.0));
         m.put(AbilityParamKeys.EFFECT_DURATION, getI(npc, "imperialPoisonDuration", 80));
         m.put(AbilityParamKeys.EFFECT_AMPLIFIER, getI(npc, "imperialPoisonAmp", 3));
+        m.put(AbilityParamKeys.TRAIL_TICKS, getI(npc, "imperialSlowDuration", 40));
+        m.put(AbilityParamKeys.SUMMON_COUNT, getI(npc, "imperialWaveCount", 3));
+        m.put(AbilityParamKeys.SHOT_INTERVAL, getI(npc, "imperialWaveInterval", 40));
         m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.ZONE_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
-        m.put(AbilityParamKeys.SHOT_INTERVAL, getI(npc, "imperialSlowDuration", 40));
         return m;
     }
 

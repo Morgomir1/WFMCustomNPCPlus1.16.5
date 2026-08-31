@@ -38,13 +38,13 @@ Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `courtCd`, 
 
 Phase 2 cycle: `cycleLength`, `cycleFeastAt`, `cycleLeperAt`.
 
-Imperial: `imperialChargeTicks`, `imperialActiveTicks` (expand duration; higher = slower), `imperialArenaRadius`, `imperialThickness` (ring band width), `imperialHitHeight` (jumpable: feet above this clear the ring), `imperialDamage`, `imperialPoisonDuration`, `imperialPoisonAmp`, `imperialSlowDuration`.
+Imperial: `imperialChargeTicks`, `imperialActiveTicks` (expand duration; higher = slower), `imperialArenaRadius`, `imperialThickness` (ring band width), `imperialHitHeight` (jumpable: feet above this clear the ring), `imperialDamage`, `imperialPoisonDuration`, `imperialPoisonAmp`, `imperialSlowDuration`, `imperialWaveCount` (3), `imperialWaveInterval` (40 = 2s between waves, like whisper).
 
 Feast: `feastChargeTicks`, `feastActiveTicks`, `feastSeatRadius`, `feastSeatRing` (max scatter from boss, default 9.5), `feastSeatMinBossDist` (default 2.5), `feastArenaRadius`, `feastDamage`, `feastPoisonDuration`, `feastPoisonAmp`, `feastColor`. Seats spawn at random positions near the boss (not a fixed ring).
 
 Leper: `leperChargeTicks`, `leperActiveTicks`, `leperDamage`, `leperHp`, `leperStartRadius` (spawn near boss), `leperSpawnRadius` (outward end, default 24), `leperDuration` (flight ticks), `leperHitRadius` (red following hazard), `leperSlowDuration`, `leperSlowAmp`, `leperVolleys` (3), `leperVolleyInterval`, `leperWiggleAmp`, `leperWiggleFreq`, `leperHover` (locked Y above spawn floor). Three staggered-angle salvos fly **away** from the boss with a sine weave; each spirit has a red ZoneAPI circle that moves with it and deals damage.
 
-False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActiveTicks`, `falseCloneHp`, `falseCopyDist`, `falseTeleportRing`, `falseTelegraphRadius`, `falseRunStep`, `falsePuddleRadius`/`Ticks`/`Damage`/`DamageInterval`/`Interval`. While copies live, real boss uses Display **Visible=No** + soft-visibility packets (not vanilla `Entity.setInvisible` — CNPC ignores that flag for rendering).
+False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActiveTicks`, `falseCloneHp`, `falseCopyDist`, `falseTeleportRing`, `falseTelegraphRadius`, `falseRunStep`, `falsePuddleRadius`/`Damage`/`DamageInterval`/`Interval` (лужи живут до смерти иллюзии; не стакаются если в позиции уже есть зона; `falsePuddleTicks` не используется). While copies live, real boss uses Display **Visible=No** + soft-visibility packets (not vanilla `Entity.setInvisible` — CNPC ignores that flag for rendering).
 
 Phase 3 vessels: `vesselRing` (max dist from center, default 11.5), `vesselRingMin` (default 10.5), `vesselAngleJitter` (±deg around even spacing, default 30). Spawn uses random base rotation + jitter + random radius in `[min,max]` (clamped to arena). Also `vesselHpFirst`/`vesselHpRepeat`, `shardHp`, `shardSpeed` (default 0.06), `shardHealRatio`, `shardTouchDist` (default 2.75), `shardDelayTicks`.
 

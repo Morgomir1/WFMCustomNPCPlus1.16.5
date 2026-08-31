@@ -125,6 +125,10 @@ public final class DrachenfelsEncounterHelper {
     /** Saved {@link INPCDisplay#getVisible()} while false-host hide is active. */
     private static final String FALSE_PREV_VISIBLE = "df_false_prev_vis";
     private static final String FALSE_NEXT_PUDDLE = "df_false_puddle_at";
+    /** Semicolon-separated EntityAbilityZone UUIDs left by this false copy. */
+    private static final String FALSE_ZONES = "df_false_zones";
+    /** Lifetime until explicit remove (illusion death / cleanup). */
+    private static final int FALSE_PUDDLE_LIFETIME = 20 * 60 * 60; // 1h cap; cleared earlier on death
     private static final String SPIRIT_MODE = "df_spirit";
     private static final String QUOTE_INTRO = "df_quote_intro";
     /** One-shot guard: death cleanup may run from JS timer + died + Forge handler. */
@@ -637,6 +641,7 @@ public final class DrachenfelsEncounterHelper {
             applyAddHp(copy, (float) DrachenfelsConfig.getD(boss, "falseCloneHp", 50.0));
             applyFalseCopyAi(copy, boss.getStoreddata());
             put(copy.getStoreddata(), FALSE_NEXT_PUDDLE, "0");
+            put(copy.getStoreddata(), FALSE_ZONES, "");
             spawned++;
         }
         if (spawned <= 0) {
@@ -1605,7 +1610,7 @@ public final class DrachenfelsEncounterHelper {
             applyFalseCopyAi(copy, data);
             final IData cd = copy.getStoreddata();
             if (now >= ScriptDataUtil.getLong(cd, FALSE_NEXT_PUDDLE)) {
-                spawnFalsePuddle(boss, data, copy.getX(), copy.getY(), copy.getZ());
+                spawnFalsePuddle(boss, data, copy, copy.getX(), copy.getY(), copy.getZ());
                 put(cd, FALSE_NEXT_PUDDLE, String.valueOf(now + puddleEvery));
             }
             final IEntityLiving target = findNearestEngagePlayer(copy);
@@ -1623,12 +1628,22 @@ public final class DrachenfelsEncounterHelper {
     }
 
     private static void spawnFalsePuddle(
-            final ICustomNpc boss, final IData data, final double x, final double y, final double z) {
+            final ICustomNpc boss,
+            final IData data,
+            final ICustomNpc copy,
+            final double x,
+            final double y,
+            final double z) {
         final double radius = DrachenfelsConfig.getD(data, "falsePuddleRadius", 1.6);
-        final int duration = Math.max(1, DrachenfelsConfig.getI(data, "falsePuddleTicks", 100));
+        // Do not stack another puddle where one already sits under the illusion.
+        if (hasAbilityZoneNear(boss, x, z, radius)) {
+            return;
+        }
         final double damage = DrachenfelsConfig.getD(data, "falsePuddleDamage", 4.0);
         final int interval = Math.max(1, DrachenfelsConfig.getI(data, "falsePuddleDamageInterval", 10));
-        final EntityAbilityZone zone = ZoneAPI.hazardCircle(boss, x, y + 0.05, z, radius, duration, damage, interval);
+        // Persist until the illusion dies (or encounter cleanup) — not a short timer.
+        final EntityAbilityZone zone = ZoneAPI.hazardCircle(
+                boss, x, y + 0.05, z, radius, FALSE_PUDDLE_LIFETIME, damage, interval);
         if (zone == null) {
             return;
         }
@@ -1637,6 +1652,94 @@ public final class DrachenfelsEncounterHelper {
         zone.setVisible(true);
         zone.setGroundFill(true);
         zone.setBorder(true);
+        zone.setHealOwner(0.0F);
+        appendFalseZone(copy, zone);
+    }
+
+    /** True if (x,z) already lies inside an ability zone (no stacked puddle under the copy). */
+    private static boolean hasAbilityZoneNear(
+            final ICustomNpc boss, final double x, final double z, final double radius) {
+        if (boss == null) {
+            return false;
+        }
+        try {
+            final Object mc = boss.getMCEntity();
+            if (!(mc instanceof Entity)) {
+                return false;
+            }
+            final World world = ((Entity) mc).level;
+            if (!(world instanceof ServerWorld)) {
+                return false;
+            }
+            final double pad = Math.max(radius, 2.0) + 1.0;
+            final AxisAlignedBB box = new AxisAlignedBB(
+                    x - pad, boss.getY() - 4.0, z - pad,
+                    x + pad, boss.getY() + 6.0, z + pad);
+            final List<EntityAbilityZone> zones =
+                    ((ServerWorld) world).getEntitiesOfClass(EntityAbilityZone.class, box);
+            for (final EntityAbilityZone zone : zones) {
+                if (zone == null || zone.removed) {
+                    continue;
+                }
+                final double zr = Math.max(0.1, zone.getRadius());
+                if (AbilityCombatHelper.flatDistance(zone.getX(), zone.getZ(), x, z) <= zr) {
+                    return true;
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+        return false;
+    }
+
+    private static void appendFalseZone(final ICustomNpc copy, final EntityAbilityZone zone) {
+        if (copy == null || zone == null) {
+            return;
+        }
+        final IData cd = copy.getStoreddata();
+        final String id = String.valueOf(zone.getUUID());
+        final String prev = str(cd, FALSE_ZONES);
+        put(cd, FALSE_ZONES, prev.isEmpty() ? id : prev + ";" + id);
+    }
+
+    /** Clears all puddles left by this false-host copy. */
+    public static void clearFalseCopyZones(final ICustomNpc copy) {
+        if (copy == null) {
+            return;
+        }
+        final IData cd = copy.getStoreddata();
+        final String raw = str(cd, FALSE_ZONES);
+        put(cd, FALSE_ZONES, "");
+        if (raw.isEmpty()) {
+            return;
+        }
+        try {
+            final Object mc = copy.getMCEntity();
+            if (!(mc instanceof Entity)) {
+                return;
+            }
+            final World world = ((Entity) mc).level;
+            if (!(world instanceof ServerWorld)) {
+                return;
+            }
+            final ServerWorld sw = (ServerWorld) world;
+            for (final String part : raw.split(";")) {
+                if (part == null || part.isEmpty()) {
+                    continue;
+                }
+                try {
+                    final Entity entity = sw.getEntity(UUID.fromString(part.trim()));
+                    if (entity instanceof EntityAbilityZone) {
+                        ZoneAPI.remove((EntityAbilityZone) entity);
+                    }
+                } catch (final Exception ignored) {
+                }
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
+    public static void onFalseCopyDeath(final ICustomNpc copy) {
+        clearFalseCopyZones(copy);
     }
 
     // -------------------------------------------------------------------------
@@ -2121,6 +2224,12 @@ public final class DrachenfelsEncounterHelper {
         for (final String tag : tags) {
             for (final ICustomNpc npc : findTagged(boss, tag)) {
                 try {
+                    if (npc != null && npc.hasTag(TAG_FALSE)) {
+                        clearFalseCopyZones(npc);
+                    }
+                    if (npc != null && npc.hasTag(TAG_PHANTOM)) {
+                        clearPhantomZone(boss, npc.getStoreddata());
+                    }
                     npc.despawn();
                 } catch (final Exception ignored) {
                 }

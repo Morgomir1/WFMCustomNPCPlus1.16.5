@@ -18,7 +18,7 @@ import noppes.npcs.entity.EntityNPCInterface;
 
 /**
  * Solo Constant Drachenfels: absorb shield (boss + phase-1 Court), phase HP caps,
- * vessel immunity, vessel-only player damage, monk death clears absorb.
+ * desperation-shard player-only damage, monk death clears absorb.
  */
 @Mod.EventBusSubscriber(modid = "customnpcs", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class DrachenfelsCombatHandler {
@@ -61,9 +61,7 @@ public final class DrachenfelsCombatHandler {
         }
         final ICustomNpc npc = (ICustomNpc) wrapped;
 
-        if (npc.hasTag(DrachenfelsEncounterHelper.TAG_VESSEL)
-                || npc.hasTag(DrachenfelsEncounterHelper.TAG_SHARD)
-                || npc.hasTag(DrachenfelsEncounterHelper.TAG_DESP_SHARD)) {
+        if (npc.hasTag(DrachenfelsEncounterHelper.TAG_DESP_SHARD)) {
             if (!isPlayerDamage(event.getSource().getEntity())) {
                 event.setCanceled(true);
                 event.setAmount(0.0F);
@@ -79,12 +77,6 @@ public final class DrachenfelsCombatHandler {
         }
 
         if (DrachenfelsEncounterHelper.isInvulnerable(npc)) {
-            event.setCanceled(true);
-            event.setAmount(0.0F);
-            return;
-        }
-
-        if (DrachenfelsEncounterHelper.hasLivingVessels(npc)) {
             event.setCanceled(true);
             event.setAmount(0.0F);
             return;
@@ -164,14 +156,6 @@ public final class DrachenfelsCombatHandler {
         }
         if (npc.hasTag(DrachenfelsEncounterHelper.TAG_FALSE)) {
             DrachenfelsEncounterHelper.onFalseCopyDeath(npc);
-            return;
-        }
-        if (npc.hasTag(DrachenfelsEncounterHelper.TAG_VESSEL)) {
-            DrachenfelsEncounterHelper.onVesselDeath(npc);
-            return;
-        }
-        if (npc.hasTag(DrachenfelsEncounterHelper.TAG_SHARD)) {
-            DrachenfelsEncounterHelper.onShardDeath(npc);
             return;
         }
         if (npc.hasTag(DrachenfelsEncounterHelper.TAG_DESP_SHARD)) {

@@ -14,9 +14,9 @@
 | `df_nameless_step` | `DfNamelessStepAbility` | 3 |
 | `df_nameless_whisper` | `DfNamelessWhisperAbility` | 3 |
 | `df_name_steal` | `DfNameStealAbility` | 3 |
-| `df_carrier_slash` | `DfCarrierSlashAbility` | 3 carrier |
+| `df_carrier_slash` | `DfCarrierSlashAbility` | 1 Court Guard |
 
-Helper-only (не AbilityAPI): Bell, Court spawn, vessel/shard/carrier, **Desperation Air**.
+Helper-only (не AbilityAPI): Bell, Court spawn, **Desperation Air**.
 
 Desperation Air reuse: `df_imperial_poison` / `df_nameless_whisper` (rings) + `crimson_blob` (blobs → seal puddles). Tag `df_desp_shard`.
 
@@ -36,7 +36,7 @@ Phase 1 CD notes: AbilityAPI CDs arm **on cast start**. `Encounter.init` is one-
 
 Bell / court: `bellRatios` (`"0.88,0.76"`), `bellCd`, `absorbRatio`, `courtCd`, `cultistInterval`, `guardInterval` (5с = 100t). Параметры кастов аддов берутся из `gaze*` / `carrierArc*` босса. Guard slash: `preDash` + `guardDashTicks` / `guardDashRange` / `guardDashStandoff` (дэш к игроку, затем cone).
 
-**Add HP (all spawnable adds):** `monkHp`, `cultistHp`, `guardHp`, `leperHp`, `falseCloneHp`, `vesselHpFirst`, `vesselHpRepeat`, `shardHp`.
+**Add HP (all spawnable adds):** `monkHp`, `cultistHp`, `guardHp`, `leperHp`, `falseCloneHp`, `shardHp` / `despShardHp`.
 
 Phase 2 cycle: `cycleLength`, `cycleFeastAt`, `cycleLeperAt`.
 
@@ -48,11 +48,9 @@ Leper: `leperChargeTicks`, `leperActiveTicks`, `leperDamage`, `leperHp`, `leperS
 
 False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActiveTicks`, `falseCloneHp`, `falseCopyDist`, `falseTeleportRing`, `falseTelegraphRadius`, `falseRunStep`, `falsePuddleRadius`/`Damage`/`DamageInterval`/`Interval` (лужи живут до смерти иллюзии; не стакаются если в позиции уже есть зона; `falsePuddleTicks` не используется). While copies live, real boss uses Display **Visible=No** + soft-visibility packets (not vanilla `Entity.setInvisible` — CNPC ignores that flag for rendering).
 
-Phase 3 vessels: `vesselRing` (max dist from center, default 11.5), `vesselRingMin` (default 10.5), `vesselAngleJitter` (±deg around even spacing, default 30). Spawn uses random base rotation + jitter + random radius in `[min,max]` (clamped to arena). Also `vesselHpFirst`/`vesselHpRepeat`, `shardHp`, `shardSpeed` (default 0.06), `shardHealRatio`, `shardTouchDist` (default 2.75), `shardDelayTicks`.
+Phase 3 casts: `stepCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`Width`/`LandRadius`/`Overshoot`/`MinPlayerDist`, `whisperCd`/`ChargeTicks`/`ActiveTicks`/`BlindDuration`/`Thickness`, `stealCd`/`Range`/`Damage`/`ChargeTicks`/`TelegraphRadius`/`WeakDuration`/`BlindDuration`. Court Guard slash AbilityAPI `df_carrier_slash`: `carrierArcDamage`/`Distance`/`NearWidth`/`HalfAngle`/`CastTicks`/`Interval`/`Knockback`/`KnockbackY`.
 
-Phase 3 casts / carrier: `stepCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`Width`/`LandRadius`/`Overshoot`/`MinPlayerDist`, `whisperCd`/`ChargeTicks`/`ActiveTicks`/`Damage`/`BlindDuration`/`Thickness`/`Ring1..3`, `stealCd`/`Range`/`Damage`/`ChargeTicks`/`TelegraphRadius`/`WeakDuration`/`BlindDuration`, `carrierTicks`/`Speed`, carrier slash AbilityAPI `df_carrier_slash`: `carrierArcDamage`/`Distance`/`NearWidth`/`HalfAngle`/`CastTicks`/`Interval`/`Knockback`/`KnockbackY` (truncated cone like `wh_flaming_strike`, soul VFX, hold-in-place).
-
-Desperation Air: `desperationRatios` (`"0.25,0.15,0.05"`), `despAirHeight` (5), `despRingInterval` (80 = 4s gap after ring ends), `despBlobCd` (30), `despStunTicks` (200), `despShardMinDist` (10), `despShardSpeed` (0.03), `despShardHp`, `despBlobRadius` (3), `despBlobChargeTicks`/`FlightTicks`/`ArcHeight`/`ZoneTicks`/`Damage`/`DamageInterval`. Blob puddles use `sealZoneColor` + seal poison. Fail → full heal + phase 1 (marks reset). Success → stun then spirit + `spawnVesselSet(false)`.
+Desperation Air: `desperationRatios` (`"0.25,0.15,0.05"`), `despAirHeight` (5), `despRingInterval` (80 = 4s gap after ring ends), `despBlobCd` (30), `despStunTicks` (200), `despShardMinDist` (10), `despShardSpeed` (0.03), `despShardHp`, `shardTouchDist`, `despBlobRadius` (3), `despBlobChargeTicks`/`FlightTicks`/`ArcHeight`/`ZoneTicks`/`Damage`/`DamageInterval`. Blob puddles use `sealZoneColor` + seal poison. Fail → full heal + phase 1 (marks reset). Success → stun then spirit casts resume.
 
 ## JS bootstrap
 
@@ -76,7 +74,6 @@ function init(event) {
 | Init | `Этот замок помнит вас дольше, чем вы — себя.` |
 | Phase 2 | `Садитесь. Пир уже накрыт.` |
 | Phase 3 | `Тело — лишь маска. Имя остаётся.` |
-| Carrier | `Нет сосуда — нет хозяина. Бейте, пока я ещё плоть.` |
 | (death path) | `Замок не умрёт с этим телом.` |
 | `df_black_seal` | `Печать ложится. Земля запомнит.` |
 | `df_mask_gaze` | `Смотрите в маску — и потеряете лицо.` |

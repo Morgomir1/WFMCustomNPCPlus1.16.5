@@ -3,7 +3,7 @@ name: wfm-drachenfels-boss
 description: >-
   Фазы, способности и encounter-логика соло-босса Constant Drachenfels (CustomNPC+ Forge 1.16.5).
   Используй при правках DrachenfelsEncounterHelper, Df*Ability, drachenfels_constant.js,
-  телеграфах/зонах Драхенфельса, фазах, сосудах, осколках или балансе его спеллов.
+  телеграфах/зонах Драхенфельса, фазах, Desperation Air или балансе его спеллов.
 ---
 
 # Constant Drachenfels (соло)
@@ -14,7 +14,7 @@ description: >-
 
 | Слой | Где |
 |------|-----|
-| Оркестратор | `DrachenfelsEncounterHelper` — фазы, CD, адды, сосуды |
+| Оркестратор | `DrachenfelsEncounterHelper` — фазы, CD, адды, Desperation Air |
 | Касты | `AbilityAPI.start` → `impl/Df*Ability` |
 | Конфиг | `DrachenfelsConfig` ← `Encounter.configure(npc, AbilityAPI.params(...))` |
 | JS | `scripts/drachenfels/drachenfels_constant.js` |
@@ -39,7 +39,7 @@ description: >-
 ```
 HP 100% ──► Phase 1 (kite + seal/gaze/bell/court)
      66% ──► Transition ──► Phase 2 (цикл яд/места/бал + false host)
-     33% ──► Transition ──► Phase 3 spirit (сосуды/осколки + step/whisper/steal + carrier)
+     33% ──► Transition ──► Phase 3 spirit (step/whisper/steal)
      25% / 15% / 5% ──► Desperation Air (взлёт + rings/blobs + desp shards)
 ```
 
@@ -75,27 +75,20 @@ AI: тот же scripted kite, что в фазе 1 (`kiteDistance` / `phase1Spe
 
 ### Phase 3 — дух / имя
 
-Spirit AI (без ходьбы). Сразу 3 **Vessel** на кольце (random base angle + jitter, radius в `[vesselRingMin, vesselRing]`). Касты (CD-очередь): Steal (ближний) → Whisper → Step.
+Spirit AI (без ходьбы). Касты (CD-очередь): Steal (ближний) → Whisper → Step. Босс уязвим сразу (нет vessel-immunity).
 
 | Id | Что делает | Telegraph |
 |----|------------|-----------|
 | `df_nameless_step` | dash к текущей позиции игрока (retarget в конце charge + overshoot) | line + circle |
 | `df_nameless_whisper` | 3 кольца, hit только в bands + blind | 3× ring |
 | `df_name_steal` | charge на цели → damage + weak + blind | circle на цели |
-| `df_carrier_slash` | truncated cone (как wh_flaming_strike), soul VFX; hold-in-place | coneTruncated |
+| `df_carrier_slash` | truncated cone (Court Guard / reuse); не босс в P3 | coneTruncated |
 
-**Сосуды / осколки / Носитель:**
-
-1. Vessel умирает → через delay spawn **Shard** (бежит к боссу).
-2. Shard касается босса → heal ~2.67% maxHP, **cap = phase3 ratio (33%)**.
-3. Все vessel мертвы → **Carrier window** (~240t): босс снова плоть, cone-атаки; убить до конца окна.
-4. Окно провалено → снова spirit + новый набор vessel (меньше HP).
-
-**Desperation Air** (HP marks **25% / 15% / 5%**, обычно в carrier): cancel → чистка vessel/shard → центр арены → взлёт (~5 блоков) + invuln. Пока в воздухе: чередует `df_imperial_poison` ↔ `df_nameless_whisper` с паузой **4с** между кольцами; в паузе — `crimson_blob` → seal-лужи R=3 (тёмно-зелёные). 3× `df_desp_shard` ползут с `dist≥10` к боссу. Touch любого → фуллхил + ресет в **фазу 1**. Все 3 убиты → падение + AFK 10с → spirit + новый vessel set (текущий HP; marks остаются).
+**Desperation Air** (HP marks **25% / 15% / 5%**): cancel → чистка → центр арены → взлёт (~5 блоков) + invuln. Пока в воздухе: чередует `df_imperial_poison` ↔ `df_nameless_whisper` с паузой **4с** между кольцами; в паузе — `crimson_blob` → seal-лужи R=3 (тёмно-зелёные). 3× `df_desp_shard` ползут с `dist≥10` к боссу. Touch любого → фуллхил + ресет в **фазу 1**. Все 3 убиты → падение + AFK 10с → снова spirit-касты (текущий HP; marks остаются).
 
 ## Адды (клоны)
 
-Имена задаются в JS → `configureClones`. Теги: `df_monk`, `df_court`/`df_cultist`/`df_guard`, `df_leper`, `df_false`, `df_vessel`, `df_shard`, `df_desp_shard`.
+Имена задаются в JS → `configureClones`. Теги: `df_monk`, `df_court`/`df_cultist`/`df_guard`, `df_leper`, `df_false`, `df_desp_shard`.
 
 | Клон | Роль |
 |------|------|
@@ -104,7 +97,6 @@ Spirit AI (без ходьбы). Сразу 3 **Vessel** на кольце (rand
 | Guard | `df_carrier_slash` + pre-dash к игроку (`guardDash*`); slash-параметры с босса; CD `guardInterval` = 5с |
 | Leper Phantom | 3 залпа от босса наружу, виляющий полёт |
 | False Host | 1 HP decoy |
-| Vessel / Shard | phase 3 mechanics |
 | Desp Shard | Desperation Air crawl; touch = fail |
 
 ## При правках

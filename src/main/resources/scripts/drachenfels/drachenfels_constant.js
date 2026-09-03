@@ -19,7 +19,6 @@ var CLONE_CULTIST = "Культист Дракенфельса";
 var CLONE_GUARD = "Страж Дракенфельса";
 var CLONE_PHANTOM = "Фантом Дракенфельса";
 var CLONE_FALSE = "Иллюзия Дракенфельса";
-var CLONE_VESSEL = "Сосуд Дракенфельса";
 var CLONE_SHARD = "Осколок Дракенфельса";
 
 // =========================
@@ -170,25 +169,15 @@ var MONK_HP = 40.0;
 var CULTIST_HP = 30.0;
 var GUARD_HP = 50.0;
 var FALSE_CLONE_HP = 50.0;
-var VESSEL_HP_FIRST = 45.0;
-var VESSEL_HP_REPEAT = 30.0;
 var SHARD_HP = 20.0;
 // LEPER_HP выше в секции Leper Ball
 
 // =========================
-// ФАЗА 3 — сосуды / осколки / спеллы / Носитель
+// ФАЗА 3 — спеллы + Desperation Air
 // =========================
-var VESSEL_RING = 11.5;       // max dist from arena center
-var VESSEL_RING_MIN = 10.5;   // min dist from arena center
-var VESSEL_ANGLE_JITTER = 30.0; // ±degrees around even spacing
-var SHARD_SPEED = 0.06;
-var SHARD_HEAL_RATIO = 0.0267;
 var SHARD_TOUCH_DIST = 2.75;
-var SHARD_DELAY_TICKS = 5;
 
-// =========================
-// ФАЗА 3 — Desperation Air (25% / 15% / 5%)
-// =========================
+// Desperation Air (25% / 15% / 5%)
 var DESPERATION_RATIOS = "0.25,0.15,0.05";
 var DESP_AIR_HEIGHT = 5.0;
 var DESP_RING_INTERVAL = 80;   // 4с пауза после кольца до следующего
@@ -234,8 +223,7 @@ var STEAL_TELEGRAPH_RADIUS = 1.5;
 var STEAL_WEAK_DURATION = 40;
 var STEAL_BLIND_DURATION = 40;
 
-var CARRIER_TICKS = 240;
-var CARRIER_SPEED = 0.2;
+// Guard / carrier slash (фаза 1 Court + reused ability params)
 var CARRIER_ARC_DAMAGE = 15.0;
 var CARRIER_ARC_DISTANCE = 4.5;
 var CARRIER_ARC_NEAR_WIDTH = 1.35;
@@ -255,7 +243,6 @@ function init(event) {
         CLONE_GUARD,
         CLONE_PHANTOM,
         CLONE_FALSE,
-        CLONE_VESSEL,
         CLONE_SHARD
     );
     // Nashorn: varargs после npc ломаются — передаём Map через AbilityAPI.params
@@ -321,8 +308,6 @@ function init(event) {
         "guardHp", GUARD_HP,
         "leperHp", LEPER_HP,
         "falseCloneHp", FALSE_CLONE_HP,
-        "vesselHpFirst", VESSEL_HP_FIRST,
-        "vesselHpRepeat", VESSEL_HP_REPEAT,
         "shardHp", SHARD_HP,
 
         "cycleLength", CYCLE_LENGTH,
@@ -386,13 +371,7 @@ function init(event) {
         "falsePuddleDamageInterval", FALSE_PUDDLE_DAMAGE_INTERVAL,
         "falsePuddleInterval", FALSE_PUDDLE_INTERVAL,
 
-        "vesselRing", VESSEL_RING,
-        "vesselRingMin", VESSEL_RING_MIN,
-        "vesselAngleJitter", VESSEL_ANGLE_JITTER,
-        "shardSpeed", SHARD_SPEED,
-        "shardHealRatio", SHARD_HEAL_RATIO,
         "shardTouchDist", SHARD_TOUCH_DIST,
-        "shardDelayTicks", SHARD_DELAY_TICKS,
 
         "desperationRatios", DESPERATION_RATIOS,
         "despAirHeight", DESP_AIR_HEIGHT,
@@ -439,8 +418,6 @@ function init(event) {
         "stealWeakDuration", STEAL_WEAK_DURATION,
         "stealBlindDuration", STEAL_BLIND_DURATION,
 
-        "carrierTicks", CARRIER_TICKS,
-        "carrierSpeed", CARRIER_SPEED,
         "carrierArcDamage", CARRIER_ARC_DAMAGE,
         "carrierArcDistance", CARRIER_ARC_DISTANCE,
         "carrierArcNearWidth", CARRIER_ARC_NEAR_WIDTH,

@@ -39,8 +39,8 @@ description: >-
 ```
 HP 100% ──► Phase 1 (kite + seal/gaze/bell/court)
      66% ──► Transition ──► Phase 2 (цикл яд/места/бал + false host)
-     33% ──► Transition ──► Phase 3 spirit (step/whisper/steal)
-     25% / 15% / 5% ──► Desperation Air (взлёт + rings/blobs + desp shards)
+     33% ──► Transition ──► Phase 3 Air (rings/blobs + desp shards)
+                              └─ 3 shards dead → 5с vulnerable → Air repeat
 ```
 
 ### Phase 1 — тело / kite
@@ -73,18 +73,16 @@ AI: тот же scripted kite, что в фазе 1 (`kiteDistance` / `phase1Spe
 
 Цикл рестартует после `cycleLength`.
 
-### Phase 3 — дух / имя
+### Phase 3 — дух / воздушный цикл
 
-Spirit AI (без ходьбы). Касты (CD-очередь): Steal (ближний) → Whisper → Step. Босс уязвим сразу (нет vessel-immunity).
+Spirit AI (без ходьбы). Всю фазу босс чередует воздушную часть с коротким окном уязвимости на земле. Старая наземная ротация Steal → Whisper → Step отключена.
 
 | Id | Что делает | Telegraph |
 |----|------------|-----------|
-| `df_nameless_step` | dash к текущей позиции игрока (retarget в конце charge + overshoot) | line + circle |
-| `df_nameless_whisper` | 3 кольца, hit только в bands + blind | 3× ring |
-| `df_name_steal` | charge на цели → damage + weak + blind | circle на цели |
+| `df_nameless_whisper` | 3 воздушных кольца, hit только в bands + blind | 3× ring |
 | `df_carrier_slash` | truncated cone (Court Guard / reuse); не босс в P3 | coneTruncated |
 
-**Desperation Air** (HP marks **25% / 15% / 5%**): cancel → чистка → центр арены → взлёт (~5 блоков) + invuln. Пока в воздухе: чередует `df_imperial_poison` ↔ `df_nameless_whisper` с паузой **4с** между кольцами; в паузе — `crimson_blob` → seal-лужи R=3 (тёмно-зелёные). 3× `df_desp_shard` ползут с `dist≥10` к боссу. Touch любого → фуллхил + ресет в **фазу 1**. Все 3 убиты → падение + AFK 10с → снова spirit-касты (текущий HP; marks остаются).
+**Air cycle** (сразу с начала P3): cancel → чистка → центр арены → взлёт (~5 блоков) + invuln. Пока в воздухе: чередует `df_imperial_poison` ↔ `df_nameless_whisper` с паузой **4с** между кольцами; в паузе — `crimson_blob` → seal-лужи R=3 (тёмно-зелёные). 3× `df_desp_shard` ползут с `dist≥10` к боссу. Touch любого → фуллхил + ресет в **фазу 1**. Все 3 убиты → босс падает в центр, становится уязвим на **5с**, затем снова взлетает и спавнит 3 новых осколка.
 
 ## Адды (клоны)
 

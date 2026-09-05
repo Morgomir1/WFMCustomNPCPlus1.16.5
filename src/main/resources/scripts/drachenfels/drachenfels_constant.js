@@ -173,16 +173,14 @@ var SHARD_HP = 20.0;
 // LEPER_HP выше в секции Leper Ball
 
 // =========================
-// ФАЗА 3 — спеллы + Desperation Air
+// ФАЗА 3 — постоянный воздушный цикл
 // =========================
 var SHARD_TOUCH_DIST = 2.75;
 
-// Desperation Air (25% / 15% / 5%)
-var DESPERATION_RATIOS = "0.25,0.15,0.05";
 var DESP_AIR_HEIGHT = 5.0;
 var DESP_RING_INTERVAL = 80;   // 4с пауза после кольца до следующего
 var DESP_BLOB_CD = 30;
-var DESP_STUN_TICKS = 200;     // 10с AFK после успеха
+var DESP_STUN_TICKS = 100;     // 5с уязвимости на земле после уничтожения кристаллов
 var DESP_SHARD_MIN_DIST = 10.0;
 var DESP_SHARD_SPEED = 0.03;
 var DESP_SHARD_HP = 20.0;
@@ -373,7 +371,6 @@ function init(event) {
 
         "shardTouchDist", SHARD_TOUCH_DIST,
 
-        "desperationRatios", DESPERATION_RATIOS,
         "despAirHeight", DESP_AIR_HEIGHT,
         "despRingInterval", DESP_RING_INTERVAL,
         "despBlobCd", DESP_BLOB_CD,

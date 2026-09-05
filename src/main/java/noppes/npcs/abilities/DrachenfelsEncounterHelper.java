@@ -62,7 +62,6 @@ public final class DrachenfelsEncounterHelper {
     private static final double PHASE3_RATIO = 0.33;
     private static final double[] BELL_RATIOS = {0.88, 0.76};
     private static final double[] FALSE_RATIOS = {0.56, 0.46, 0.36};
-    private static final double[] DESPERATION_RATIOS = {0.25, 0.15, 0.05};
     private static final double ABSORB_RATIO = 0.133;
 
     private static final int INVULN_TICKS = 60;
@@ -90,7 +89,7 @@ public final class DrachenfelsEncounterHelper {
     private static final double DESP_AIR_HEIGHT = 5.0;
     private static final int DESP_RING_INTERVAL = 80;
     private static final int DESP_BLOB_CD = 30;
-    private static final int DESP_STUN_TICKS = 200;
+    private static final int DESP_STUN_TICKS = 100;
     private static final double DESP_SHARD_MIN_DIST = 10.0;
     private static final double DESP_SHARD_SPEED = 0.03;
     private static final double DESP_BLOB_RADIUS = 3.0;
@@ -117,7 +116,6 @@ public final class DrachenfelsEncounterHelper {
     private static final String BELL_FIRED = "df_bell_fired";
     private static final String FALSE_FIRED = "df_false_fired";
     private static final String DESPERATION = "df_desperation";
-    private static final String DESPERATION_FIRED = "df_desperation_fired";
     private static final String DESP_RING_AT = "df_desp_ring_at";
     private static final String DESP_RING_ALT = "df_desp_ring_alt";
     private static final String DESP_BLOB_AT = "df_desp_blob_at";
@@ -192,7 +190,6 @@ public final class DrachenfelsEncounterHelper {
         put(data, BELL_FIRED, "");
         put(data, FALSE_FIRED, "");
         put(data, DESPERATION, "0");
-        put(data, DESPERATION_FIRED, "");
         put(data, DESP_RING_AT, "0");
         put(data, DESP_RING_ALT, "0");
         put(data, DESP_BLOB_AT, "0");
@@ -288,7 +285,7 @@ public final class DrachenfelsEncounterHelper {
 
         final int phase = ScriptDataUtil.getInt(data, PHASE_KEY);
         if (phase == 3 && !isDesperationActive(data) && !isDesperationStunned(data, now)) {
-            tickDesperationTrigger(npc, data, now);
+            beginDesperation(npc, data, now);
         }
         if (isDesperationActive(data)) {
             resolveCombatTarget(npc);
@@ -296,7 +293,7 @@ public final class DrachenfelsEncounterHelper {
             return;
         }
         if (isDesperationStunned(data, now)) {
-            tickDesperationStun(npc, data, now);
+            tickDesperationStun(npc);
             return;
         }
 
@@ -320,8 +317,6 @@ public final class DrachenfelsEncounterHelper {
             tickPhase1(npc, data, now);
         } else if (phase == 2) {
             tickPhase2(npc, data, now);
-        } else if (phase == 3) {
-            tickPhase3(npc, data, now);
         }
     }
 
@@ -378,8 +373,7 @@ public final class DrachenfelsEncounterHelper {
         return now < ScriptDataUtil.getLong(data, INVULN_UNTIL)
                 || ScriptDataUtil.isFlag(data, TRANSITION)
                 || ScriptDataUtil.isFlag(data, FALSE_ACTIVE)
-                || ScriptDataUtil.isFlag(data, DESPERATION)
-                || now < ScriptDataUtil.getLong(data, DESP_STUN_UNTIL);
+                || ScriptDataUtil.isFlag(data, DESPERATION);
     }
 
     public static float getAbsorb(final ICustomNpc npc) {
@@ -868,10 +862,6 @@ public final class DrachenfelsEncounterHelper {
             put(data, CYCLE_ORIGIN, String.valueOf(now));
             put(data, CYCLE_SHIFT, "0");
             put(data, CYCLE_SLOT, "0");
-        } else if (phase == 3) {
-            put(data, STEP_READY, String.valueOf(now + 40));
-            put(data, WHISPER_READY, String.valueOf(now + 60));
-            put(data, STEAL_READY, String.valueOf(now + 40));
         }
     }
 
@@ -1149,7 +1139,7 @@ public final class DrachenfelsEncounterHelper {
     }
 
     // -------------------------------------------------------------------------
-    // Desperation Air (25% / 15% / 5%)
+    // Phase 3 air cycle
     // -------------------------------------------------------------------------
 
     private static boolean isDesperationActive(final IData data) {
@@ -1158,24 +1148,6 @@ public final class DrachenfelsEncounterHelper {
 
     private static boolean isDesperationStunned(final IData data, final long now) {
         return now < ScriptDataUtil.getLong(data, DESP_STUN_UNTIL);
-    }
-
-    private static void tickDesperationTrigger(final ICustomNpc npc, final IData data, final long now) {
-        final double ratio = hpRatio(npc);
-        final String fired = str(data, DESPERATION_FIRED);
-        final double[] ratios = DrachenfelsConfig.getRatios(data, "desperationRatios", DESPERATION_RATIOS);
-        for (int i = 0; i < ratios.length; i++) {
-            final String mark = DrachenfelsConfig.mark(ratios[i]);
-            if (fired.contains(mark)) {
-                continue;
-            }
-            if (ratio > ratios[i]) {
-                continue;
-            }
-            put(data, DESPERATION_FIRED, fired.isEmpty() ? mark : fired + ";" + mark);
-            beginDesperation(npc, data, now);
-            return;
-        }
     }
 
     private static void beginDesperation(final ICustomNpc npc, final IData data, final long now) {
@@ -1330,7 +1302,6 @@ public final class DrachenfelsEncounterHelper {
         put(data, DESPERATION, "0");
         put(data, DESP_SPAWNED, "0");
         put(data, DESP_STUN_UNTIL, "0");
-        put(data, DESPERATION_FIRED, "");
         put(data, SPIRIT_MODE, "0");
         put(data, ABSORB_KEY, "0");
         clearBellAbsorb(npc);
@@ -1385,48 +1356,12 @@ public final class DrachenfelsEncounterHelper {
         AbilityVfx.spawnSoulBurst(npc.getWorld(), c[0], gy + 0.5, c[2], 1.8);
     }
 
-    private static void tickDesperationStun(final ICustomNpc npc, final IData data, final long now) {
+    private static void tickDesperationStun(final ICustomNpc npc) {
         final double[] c = getArenaCenter(npc);
         final double gy = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
         AbilityCombatHelper.holdInPlace(npc, c[0], gy, c[2]);
         if (AbilityAPI.isBusy(npc)) {
             AbilityAPI.cancel(npc);
-        }
-        if (now < ScriptDataUtil.getLong(data, DESP_STUN_UNTIL)) {
-            return;
-        }
-        put(data, DESP_STUN_UNTIL, "0");
-        put(data, SPIRIT_MODE, "1");
-        applySpiritAi(npc);
-        put(data, STEP_READY, String.valueOf(now + 40));
-        put(data, WHISPER_READY, String.valueOf(now + 60));
-        put(data, STEAL_READY, String.valueOf(now + 40));
-        say(npc, "Тело — лишь маска. Имя остаётся.");
-    }
-
-    private static void tickPhase3(final ICustomNpc npc, final IData data, final long now) {
-        if (AbilityAPI.isBusy(npc)) {
-            return;
-        }
-        final IEntityLiving target = resolveCombatTarget(npc);
-        if (target == null || !target.isAlive()) {
-            return;
-        }
-        if (AbilityCombatHelper.flatDistance(
-                npc.getX(), npc.getZ(), target.getX(), target.getZ())
-                <= DrachenfelsConfig.getD(data, "stealRange", 3.0)
-                && now >= ScriptDataUtil.getLong(data, STEAL_READY)) {
-            if (startBossAbility(npc, DfNameStealAbility.ID, target, DrachenfelsConfig.stealParams(npc))) {
-                return;
-            }
-        }
-        if (now >= ScriptDataUtil.getLong(data, WHISPER_READY)) {
-            if (startBossAbility(npc, DfNamelessWhisperAbility.ID, target, DrachenfelsConfig.whisperParams(npc))) {
-                return;
-            }
-        }
-        if (now >= ScriptDataUtil.getLong(data, STEP_READY)) {
-            startBossAbility(npc, DfNamelessStepAbility.ID, target, DrachenfelsConfig.stepParams(npc));
         }
     }
 

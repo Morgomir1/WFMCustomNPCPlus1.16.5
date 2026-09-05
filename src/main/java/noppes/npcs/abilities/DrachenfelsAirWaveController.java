@@ -3,6 +3,7 @@ package noppes.npcs.abilities;
 import noppes.npcs.api.NpcAPI;
 import noppes.npcs.api.entity.ICustomNpc;
 import noppes.npcs.api.entity.IEntity;
+import noppes.npcs.api.entity.IEntityLiving;
 import noppes.npcs.entity.EntityAbilityZone;
 import noppes.npcs.zone.ZoneAPI;
 
@@ -49,7 +50,7 @@ public final class DrachenfelsAirWaveController {
         final double z = boss.getZ();
         final double y = AbilityCombatHelper.findGroundY(
                 boss.getWorld(), x, z, boss.getY()) + 0.05;
-        final Wave wave = new Wave(poison, x, y, z, params);
+        final Wave wave = new Wave(boss, poison, x, y, z, params);
         wave.zone = ZoneAPI.hazardRing(boss, x, y, z, 2.0, 0.05, 40, 0, 999);
         if (wave.zone != null) {
             wave.zone.setColor(params.getInt(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030));
@@ -139,9 +140,33 @@ public final class DrachenfelsAirWaveController {
             } else {
                 hitWithWhisper(wave, entity);
             }
+            pushAlongWave(wave, entity);
             AbilityVfx.spawnHitParticle(boss.getWorld(), entity);
             wave.hitUuids.add(uuid);
         }
+    }
+
+    /**
+     * The expanding ring travels away from its center, so its impact carries
+     * players in the same radial direction.
+     */
+    private static void pushAlongWave(final Wave wave, final IEntity entity) {
+        if (!(entity instanceof IEntityLiving)) {
+            return;
+        }
+        double dx = entity.getX() - wave.x;
+        double dz = entity.getZ() - wave.z;
+        double length = Math.sqrt(dx * dx + dz * dz);
+        if (length < 0.05) {
+            dx = 1.0;
+            dz = 0.0;
+            length = 1.0;
+        }
+        final double strength = wave.knockback;
+        final IEntityLiving living = (IEntityLiving) entity;
+        living.setMotionX(dx / length * strength);
+        living.setMotionY(wave.knockbackY);
+        living.setMotionZ(dz / length * strength);
     }
 
     private static void hitWithPoison(final Wave wave, final IEntity entity) {
@@ -200,12 +225,15 @@ public final class DrachenfelsAirWaveController {
         private final double y;
         private final double z;
         private final AbilityParams params;
+        private final double knockback;
+        private final double knockbackY;
         private final Set<String> hitUuids = new HashSet<>();
         private EntityAbilityZone zone;
         private int elapsedTicks;
         private boolean finished;
 
         private Wave(
+                final ICustomNpc boss,
                 final boolean poison,
                 final double x,
                 final double y,
@@ -216,6 +244,10 @@ public final class DrachenfelsAirWaveController {
             this.y = y;
             this.z = z;
             this.params = params;
+            this.knockback = Math.max(
+                    0.0, DrachenfelsConfig.getD(boss, "despRingKnockback", 0.85));
+            this.knockbackY = Math.max(
+                    0.0, DrachenfelsConfig.getD(boss, "despRingKnockbackY", 0.16));
         }
     }
 }

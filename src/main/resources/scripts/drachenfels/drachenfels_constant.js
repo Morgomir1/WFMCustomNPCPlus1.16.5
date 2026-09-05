@@ -114,7 +114,7 @@ var IMPERIAL_POISON_DURATION = 80;
 var IMPERIAL_POISON_AMP = 3;
 var IMPERIAL_SLOW_DURATION = 40;
 var IMPERIAL_WAVE_COUNT = 3;
-var IMPERIAL_WAVE_INTERVAL = 10; // 0.5s between waves
+var IMPERIAL_WAVE_INTERVAL = 20; // 0.5s between waves
 
 var FEAST_CHARGE_TICKS = 40;
 var FEAST_ACTIVE_TICKS = 1;
@@ -179,6 +179,8 @@ var SHARD_TOUCH_DIST = 2.75;
 
 var DESP_AIR_HEIGHT = 5.0;
 var DESP_RING_INTERVAL = 40;   // самостоятельная волна каждые 2с, не занимает AbilityAPI-каст
+var DESP_RING_KNOCKBACK = 0.85; // импульс наружу по ходу расширения кольца
+var DESP_RING_KNOCKBACK_Y = 0.16;
 var DESP_STUN_TICKS = 100;     // 5с уязвимости на земле после уничтожения кристаллов
 var DESP_SHARD_MIN_DIST = 10.0;
 var DESP_SHARD_SPEED = 0.03;
@@ -372,6 +374,8 @@ function init(event) {
 
         "despAirHeight", DESP_AIR_HEIGHT,
         "despRingInterval", DESP_RING_INTERVAL,
+        "despRingKnockback", DESP_RING_KNOCKBACK,
+        "despRingKnockbackY", DESP_RING_KNOCKBACK_Y,
         "despStunTicks", DESP_STUN_TICKS,
         "despShardMinDist", DESP_SHARD_MIN_DIST,
         "despShardSpeed", DESP_SHARD_SPEED,

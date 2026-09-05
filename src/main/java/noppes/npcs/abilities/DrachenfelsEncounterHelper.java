@@ -1015,7 +1015,10 @@ public final class DrachenfelsEncounterHelper {
             return false;
         }
         final int tab = ScriptDataUtil.getInt(data, CLONE_TAB);
-        final boolean cultist = RANDOM.nextBoolean();
+        final int cultists = countTaggedNear(npc, TAG_CULTIST);
+        final int guards = countTaggedNear(npc, TAG_GUARD);
+        // The first Court add is random; the second must complete a Cultist + Guard pair.
+        final boolean cultist = guards > 0 ? true : cultists > 0 ? false : RANDOM.nextBoolean();
         final String name = cultist ? str(data, CLONE_CULTIST) : str(data, CLONE_GUARD);
         if (name.isEmpty()) {
             return false;

@@ -210,8 +210,10 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         final int color = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
         final float hitHeight =
                 (float) Math.max(0.25, ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 1.0));
+        final int lifetime = Math.max(
+                1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 120) + 5);
         final EntityAbilityZone zone = ZoneAPI.hazardRing(
-                ctx.npc, active.sx, y, active.sz, 2.0, 0.05, 40, 0, 999);
+                ctx.npc, active.sx, y, active.sz, 2.0, 0.05, lifetime, 0, 999);
         if (zone == null) {
             return;
         }

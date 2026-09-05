@@ -50,7 +50,7 @@ False: `falseRatios`, `falseMax`, `falseShift`, `falseChargeTicks`, `falseActive
 
 Phase 3 no longer uses the ground Step/Steal/Whisper rotation. Air rings reuse `df_nameless_whisper`. Court Guard slash AbilityAPI `df_carrier_slash`: `carrierArcDamage`/`Distance`/`NearWidth`/`HalfAngle`/`CastTicks`/`Interval`/`Knockback`/`KnockbackY`.
 
-Phase 3 Air cycle: `despAirHeight` (5), `despRingInterval` (80 = 4s gap after ring ends), `despBlobCd` (30), `despStunTicks` (100 = 5s vulnerable on ground), `despShardMinDist` (10), `despShardSpeed` (0.03), `despShardHp`, `shardTouchDist`, `despBlobRadius` (3), `despBlobChargeTicks`/`FlightTicks`/`ArcHeight`/`ZoneTicks`/`Damage`/`DamageInterval`. Blob puddles use `sealZoneColor` + seal poison. Fail → full heal + phase 1. Success → 5s vulnerable on ground, then a new air cycle with three shards.
+Phase 3 Air cycle: `despAirHeight` (5), `despRingInterval` (40 = самостоятельная волна каждые 2s), `despStunTicks` (100 = 5s vulnerable on ground), `despShardMinDist` (10), `despShardSpeed` (0.03), `despShardHp`, `shardTouchDist`, `despBlobRadius` (3), `despBlobChargeTicks`/`FlightTicks`/`ArcHeight`/`ZoneTicks`/`Damage`/`DamageInterval`. Волны не занимают AbilityAPI-каст; босс непрерывно повторяет blob. Blob puddles use `sealZoneColor` + seal poison. Fail → full heal + phase 1. Success → 5s vulnerable on ground, then a new air cycle with three shards.
 
 ## JS bootstrap
 

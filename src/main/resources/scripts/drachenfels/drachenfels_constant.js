@@ -129,15 +129,15 @@ var FEAST_COLOR = 0xC0FFFFFF | 0; // только safe seats (белый); ар�
 
 var LEPER_CHARGE_TICKS = 24;
 var LEPER_ACTIVE_TICKS = 60;
-var LEPER_DAMAGE = 10.0;
+var LEPER_DAMAGE = 20.0;
 var LEPER_HP = 1.0; // phantoms are hazard carriers; HP for rare player hits
-var LEPER_START_RADIUS = 1.5; // spawn near boss
+var LEPER_START_RADIUS = 2.5; // spawn near boss
 var LEPER_SPAWN_RADIUS = 24.0; // fly outward to this radius
 var LEPER_DURATION = 70; // flight ticks per spirit
-var LEPER_HIT_RADIUS = 2.0; // red hazard under spirit
+var LEPER_HIT_RADIUS = 2.5; // red hazard under spirit
 var LEPER_SLOW_DURATION = 30;
 var LEPER_SLOW_AMP = 1;
-var LEPER_VOLLEYS = 5;
+var LEPER_VOLLEYS = 10;
 var LEPER_VOLLEY_INTERVAL = 18;
 var LEPER_WIGGLE_AMP = 1.4;
 var LEPER_WIGGLE_FREQ = 2.5;
@@ -169,7 +169,7 @@ var MONK_HP = 200.0;
 var CULTIST_HP = 200.0;
 var GUARD_HP = 400.0;
 var FALSE_CLONE_HP = 50.0;
-var SHARD_HP = 20.0;
+var SHARD_HP = 100.0;
 // LEPER_HP выше в секции Leper Ball
 
 // =========================
@@ -178,8 +178,7 @@ var SHARD_HP = 20.0;
 var SHARD_TOUCH_DIST = 2.75;
 
 var DESP_AIR_HEIGHT = 5.0;
-var DESP_RING_INTERVAL = 80;   // 4с пауза после кольца до следующего
-var DESP_BLOB_CD = 30;
+var DESP_RING_INTERVAL = 40;   // самостоятельная волна каждые 2с, не занимает AbilityAPI-каст
 var DESP_STUN_TICKS = 100;     // 5с уязвимости на земле после уничтожения кристаллов
 var DESP_SHARD_MIN_DIST = 10.0;
 var DESP_SHARD_SPEED = 0.03;
@@ -373,7 +372,6 @@ function init(event) {
 
         "despAirHeight", DESP_AIR_HEIGHT,
         "despRingInterval", DESP_RING_INTERVAL,
-        "despBlobCd", DESP_BLOB_CD,
         "despStunTicks", DESP_STUN_TICKS,
         "despShardMinDist", DESP_SHARD_MIN_DIST,
         "despShardSpeed", DESP_SHARD_SPEED,

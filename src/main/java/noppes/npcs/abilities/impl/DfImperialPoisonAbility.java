@@ -8,19 +8,20 @@ import noppes.npcs.entity.EntityAbilityZone;
 import noppes.npcs.telegraph.TelegraphAPI;
 import noppes.npcs.zone.ZoneAPI;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Phase 2: expanding poison ring — 3 waves with a gap between (like nameless whisper). */
+/** Phase 2: expanding poison rings whose launch intervals overlap. */
 public final class DfImperialPoisonAbility implements CnpcAbility {
     public static final String ID = "df_imperial_poison";
     private static final int DEFAULT_WAVE_COUNT = 3;
     private static final int DEFAULT_WAVE_INTERVAL = 10; // 0.5s
-    private static final int SUB_EXPAND = 0;
-    private static final int SUB_WAIT = 1;
-    private static final ConcurrentHashMap<UUID, UUID> ZONE_BY_NPC = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, CastState> STATE_BY_NPC = new ConcurrentHashMap<>();
 
     @Override
     public String getId() {
@@ -70,9 +71,9 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         active.sz = ctx.npc.getZ();
         active.hitUuids.clear();
         active.markers.clear();
-        active.markers.add(new double[]{0.0, SUB_EXPAND});
         active.meter = 0.0F;
         active.elapsedTicks = 0;
+        STATE_BY_NPC.put(active.npcUuid, new CastState());
         final int charge = Math.max(1, ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 24));
         final double arenaR = ctx.params.getDouble(AbilityParamKeys.RADIUS, 12.0);
         final int color = ctx.params.getInt(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
@@ -103,56 +104,50 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
             active.phase = ActiveAbility.PHASE_ACTIVE;
             return TickResult.CONTINUE;
         }
-        if (subState(active) == SUB_WAIT) {
-            active.ticksLeft--;
-            if (active.ticksLeft > 0) {
-                return TickResult.CONTINUE;
-            }
-            final int nextWave = (int) active.meter + 1;
-            beginWave(active, ctx, nextWave);
-            return TickResult.CONTINUE;
-        }
-        return tickExpand(active, ctx);
+        return tickWaves(active, ctx);
     }
 
-    private TickResult tickExpand(final ActiveAbility active, final AbilityContext ctx) {
+    private TickResult tickWaves(final ActiveAbility active, final AbilityContext ctx) {
+        final CastState state = STATE_BY_NPC.computeIfAbsent(active.npcUuid, ignored -> new CastState());
+        state.elapsedTicks++;
+        while (state.nextWave < waveCount(ctx)
+                && state.elapsedTicks >= state.nextWave * waveInterval(ctx)) {
+            beginWave(active, ctx, state.nextWave);
+        }
+
         final int total = Math.max(1, ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 120));
         final double arenaR = ctx.params.getDouble(AbilityParamKeys.RADIUS, 12.0);
         final double thickness = ctx.params.getDouble(AbilityParamKeys.INNER_RADIUS, 2.0);
-        active.elapsedTicks++;
-        final double progress = Math.min(1.0, active.elapsedTicks / (double) total);
-        final double inner = progress * arenaR;
-        final double outer = Math.min(arenaR + thickness, inner + thickness);
-        updateZoneRadii(active, ctx, outer, inner);
-        tickHit(active, ctx, inner, outer);
-        AbilityVfx.spawnDarkSoulRing(ctx.world, active.sx, active.sy + 0.05, active.sz, inner, outer);
-        if (active.elapsedTicks < total) {
-            return TickResult.CONTINUE;
+        for (final WaveState wave : state.waves) {
+            if (wave.finished) {
+                continue;
+            }
+            wave.elapsedTicks++;
+            final double progress = Math.min(1.0, wave.elapsedTicks / (double) total);
+            final double inner = progress * arenaR;
+            final double outer = Math.min(arenaR + thickness, inner + thickness);
+            updateZoneRadii(wave, ctx, active, outer, inner);
+            tickHit(wave, active, ctx, inner, outer);
+            AbilityVfx.spawnDarkSoulRing(ctx.world, active.sx, active.sy + 0.05, active.sz, inner, outer);
+            if (wave.elapsedTicks >= total) {
+                clearZone(wave, ctx);
+                wave.finished = true;
+            }
         }
-        return finishWave(active, ctx);
-    }
-
-    private TickResult finishWave(final ActiveAbility active, final AbilityContext ctx) {
-        clearZone(active, ctx);
-        final int wave = (int) active.meter;
-        active.meter = wave + 1.0F;
-        if (active.meter >= waveCount(ctx)) {
+        if (state.nextWave >= waveCount(ctx) && allWavesFinished(state)) {
             ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.witch.death", 0.7F, 0.85F);
             return TickResult.FINISHED;
         }
-        active.hitUuids.clear();
-        setSubState(active, SUB_WAIT);
-        active.ticksLeft = waveInterval(ctx);
-        ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.witch.ambient", 0.7F, 0.75F);
         return TickResult.CONTINUE;
     }
 
     private void beginWave(final ActiveAbility active, final AbilityContext ctx, final int waveIndex) {
+        final CastState state = STATE_BY_NPC.computeIfAbsent(active.npcUuid, ignored -> new CastState());
+        final WaveState wave = new WaveState();
+        state.waves.add(wave);
+        state.nextWave = waveIndex + 1;
         active.meter = waveIndex;
-        active.elapsedTicks = 0;
-        active.hitUuids.clear();
-        setSubState(active, SUB_EXPAND);
-        spawnRing(active, ctx);
+        spawnRing(wave, active, ctx);
         ctx.world.playSoundAt(
                 ctx.npc.getPos(),
                 "minecraft:entity.witch.celebrate",
@@ -161,6 +156,7 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
     }
 
     private void tickHit(
+            final WaveState wave,
             final ActiveAbility active,
             final AbilityContext ctx,
             final double inner,
@@ -182,7 +178,7 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
                 continue;
             }
             final String id = String.valueOf(ent.getUUID());
-            if (active.hitUuids.contains(id)) {
+            if (wave.hitUuids.contains(id)) {
                 continue;
             }
             final double dist = AbilityCombatHelper.flatDistance(
@@ -202,12 +198,14 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
             AbilityCombatHelper.applyEffect(
                     ent, AbilityEffectType.SLOWNESS.toMcEffect(), slowDur, 0);
             AbilityVfx.spawnHitParticle(ctx.world, ent);
-            active.hitUuids.add(id);
+            wave.hitUuids.add(id);
         }
     }
 
-    private void spawnRing(final ActiveAbility active, final AbilityContext ctx) {
-        clearZone(active, ctx);
+    private void spawnRing(
+            final WaveState wave,
+            final ActiveAbility active,
+            final AbilityContext ctx) {
         final double y = AbilityCombatHelper.findGroundY(ctx.world, active.sx, active.sz, active.sy) + 0.05;
         final int color = ctx.params.getInt(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030);
         final float hitHeight =
@@ -222,19 +220,19 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         zone.setVisible(true);
         zone.setGroundFill(true);
         zone.setBorder(true);
-        ZONE_BY_NPC.put(active.npcUuid, zone.getUUID());
+        wave.zoneId = zone.getUUID();
     }
 
     private void updateZoneRadii(
-            final ActiveAbility active,
+            final WaveState wave,
             final AbilityContext ctx,
+            final ActiveAbility active,
             final double outer,
             final double inner) {
-        final UUID zoneId = ZONE_BY_NPC.get(active.npcUuid);
-        if (zoneId == null) {
+        if (wave.zoneId == null) {
             return;
         }
-        final EntityAbilityZone zone = resolveZone(ctx, zoneId);
+        final EntityAbilityZone zone = resolveZone(ctx, wave.zoneId);
         if (zone == null) {
             return;
         }
@@ -261,13 +259,32 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         }
     }
 
-    private static void clearZone(final ActiveAbility active, final AbilityContext ctx) {
-        final UUID zoneId = ZONE_BY_NPC.remove(active.npcUuid);
-        if (zoneId == null) {
+    private static void clearZone(final WaveState wave, final AbilityContext ctx) {
+        if (wave.zoneId == null) {
             return;
         }
-        final EntityAbilityZone zone = resolveZone(ctx, zoneId);
+        final EntityAbilityZone zone = resolveZone(ctx, wave.zoneId);
         ZoneAPI.remove(zone);
+        wave.zoneId = null;
+    }
+
+    private static void clearState(final ActiveAbility active, final AbilityContext ctx) {
+        final CastState state = STATE_BY_NPC.remove(active.npcUuid);
+        if (state == null) {
+            return;
+        }
+        for (final WaveState wave : state.waves) {
+            clearZone(wave, ctx);
+        }
+    }
+
+    private static boolean allWavesFinished(final CastState state) {
+        for (final WaveState wave : state.waves) {
+            if (!wave.finished) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static int waveCount(final AbilityContext ctx) {
@@ -278,21 +295,22 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
         return Math.max(1, ctx.params.getInt(AbilityParamKeys.SHOT_INTERVAL, DEFAULT_WAVE_INTERVAL));
     }
 
-    private static int subState(final ActiveAbility active) {
-        return active.markers.isEmpty() ? SUB_EXPAND : (int) active.markers.get(0)[1];
+    private static final class CastState {
+        private final List<WaveState> waves = new ArrayList<>();
+        private int elapsedTicks;
+        private int nextWave;
     }
 
-    private static void setSubState(final ActiveAbility active, final int state) {
-        if (active.markers.isEmpty()) {
-            active.markers.add(new double[]{0.0, state});
-            return;
-        }
-        active.markers.get(0)[1] = state;
+    private static final class WaveState {
+        private final Set<String> hitUuids = new HashSet<>();
+        private UUID zoneId;
+        private int elapsedTicks;
+        private boolean finished;
     }
 
     @Override
     public void onEnd(final ActiveAbility active, final AbilityContext ctx) {
-        clearZone(active, ctx);
+        clearState(active, ctx);
         AbilityCombatHelper.unfreezeAi(active, ctx.npc);
         DrachenfelsEncounterHelper.onAbilityEnded(ctx.npc, ID);
     }
@@ -300,7 +318,7 @@ public final class DfImperialPoisonAbility implements CnpcAbility {
     @Override
     public void onCancel(final ActiveAbility active, final AbilityContext ctx) {
         AbilityTelegraph.clear(active, ctx);
-        clearZone(active, ctx);
+        clearState(active, ctx);
         AbilityCombatHelper.unfreezeAi(active, ctx.npc);
         AbilityCombatHelper.stopNavigation(ctx.npc);
         DrachenfelsEncounterHelper.onAbilityEnded(ctx.npc, ID);

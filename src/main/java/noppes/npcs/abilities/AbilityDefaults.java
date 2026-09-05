@@ -306,7 +306,7 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
         map.put(AbilityParamKeys.TRAIL_TICKS, 40); // slowness duration
         map.put(AbilityParamKeys.SUMMON_COUNT, 3); // waves
-        map.put(AbilityParamKeys.SHOT_INTERVAL, 40); // 2s between waves
+        map.put(AbilityParamKeys.SHOT_INTERVAL, 10); // 0.5s between waves
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030); // attack warning red
         map.put(AbilityParamKeys.ZONE_COLOR, 0xC0FF3030); // expanding wave stays red
         return map;
@@ -338,7 +338,7 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.DAMAGE, 10.0);
         map.put(AbilityParamKeys.RADIUS, 1.0);
         map.put(AbilityParamKeys.SHOT_INTERVAL, 18); // ticks between volleys
-        map.put(AbilityParamKeys.SUMMON_COUNT, 3); // volley count
+        map.put(AbilityParamKeys.SUMMON_COUNT, 5); // volley count
         map.put(AbilityParamKeys.CLONE_TAB, 1);
         map.put(AbilityParamKeys.CLONE_NAME, "Drachenfels Leper Phantom");
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);

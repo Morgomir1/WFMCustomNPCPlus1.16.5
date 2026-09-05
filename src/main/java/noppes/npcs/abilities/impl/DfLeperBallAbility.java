@@ -7,12 +7,12 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Phase 2: three outward spirit volleys from the boss (4 each, staggered angles),
+ * Phase 2: configurable outward spirit volleys from the boss (4 each, staggered angles),
  * with charge telegraph on the next salvo.
  */
 public final class DfLeperBallAbility implements CnpcAbility {
     public static final String ID = "df_leper_ball";
-    private static final int DEFAULT_VOLLEYS = 3;
+    private static final int DEFAULT_VOLLEYS = 5;
     private static final int DEFAULT_VOLLEY_INTERVAL = 18;
 
     @Override

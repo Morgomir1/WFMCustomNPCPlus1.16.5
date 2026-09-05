@@ -114,7 +114,7 @@ var IMPERIAL_POISON_DURATION = 80;
 var IMPERIAL_POISON_AMP = 3;
 var IMPERIAL_SLOW_DURATION = 40;
 var IMPERIAL_WAVE_COUNT = 3;
-var IMPERIAL_WAVE_INTERVAL = 40; // 2s between waves (like whisper)
+var IMPERIAL_WAVE_INTERVAL = 10; // 0.5s between waves
 
 var FEAST_CHARGE_TICKS = 40;
 var FEAST_ACTIVE_TICKS = 1;
@@ -137,7 +137,7 @@ var LEPER_DURATION = 70; // flight ticks per spirit
 var LEPER_HIT_RADIUS = 2.0; // red hazard under spirit
 var LEPER_SLOW_DURATION = 30;
 var LEPER_SLOW_AMP = 1;
-var LEPER_VOLLEYS = 3;
+var LEPER_VOLLEYS = 5;
 var LEPER_VOLLEY_INTERVAL = 18;
 var LEPER_WIGGLE_AMP = 1.4;
 var LEPER_WIGGLE_FREQ = 2.5;
@@ -156,7 +156,7 @@ var FALSE_TELEPORT_RING = 5.0;
 var FALSE_TELEGRAPH_RADIUS = 1.2;
 var FALSE_RUN_STEP = 0.28;
 var FALSE_PANIC_SPEED = 6;
-var FALSE_PUDDLE_RADIUS = 1.6;
+var FALSE_PUDDLE_RADIUS = 3.0;
 var FALSE_PUDDLE_TICKS = 100;
 var FALSE_PUDDLE_DAMAGE = 4.0;
 var FALSE_PUDDLE_DAMAGE_INTERVAL = 10;
@@ -165,9 +165,9 @@ var FALSE_PUDDLE_INTERVAL = 12;
 // =========================
 // HP всех аддов (клон-спавн)
 // =========================
-var MONK_HP = 40.0;
-var CULTIST_HP = 30.0;
-var GUARD_HP = 50.0;
+var MONK_HP = 200.0;
+var CULTIST_HP = 200.0;
+var GUARD_HP = 400.0;
 var FALSE_CLONE_HP = 50.0;
 var SHARD_HP = 20.0;
 // LEPER_HP выше в секции Leper Ball

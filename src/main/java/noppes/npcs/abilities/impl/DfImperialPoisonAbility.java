@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class DfImperialPoisonAbility implements CnpcAbility {
     public static final String ID = "df_imperial_poison";
     private static final int DEFAULT_WAVE_COUNT = 3;
-    private static final int DEFAULT_WAVE_INTERVAL = 40; // 2s
+    private static final int DEFAULT_WAVE_INTERVAL = 10; // 0.5s
     private static final int SUB_EXPAND = 0;
     private static final int SUB_WAIT = 1;
     private static final ConcurrentHashMap<UUID, UUID> ZONE_BY_NPC = new ConcurrentHashMap<>();

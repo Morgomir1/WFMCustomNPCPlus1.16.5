@@ -172,7 +172,7 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.EFFECT_AMPLIFIER, getI(npc, "imperialPoisonAmp", 3));
         m.put(AbilityParamKeys.TRAIL_TICKS, getI(npc, "imperialSlowDuration", 40));
         m.put(AbilityParamKeys.SUMMON_COUNT, getI(npc, "imperialWaveCount", 3));
-        m.put(AbilityParamKeys.SHOT_INTERVAL, getI(npc, "imperialWaveInterval", 40));
+        m.put(AbilityParamKeys.SHOT_INTERVAL, getI(npc, "imperialWaveInterval", 10));
         m.put(AbilityParamKeys.TELEGRAPH_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.ZONE_COLOR, getI(npc, "telegraphColor", 0xC0FF3030));
         m.put(AbilityParamKeys.TELEGRAPH, 0);
@@ -204,7 +204,7 @@ public final class DrachenfelsConfig {
         m.put(AbilityParamKeys.DAMAGE, getD(npc, "leperDamage", 10.0));
         m.put(AbilityParamKeys.RADIUS, getD(npc, "leperHitRadius", 1.0));
         m.put(AbilityParamKeys.SHOT_INTERVAL, getI(npc, "leperVolleyInterval", 18));
-        m.put(AbilityParamKeys.SUMMON_COUNT, getI(npc, "leperVolleys", 3));
+        m.put(AbilityParamKeys.SUMMON_COUNT, getI(npc, "leperVolleys", 5));
         m.put(AbilityParamKeys.CLONE_TAB, ScriptDataUtil.getInt(data, "df_clone_tab") <= 0
                 ? 1 : ScriptDataUtil.getInt(data, "df_clone_tab"));
         final Object name = data.has("df_clone_phantom") ? data.get("df_clone_phantom") : "Drachenfels Leper Phantom";

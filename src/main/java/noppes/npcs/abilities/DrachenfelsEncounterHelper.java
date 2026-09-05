@@ -179,6 +179,7 @@ public final class DrachenfelsEncounterHelper {
         if (ScriptDataUtil.isFlag(data, INITED)) {
             return;
         }
+        releaseDesperationFlight(npc);
         ScriptDataUtil.setFlag(data, INITED, true);
         ScriptDataUtil.setFlag(data, CLEANED, false);
         put(data, HOME_X, npc.getX());
@@ -334,6 +335,7 @@ public final class DrachenfelsEncounterHelper {
         }
         ScriptDataUtil.setFlag(data, CLEANED, true);
         AbilityAPI.cancel(npc);
+        releaseDesperationFlight(npc);
         restoreBossAfterFalseHost(npc);
         killTaggedNear(npc, TAG_MONK, TAG_COURT, TAG_CULTIST, TAG_GUARD,
                 TAG_PHANTOM, TAG_FALSE, TAG_DESP_SHARD);
@@ -1191,7 +1193,7 @@ public final class DrachenfelsEncounterHelper {
         final double gy = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
         final double airY = gy + DrachenfelsConfig.getD(data, "despAirHeight", DESP_AIR_HEIGHT);
         put(data, DESP_AIR_Y, String.valueOf(airY));
-        npc.setPosition(c[0], airY, c[2]);
+        pinDesperationFlight(npc, c[0], airY, c[2]);
         applySpiritAi(npc);
 
         put(data, DESP_RING_AT, String.valueOf(now));
@@ -1207,7 +1209,7 @@ public final class DrachenfelsEncounterHelper {
         final double[] c = getArenaCenter(npc);
         final double airY = ScriptDataUtil.getFloat(data, DESP_AIR_Y);
         final double holdY = airY > 0.1 ? airY : c[1] + DESP_AIR_HEIGHT;
-        AbilityCombatHelper.holdInPlace(npc, c[0], holdY, c[2]);
+        pinDesperationFlight(npc, c[0], holdY, c[2]);
 
         if (tickDesperationShards(npc, data)) {
             return; // fail triggered
@@ -1337,6 +1339,7 @@ public final class DrachenfelsEncounterHelper {
         clearOwnerZones(npc);
 
         put(data, PHASE_KEY, "1");
+        releaseDesperationFlight(npc);
         restoreFullHealth(npc);
         final double[] c = getArenaCenter(npc);
         final double gy = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
@@ -1372,6 +1375,7 @@ public final class DrachenfelsEncounterHelper {
         killTaggedNear(npc, TAG_DESP_SHARD);
         final double[] c = getArenaCenter(npc);
         final double gy = AbilityCombatHelper.findGroundY(npc.getWorld(), c[0], c[2], c[1]);
+        releaseDesperationFlight(npc);
         npc.setPosition(c[0], gy, c[2]);
         final int stun = DrachenfelsConfig.getI(data, "despStunTicks", DESP_STUN_TICKS);
         put(data, DESP_STUN_UNTIL, String.valueOf(now + stun));
@@ -1429,6 +1433,58 @@ public final class DrachenfelsEncounterHelper {
     // -------------------------------------------------------------------------
     // Adds / desperation shards
     // -------------------------------------------------------------------------
+
+    /**
+     * Holds the boss on the Desperation Air plane without accumulating gravity
+     * velocity or fall distance between encounter and server-end ability ticks.
+     */
+    private static void pinDesperationFlight(
+            final ICustomNpc npc, final double x, final double y, final double z) {
+        if (npc == null) {
+            return;
+        }
+        AbilityCombatHelper.stopNavigation(npc);
+        try {
+            final Object mc = npc.getMCEntity();
+            if (mc instanceof Entity) {
+                final Entity entity = (Entity) mc;
+                entity.setNoGravity(true);
+                entity.setDeltaMovement(0.0, 0.0, 0.0);
+                entity.fallDistance = 0.0F;
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            npc.setMotionX(0.0);
+            npc.setMotionY(0.0);
+            npc.setMotionZ(0.0);
+            npc.setPosition(x, y, z);
+        } catch (final Exception ignored) {
+        }
+    }
+
+    /** Restores normal gravity and clears stale fall state before landing/reset. */
+    private static void releaseDesperationFlight(final ICustomNpc npc) {
+        if (npc == null) {
+            return;
+        }
+        try {
+            final Object mc = npc.getMCEntity();
+            if (mc instanceof Entity) {
+                final Entity entity = (Entity) mc;
+                entity.setNoGravity(false);
+                entity.setDeltaMovement(0.0, 0.0, 0.0);
+                entity.fallDistance = 0.0F;
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            npc.setMotionX(0.0);
+            npc.setMotionY(0.0);
+            npc.setMotionZ(0.0);
+        } catch (final Exception ignored) {
+        }
+    }
 
     private static void pinShardFlight(final ICustomNpc shard) {
         if (shard == null) {

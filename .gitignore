@@ -122,3 +122,4 @@ run/
 /--output-dir=build/
 /.tmp_dialog_src/
 /.tmp_cnpc_ai/
+/tmp_quest_decompile/

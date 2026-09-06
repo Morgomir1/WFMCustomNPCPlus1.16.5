@@ -106,7 +106,7 @@ var CYCLE_LEPER_AT = 220;
 
 var IMPERIAL_CHARGE_TICKS = 24;
 var IMPERIAL_ACTIVE_TICKS = 120; // 2x slower expand (was 60)
-var IMPERIAL_ARENA_RADIUS = 30.0;
+var IMPERIAL_ARENA_RADIUS = 20.0;
 var IMPERIAL_THICKNESS = 1.333; // 1.5x narrower (was 2.0)
 var IMPERIAL_HIT_HEIGHT = 1.0; // jumpable: feet above this clear the ring
 var IMPERIAL_DAMAGE = 8.0;
@@ -114,7 +114,7 @@ var IMPERIAL_POISON_DURATION = 80;
 var IMPERIAL_POISON_AMP = 3;
 var IMPERIAL_SLOW_DURATION = 40;
 var IMPERIAL_WAVE_COUNT = 3;
-var IMPERIAL_WAVE_INTERVAL = 20; // 0.5s between waves
+var IMPERIAL_WAVE_INTERVAL = 35; // 0.5s between waves
 
 var FEAST_CHARGE_TICKS = 40;
 var FEAST_ACTIVE_TICKS = 1;

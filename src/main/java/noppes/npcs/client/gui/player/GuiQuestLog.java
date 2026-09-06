@@ -3,6 +3,7 @@ package noppes.npcs.client.gui.player;
 import noppes.npcs.client.gui.util.*;
 import net.minecraft.util.*;
 import noppes.npcs.controllers.data.*;
+import noppes.npcs.constants.EnumQuestCompletion;
 import net.minecraft.entity.player.*;
 import net.minecraft.client.*;
 import noppes.npcs.controllers.*;
@@ -175,7 +176,7 @@ public class GuiQuestLog extends GuiNPCInterface implements ITopButtonListener, 
         }
         this.hLine(matrixStack, this.guiLeft + 142, this.guiLeft + 312, this.guiTop + 178, -16777216 + CustomNpcResourceListener.DefaultTextColor);
         final String complete = this.selectedQuest.getNpcName();
-        if (complete != null && !complete.isEmpty()) {
+        if (this.selectedQuest.completion != EnumQuestCompletion.Instant && complete != null && !complete.isEmpty()) {
             this.mc.font.draw(matrixStack, (ITextComponent)new TranslationTextComponent("quest.completewith", new Object[] { complete }), (float)(this.guiLeft + 142), (float)(this.guiTop + 182), CustomNpcResourceListener.DefaultTextColor);
         }
     }

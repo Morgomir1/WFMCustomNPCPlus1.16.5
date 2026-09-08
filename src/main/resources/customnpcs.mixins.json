@@ -23,9 +23,11 @@
     "NoiseChunkGeneratorMixin",
     "ProtocolTypeMixin",
     "ScoreBoardMixin",
-    "VineBlockMixin"
+    "VineBlockMixin",
+    "DataDisplayMixin"
   ],
   "client": [
+    "GuiNpcDisplayMixin",
     "AgeableModelMixin",
     "ArmorLayerMixin",
     "BipedBodyMixin",

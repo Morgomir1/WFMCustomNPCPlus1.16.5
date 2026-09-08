@@ -171,6 +171,7 @@
   "display.livingAnimation": "Has a living animation",
   "display.visible": "Visible",
   "display.bossbar": "BossBar",
+  "display.showOnMap": "Show on map",
   "display.url": "Url",
   "display.tint": "Tint",
   "display.statue": "Statue",

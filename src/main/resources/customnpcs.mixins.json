@@ -14,9 +14,11 @@
     "ScoreBoardMixin",
     "VineBlockMixin",
     "FactionMixin",
-    "GuiNPCManageFactionsMixin"
+    "GuiNPCManageFactionsMixin",
+    "DataDisplayMixin"
   ],
   "client": [
+    "GuiNpcDisplayMixin",
     "AgeableModelMixin",
     "ArmorLayerMixin",
     "BipedBodyMixin",

@@ -11,6 +11,7 @@ import noppes.npcs.client.gui.model.GuiCreationParts;
 import noppes.npcs.client.gui.select.GuiTextureSelection;
 import noppes.npcs.client.gui.util.GuiNPCInterface2;
 import noppes.npcs.constants.EnumMenuType;
+import noppes.npcs.bridge.WfmDisplayBridge;
 import noppes.npcs.entity.EntityCustomNpc;
 import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.entity.data.DataDisplay;
@@ -35,6 +36,7 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
    }
 
    public void init() {
+      this.imageHeight = Math.max(this.imageHeight, 250);
       super.init();
       int y = this.guiTop + 4;
       this.addLabel(new GuiLabel(0, "gui.name", this.guiLeft + 5, y + 5));
@@ -133,6 +135,10 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
             new String[]{"color.pink", "color.blue", "color.red", "color.green", "color.yellow", "color.purple", "color.white"}
          )
       );
+      y += 23;
+      boolean showOnMap = ((WfmDisplayBridge) this.display).wfm$isShowOnMap();
+      this.addLabel(new GuiLabel(26, "display.showOnMap", this.guiLeft + 5, y + 5));
+      this.addButton(new GuiButtonNop(this, 30, this.guiLeft + 130, y, 50, 20, new String[]{"gui.yes", "gui.no"}, showOnMap ? 0 : 1));
    }
 
    public void unFocused(GuiTextFieldNop textfield) {
@@ -212,6 +218,8 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
          this.setSubGui(new SubGuiNpcName(this.display));
       } else if (guibutton.id == 16) {
          this.setSubGui(new SubGuiNpcAvailability(this.display.availability));
+      } else if (guibutton.id == 30) {
+         ((WfmDisplayBridge) this.display).wfm$setShowOnMap(guibutton.getValue() == 0);
       } else if (guibutton.id >= 20 && guibutton.id <= 22) {
          this.display.toggleNameFormat(1 << (guibutton.id - 20));
          this.init();

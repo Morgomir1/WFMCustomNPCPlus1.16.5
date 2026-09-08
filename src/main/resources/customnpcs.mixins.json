@@ -27,7 +27,6 @@
     "DataDisplayMixin"
   ],
   "client": [
-    "GuiNpcDisplayMixin",
     "AgeableModelMixin",
     "ArmorLayerMixin",
     "BipedBodyMixin",

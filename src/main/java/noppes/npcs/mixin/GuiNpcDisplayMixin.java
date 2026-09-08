@@ -18,7 +18,7 @@ public abstract class GuiNpcDisplayMixin {
     @Shadow
     private DataDisplay display;
 
-    @Inject(method = "func_231160_c_()V", at = @At("TAIL"))
+    @Inject(method = "init", at = @At("TAIL"))
     private void wfm$addShowOnMap(CallbackInfo ci) {
         if (this.display == null) {
             return;

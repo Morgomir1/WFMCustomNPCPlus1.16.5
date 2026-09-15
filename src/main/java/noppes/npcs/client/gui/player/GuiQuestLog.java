@@ -52,8 +52,8 @@ public class GuiQuestLog extends GuiNPCInterface implements ITopButtonListener, 
         this.textblock = null;
         this.mc = Minecraft.getInstance();
         this.player = player;
-        this.imageWidth = 256;
-        this.imageHeight = 256;
+        this.imageWidth = 280;
+        this.imageHeight = 180;
         this.drawDefaultBackground = false;
     }
     
@@ -121,7 +121,8 @@ public class GuiQuestLog extends GuiNPCInterface implements ITopButtonListener, 
         }
         this.renderBackground(matrixStack);
         this.minecraft.getTextureManager().bind(this.resource);
-        this.blit(matrixStack, this.guiLeft, this.guiTop, 0, 0, 256, 256);
+        this.blit(matrixStack, this.guiLeft, this.guiTop, 0, 0, 252, 195);
+        this.blit(matrixStack, this.guiLeft + 252, this.guiTop, 188, 0, 67, 195);
         super.render(matrixStack, mouseX, mouseY, partialTicks);
         if (this.noQuests) {
             this.mc.font.draw(matrixStack, (ITextComponent)new TranslationTextComponent("quest.noquests"), (float)(this.guiLeft + 84), (float)(this.guiTop + 80), CustomNpcResourceListener.DefaultTextColor);

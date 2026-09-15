@@ -34,8 +34,8 @@ public class GuiFaction extends GuiNPCInterface
         this.playerFactions = new ArrayList<Faction>();
         this.page = 0;
         this.pages = 1;
-        this.imageWidth = 256;
-        this.imageHeight = 256;
+        this.imageWidth = 200;
+        this.imageHeight = 195;
         this.drawDefaultBackground = false;
         this.title = "";
         this.indicator = this.getResource("standardbg.png");
@@ -78,7 +78,8 @@ public class GuiFaction extends GuiNPCInterface
         this.renderBackground(matrixStack);
         RenderSystem.color4f(1.0f, 1.0f, 1.0f, 1.0f);
         this.minecraft.getTextureManager().bind(this.indicator);
-        this.blit(matrixStack, this.guiLeft, this.guiTop + 8, 0, 0, 256, 256);
+        this.blit(matrixStack, this.guiLeft, this.guiTop + 8, 0, 0, this.imageWidth, this.imageHeight);
+        this.blit(matrixStack, this.guiLeft + 4, this.guiTop + 8, 56, 0, 200, this.imageHeight);
         if (this.playerFactions.isEmpty()) {
             final ITextComponent noFaction = (ITextComponent)new TranslationTextComponent("faction.nostanding");
             this.font.draw(matrixStack, noFaction, (float)(this.guiLeft + (this.imageWidth - this.font.width((ITextProperties)noFaction)) / 2), (float)(this.guiTop + 80), CustomNpcResourceListener.DefaultTextColor);

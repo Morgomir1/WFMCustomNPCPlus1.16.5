@@ -93,6 +93,10 @@ public class GuiNPCInv extends GuiContainerNPCInterface2<ContainerNPCInv> implem
             }
             this.blit(matrixStack, this.guiLeft + slot.x - 1, this.guiTop + slot.y - 1, 0, 0, 18, 18);
         }
+        for (int i = NpcDropInventoryLimits.DROP_ROWS; i < NpcDropInventoryLimits.DROP_SLOTS; ++i) {
+            final Slot slot = this.container.getSlot(NpcDropInventoryLimits.DROP_SLOT_OFFSET + i);
+            this.blit(matrixStack, this.guiLeft + slot.x - 1, this.guiTop + slot.y - 1, 0, 0, 18, 18);
+        }
     }
 
     @Override

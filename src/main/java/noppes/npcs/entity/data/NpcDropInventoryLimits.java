@@ -11,11 +11,11 @@ public final class NpcDropInventoryLimits {
     public static final int MAX_DROP_SLOT = DROP_SLOTS - 1;
     public static final int CONTAINER_SIZE = DROP_SLOT_OFFSET + DROP_SLOTS;
 
-    public static final int DROP_SLOT_X0 = 160;
+    public static final int DROP_SLOT_X0 = 191;
     public static final int DROP_SLOT_Y0 = 16;
     public static final int DROP_ROW_HEIGHT = 21;
     public static final int DROP_COL_GAP = 115;
-    public static final int DROP_SLIDER_X0 = 180;
+    public static final int DROP_SLIDER_X0 = 211;
     public static final int DROP_SLIDER_WIDTH = 85;
     public static final int DROP_SLIDER_HEIGHT = 20;
 

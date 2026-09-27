@@ -740,4 +740,20 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.RING3_RADIUS, 4.0); // 9–13
         return map;
     }
+
+    public static Map<String, Object> weaponSpin() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 16);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 40);
+        map.put(AbilityParamKeys.DAMAGE_PER_TICK, 4.0);
+        map.put(AbilityParamKeys.DAMAGE_INTERVAL, 5);
+        map.put(AbilityParamKeys.RADIUS, 3.5);
+        map.put(AbilityParamKeys.KNOCKBACK, 0.45);
+        map.put(AbilityParamKeys.KNOCKBACK_Y, 0.12);
+        map.put(AbilityParamKeys.ORBIT_SPEED, 42.0);
+        map.put(AbilityParamKeys.APPROACH_SPEED, 0.4);
+        map.put(AbilityParamKeys.TELEGRAPH, 1);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
+        return map;
+    }
 }

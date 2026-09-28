@@ -88,18 +88,8 @@ function startCharge(npc, world, data, now) {
 }
 
 function doChargingTick(npc, world, data, now) {
-    if (!hasNearbyEnemy(npc, world, DETECT_RANGE)) {
-        clearState(data);
-        return;
-    }
-
+    // Зона уже показана — каст не срываем, даже если цель отошла (бекстеп).
     if (now < getInt(data, CHARGE_END_KEY)) return;
-
-    if (!hasNearbyEnemy(npc, world, DETECT_RANGE)) {
-        clearState(data);
-        return;
-    }
-
     doBurst(npc, world, data);
 }
 

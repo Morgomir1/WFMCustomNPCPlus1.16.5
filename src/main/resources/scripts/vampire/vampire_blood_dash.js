@@ -9,6 +9,7 @@
  *
  * Абилки — Java AbilityAPI:
  *   vampire_blood_dash  — homing dash без уворота + лужи крови;
+ *                       после рывка босс держит агро цели, пока висит glowing;
  *   vampire_blood_slash — удар конусом мечом (как wh_flaming_strike).
  *
  * GUI Clone tab 1: имя "Vampire Crimson Bat".
@@ -26,6 +27,10 @@ var SLASH_MAX_RANGE = 5.5;
 var NEXT_CAST_KEY = "vbd_next_cast";
 var LAST_ABILITY_KEY = "vbd_last";
 var CD_PREFIX = "vbd_cd_";
+var DASH_MARK_UUID_KEY = "vbd_dash_mark";
+var DASH_PENDING_KEY = "vbd_dash_pending";
+var DASH_MARK_TICKS = 160;
+var DASH_MARK_RANGE = 48;
 
 var DASH_ID = "vampire_blood_dash";
 var SLASH_ID = "vampire_blood_slash";
@@ -36,6 +41,7 @@ COOLDOWNS[SLASH_ID] = 50;
 
 var ENTITY_PLAYER = 1;
 var ENTITY_NPC = 2;
+var GAMEMODE_CREATIVE = 1;
 var GAMEMODE_SPECTATOR = 3;
 var RETALIATE_REVENGE = 0;
 var RETALIATE_NONE = 3;
@@ -89,6 +95,8 @@ function init(event) {
     data.put(USED_50_KEY, "0");
     data.put(USED_10_KEY, "0");
     data.put(LAST_WOUNDED_KEY, "0");
+    data.put(DASH_MARK_UUID_KEY, "");
+    data.put(DASH_PENDING_KEY, "0");
     if (String(data.get(HIDING_KEY)) == "1") {
         endMiceHide(npc, data);
     }
@@ -120,6 +128,11 @@ function timer(event) {
 
     if (AbilityAPI.isBusy(npc)) return;
 
+    finishPendingDashMark(npc, data);
+
+    var marked = tickDashPursuit(npc, data);
+    if (marked != null) return;
+
     var now = npc.getWorld().getTotalTime();
     if (now < getInt(data, NEXT_CAST_KEY)) return;
 
@@ -131,6 +144,11 @@ function timer(event) {
 
     var started = AbilityAPI.start(npc, abilityId, target, buildParams(abilityId));
     if (!started) return;
+
+    if (abilityId == DASH_ID) {
+        data.put(DASH_PENDING_KEY, "1");
+        data.put(DASH_MARK_UUID_KEY, String(target.getUUID()));
+    }
 
     data.put(LAST_ABILITY_KEY, abilityId);
     data.put(CD_PREFIX + abilityId, String(now + getCooldown(abilityId)));
@@ -213,14 +231,41 @@ function meleeAttack(event) {
     } catch (e) {}
 }
 
+function target(event) {
+    var npc = event.npc;
+    if (AbilityAPI.isBusy(npc)) return;
+    var data = npc.getStoreddata();
+    if (String(data.get(HIDING_KEY)) == "1") return;
+    var marked = resolveMarkedTarget(npc, data);
+    if (marked == null) return;
+    if (event.entity != null && String(event.entity.getUUID()) == String(marked.getUUID())) return;
+    try {
+        event.setCanceled(true);
+    } catch (e) {}
+    setChaseTarget(npc, marked);
+}
+
 function targetLost(event) {
-    if (String(event.npc.getStoreddata().get(HIDING_KEY)) == "1") return;
-    AbilityAPI.cancel(event.npc);
-    restoreBaseStats(event.npc);
+    var npc = event.npc;
+    var data = npc.getStoreddata();
+    if (String(data.get(HIDING_KEY)) == "1") return;
+    if (AbilityAPI.isBusy(npc)) return;
+    var marked = resolveMarkedTarget(npc, data);
+    if (marked != null) {
+        setChaseTarget(npc, marked);
+        return;
+    }
+    AbilityAPI.cancel(npc);
+    restoreBaseStats(npc);
 }
 
 function died(event) {
     AbilityAPI.cancel(event.npc);
+    try {
+        var data = event.npc.getStoreddata();
+        data.put(DASH_MARK_UUID_KEY, "");
+        data.put(DASH_PENDING_KEY, "0");
+    } catch (e) {}
     endMiceHide(event.npc, event.npc.getStoreddata());
     restoreBaseStats(event.npc);
 }
@@ -243,6 +288,8 @@ function beginMiceHide(npc, data, flagKey) {
     if (target == null) return false;
 
     AbilityAPI.cancel(npc);
+    data.put(DASH_MARK_UUID_KEY, "");
+    data.put(DASH_PENDING_KEY, "0");
     data.put(flagKey, "1");
     data.put(HIDING_KEY, "1");
     data.put(BATS_STARTED_KEY, "0");
@@ -560,6 +607,125 @@ function getBaseAttackSpeed(data, npc) {
     } catch (e) {
         return 20;
     }
+}
+
+function finishPendingDashMark(npc, data) {
+    if (String(data.get(DASH_PENDING_KEY)) != "1") return;
+    data.put(DASH_PENDING_KEY, "0");
+    var uuid = String(data.get(DASH_MARK_UUID_KEY));
+    var target = findEntityByUuid(npc, uuid);
+    beginDashPursuit(npc, data, target);
+}
+
+function beginDashPursuit(npc, data, target) {
+    if (!isValidChaseTarget(npc, target)) {
+        dropDashPursuit(npc, data, target);
+        return;
+    }
+    data.put(DASH_MARK_UUID_KEY, String(target.getUUID()));
+    try {
+        var mc = target.getMCEntity();
+        if (mc != null) {
+            mc.addEffect(new EffectInstance(Effects.GLOWING, DASH_MARK_TICKS, 0, false, true));
+        }
+    } catch (e) {}
+    setChaseTarget(npc, target);
+}
+
+function tickDashPursuit(npc, data) {
+    var marked = resolveMarkedTarget(npc, data);
+    if (marked == null) return null;
+    setChaseTarget(npc, marked);
+    return marked;
+}
+
+function resolveMarkedTarget(npc, data) {
+    var uuid = String(data.get(DASH_MARK_UUID_KEY));
+    if (uuid == null || uuid == "" || uuid == "null") return null;
+
+    var ent = null;
+    try {
+        var current = npc.getAttackTarget();
+        if (current != null && String(current.getUUID()) == uuid) ent = current;
+    } catch (e) {}
+    if (ent == null) ent = findEntityByUuid(npc, uuid);
+
+    if (!isValidChaseTarget(npc, ent) || !hasDashMark(ent)) {
+        dropDashPursuit(npc, data, ent);
+        return null;
+    }
+    return ent;
+}
+
+function isValidChaseTarget(npc, ent) {
+    if (ent == null || !ent.isAlive()) return false;
+    if (isUnchaseable(ent)) return false;
+    return chaseDistance(npc, ent) <= DASH_MARK_RANGE;
+}
+
+function isUnchaseable(entity) {
+    try {
+        if (typeof entity.getGamemode == "function") {
+            var gm = entity.getGamemode();
+            if (gm == GAMEMODE_CREATIVE || gm == GAMEMODE_SPECTATOR) return true;
+        }
+    } catch (e) {}
+    return false;
+}
+
+function dropDashPursuit(npc, data, marked) {
+    var uuid = String(data.get(DASH_MARK_UUID_KEY));
+    data.put(DASH_MARK_UUID_KEY, "");
+    data.put(DASH_PENDING_KEY, "0");
+    if (marked != null) clearDashMarkEffect(marked);
+    try {
+        var t = npc.getAttackTarget();
+        if (t != null && uuid != "" && uuid != "null" && String(t.getUUID()) == uuid) {
+            npc.setAttackTarget(null);
+        }
+    } catch (e) {}
+}
+
+function clearDashMarkEffect(entity) {
+    try {
+        var mc = entity.getMCEntity();
+        if (mc != null) mc.removeEffect(Effects.GLOWING);
+    } catch (e) {}
+}
+
+function findEntityByUuid(npc, uuid) {
+    if (uuid == null || uuid == "" || uuid == "null") return null;
+    try {
+        var pos = NpcAPI.getIPos(npc.getX(), npc.getY(), npc.getZ());
+        var nearby = npc.getWorld().getNearbyEntities(pos, DASH_MARK_RANGE, ENTITY_PLAYER);
+        var i;
+        for (i = 0; i < nearby.length; i++) {
+            if (nearby[i] != null && String(nearby[i].getUUID()) == uuid) return nearby[i];
+        }
+    } catch (e) {}
+    return null;
+}
+
+function chaseDistance(a, b) {
+    var dx = a.getX() - b.getX();
+    var dy = a.getY() - b.getY();
+    var dz = a.getZ() - b.getZ();
+    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+function hasDashMark(entity) {
+    try {
+        var mc = entity.getMCEntity();
+        return mc != null && mc.hasEffect(Effects.GLOWING);
+    } catch (e) {
+        return false;
+    }
+}
+
+function setChaseTarget(npc, target) {
+    try {
+        if (typeof npc.setAttackTarget == "function") npc.setAttackTarget(target);
+    } catch (e) {}
 }
 
 function startTimer(npc) {

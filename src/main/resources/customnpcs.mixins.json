@@ -9,6 +9,7 @@
     "DelegatingResourcePackMixin",
     "EntityNPCInterfaceDefaultInteractMixin",
     "EntityNPCInterfaceHitboxMixin",
+    "EntityNPCInterfaceRespawnPoseMixin",
     "EntityNPCInterfaceNameFormatMixin",
     "EntityNPCInterfaceSpawnPacketMixin",
     "EntityNPCInterfaceVisibilityMixin",

@@ -3,8 +3,9 @@
 // Навес сгустка партиклов → hazard-лужа (ZoneAPI).
 // Механика — Java AbilityAPI. JS: кулдаун, старт и тюнинг.
 //
-// Panic (OnAttack=1): AI часто сбрасывает getAttackTarget —
-// цель ищем сами через игроков.
+// Panic (OnAttack=1): AI часто сбрасывает getAttackTarget.
+// По умолчанию REQUIRE_ATTACK_TARGET=true — без агро не кастуем.
+// Для Panic поставь false: тогда цель = ближайший игрок в range/LOS.
 // =====================================================
 
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
@@ -15,6 +16,8 @@ var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var ABILITY_ID = "crimson_blob";
 var COOLDOWN_TICKS = 60;
 var MAX_RANGE = 20.0;
+var MAX_VERTICAL = 4.0; // этажи: Y не входит в flatDistance, без лимита каст «сквозь» здание
+var REQUIRE_ATTACK_TARGET = true; // false = Panic-фолбэк: ближайший игрок без агро
 
 var ZONE_RADIUS = 2.0;          // радиус лужи / telegraph
 var ZONE_SECONDS = 8;           // сколько лежит лужа
@@ -84,8 +87,11 @@ function resolveTarget(npc, world) {
     } catch (err) {
         t = null;
     }
-    if (t != null && t.isAlive() && flatDistance(npc, t) <= MAX_RANGE) {
+    if (isCastableTarget(npc, t)) {
         return t;
+    }
+    if (REQUIRE_ATTACK_TARGET) {
+        return null;
     }
     return findNearestPlayer(npc, world);
 }
@@ -104,6 +110,7 @@ function findNearestPlayer(npc, world) {
                     if (gm == 1 || gm == 3) continue; // creative / spectator
                 }
             } catch (eGm) {}
+            if (!isCastableTarget(npc, p)) continue;
             var d = flatDistance(npc, p);
             if (d < bestD) {
                 bestD = d;
@@ -114,6 +121,16 @@ function findNearestPlayer(npc, world) {
         return null;
     }
     return best;
+}
+
+function isCastableTarget(npc, t) {
+    if (t == null || !t.isAlive()) return false;
+    if (flatDistance(npc, t) > MAX_RANGE) return false;
+    if (Math.abs(npc.getY() - t.getY()) > MAX_VERTICAL) return false;
+    try {
+        if (typeof npc.canSeeEntity == "function" && !npc.canSeeEntity(t)) return false;
+    } catch (eSee) {}
+    return true;
 }
 
 function flatDistance(a, b) {

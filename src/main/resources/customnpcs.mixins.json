@@ -8,7 +8,6 @@
     "CustomNpcsDefaultInteractLineMixin",
     "DelegatingResourcePackMixin",
     "EntityNPCInterfaceDefaultInteractMixin",
-    "EntityNpcMovementSoundMixin",
     "EntityNPCInterfaceHitboxMixin",
     "EntityNPCInterfaceRespawnPoseMixin",
     "EntityNPCInterfaceNameFormatMixin",

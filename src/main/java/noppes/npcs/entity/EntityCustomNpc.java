@@ -60,7 +60,6 @@ public class EntityCustomNpc extends EntityNPCFlying {
          LivingEntity entity = this.modelData.getEntity(this);
          if (entity != null) {
             try {
-               entity.setSilent(true);
                entity.tick();
             } catch (Exception var4) {
             }

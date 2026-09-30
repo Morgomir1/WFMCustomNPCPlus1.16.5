@@ -135,7 +135,10 @@ tasks.register('copyResourcesFromDeobf', Copy) {
     into layout.buildDirectory.dir("resources\\main");
 }
 
-tasks.withType(JavaCompile).configureEach {
+tasks.withType(JavaCompile).configureEach { task ->
     options.encoding = 'UTF-8'
-    options.release = 8
+    // --release ломает MCP/ECJ-рекомпиляцию ForgeGradle (invalid flag: --release)
+    if (task.name == 'compileJava' || task.name == 'compileTestJava') {
+        options.release = 8
+    }
 }

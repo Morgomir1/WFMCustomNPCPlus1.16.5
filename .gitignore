@@ -117,6 +117,8 @@ run/
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
 !lib/*
+# GitHub hard limit is 100 MB; use WFM-1.0-noresources.jar for CI
+lib/WFM-1.0.jar
 /cnpc-dialog-helper-1.0.4/
 /--output-dir=build/tmp-decompile-src/noppes/npcs/client/gui/mainmenu/GuiNpcDisplay.java
 /--output-dir=build/

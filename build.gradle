@@ -80,8 +80,8 @@ dependencies {
     compileOnly name: archivesBaseName+'-deobf'
     implementation fg.deobf('lib:geckolib-forge-1.16.5:3.0.106')
     implementation fg.deobf('lib:wfmtelegraph:1.0.0-1.16.5')
-    // Sibling WFM (official mappings classes) — PledgeAllegianceChangedEvent / Allegiance
-    compileOnly files("${rootProject.projectDir}/../WFM1.16.5/build/classes/java/main")
+    // WFM API (official mappings, no assets) — CI/GitHub cannot take the full 100MB+ jar
+    compileOnly files("${rootProject.projectDir}/lib/WFM-1.0-noresources.jar")
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
@@ -184,6 +184,19 @@ tasks.register('mergeMixinRefmap') {
 
 jar.dependsOn('mergeMixinRefmap')
 
-tasks.withType(JavaCompile).configureEach {
+tasks.register('verifyWfmLib') {
+    doFirst {
+        def wfmJar = file("${rootProject.projectDir}/lib/WFM-1.0-noresources.jar")
+        if (!wfmJar.exists()) {
+            throw new GradleException(
+                "Missing ${wfmJar}. Put WFM-1.0-noresources.jar in lib/ (full WFM-1.0.jar is gitignored, GitHub 100MB limit)."
+            )
+        }
+    }
+}
+compileJava.dependsOn('verifyWfmLib')
+
+tasks.withType(JavaCompile).configureEach { task ->
     options.encoding = 'UTF-8'
+    // Не ставить options.release: --release ломает MCP/ECJ-рекомпиляцию ForgeGradle.
 }

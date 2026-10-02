@@ -27,6 +27,7 @@ var SPHERE_CLONE_NAME_KEY = "necro_sphere_clone";
 var SKELETON_CLONE_NAME_KEY = "necro_skeleton_clone";
 var BEAM_LENGTH_KEY = "necro_beam_length";
 var SUMMON_INTERVAL_KEY = "necro_summon_interval";
+var SKELETONS_PER_WAVE_KEY = "necro_skeletons_per_wave";
 
 var VOLLEY_ID = "necro_volley";
 var RINGS_ID = "necro_rings";
@@ -36,8 +37,10 @@ var SPHERE_CLONE_NAME = "Сфера некроманта";
 var SKELETON_CLONE_NAME = "Скелет некроманта";
 /** Длина луча (блоки). Диапазон в Java: 4–48. */
 var BEAM_LENGTH = 16.0;
-/** Интервал волн скелетов от сферы (тики). 200 = 10с. Диапазон в Java: 20–1200. */
-var SPHERE_SUMMON_INTERVAL = 400;
+/** Интервал волн скелетов от сферы (тики). 500 = 25с. Диапазон в Java: 20–1200. */
+var SPHERE_SUMMON_INTERVAL = 500;
+/** Скелетов за волну от одной сферы. Диапазон в Java: 1–9 (без ключа — 3). */
+var SKELETONS_PER_WAVE = 1;
 
 var VOLLEY_COOLDOWN = 160;
 var RINGS_COOLDOWN = 100;
@@ -157,6 +160,7 @@ function configureBoss(npc) {
     ScriptData.putString(data, SKELETON_CLONE_NAME_KEY, SKELETON_CLONE_NAME);
     ScriptData.putFloat(data, BEAM_LENGTH_KEY, BEAM_LENGTH);
     ScriptData.putInt(data, SUMMON_INTERVAL_KEY, SPHERE_SUMMON_INTERVAL);
+    ScriptData.putInt(data, SKELETONS_PER_WAVE_KEY, SKELETONS_PER_WAVE);
 }
 
 function pickAbility(npc, data, now) {

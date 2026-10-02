@@ -40,7 +40,6 @@ public final class NecromancerCombatHandler {
     private static final int STUN_TICKS = NecromancerMinionHelper.DEFAULT_STUN_TICKS;
     private static final int POST_STUN_CAST_DELAY = 60;
     private static final int POST_STUN_VOLLEY_COOLDOWN = 160;
-    private static final int SKELETONS_PER_WAVE = 3;
     /** Лимит живых скелетов у одной сферы (не lifetime-счётчик). */
     private static final int MAX_LIVING_SKELETONS_PER_SPHERE = 9;
     private static final double SUMMON_RADIUS = 2.5;
@@ -404,6 +403,7 @@ public final class NecromancerCombatHandler {
 
     private static void tickSphereSummons(final ICustomNpc boss, final int now) {
         final int summonInterval = NecromancerMinionHelper.getSummonInterval(boss);
+        final int skeletonsPerWave = NecromancerMinionHelper.getSkeletonsPerWave(boss);
         final List<IEntity> spheres = NecromancerMinionHelper.listOwnedTagged(
                 boss, NecromancerMinionHelper.SPHERE_TAG, CONTROL_RADIUS);
         for (final IEntity sphere : spheres) {
@@ -425,7 +425,7 @@ public final class NecromancerCombatHandler {
                 return;
             }
             final int toSpawn = Math.min(
-                    SKELETONS_PER_WAVE, MAX_LIVING_SKELETONS_PER_SPHERE - living);
+                    skeletonsPerWave, MAX_LIVING_SKELETONS_PER_SPHERE - living);
             int spawnedNow = 0;
             for (int i = 0; i < toSpawn; i++) {
                 final double[] pos = pickClearSummonPos(boss, sphere, i, toSpawn);

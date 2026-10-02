@@ -25,9 +25,11 @@
     "ProtocolTypeMixin",
     "ScoreBoardMixin",
     "VineBlockMixin",
-    "DataDisplayMixin"
+    "DataDisplayMixin",
+    "SPacketMenuSaveMixin"
   ],
   "client": [
+    "NpcMenuServerDataGuardMixin",
     "AgeableModelMixin",
     "ArmorLayerMixin",
     "BipedBodyMixin",

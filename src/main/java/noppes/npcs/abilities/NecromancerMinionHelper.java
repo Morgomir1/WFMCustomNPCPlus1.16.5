@@ -32,6 +32,7 @@ public final class NecromancerMinionHelper {
     public static final String BEAM_COUNT_KEY = "necro_beam_count";
     public static final String BEAM_LENGTH_KEY = "necro_beam_length";
     public static final String SUMMON_INTERVAL_KEY = "necro_summon_interval";
+    public static final String SKELETONS_PER_WAVE_KEY = "necro_skeletons_per_wave";
 
     public static final String CLONE_TAB_KEY = "necro_clone_tab";
     public static final String SPHERE_CLONE_NAME_KEY = "necro_sphere_clone";
@@ -52,6 +53,9 @@ public final class NecromancerMinionHelper {
     public static final int DEFAULT_SUMMON_INTERVAL = 200;
     private static final int MIN_SUMMON_INTERVAL = 20;
     private static final int MAX_SUMMON_INTERVAL = 1200;
+    /** Skeletons per sphere wave; overridden from necromancer_boss.js. */
+    public static final int DEFAULT_SKELETONS_PER_WAVE = 3;
+    private static final int MAX_SKELETONS_PER_WAVE = 9;
     public static final int DEFAULT_CLONE_TAB = 1;
 
     private NecromancerMinionHelper() {
@@ -142,6 +146,15 @@ public final class NecromancerMinionHelper {
 
     private static int clampSummonInterval(final int value) {
         return Math.max(MIN_SUMMON_INTERVAL, Math.min(MAX_SUMMON_INTERVAL, value));
+    }
+
+    public static int getSkeletonsPerWave(final ICustomNpc boss) {
+        if (boss == null) {
+            return DEFAULT_SKELETONS_PER_WAVE;
+        }
+        final int count = ScriptDataUtil.getInt(boss.getStoreddata(), SKELETONS_PER_WAVE_KEY);
+        final int value = count <= 0 ? DEFAULT_SKELETONS_PER_WAVE : count;
+        return Math.max(1, Math.min(MAX_SKELETONS_PER_WAVE, value));
     }
 
     public static boolean isBossFlagSet(final ICustomNpc boss) {

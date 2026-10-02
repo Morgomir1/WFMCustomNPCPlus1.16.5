@@ -1,0 +1,158 @@
+name: Deploy CustomNPCs
+
+on:
+  workflow_dispatch:
+    inputs:
+      stand:
+        description: Стенд панели (prod — боевой, test — тестовый сервер и папка модов лаунчера)
+        type: choice
+        required: true
+        default: prod
+        options:
+          - prod
+          - test
+      target:
+        description: Куда выкладывать
+        type: choice
+        required: true
+        default: both
+        options:
+          - both
+          - launcher
+          - server
+      restart_server:
+        description: После загрузки — команда/рестарт игрового сервера
+        type: boolean
+        default: false
+      server_command:
+        description: Команда в консоль игрового сервера (пусто = Restart в панели). Например stop
+        type: string
+        required: false
+        default: ""
+      restart_launcher:
+        description: После загрузки — команда/рестарт инстанса лаунчера
+        type: boolean
+        default: false
+      launcher_command:
+        description: Команда в консоль лаунчера (пусто = Restart в панели)
+        type: string
+        required: false
+        default: ""
+      runner:
+        description: Где собирать (self-hosted — если лаунчер на той же машине)
+        type: choice
+        required: true
+        default: ubuntu-latest
+        options:
+          - ubuntu-latest
+          - self-hosted
+
+jobs:
+  deploy:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 70
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      PTERO_PANEL: ${{ secrets.PTERO_PANEL || vars.PTERO_PANEL || 'https://pterodactyl.silweb.ru' }}
+      PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
+      PTERO_SERVER: ${{ secrets.PTERO_SERVER }}
+      PTERO_MODS_DIR: ${{ vars.PTERO_MODS_DIR }}
+      PTERO_INSECURE: ${{ vars.PTERO_INSECURE }}
+      PTERO_UPLOAD_TIMEOUT: ${{ vars.PTERO_UPLOAD_TIMEOUT }}
+      PTERO_UPLOAD_ATTEMPTS: ${{ vars.PTERO_UPLOAD_ATTEMPTS }}
+      PTERO_WARN_SECONDS: ${{ vars.PTERO_WARN_SECONDS }}
+      PTERO_RESTART_COMMAND: ${{ inputs.server_command || vars.PTERO_RESTART_COMMAND }}
+      LAUNCHER_RESTART_COMMAND: ${{ inputs.launcher_command || vars.LAUNCHER_RESTART_COMMAND }}
+      LAUNCHER_WARN_SECONDS: ${{ vars.LAUNCHER_WARN_SECONDS }}
+      LAUNCHER_BACKEND: ${{ vars.LAUNCHER_BACKEND }}
+      LAUNCHER_LOCAL_PATH: ${{ vars.LAUNCHER_LOCAL_PATH }}
+      LAUNCHER_SFTP_HOST: ${{ secrets.LAUNCHER_SFTP_HOST }}
+      LAUNCHER_SFTP_USER: ${{ secrets.LAUNCHER_SFTP_USER }}
+      LAUNCHER_SFTP_KEY: ${{ secrets.LAUNCHER_SFTP_KEY }}
+      LAUNCHER_SFTP_PATH: ${{ vars.LAUNCHER_SFTP_PATH }}
+      LAUNCHER_SFTP_PORT: ${{ vars.LAUNCHER_SFTP_PORT }}
+      LAUNCHER_PTERO_PANEL: ${{ secrets.LAUNCHER_PTERO_PANEL || vars.LAUNCHER_PTERO_PANEL }}
+      LAUNCHER_PTERO_API_KEY: ${{ secrets.LAUNCHER_PTERO_API_KEY }}
+      LAUNCHER_PTERO_SERVER: ${{ secrets.LAUNCHER_PTERO_SERVER }}
+      LAUNCHER_PTERO_DIR: ${{ vars.LAUNCHER_PTERO_DIR }}
+      LAUNCHER_PTERO_INSECURE: ${{ vars.LAUNCHER_PTERO_INSECURE }}
+      TEST_PTERO_PANEL: ${{ secrets.TEST_PTERO_PANEL || vars.TEST_PTERO_PANEL }}
+      TEST_PTERO_API_KEY: ${{ secrets.TEST_PTERO_API_KEY }}
+      TEST_PTERO_SERVER: ${{ secrets.TEST_PTERO_SERVER }}
+      TEST_PTERO_MODS_DIR: ${{ vars.TEST_PTERO_MODS_DIR }}
+      TEST_PTERO_INSECURE: ${{ vars.TEST_PTERO_INSECURE }}
+      TEST_PTERO_WARN_SECONDS: ${{ vars.TEST_PTERO_WARN_SECONDS }}
+      TEST_PTERO_RESTART_COMMAND: ${{ vars.TEST_PTERO_RESTART_COMMAND }}
+      TEST_LAUNCHER_PTERO_PANEL: ${{ secrets.TEST_LAUNCHER_PTERO_PANEL || vars.TEST_LAUNCHER_PTERO_PANEL }}
+      TEST_LAUNCHER_PTERO_API_KEY: ${{ secrets.TEST_LAUNCHER_PTERO_API_KEY }}
+      TEST_LAUNCHER_PTERO_SERVER: ${{ secrets.TEST_LAUNCHER_PTERO_SERVER }}
+      TEST_LAUNCHER_PTERO_DIR: ${{ vars.TEST_LAUNCHER_PTERO_DIR }}
+      TEST_LAUNCHER_PTERO_INSECURE: ${{ vars.TEST_LAUNCHER_PTERO_INSECURE }}
+      TEST_LAUNCHER_LOCAL_PATH: ${{ vars.TEST_LAUNCHER_LOCAL_PATH }}
+      TEST_LAUNCHER_SFTP_PATH: ${{ vars.TEST_LAUNCHER_SFTP_PATH }}
+      TEST_LAUNCHER_SFTP_HOST: ${{ secrets.TEST_LAUNCHER_SFTP_HOST }}
+      TEST_LAUNCHER_SFTP_USER: ${{ secrets.TEST_LAUNCHER_SFTP_USER }}
+      TEST_LAUNCHER_SFTP_KEY: ${{ secrets.TEST_LAUNCHER_SFTP_KEY }}
+      TEST_LAUNCHER_SFTP_PORT: ${{ vars.TEST_LAUNCHER_SFTP_PORT }}
+      TEST_LAUNCHER_BACKEND: ${{ vars.TEST_LAUNCHER_BACKEND }}
+      TEST_LAUNCHER_WARN_SECONDS: ${{ vars.TEST_LAUNCHER_WARN_SECONDS }}
+      TEST_LAUNCHER_RESTART_COMMAND: ${{ vars.TEST_LAUNCHER_RESTART_COMMAND }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties', 'build.gradle', 'gradle.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Validate deploy stands
+        run: |
+          PYTHON=python3
+          command -v python3 >/dev/null || PYTHON=python
+          $PYTHON tools/ci/test_deploy_wfm.py
+
+      - name: Check WFM compile jar
+        run: test -f lib/WFM-1.0-noresources.jar
+
+      - name: Build
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon build
+
+      - name: Check jars
+        run: |
+          shopt -s nullglob
+          JARS=(build/libs/*.jar)
+          test ${#JARS[@]} -gt 0
+          ls -lh build/libs/*.jar
+
+      - name: Deploy
+        run: |
+          PYTHON=python3
+          command -v python3 >/dev/null || PYTHON=python
+          JAR=$(ls -1 build/libs/*.jar | grep -v sources | head -n1)
+          test -n "$JAR"
+          $PYTHON tools/ci/deploy_wfm.py \
+            --stand "${{ inputs.stand }}" \
+            --target "${{ inputs.target }}" \
+            --server-jar "$JAR" \
+            --launcher-jar "$JAR" \
+            --remote-name "CustomNPCs v1.16.5.jar" \
+            ${{ inputs.restart_server && '--restart-server' || '' }} \
+            ${{ inputs.restart_launcher && '--restart-launcher' || '' }}

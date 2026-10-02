@@ -184,6 +184,7 @@ tasks.register('mergeMixinRefmap') {
 
 jar.dependsOn('mergeMixinRefmap')
 
-tasks.withType(JavaCompile).configureEach {
+tasks.withType(JavaCompile).configureEach { task ->
     options.encoding = 'UTF-8'
+    // Не ставить options.release: --release ломает MCP/ECJ-рекомпиляцию ForgeGradle.
 }

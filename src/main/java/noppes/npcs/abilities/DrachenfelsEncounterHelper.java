@@ -123,6 +123,8 @@ public final class DrachenfelsEncounterHelper {
     private static final String CYCLE_ORIGIN = "df_cycle_origin";
     private static final String CYCLE_SHIFT = "df_cycle_shift";
     private static final String CYCLE_SLOT = "df_cycle_slot";
+    /** World time the phase 2 cycle clock was stopped at for a False Host; 0 while it runs. */
+    private static final String CYCLE_HELD_AT = "df_cycle_held_at";
     private static final String STEP_READY = "df_step_ready";
     private static final String WHISPER_READY = "df_whisper_ready";
     private static final String STEAL_READY = "df_steal_ready";
@@ -196,6 +198,7 @@ public final class DrachenfelsEncounterHelper {
         put(data, CYCLE_ORIGIN, "0");
         put(data, CYCLE_SHIFT, "0");
         put(data, CYCLE_SLOT, "0");
+        put(data, CYCLE_HELD_AT, "0");
         put(data, SPIRIT_MODE, "0");
         put(data, PENDING_FALSE, "0");
         put(data, FALSE_ACTIVE, "0");
@@ -854,6 +857,7 @@ public final class DrachenfelsEncounterHelper {
             put(data, CYCLE_ORIGIN, String.valueOf(now));
             put(data, CYCLE_SHIFT, "0");
             put(data, CYCLE_SLOT, "0");
+            put(data, CYCLE_HELD_AT, "0");
         }
     }
 
@@ -1047,11 +1051,12 @@ public final class DrachenfelsEncounterHelper {
 
     private static void tickPhase2(final ICustomNpc npc, final IData data, final long now) {
         tickFalseHostTrigger(npc, data, now);
+        final boolean cycleHeld = holdCycleForFalseHost(npc, data, now);
         if (!AbilityAPI.isBusy(npc)) {
             if (ScriptDataUtil.isFlag(data, PENDING_FALSE)) {
                 final IEntityLiving target = resolveCombatTarget(npc);
                 startBossAbility(npc, DfFalseHostAbility.ID, target, DrachenfelsConfig.falseHostParams(npc));
-            } else {
+            } else if (!cycleHeld) {
                 long origin = ScriptDataUtil.getLong(data, CYCLE_ORIGIN);
                 if (origin <= 0L) {
                     put(data, CYCLE_ORIGIN, String.valueOf(now));
@@ -1101,6 +1106,29 @@ public final class DrachenfelsEncounterHelper {
         }
         // Same scripted kite as phase 1 (no seal puddles left after transition).
         maintainPhase1Movement(npc, data, now);
+    }
+
+    /**
+     * The cycle clock stands still from the False Host trigger until the copies are gone, so the boss
+     * resumes with the next attack of the cycle instead of running out of it and reopening with the wave.
+     */
+    private static boolean holdCycleForFalseHost(final ICustomNpc npc, final IData data, final long now) {
+        final boolean falseHost = ScriptDataUtil.isFlag(data, PENDING_FALSE)
+                || ScriptDataUtil.isFlag(data, FALSE_ACTIVE)
+                || DfFalseHostAbility.ID.equals(AbilityAPI.getActiveId(npc));
+        final long heldAt = ScriptDataUtil.getLong(data, CYCLE_HELD_AT);
+        if (falseHost) {
+            if (heldAt <= 0L) {
+                put(data, CYCLE_HELD_AT, String.valueOf(now));
+            }
+            return true;
+        }
+        if (heldAt > 0L) {
+            final int shift = ScriptDataUtil.getInt(data, CYCLE_SHIFT);
+            put(data, CYCLE_SHIFT, String.valueOf(shift + (int) (now - heldAt)));
+            put(data, CYCLE_HELD_AT, "0");
+        }
+        return false;
     }
 
     private static void tickFalseHostTrigger(final ICustomNpc npc, final IData data, final long now) {
@@ -1318,6 +1346,7 @@ public final class DrachenfelsEncounterHelper {
         put(data, CYCLE_ORIGIN, "0");
         put(data, CYCLE_SHIFT, "0");
         put(data, CYCLE_SLOT, "0");
+        put(data, CYCLE_HELD_AT, "0");
         put(data, GAZE_FAR_SINCE, "0");
         say(npc, "Осколок коснулся. Пир начинается сначала.");
         AbilityVfx.spawnSoulWave(npc.getWorld(), c[0], gy + 0.2, c[2], 3.0);

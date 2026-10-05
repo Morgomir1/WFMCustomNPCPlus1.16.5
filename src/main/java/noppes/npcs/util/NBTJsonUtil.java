@@ -105,7 +105,7 @@ public class NBTJsonUtil
                 final long[] arr3 = new long[list.size()];
                 int i = 0;
                 while (list.size() > 0) {
-                    arr3[i] = ((LongNBT)list.remove(0)).getAsByte();
+                    arr3[i] = ((LongNBT)list.remove(0)).getAsLong();
                     ++i;
                 }
                 return (INBT)new LongArrayNBT(arr3);
@@ -114,10 +114,12 @@ public class NBTJsonUtil
         }
         else {
             if (json.startsWith("\"")) {
-                json.cut(1);
+                // A value is read back exactly as quoteAndEscape wrote it: its leading whitespace is kept, and an
+                // escaped backslash does not escape the closing quote. Script chunks may start or end with either.
+                json.cutDirty(1);
                 final StringBuilder s = new StringBuilder();
                 String cut;
-                for (boolean ignore = false; !json.startsWith("\"") || ignore; ignore = cut.equals("\\"), s.append(cut)) {
+                for (boolean ignore = false; !json.startsWith("\"") || ignore; ignore = (!ignore && cut.equals("\\")), s.append(cut)) {
                     cut = json.cutDirty(1);
                 }
                 json.cut(1);

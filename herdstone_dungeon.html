@@ -101,7 +101,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 
 <div class="wrap">
 <header>
-  <div class="eyebrow">Данж · Warhammer Fantasy · Зверолюды · Minecraft 1.16.5 + CustomNPC</div>
+  <div class="eyebrow">Данж · Warhammer Fantasy · Зверолюды · Minecraft 1.16.5 + CustomNPC+ (WFM)</div>
   <h1>Камень Расколотого Рога</h1>
   <p class="lead">Логово мятежного стада в Драквальде из четырёх локаций: Гнилая просека, Осквернённая крипта, Корневые глубины и Провал Камня Стада. Каждая локация заканчивается ареной с боссом, и только через неё можно пройти дальше. Вход один, выход один, после последнего босса. Стадо враждебно и Порядку, и Разрушению, поэтому все квесты внутри данжа одинаковые для обеих сторон.</p>
   <div class="meta"><span>Игроки: <b>1–4</b></span><span>Снаряжение: <b>железо → алмаз</b></span><span>Время: <b>60–90 мин</b></span><span>Респаун всего: <b>1 час</b></span><span>Этаж: <b>≈160×140 блоков</b></span><span>Глубина: <b>≈80 блоков</b></span></div>
@@ -128,7 +128,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <section id="rules">
 <h2>Правила данжа</h2>
 <div class="rules">
-  <div><b>Один вход</b><span>Врата черепов на южной границе просеки. Остальной данж окружает непроходимая терновая стена (Border Block).</span></div>
+  <div><b>Один вход</b><span>Врата черепов на южной границе просеки. Остальной данж окружает непроходимая терновая стена (декор + <code>minecraft:barrier</code> / сплошные блоки; не отдельный Border Block в CNPC).</span></div>
   <div><b>Один выход</b><span>Подъём Висельника открывается только из арены последнего босса после его смерти. Снаружи в него не войти.</span></div>
   <div><b>Арены — шлюзы</b><span>Проход в следующую локацию начинается в арене босса. Ворота открываются после смерти босса и закрываются, когда он возрождается.</span></div>
   <div><b>Респаун 1 час</b><span>Через час возрождаются все мобы и боссы, а головоломки, вода, ворота и шорткаты сбрасываются. Делает это NPC-«смотритель».</span></div>
@@ -294,7 +294,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tbody>
 <tr><td><b>Лагеря</b></td><td>Вне данжа. Квестодатели, торговцы, точки респауна. NPC лагеря атакуют игроков враждебной стороны, которые подходят ближе чем на 16 блоков.</td><td>Хабы</td></tr>
 <tr><td><b>A1 Преддверие</b></td><td>Площадка за Вратами: жертвенник из черепов и первая засада. Здесь же заканчивается шорткат S1.</td><td>Бой</td></tr>
-<tr><td><b>A2 Тропа тотемов</b></td><td>Тропа среди черепов на кольях. На 4 вышках сидят унгоры-лучники с узким углом обзора. Обходить их нужно по кустам.</td><td><span class="tag t-st">СТЕЛС</span> Если игрока заметили, унгор трубит в рог, и из A3 прибегают 6 горов.</td></tr>
+<tr><td><b>A2 Тропа тотемов</b></td><td>Тропа среди черепов на кольях. На 4 вышках сидят унгоры-лучники. Угол обзора — скрипт: <code>canSeeEntity</code> + сравнение yaw. В <code>target</code> отмена агро, если на цели Мускусная маска (шлем через <code>EquipmentSlotType.HEAD</code>, у игрока нет <code>getArmor</code>).</td><td><span class="tag t-st">СТЕЛС</span> Если заметили — горн и <code>spawnClone</code> 6 горов из A3.</td></tr>
 <tr><td><b>A3 Лагерь унгоров</b></td><td>Шатры из шкур. В шатре вожака лежит <b>Мускусная маска</b>: в ней мелкие зверолюды не замечают игрока.</td><td>Необязательный бой или кража</td></tr>
 <tr><td><b>A5 Двор обители</b></td><td>Развалины, разбитая статуя Зигмара (просто декорация, без бонусов) и часовня. Отсюда открывается шорткат S1.</td><td>Переход</td></tr>
 <tr><td><b>A6 Колокольня</b></td><td>Паркур по обвалившимся балкам. Наверху висит <b>Засов загона</b>: без него ворота арены Б1 не открыть.</td><td><span class="tag t-p">ПАРКУР</span></td></tr>
@@ -343,7 +343,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm water" x="2" y="2" width="22" height="12"/></svg>затоплено</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="pm" cx="13" cy="8" r="6"/></svg>вентиль</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="tot" x="9" y="4" width="8" height="8"/></svg>тотем</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="itm" x="8" y="3" width="10" height="10"/></svg>ключевой предмет</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="5"/></svg>NPC (Шкрик)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>номер шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
 </div>
 <h3>B2 Головоломка: слив катакомб</h3>
-<p>Проходы к B3 и B4 ниже уровня воды. Три вентиля (Scripted Block) опускают воду слоями. Правильный порядок подсказывают надгробия монахов: «Первым ушёл брат у восточной стены, последним — тот, кто молился у святого источника». Ответ: <b>V2 → V1 → V3</b>. Неверный вентиль снова поднимает воду и выпускает 2–3 утонувших гора.</p>
+<p>Проходы к B3 и B4 ниже уровня воды. Три вентиля (Scripted Block) опускают воду слоями: скрипт меняет <code>world.setBlock</code> / <code>removeBlock</code> по заранее записанным столбикам координат (большой <code>/fill</code> не использовать). Правильный порядок подсказывают надгробия монахов: «Первым ушёл брат у восточной стены, последним — тот, кто молился у святого источника». Ответ: <b>V2 → V1 → V3</b>. Неверный вентиль снова поднимает слой и <code>spawnClone</code> 2–3 утонувших гора. Полный сброс воды при часовом ресете — клон структуры (<code>CloneStructureSpawnerHelper</code>) или заранее сохранённый набор блоков, не командный блок на весь зал.</p>
 <h3>B3 Головоломка: тотемы Тёмных Богов</h3>
 <p>Четыре тотема-черепа, у каждого 4 положения: знаки Кхорна, Нургла, Тзинча и Слаанеш. Из B5 сквозь решётку слышно, как бра-шаман поёт молитву (NPC говорит строки по таймеру), и порядок богов в песне задаёт порядок знаков. Если решить правильно, реликварий откроется, а в нём лежит <b>Тотемный амулет</b>: в бою с Б2 он помогает отличить настоящего шамана от копий.</p>
 <h3>B4 Притвор: Шкрик</h3>
@@ -398,9 +398,9 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <h3>C2 Головоломка: зов стада</h3>
 <p>Ворота из рёбер поднимаются только по сигналу стада. Сначала нужно протрубить в <b>Рог Бра-шамана</b> (дроп Б2), затем за 6 секунд отбить на четырёх барабанах ритм с фрески: <b>левый, левый, правый, большой</b>. За каждую ошибку из нор вылезают 3 унгора. Если на игроке Мускусная маска, они проходят мимо.</p>
 <h3>C3 Варп-топь</h3>
-<p>Зелёный туман: частицы плюс тошнота и иссушение из командного блока, который бьёт по объёму. Без защиты туман можно перебежать примерно за 40 секунд. Каждый из 4 пучков <b>святой травы</b> даёт 15 секунд чистого воздуха. С травами можно не спешить и найти потайной проход в C4.</p>
+<p>Зелёный туман — не командный блок, а невидимый NPC-источник + <code>ZoneAPI.hazardCircle</code> (чистый MAGIC DoT) с эффектами тошноты и иссушения. Без защиты туман можно перебежать примерно за 40 секунд. Каждый из 4 пучков <b>святой травы</b> (Scripted Block) пишет игроку в storeddata метку «чистый воздух» на 15 секунд; зона/смотритель не бьёт тех, у кого метка ещё жива. С травами можно не спешить и найти потайной проход в C4.</p>
 <h3>C4 Секрет: Топь Бормочущего</h3>
-<p>Это тупик, из него нет выхода дальше, так что правило арен здесь не нарушается. Каждые 12 секунд Джабберслайт бросает «безумный взгляд»: все в радиусе 15 блоков, кто не стоит у одного из 4 менгиров-укрытий, получают тошноту, слепоту и замедление на 6 секунд.</p>
+<p>Это тупик, из него нет выхода дальше, так что правило арен здесь не нарушается. Каждые 12 секунд Джабберслайт бросает «безумный взгляд»: красный telegraph-круг, затем все в радиусе 15 блоков, кто не стоит у одного из 4 менгиров-укрытий (LOS через <code>rayTraceBlock</code>), получают тошноту, слепоту и замедление на 6 секунд через <code>addPotionEffect</code>.</p>
 </section>
 
 <!-- ================= LEVEL 4 ================= -->
@@ -450,56 +450,56 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <li><b>Бой</b> — четыре мини-босса и отдельный сундук за победу.</li>
 </ul>
 <h3>D2 Круг Вызова</h3>
-<p>Проход в рощу стерегут 8 бестигоров. Их вожак предлагает <b>Право Вызова</b>: у зверолюдов сильный решает всё, и это касается любого чужака, от рыцаря до орка. Один игрок выходит в круг против чемпиона, а Border Blocks не пускают туда остальных. Победа — гвардия расступается. Отказ — бой со всеми восемью. После Круга можно открыть шорткат S4.</p>
+<p>Проход в рощу стерегут 8 бестигоров. Их вожак предлагает <b>Право Вызова</b>: у зверолюдов сильный решает всё, и это касается любого чужака, от рыцаря до орка. Один игрок выходит в круг против чемпиона. Остальных не пускают <code>minecraft:barrier</code> (смотритель ставит кольцо через <code>world.setBlock</code>; если на сервере есть WFM Border Block — можно им). Победа — гвардия расступается, барьеры снимаются. Отказ — бой со всеми восемью. После Круга можно открыть шорткат S4.</p>
 </section>
 
 <!-- ================= BOSSES ================= -->
 <section id="bosses">
 <h2>Боссы</h2>
-<p class="note">Цифры рассчитаны на 2–3 игроков в железной или алмазной броне. Для соло делите HP на 1,6. Все боссы возрождаются через 1 час (см. «CustomNPC»). Модели: в CustomNPC 1.16.5 можно выбрать модель ванильного моба (Display → Model). Хоглин и равагер хорошо подходят под разоргора и горгона.</p>
+<p class="note">Цифры рассчитаны на 2–3 игроков в железной или алмазной броне. Для соло делите HP на 1,6. Все боссы возрождаются через 1 час (см. «CustomNPC+»). Модели — GeckoLib / Custom Model этой сборки, не ванильный Display → Model. Боевые удары и рывки — Java <code>AbilityAPI</code> (один каст на NPC, <code>isBusy</code>). JS только выбирает фазу, кулдаун и params. Warning перед ударом — Telegraph (мод WFMTelegraph). Лужи и туман — <code>ZoneAPI</code>, не командный блок.</p>
 <div class="cols">
 <article class="boss">
   <div class="eyebrow">Б1 · A4 Загон · ворота в локацию 2</div>
   <h3>Грул Кабанья Рука и Кровохряк</h3>
-  <div class="stat"><b>Кровохряк</b>: Hoglin, размер 8, HP 260 · <b>Грул</b>: гор-вожак, размер 6, HP 180</div>
+  <div class="stat"><b>Кровохряк</b>: отдельный NPC (клон «Кровохряк», размер 8, HP 260) · <b>Грул</b>: гор-вожак, размер 6, HP 180. Грул на кабане: <code>grul.addRider(razorgor)</code> / <code>setMount</code>.</div>
   <ol class="ph">
-    <li><b>Наездник.</b> Грул сидит на кабане. Кабан бросается по прямой к самому дальнему игроку. Если он врезается в кол, то оглушён на 5 секунд и получает двойной урон.</li>
-    <li><b>Пешком</b> (кабан мёртв или у Грула ≤ 50% HP). Грул трубит в рог, и вбегают 4 унгора. Если кабан ещё жив, он бодается по кругу.</li>
+    <li><b>Наездник.</b> Кабан кастует <code>dash</code> (line telegraph, <code>chargeTicks</code> ≥ 18) к самому дальнему игроку из <code>getAllPlayers</code> в арене. После рывка JS смотрит соседние колья (<code>world.getBlock</code> = fence/stake): если удар пришёлся в кол — кабану Slowness 255 на 5 с и флаг двойного урона в storeddata.</li>
+    <li><b>Пешком</b> (кабан мёртв или у Грула ≤ 50% HP). Грул трубит, <code>world.spawnClone(..., CLONE_TAB, "Унгор")</code> ×4. Живой кабан вместо кругового «бодания» кастует <code>zombie_ogre_leadbelcher_trample</code> (топтание по арене) — отдельной круговой абилки нет, топот уже есть в моде.</li>
   </ol>
   <p><b>Открывает:</b> спуск в крипту. <b>Дроп:</b> шкура разоргора, клык.</p>
 </article>
 <article class="boss">
   <div class="eyebrow">Б2 · B5 Святилище · ворота в локацию 3</div>
   <h3>Мургрот Туманный Глас, бра-шаман</h3>
-  <div class="stat">Размер 5, HP 220, магические снаряды</div>
+  <div class="stat">Размер 5, HP 220. Снаряды: <code>ghost_soul_bolt</code> или <code>pistol_shot</code> с кастомным предметом. AI в касте: <code>setRetaliateType(3)</code> (Ничего), чтобы не бежал в мили.</div>
   <ol class="ph">
-    <li><b>Щит тотемов.</b> Пока стоит хоть один из 4 тотемов (неподвижные NPC по 60 HP), Мургрот неуязвим. Каждые 10 секунд он телепортируется к живому тотему.</li>
-    <li><b>Туман</b> (≤ 60%). Волны слепоты и 3 копии с 1 HP. Если у кого-то в арене есть Тотемный амулет, копии подсвечиваются (Glowing).</li>
-    <li><b>Отчаяние</b> (≤ 25%). Рой летучих тварей, а случайный игрок «превращается в зверя»: Weakness и Slowness на 8 секунд.</li>
+    <li><b>Щит тотемов.</b> Четыре неподвижных NPC-тотема (60 HP). Пока жив хоть один, <code>damaged</code> у Мургрота делает <code>event.setCanceled(true)</code> (как лучи некроманта). Раз в 10 с <code>setPosition</code> к живому тотему. Тотемы в клонере, tab тот же, что у аддов.</li>
+    <li><b>Туман</b> (≤ 60%). <code>ZoneAPI.hazardCircle</code> со слепотой + <code>df_false_host</code> (копии из клона «Мургрот-копия», 1 HP). Если у игрока в инвентаре Тотемный амулет (<code>inventoryItemCount</code> / имя предмета), копиям <code>addPotionEffect(PotionEffectType_GLOWING, …)</code>. <code>addPotionEffect</code> принимает <b>секунды</b>, не тики.</li>
+    <li><b>Отчаяние</b> (≤ 25%). Рой: <code>vampire_bat_swarm</code> или <code>vampire_crimson_bats</code>. «Превращение»: Weakness + Slowness на 8 секунд через API, не <code>effect give</code>.</li>
   </ol>
   <p><b>Открывает:</b> корневую шахту. <b>Дроп:</b> Рог Бра-шамана.</p>
 </article>
 <article class="boss">
   <div class="eyebrow">Б3 · C5 Яма · ворота в локацию 4</div>
   <h3>Великая Утроба, Горгон</h3>
-  <div class="stat">Ravager, размер 12, HP 480</div>
+  <div class="stat">GeckoLib-модель (не ванильный Ravager), размер 12, HP 480</div>
   <ol class="ph">
-    <li><b>Голод.</b> Каждые 20 секунд Горгон «глотает» ближайшего игрока: тот телепортируется в «Утробу», где нужно разбить 3 «нерва» (NPC по 20 HP). После этого игрок возвращается в яму, а босс оглушён на 6 секунд.</li>
-    <li><b>Кормушки.</b> Если положить Гнилой окорок в одну из 4 кормушек, Горгон 8 секунд стоит к игрокам спиной.</li>
-    <li><b>Бешенство</b> (≤ 30%). Обвал камней с потолка, скорость ×1,5.</li>
+    <li><b>Голод.</b> Не <code>otrodie_devour_dash</code>: та абилка ест на месте 5 с, без комнаты «Утроба». Нужен свой каст: telegraph <code>circleFollow</code> → <code>player.setPosition</code> в комнату нервов → <code>spawnClone</code> трёх «Нерв» (20 HP). Когда счётчик нервов в world storeddata доходит до 0 — вернуть игрока и дать боссу Slowness 255 на 6 с. Пока игрок в Утробе, Горгон <code>AbilityAPI.cancel</code> + retaliate «Ничего».</li>
+    <li><b>Кормушки.</b> Scripted Block: <code>interact</code> забирает Гнилой окорок (<code>player.removeItem</code> по имени), боссу <code>setRetaliateType(3)</code> и разворот yaw спиной на 8 с.</li>
+    <li><b>Бешенство</b> (≤ 30%). Обвал: <code>jump_slam</code> / <code>zombie_ogre_leadbelcher_artillery</code> в случайные точки ямы. Скорость: <code>npc.getAi().setWalkingSpeed</code> ×1,5 (сохранить базу в storeddata-строке).</li>
   </ol>
   <p><b>Открывает:</b> Глотку. <b>Дроп:</b> рог Горгона.</p>
 </article>
 <article class="boss">
   <div class="eyebrow">Б4 · D3 Роща · финал и выход</div>
   <h3>Гарракс Расколотый Рог, думбулл</h3>
-  <div class="stat">Размер 10, HP 900, двуручный топор</div>
+  <div class="stat">Размер 10, HP 900, двуручный топор. Оркестратор как у вампирских боссов: timer/tick → <code>AbilityAPI.start</code>, фазы в storeddata-строках (<code>"1"</code>/<code>"2"</code>/<code>"3"</code>, не число 2.5).</div>
   <ol class="ph">
-    <li><b>Чемпион</b> (100–60%). Широкий удар по всем в 4 блоках и рывок. В роще тоже стоят колья.</li>
-    <li><b>Кровь Камню</b> (60–30%). Гарракс уходит к Камню и становится неуязвимым. Каждые 10 секунд появляются горы, иногда минотавр. Нужно разбить 3 сердца кровавых жёлобов.</li>
-    <li><b>Ночь Тайн</b> (≤ 30%). Камень даёт ему Strength II и Resistance I, размер растёт до 12. Сорвать обряд можно двумя способами, оба доступны всем:
-      <ul><li>протрубить у Камня <b>Рогом Бра-шамана</b> — стадо слышит, что обряд прерван;</li><li>разбить 4 варп-кристалла у основания Камня (NPC по 80 HP, бьют молниями).</li></ul>
-      После этого баффы пропадают, а Гарракс теряет 15% HP.</li>
+    <li><b>Чемпион</b> (100–60%). Широкий удар: <code>vampire_whirl_slash</code> или <code>weapon_spin</code> (радиус 4). Рывок: <code>dash</code> с line telegraph. Колья — те же, что у Б1 (проверка блока после dash).</li>
+    <li><b>Кровь Камню</b> (60–30%). Телепорт к Камню, <code>damaged</code> cancel, <code>AbilityAPI.cancel</code>. Волны: <code>spawnClone</code> «Гор» / «Минотавр» по <code>world.getTotalTime()</code>, не декремент таймера. Три сердца жёлобов — NPC; их <code>died</code> увеличивает счётчик <code>channels</code> в world storeddata (строка).</li>
+    <li><b>Ночь Тайн</b> (≤ 30%). <code>npc.getDisplay().setSize(12)</code>, <code>addPotionEffect</code> Strength II и Resistance I (секунды, большой duration). Срыв обряда:
+      <ul><li>Scripted Block Камня: в руке «Рог Бра-шамана» → <code>riteBroken=1</code>;</li><li>четыре варп-кристалла (NPC 80 HP): в <code>died</code> счётчик; при 4 — тот же флаг. Молнии: <code>world.thunderStrike(x,y,z)</code>, не командный блок.</li></ul>
+      Флаг снимает эффекты и <code>setHealth(hp - max*0.15)</code>.</li>
   </ol>
   <p><b>Открывает:</b> добычу D4 и выход. <b>Дроп:</b> Топор Расколотого Рога, рога Гарракса.</p>
 </article>
@@ -508,8 +508,8 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <h3>Бормочущий, Джабберслайт</h3>
   <div class="stat">Размер 7, HP 350</div>
   <ol class="ph">
-    <li><b>Взгляд</b> раз в 12 секунд. Спасают 4 менгира-укрытия.</li>
-    <li><b>Ядовитая кровь.</b> Каждый удар вблизи отравляет атакующего на 2 секунды, поэтому лучникам проще.</li>
+    <li><b>Взгляд</b> раз в 12 секунд (CD через <code>getTotalTime</code>). Не <code>df_mask_gaze</code> (тот луч 16×1.5). Свой JS: telegraph-круг 15 блоков → дебафф, если нет укрытия за менгиром.</li>
+    <li><b>Ядовитая кровь.</b> В <code>meleeAttack</code> / <code>damaged</code> атакующему <code>addPotionEffect(PotionEffectType_POISON, 2, 0, false)</code> — 2 секунды. Лучникам проще.</li>
   </ol>
   <p><b>Дроп:</b> лук «Шёпот трясины».</p>
 </article>
@@ -523,10 +523,10 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <div class="tbl"><table>
 <thead><tr><th>№</th><th>Откуда → куда</th><th>Как открывается</th><th>Реализация</th></tr></thead>
 <tbody>
-<tr><td><span class="tag t-s">S1</span></td><td>A5 Двор → A1 Преддверие</td><td>Калитка в стене двора, засов изнутри</td><td>Scripted Door или <code>/fill … air</code> по рычагу</td></tr>
-<tr><td><span class="tag t-s">S2</span></td><td>B4 Притвор → B1 Спуск</td><td>Решётку отпирает Шкрик или рычаг из B1</td><td>Iron bars, команда <code>/fill</code></td></tr>
-<tr><td><span class="tag t-s">S3</span></td><td>C3а Кормовая нора → C1</td><td>Выбить затор в полом корне, чтобы вода залила шахту</td><td>Пузырьковый столб (песок душ + вода), скрипт ставит источник</td></tr>
-<tr><td><span class="tag t-s">S4</span></td><td>D2 Круг Вызова → D0</td><td>После Вызова сбросить верёвочную лестницу</td><td>Лестница (ladder) или scaffolding, ставится командой</td></tr>
+<tr><td><span class="tag t-s">S1</span></td><td>A5 Двор → A1 Преддверие</td><td>Калитка в стене двора, засов изнутри</td><td>Scripted Block / рычаг: цикл <code>world.removeBlock</code> / <code>setBlock</code> по списку координат (как ворота некроманта). Не <code>/fill</code>.</td></tr>
+<tr><td><span class="tag t-s">S2</span></td><td>B4 Притвор → B1 Спуск</td><td>Решётку отпирает Шкрик (<code>dialogOption</code>) или рычаг из B1</td><td>Те же <code>setBlock("minecraft:iron_bars")</code> / <code>removeBlock</code></td></tr>
+<tr><td><span class="tag t-s">S3</span></td><td>C3а Кормовая нора → C1</td><td>Выбить затор в полом корне, чтобы вода залила шахту</td><td>Пузырьковый столб: скрипт ставит soul sand + water через <code>setBlock</code></td></tr>
+<tr><td><span class="tag t-s">S4</span></td><td>D2 Круг Вызова → D0</td><td>После Вызова сбросить верёвочную лестницу</td><td><code>setBlock(..., "minecraft:ladder")</code> или scaffolding по столбику координат</td></tr>
 </tbody></table></div>
 </section>
 
@@ -539,188 +539,389 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td>Мускусная маска</td><td>A3</td><td>Мелкие зверолюды не агрятся (A2, C2)</td><td>Кожаный шлем с названием</td></tr>
 <tr><td>Засов загона</td><td>A6</td><td>Открывает ворота арены Б1</td><td>Железный слиток с названием</td></tr>
 <tr><td>Тотемный амулет</td><td>B3</td><td>Подсвечивает копии шамана в бою с Б2</td><td>Сердце моря с названием</td></tr>
-<tr><td>Рог Бра-шамана</td><td>Б2</td><td>Барабаны C2 и срыв обряда в финале</td><td>Кость, Scripted Item со звуком</td></tr>
-<tr><td>Гнилой окорок</td><td>Кормушки, кухня D1</td><td>Шкрик, Горгон, минотавры</td><td>Гнилая плоть с названием</td></tr>
+<tr><td>Рог Бра-шамана</td><td>Б2</td><td>Барабаны C2 и срыв обряда в финале</td><td>Кость, Scripted Item: <code>interact</code> → <code>world.playSoundAt</code> + флаг <code>hornBlown</code></td></tr>
+<tr><td>Гнилой окорок</td><td>Кормушки, кухня D1</td><td>Шкрик, Горгон, минотавры</td><td>Гнилая плоть с названием; проверка по <code>getDisplayName</code></td></tr>
 </tbody></table></div>
-<p class="note">Квестовые предметы исчезают при выходе из данжа: <code>clear @p … </code> на точке выхода. Так никто не принесёт Рог в следующий заход и не пропустит C2.</p>
+<p class="note">Квестовые предметы снимает Scripted Block выхода: <code>player.removeItem</code> по id/имени, не <code>/clear</code>. Так никто не принесёт Рог в следующий заход и не пропустит C2.</p>
 </section>
 
 <!-- ================= CNPC ================= -->
 <section id="cnpc">
-<h2>Реализация в CustomNPC 1.16.5</h2>
+<h2>Реализация в CustomNPC+ 1.16.5 (эта сборка)</h2>
+<p class="note">Это не ванильный CustomNPC с командными блоками. Скрипты — Nashorn ES5.1: только <code>var</code>/<code>function</code>, без стрелок и <code>let</code>. Bootstrap: <code>Java.type("noppes.npcs.api.NpcAPI").Instance()</code>. Storeddata — <b>строки</b> (<code>"0"</code>/<code>"1"</code>, числа через <code>String()</code>). Боевые удары — пакет <code>noppes.npcs.abilities</code> через <code>AbilityAPI.start</code>. Telegraph — <code>noppes.npcs.telegraph.TelegraphAPI</code>. Лужи/туман — <code>noppes.npcs.zone.ZoneAPI</code>. Блоки — <code>world.setBlock</code> / <code>removeBlock</code>, как ворота некроманта. <code>npc.executeCommand</code> нужен только если включены командные блоки; для данжа он не основной путь.</p>
 <div class="cols">
+<div>
+<h3>Что умеет эта сборка</h3>
+<ul>
+  <li><code>AbilityAPI</code>: один активный каст на NPC (<code>isBusy</code>). Механика в Java, JS решает когда кастовать.</li>
+  <li>Готовые id: <code>dash</code>, <code>jump_slam</code>, <code>weapon_spin</code>, <code>vampire_whirl_slash</code>, <code>df_false_host</code>, <code>vampire_bat_swarm</code>, <code>zombie_ogre_leadbelcher_trample</code>, <code>zombie_ogre_leadbelcher_artillery</code>, <code>ghost_soul_bolt</code> и др.</li>
+  <li><code>world.spawnClone(x,y,z, tab, "ИмяКлона")</code> — адды из клонера.</li>
+  <li>GeckoLib Custom Model, не ванильный Hoglin/Ravager Display → Model.</li>
+  <li>Квесты, диалоги, фракции, Scripted Block / Scripted Item — штатный CNPC.</li>
+  <li>Сброс большой комнаты: <code>CloneStructureSpawnerHelper</code>, не <code>/fill</code> на сотни блоков за тик.</li>
+</ul>
+<h3>Чего нет / не копировать из старых сниппетов</h3>
+<ul>
+  <li>У <code>IPlayer</code> нет <code>getArmor(3)</code> — это слот инвентаря NPC. Шлем игрока: <code>getMCEntity().getItemBySlot(EquipmentSlotType.HEAD)</code>.</li>
+  <li><code>addPotionEffect</code> — <b>секунды</b>, не тики. Не <code>effect give</code>.</li>
+  <li>Не писать фазу <code>2.5</code> в tempdata: только строки <code>"1"</code>…<code>"3"</code> в storeddata.</li>
+  <li><code>otrodie_devour_dash</code> не заменяет комнату «Утроба» — ест жертву на месте.</li>
+  <li><code>df_mask_gaze</code> — узкий луч, не взгляд Джабберслайта на 15 блоков.</li>
+  <li>Клиентские пакеты в JS/абилках не использовать.</li>
+</ul>
+</div>
 <div>
 <h3>Фракции</h3>
 <ul>
   <li><b>Порядок</b> и <b>Разрушение</b> — фракции игроков, враждебны друг другу.</li>
-  <li><b>Стадо Расколотого Рога</b> — враждебно обеим. Все мобы и боссы данжа состоят в нём.</li>
+  <li><b>Стадо Расколотого Рога</b> — враждебно обеим. Все мобы и боссы данжа в нём.</li>
   <li><b>Шкрик</b> — отдельная нейтральная фракция, чтобы его не убили мобы.</li>
-  <li>NPC лагерей принадлежат своим фракциям. Агрессию к чужим включает галочка Attack hostile factions.</li>
+  <li>NPC лагерей: Attack hostile factions. Агро на 16 блоков — скрипт дистанции или стандартный aggro range.</li>
 </ul>
 <h3>Один квест — два NPC</h3>
 <ul>
-  <li>Квест создаётся <b>один</b> (например, «Клыки Драквальда»: Type Kill, цель — «Грул Кабанья Рука»).</li>
-  <li>У Отто и Гурхака <b>разные диалоги</b>, но оба запускают этот квест (Dialog → Quest). Availability: Faction = своя, Friendly.</li>
-  <li>Сдача: Completion = <b>Instant</b>. Если ставить сдачу NPC, придётся заводить копию квеста для каждого лагеря, потому что completer указывается один.</li>
-  <li>Фракционная награда: после завершения квеста в лагере открывается диалог «доклад» (Availability: Quest finished). Он даёт очки своей фракции через Faction options диалога.</li>
+  <li>Квест один (Kill «Грул Кабанья Рука»). Отто и Гурхак — разные диалоги, оба Dialog → Quest. Availability: Faction = своя, Friendly.</li>
+  <li>Сдача: Completion = <b>Instant</b>. Completer у квеста один — не вешать сдачу на обоих.</li>
+  <li>Награда фракции: диалог «доклад» (Quest finished) → Faction options.</li>
 </ul>
-</div>
-<div>
-<h3>Респаун 1 час</h3>
+<h3>Респаун и смотритель</h3>
 <ul>
-  <li>Каждому мобу и боссу: Advanced → Respawn = <b>Yes</b>, время = <b>3600</b> секунд.</li>
-  <li>Чанки данжа держите загруженными (<code>/forceload add</code>), иначе таймеры встанут, пока рядом никого нет.</li>
-  <li>Сбросом мира (вода, ворота, тотемы, шорткаты) управляет невидимый NPC-«смотритель» с таймером на 72000 тиков (скрипт ниже). Перед сбросом он проверяет, что в аренах нет игроков. Если игроки там есть, сброс откладывается на минуту.</li>
-  <li>Ворота арены открывает <code>died</code> босса, а закрывает смотритель при сбросе.</li>
+  <li>Мобы: Advanced → Respawn Yes, 3600 с. Чанки: <code>/forceload</code>.</li>
+  <li>Смотритель: невидимый неуязвимый NPC. Час = сравнение <code>world.getTotalTime()</code> с меткой в storeddata (надёжнее, чем один <code>timer(72000)</code>, который встаёт без чанка — поэтому forceload обязателен).</li>
+  <li>Перед сбросом: <code>getNearbyEntities(NpcAPI.getIPos(...), r, EntitiesType.PLAYER)</code>. Если игроки в арене — отложить на 1200 тиков.</li>
+  <li>Ворота: <code>died</code> босса снимает решётки списком координат; смотритель ставит их обратно.</li>
 </ul>
 <h3>Один выход</h3>
 <ul>
-  <li>Подъём Висельника — это Scripted Block в D4, который телепортирует игрока на точку выхода снаружи и убирает квестовые предметы.</li>
-  <li>Снаружи у точки выхода нет входа, есть только площадка и тропа к Перекрёстку.</li>
+  <li>Подъём Висельника — Scripted Block: <code>player.setPosition</code> на опушку + <code>player.removeItem</code> квестовых предметов.</li>
 </ul>
 </div>
 </div>
-<p class="note">Скрипты написаны на ECMAScript (Nashorn, Java 8). Я их не запускал. Названия методов API в разных сборках CustomNPC немного отличаются: сверьте их со встроенной справкой (кнопка API в окне скриптов) и замените координаты на свои.</p>
 
-<details open><summary>Смотритель: часовой сброс данжа</summary>
-<pre>// Невидимый неуязвимый NPC в загруженном чанке
-var HOUR = 72000;                       // 1 час в тиках
-var ARENAS = [ [626,70,98,30], [430,52,434,20], [262,30,384,22], [570,10,370,30] ]; // x,y,z,радиус
-function init(e){ e.npc.getTimers().forceStart(1, HOUR, true); }
-function timer(e){
-  var npc = e.npc, w = npc.getWorld();
-  if (e.id == 1 || e.id == 2){
-    for (var i = 0; i &lt; ARENAS.length; i++){
-      var a = ARENAS[i];
-      var ps = w.getNearbyEntities(w.getBlock(a[0],a[1],a[2]).getPos(), a[3], 1);
-      if (ps.length &gt; 0){ npc.getTimers().forceStart(2, 1200, false); return; } // через минуту
+<div class="tbl"><table>
+<thead><tr><th>Механика</th><th>Реализация в этой сборке</th></tr></thead>
+<tbody>
+<tr><td>Рывок кабана / Гарракса</td><td><code>AbilityAPI.start(npc, "dash", target, AbilityAPI.params("distance", 16, "chargeTicks", 20, "damage", 12.0))</code></td></tr>
+<tr><td>Круговой удар Гарракса</td><td><code>vampire_whirl_slash</code> или <code>weapon_spin</code></td></tr>
+<tr><td>Топот кабана</td><td><code>zombie_ogre_leadbelcher_trample</code></td></tr>
+<tr><td>Копии Мургрота</td><td><code>df_false_host</code> + клон 1 HP</td></tr>
+<tr><td>Туман / варп-топь</td><td><code>ZoneAPI.hazardCircle</code> + <code>setEffect</code></td></tr>
+<tr><td>Рой в отчаянии</td><td><code>vampire_bat_swarm</code> / <code>vampire_crimson_bats</code></td></tr>
+<tr><td>Обвал в яме</td><td><code>jump_slam</code> или <code>zombie_ogre_leadbelcher_artillery</code></td></tr>
+<tr><td>Глоток Горгона</td><td>JS + Telegraph + телепорт в комнату нервов (не devour_dash)</td></tr>
+<tr><td>Молнии кристаллов</td><td><code>world.thunderStrike(x, y, z)</code></td></tr>
+<tr><td>Ворота / шорткаты</td><td>список координат + <code>setBlock</code>/<code>removeBlock</code></td></tr>
+</tbody></table></div>
+
+<details open><summary>Смотритель: часовой сброс (ворота списком блоков)</summary>
+<pre>var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+
+var HOUR = 72000;
+var NEXT_RESET_KEY = "hs_next_reset";
+var ARENAS = [ [626, 70, 98, 30], [430, 52, 434, 20], [262, 30, 384, 22], [570, 10, 370, 30] ];
+// свои столбики решёток, не fill:
+var GATE_B1 = [ [720, 60, 64], [721, 60, 64] ];
+
+function init(e) {
+    var data = e.npc.getStoreddata();
+    var now = e.npc.getWorld().getTotalTime();
+    if (!data.has(NEXT_RESET_KEY)) data.put(NEXT_RESET_KEY, String(now + HOUR));
+}
+
+function tick(e) {
+    var npc = e.npc;
+    var world = npc.getWorld();
+    var data = npc.getStoreddata();
+    var now = world.getTotalTime();
+    if (now &lt; getInt(data, NEXT_RESET_KEY)) return;
+    if (playersInArenas(world)) {
+        data.put(NEXT_RESET_KEY, String(now + 1200));
+        return;
     }
-    resetWorld(npc);
-  }
+    resetGates(world);
+    var sd = world.getStoreddata();
+    sd.put("channels", "0");
+    sd.put("valves", "");
+    sd.put("hornBlown", "0");
+    sd.put("riteBroken", "0");
+    data.put(NEXT_RESET_KEY, String(now + HOUR));
+    world.broadcast("§2Лес шевелится. Стадо вернулось.");
 }
-function resetWorld(npc){
-  var c = [
-    "fill 720 60 64 732 60 76 minecraft:iron_bars",        // спуск из Б1
-    "fill 296 50 470 304 50 482 minecraft:iron_bars",      // шахта из Б2
-    "fill 256 28 494 268 28 506 minecraft:iron_bars",      // Глотка из Б3
-    "setblock 770 12 452 minecraft:barrier",               // выход из Б4
-    "fill 330 50 150 600 54 320 minecraft:water replace minecraft:air", // вода B2 (лучше /clone из схемы)
-    "fill 405 70 340 405 72 340 minecraft:oak_fence",      // S1
-    "fill 700 50 130 700 52 130 minecraft:iron_bars"       // S2 … S3, S4 аналогично
-  ];
-  for (var i = 0; i &lt; c.length; i++) npc.executeCommand(c[i]);
-  var sd = npc.getWorld().getStoreddata();
-  sd.put("channels", 0); sd.put("valves", ""); sd.put("totems", ""); sd.put("hornBlown", 0);
-  npc.executeCommand("tellraw @a[distance=..250] {\"text\":\"Лес шевелится. Стадо вернулось.\",\"color\":\"dark_green\"}");
-}</pre></details>
 
-<details><summary>Босс открывает ворота арены (вешается на каждого из Б1–Б4)</summary>
-<pre>var GATE = "fill 720 60 64 732 60 76 minecraft:air";   // свои координаты для каждой арены
-function died(e){
-  e.npc.executeCommand(GATE);
-  e.npc.executeCommand("playsound minecraft:block.iron_door.open hostile @a ~ ~ ~ 3 0.5");
-  e.npc.say("§7Путь вниз открыт.");
-}</pre></details>
-
-<details><summary>Гарракс: фазы, неуязвимость, волны</summary>
-<pre>var STONE = [570, 12, 370];
-function init(e){
-  var td = e.npc.getTempdata(); td.put("phase", 1); td.put("immune", 0);
-  e.npc.getWorld().getStoreddata().put("channels", 0);
-  e.npc.getWorld().getStoreddata().put("riteBroken", 0);
-}
-function damaged(e){
-  var npc = e.npc, td = npc.getTempdata(), sd = npc.getWorld().getStoreddata();
-  if (td.get("immune") == 1){ e.setCanceled(true); return; }
-  var hp = npc.getHealth() / npc.getMaxHealth();
-  if (td.get("phase") == 1 &amp;&amp; hp &lt;= 0.6){
-    td.put("phase", 2); td.put("immune", 1);
-    npc.say("§4КРОВЬ — КАМНЮ!");
-    npc.setPosition(STONE[0], STONE[1], STONE[2]);
-    npc.getTimers().forceStart(1, 200, true);
-  }
-  if (td.get("phase") == 2.5 &amp;&amp; hp &lt;= 0.3){
-    td.put("phase", 3);
-    npc.getDisplay().setSize(12);
-    npc.executeCommand("effect give @s strength 9999 1 true");
-    npc.executeCommand("effect give @s resistance 9999 0 true");
-    npc.say("§2Ночь Тайн пришла!");
-    npc.getTimers().forceStart(3, 20, true);           // ждём срыва обряда
-  }
-}
-function timer(e){
-  var npc = e.npc, w = npc.getWorld(), sd = w.getStoreddata();
-  if (e.id == 1){
-    if (sd.get("channels") &gt;= 3){
-      npc.getTimers().stop(1); npc.getTempdata().put("immune", 0); npc.getTempdata().put("phase", 2.5);
-      npc.say("§cВЫ ОСКВЕРНИЛИ КРОВЬ!"); return;
+function playersInArenas(world) {
+    for (var i = 0; i &lt; ARENAS.length; i++) {
+        var a = ARENAS[i];
+        var pos = NpcAPI.getIPos(a[0], a[1], a[2]);
+        var ps = world.getNearbyEntities(pos, a[3], EntitiesType.PLAYER);
+        if (ps.length &gt; 0) return true;
     }
-    w.spawnClone(STONE[0]+8, STONE[1], STONE[2], 2, "Гор");
-    w.spawnClone(STONE[0]-8, STONE[1], STONE[2], 2, "Гор");
-    if (Math.random() &lt; 0.35) w.spawnClone(STONE[0], STONE[1], STONE[2]+10, 2, "Минотавр");
-  }
-  if (e.id == 3 &amp;&amp; sd.get("riteBroken") == 1){       // рог или 4 кристалла
-    npc.getTimers().stop(3);
-    npc.executeCommand("effect clear @s");
-    npc.setHealth(npc.getHealth() - npc.getMaxHealth() * 0.15);
-    npc.say("§cНЕТ! Камень… молчит…");
-  }
+    return false;
 }
-// Камень (Scripted Block): interact → если в руке «Рог Бра-шамана», sd.put("riteBroken",1).
-// Варп-кристаллы: в died() счётчик в storeddata; при 4 — sd.put("riteBroken",1).</pre></details>
 
-<details><summary>Мускусная маска: унгоры не агрятся</summary>
-<pre>function target(e){
-  var t = e.entity;
-  if (t == null || t.getType() != 1) return;            // 1 = игрок
-  var head = t.getArmor(3);                             // 3 = шлем
-  if (!head.isEmpty() &amp;&amp; head.getDisplayName().indexOf("Мускусная") &gt;= 0) e.setCanceled(true);
+function resetGates(world) {
+    for (var i = 0; i &lt; GATE_B1.length; i++) {
+        var p = GATE_B1[i];
+        world.setBlock(p[0], p[1], p[2], "minecraft:iron_bars", 0);
+    }
+}
+
+function getInt(data, key) {
+    if (!data.has(key)) return 0;
+    return parseInt(String(data.get(key)));
 }</pre></details>
 
-<details><summary>Горгон: «проглотить» игрока</summary>
-<pre>var GUT = [60, 32, 470];
-function init(e){ e.npc.getTimers().forceStart(1, 400, true); }
-function timer(e){
-  var npc = e.npc, w = npc.getWorld();
-  var ps = w.getNearbyEntities(npc.getPos(), 6, 1);
-  if (ps.length == 0) return;
-  npc.say("§2*чавк*");
-  ps[0].setPosition(GUT[0], GUT[1], GUT[2]);
-  for (var i = 0; i &lt; 3; i++) w.spawnClone(GUT[0]+i*2-2, GUT[1], GUT[2]+3, 2, "Нерв");
-}
-// «Нерв» → died(): уменьшить счётчик; при 0 вернуть игрока в яму и дать Горгону slowness 255 на 6 с.</pre></details>
+<details><summary>Босс открывает ворота арены</summary>
+<pre>var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var GATE = [ [720, 60, 64], [721, 60, 64] ];
 
-<details><summary>Барабаны C2: проверка ритма</summary>
-<pre>var CODE = "LLRB";                                     // у каждого барабана в storeddata ключ L/R/B
-function interact(e){
-  var w = e.block.getWorld(), td = w.getTempdata(), sd = w.getStoreddata();
-  if (sd.get("hornBlown") != 1){ e.player.message("§7Барабан глухо молчит."); return; }
-  var now = w.getTotalTime(), seq = td.get("drumSeq") || "";
-  if (seq == "" || now - (td.get("drumStart") || 0) &gt; 120){ seq = ""; td.put("drumStart", now); }
-  seq += e.block.getStoreddata().get("key");
-  e.block.executeCommand("playsound minecraft:block.note_block.basedrum block @a ~ ~ ~ 2 0.6");
-  if (CODE.indexOf(seq) != 0){ td.put("drumSeq", ""); w.spawnClone(200,33,80,2,"Унгор"); return; }
-  td.put("drumSeq", seq);
-  if (seq == CODE) e.block.executeCommand("fill 290 34 200 294 38 200 air");
+function died(e) {
+    var world = e.npc.getWorld();
+    for (var i = 0; i &lt; GATE.length; i++) {
+        world.removeBlock(GATE[i][0], GATE[i][1], GATE[i][2]);
+    }
+    world.playSoundAt(e.npc.getPos(), "minecraft:block.iron_door.open", 3.0, 0.5);
+    e.npc.say("§7Путь вниз открыт.");
+}
+
+function targetLost(e) { try { Java.type("noppes.npcs.abilities.AbilityAPI").cancel(e.npc); } catch (ex) {} }</pre></details>
+
+<details><summary>Гарракс: оркестратор AbilityAPI + фазы в storeddata</summary>
+<pre>var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
+var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+
+var STONE = [570, 12, 370];
+var PHASE_KEY = "hs_g_phase";
+var IMMUNE_KEY = "hs_g_immune";
+var NEXT_WAVE_KEY = "hs_g_wave";
+var CLONE_TAB = 2;
+var WHIRL = "vampire_whirl_slash";
+var DASH = "dash";
+
+function init(e) {
+    var d = e.npc.getStoreddata();
+    var wsd = e.npc.getWorld().getStoreddata();
+    d.put(PHASE_KEY, "1");
+    d.put(IMMUNE_KEY, "0");
+    wsd.put("channels", "0");
+    wsd.put("riteBroken", "0");
+}
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
+    var data = npc.getStoreddata();
+    var world = npc.getWorld();
+    var now = world.getTotalTime();
+    var hp = npc.getHealth() / npc.getMaxHealth();
+    var phase = String(data.get(PHASE_KEY));
+
+    if (phase == "1" &amp;&amp; hp &lt;= 0.6) {
+        AbilityAPI.cancel(npc);
+        data.put(PHASE_KEY, "2");
+        data.put(IMMUNE_KEY, "1");
+        npc.setPosition(STONE[0], STONE[1], STONE[2]);
+        npc.say("§4КРОВЬ — КАМНЮ!");
+        data.put(NEXT_WAVE_KEY, String(now + 200));
+        return;
+    }
+    if (phase == "2" &amp;&amp; getInt(world.getStoreddata(), "channels") &gt;= 3) {
+        data.put(IMMUNE_KEY, "0");
+        data.put(PHASE_KEY, "2b");
+        npc.say("§cВЫ ОСКВЕРНИЛИ КРОВЬ!");
+    }
+    if ((phase == "2b" || phase == "2") &amp;&amp; hp &lt;= 0.3 &amp;&amp; phase != "3") {
+        data.put(PHASE_KEY, "3");
+        npc.getDisplay().setSize(12);
+        npc.addPotionEffect(PotionEffectType_STRENGTH, 600, 1, true);
+        npc.addPotionEffect(PotionEffectType_RESISTANCE, 600, 0, true);
+        npc.say("§2Ночь Тайн пришла!");
+    }
+    if (String(data.get(PHASE_KEY)) == "3" &amp;&amp; String(world.getStoreddata().get("riteBroken")) == "1") {
+        world.getStoreddata().put("riteBroken", "0");
+        npc.getDisplay().setSize(10);
+        npc.setHealth(npc.getHealth() - npc.getMaxHealth() * 0.15);
+        npc.say("§cНЕТ! Камень… молчит…");
+    }
+    if (String(data.get(PHASE_KEY)) == "2" &amp;&amp; now &gt;= getInt(data, NEXT_WAVE_KEY)) {
+        world.spawnClone(STONE[0] + 8, STONE[1], STONE[2], CLONE_TAB, "Гор");
+        world.spawnClone(STONE[0] - 8, STONE[1], STONE[2], CLONE_TAB, "Гор");
+        if (Math.random() &lt; 0.35) world.spawnClone(STONE[0], STONE[1], STONE[2] + 10, CLONE_TAB, "Минотавр");
+        data.put(NEXT_WAVE_KEY, String(now + 200));
+        return;
+    }
+    if (String(data.get(IMMUNE_KEY)) == "1") return;
+    if (AbilityAPI.isBusy(npc)) return;
+    var target = npc.getAttackTarget();
+    if (target == null || !target.isAlive()) return;
+    if (Math.random() &lt; 0.5) AbilityAPI.start(npc, WHIRL, target);
+    else AbilityAPI.start(npc, DASH, target, AbilityAPI.params("chargeTicks", 20, "distance", 14.0));
+}
+
+function damaged(e) {
+    if (String(e.npc.getStoreddata().get(IMMUNE_KEY)) == "1") e.setCanceled(true);
+}
+
+function getInt(data, key) {
+    if (!data.has(key)) return 0;
+    return parseInt(String(data.get(key)));
 }</pre></details>
 
-<details><summary>Туман варп-топи (повторяющийся командный блок)</summary>
-<pre>effect give @a[x=430,y=28,z=60,dx=310,dy=12,dz=210,tag=!clean] minecraft:nausea 3 0 true
-effect give @a[x=430,y=28,z=60,dx=310,dy=12,dz=210,tag=!clean] minecraft:wither 2 0 true
-# Святая трава (Scripted Block): tag @p add clean, через 300 тиков — tag @p remove clean</pre></details>
+<details><summary>Мускусная маска: шлем игрока, не getArmor NPC</summary>
+<pre>var EquipmentSlot = Java.type("net.minecraft.inventory.EquipmentSlotType");
+var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+
+function target(e) {
+    var t = e.entity;
+    if (t == null) return;
+    if (typeof t.typeOf == "function") {
+        if (!t.typeOf(1)) return;
+    } else if (t.getType() != 1) return;
+    if (hasMuskMask(t)) e.setCanceled(true);
+}
+
+function hasMuskMask(player) {
+    try {
+        var stack = player.getMCEntity().getItemBySlot(EquipmentSlot.HEAD);
+        if (stack == null || stack.isEmpty()) return false;
+        var item = NpcAPI.getIItemStack(stack);
+        return String(item.getDisplayName()).indexOf("Мускусная") &gt;= 0;
+    } catch (ex) {
+        return false;
+    }
+}</pre></details>
+
+<details><summary>Горгон: telegraph + телепорт в Утробу</summary>
+<pre>var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
+
+var GUT = [60, 32, 470];
+var PIT = [262, 30, 384];
+var CD_KEY = "hs_gut_cd";
+var CHARGE_KEY = "hs_gut_charge";
+var CHARGE_END_KEY = "hs_gut_end";
+var CHARGE_TICKS = 40;
+
+function tick(e) {
+    var npc = e.npc;
+    var world = npc.getWorld();
+    var data = npc.getStoreddata();
+    var now = world.getTotalTime();
+    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
+    if (String(data.get(CHARGE_KEY)) == "1") {
+        if (now &lt; getInt(data, CHARGE_END_KEY)) return;
+        data.put(CHARGE_KEY, "0");
+        swallow(npc, world, data, now);
+        return;
+    }
+    if (now &lt; getInt(data, CD_KEY)) return;
+    var pos = NpcAPI.getIPos(npc.getX(), npc.getY(), npc.getZ());
+    var ps = world.getNearbyEntities(pos, 6, EntitiesType.PLAYER);
+    if (ps.length == 0) return;
+    TelegraphAPI.circleFollow(npc, npc.getX(), npc.getY(), npc.getZ(), 6.0, CHARGE_TICKS, 0xC0FF3030);
+    data.put(CHARGE_KEY, "1");
+    data.put(CHARGE_END_KEY, String(now + CHARGE_TICKS));
+}
+
+function swallow(npc, world, data, now) {
+    var pos = NpcAPI.getIPos(npc.getX(), npc.getY(), npc.getZ());
+    var ps = world.getNearbyEntities(pos, 6, EntitiesType.PLAYER);
+    if (ps.length == 0) return;
+    npc.say("§2*чавк*");
+    AbilityAPI.cancel(npc);
+    ps[0].setPosition(GUT[0], GUT[1], GUT[2]);
+    world.getStoreddata().put("hs_nerves", "3");
+    world.getStoreddata().put("hs_swallowed", String(ps[0].getUUID()));
+    for (var i = 0; i &lt; 3; i++) world.spawnClone(GUT[0] + i * 2 - 2, GUT[1], GUT[2] + 3, 2, "Нерв");
+    data.put(CD_KEY, String(now + 400));
+}
+
+function getInt(data, key) {
+    if (!data.has(key)) return 0;
+    return parseInt(String(data.get(key)));
+}
+// Нерв died: декремент hs_nerves; при 0 — setPosition проглоченного в PIT и Slowness боссу на 6 с.</pre></details>
+
+<details><summary>Барабаны C2: ритм без executeCommand</summary>
+<pre>var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var CODE = "LLRB";
+var GATE = [ [290, 34, 200], [291, 34, 200], [292, 34, 200] ];
+
+function interact(e) {
+    var w = e.block.getWorld();
+    var td = w.getTempdata();
+    var sd = w.getStoreddata();
+    if (String(sd.get("hornBlown")) != "1") {
+        e.player.message("§7Барабан глухо молчит.");
+        return;
+    }
+    var now = w.getTotalTime();
+    var seq = td.get("drumSeq") || "";
+    var start = td.get("drumStart") || 0;
+    if (seq == "" || now - start &gt; 120) {
+        seq = "";
+        td.put("drumStart", now);
+    }
+    seq += String(e.block.getStoreddata().get("key"));
+    w.playSoundAt(e.block.getPos(), "minecraft:block.note_block.basedrum", 2.0, 0.6);
+    if (CODE.indexOf(seq) != 0) {
+        td.put("drumSeq", "");
+        w.spawnClone(200, 33, 80, 2, "Унгор");
+        return;
+    }
+    td.put("drumSeq", seq);
+    if (seq == CODE) {
+        for (var i = 0; i &lt; GATE.length; i++) w.removeBlock(GATE[i][0], GATE[i][1], GATE[i][2]);
+    }
+}</pre></details>
+
+<details><summary>Туман варп-топи: ZoneAPI, не командный блок</summary>
+<pre>var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
+var ZONE_KEY = "hs_fog_until";
+
+function init(e) {
+    var npc = e.npc;
+    var data = npc.getStoreddata();
+    data.put(ZONE_KEY, "0");
+}
+
+function tick(e) {
+    var npc = e.npc;
+    var data = npc.getStoreddata();
+    var now = npc.getWorld().getTotalTime();
+    if (now &lt; getInt(data, ZONE_KEY)) return;
+    var zone = ZoneAPI.hazardCircle(npc, npc.getX(), npc.getY(), npc.getZ(), 12.0, 200, 2.0, 20);
+    if (zone != null) {
+        zone.setColor(0xC040A030);
+        zone.setEffect("minecraft:nausea", 60, 0);
+        zone.setEffect("minecraft:wither", 40, 0);
+    }
+    data.put(ZONE_KEY, String(now + 180));
+}
+
+function getInt(data, key) {
+    if (!data.has(key)) return 0;
+    return parseInt(String(data.get(key)));
+}
+// Святая трава (Scripted Block interact):
+// player.getStoreddata().put("hs_clean_until", String(world.getTotalTime() + 300));
+// Смотритель топи не спавнит зону на игрока / не бьёт, пока now &lt; hs_clean_until.
+</pre></details>
 
 <h3>Порядок сборки</h3>
 <ol>
   <li>Построить опушку с двумя лагерями и Перекрёстком, затем терновую стену по границе данжа.</li>
   <li>Построить локации по картам (1 клетка = 8 блоков) и сразу поставить решётки на выходы из арен.</li>
-  <li>Создать три фракции, затем рядовых мобов. Всем выставить Respawn 3600 и сохранить их в клонер.</li>
+  <li>Создать три фракции, затем рядовых мобов. Всем Respawn 3600, сохранить в клонер (имена клонов совпадают со <code>spawnClone</code>).</li>
   <li>Завести 5 квестов и по два диалога на каждый, для Отто и для Гурхака.</li>
-  <li>Повесить скрипты на головоломки и боссов. Поставить смотрителя и <code>/forceload</code>.</li>
+  <li>Повесить JS-оркестраторы на боссов (AbilityAPI) и Scripted Block на головоломки. Смотритель + <code>/forceload</code>.</li>
   <li>Пройти данж за обе стороны, затем дождаться часового сброса, стоя в арене, и проверить, что сброс откладывается.</li>
 </ol>
 </section>
 
-<footer>Камень Расколотого Рога · дизайн данжа для Minecraft 1.16.5 + CustomNPC · фанатский проект по Warhammer Fantasy</footer>
+<footer>Камень Расколотого Рога · дизайн данжа для Minecraft 1.16.5 + CustomNPC+ (WFM) · фанатский проект по Warhammer Fantasy</footer>
 </div>
 </body>
 </html>

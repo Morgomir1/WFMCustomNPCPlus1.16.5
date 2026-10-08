@@ -173,6 +173,12 @@ public final class DrachenfelsEncounterHelper {
         if (!npc.hasTag(BOSS_TAG)) {
             npc.addTag(BOSS_TAG);
         }
+        // CNPC also runs JS init for a dead NPC (script reload, script save, entity load). Full health on a corpse
+        // stops its death tick: it never reaches the respawn time, loads alive from disk and keeps the old
+        // KilledTime, so the next death respawns at once. The respawn itself calls init after the NPC is alive.
+        if (!npc.isAlive()) {
+            return;
+        }
         // JS init / chunk reload must not rewind CDs mid-fight.
         if (ScriptDataUtil.isFlag(data, INITED)) {
             return;

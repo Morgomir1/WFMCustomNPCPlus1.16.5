@@ -168,6 +168,7 @@ public class Packets
         CNpcsNetworkHelper.addPacket(SPacketQuestCategorySave.class, SPacketQuestCategorySave::new);
         CNpcsNetworkHelper.addPacket(SPacketDialogSave.class, SPacketDialogSave::new);
         CNpcsNetworkHelper.addPacket(SPacketDialogCategorySave.class, SPacketDialogCategorySave::new);
+        CNpcsNetworkHelper.addPacket(SPacketNpcRoleSaveDirect.class, SPacketNpcRoleSaveDirect::new);
     }
 
     public static <MSG> void send(final ServerPlayerEntity player, final MSG msg) {
@@ -191,6 +192,11 @@ public class Packets
     }
 
     public static <MSG> void sendServer(final MSG msg) {
+        if (msg instanceof SPacketNpcRoleSave) {
+            // A role can outgrow the 32767-byte custom payload the Forge channel travels in.
+            sendServer(((SPacketNpcRoleSave)msg).asDirectPacket());
+            return;
+        }
         if (msg instanceof IPacket) {
             Minecraft.getInstance().getConnection().getConnection().send((IPacket)msg);
         }

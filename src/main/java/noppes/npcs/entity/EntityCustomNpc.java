@@ -6,8 +6,11 @@ import net.minecraft.entity.EntitySize;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.Pose;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.world.World;
+import noppes.npcs.CustomItems;
 import noppes.npcs.CustomNpcs;
 import noppes.npcs.ModelData;
 import noppes.npcs.ModelPartData;
@@ -84,6 +87,28 @@ public class EntityCustomNpc extends EntityNPCFlying {
       }
 
       super.refreshDimensions();
+   }
+
+   /**
+    * Труп лежит до возрождения NPC и перехватывал прицел: удар и щелчок по живому мобу или блоку за ним уходили
+    * в труп. Убитого NPC прицел не видит. Исключение — инструмент CustomNPCs в руке у игрока на своём клиенте:
+    * иначе труп было бы не открыть жезлом.
+    */
+   public boolean isPickable() {
+      if (!this.isKilled()) {
+         return super.isPickable();
+      }
+      return this.isClientSide() && holdsNpcTool(CustomNpcs.proxy.getPlayer());
+   }
+
+   private static boolean holdsNpcTool(PlayerEntity player) {
+      return player != null && (isNpcTool(player.getMainHandItem().getItem()) || isNpcTool(player.getOffhandItem().getItem()));
+   }
+
+   private static boolean isNpcTool(Item item) {
+      return item == CustomItems.wand || item == CustomItems.cloner || item == CustomItems.scripter
+            || item == CustomItems.moving || item == CustomItems.mount || item == CustomItems.teleporter
+            || item == CustomItems.nbt_book;
    }
 
    public EntitySize getDimensions(Pose pos) {

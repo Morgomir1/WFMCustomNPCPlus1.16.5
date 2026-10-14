@@ -15,9 +15,10 @@ public final class NpcDropInventoryLimits {
     public static final int DROP_SLOT_Y0 = 16;
     public static final int DROP_ROW_HEIGHT = 21;
     public static final int DROP_COL_GAP = 115;
-    public static final int DROP_SLIDER_X0 = 211;
-    public static final int DROP_SLIDER_WIDTH = 85;
-    public static final int DROP_SLIDER_HEIGHT = 20;
+    public static final int DROP_CHANCE_X0 = 213;
+    public static final int DROP_CHANCE_Y0 = 15;
+    public static final int DROP_CHANCE_WIDTH = 45;
+    public static final int DROP_CHANCE_HEIGHT = 18;
 
     private NpcDropInventoryLimits() {
     }
@@ -30,11 +31,11 @@ public final class NpcDropInventoryLimits {
         return DROP_SLOT_Y0 + (index % DROP_ROWS) * DROP_ROW_HEIGHT;
     }
 
-    public static int dropSliderX(final int index) {
-        return DROP_SLIDER_X0 + (index / DROP_ROWS) * DROP_COL_GAP;
+    public static int dropChanceX(final int index) {
+        return DROP_CHANCE_X0 + (index / DROP_ROWS) * DROP_COL_GAP;
     }
 
-    public static int dropSliderY(final int index) {
-        return 14 + (index % DROP_ROWS) * DROP_ROW_HEIGHT;
+    public static int dropChanceY(final int index) {
+        return DROP_CHANCE_Y0 + (index % DROP_ROWS) * DROP_ROW_HEIGHT;
     }
 }

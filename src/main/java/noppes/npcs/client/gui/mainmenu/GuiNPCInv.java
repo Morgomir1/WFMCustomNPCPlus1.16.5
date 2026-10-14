@@ -3,30 +3,38 @@ package noppes.npcs.client.gui.mainmenu;
 import com.mojang.blaze3d.matrix.MatrixStack;
 import com.mojang.blaze3d.systems.RenderSystem;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Pattern;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.container.Slot;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.util.text.StringTextComponent;
+import noppes.npcs.client.CustomNpcResourceListener;
 import noppes.npcs.client.NoppesUtil;
 import noppes.npcs.client.gui.util.GuiContainerNPCInterface2;
 import noppes.npcs.constants.EnumMenuType;
 import noppes.npcs.containers.ContainerNPCInv;
+import noppes.npcs.entity.data.NpcDropChance;
 import noppes.npcs.entity.data.NpcDropInventoryLimits;
 import noppes.npcs.packets.Packets;
 import noppes.npcs.packets.server.SPacketMenuGet;
 import noppes.npcs.packets.server.SPacketMenuSave;
 import noppes.npcs.shared.client.gui.components.GuiButtonNop;
 import noppes.npcs.shared.client.gui.components.GuiLabel;
-import noppes.npcs.shared.client.gui.components.GuiSliderNop;
 import noppes.npcs.shared.client.gui.components.GuiTextFieldNop;
 import noppes.npcs.shared.client.gui.listeners.IGuiData;
 import noppes.npcs.shared.client.gui.listeners.IGuiInterface;
-import noppes.npcs.shared.client.gui.listeners.ISliderListener;
+import noppes.npcs.shared.client.gui.listeners.ITextfieldListener;
 
-public class GuiNPCInv extends GuiContainerNPCInterface2<ContainerNPCInv> implements ISliderListener, IGuiData {
+public class GuiNPCInv extends GuiContainerNPCInterface2<ContainerNPCInv> implements ITextfieldListener, IGuiData {
+    private static final int DROP_CHANCE_FIELD_ID = 10;
+    private static final int DROP_PERCENT_LABEL_ID = 10;
+    /** A percent with at most two decimals; values above 100 are clamped when read. */
+    private static final Pattern DROP_CHANCE_INPUT = Pattern.compile("\\d{0,3}([.,]\\d{0,2})?");
+    /** Last valid chance of each drop slot in hundredths of a percent, restored when a field is left unreadable. */
     private final HashMap<Integer, Integer> chances = new HashMap<>();
     private final ContainerNPCInv container;
     private final ResourceLocation slot;
@@ -55,22 +63,31 @@ public class GuiNPCInv extends GuiContainerNPCInterface2<ContainerNPCInv> implem
         this.addLabel(new GuiLabel(2, "inv.npcInventory", this.guiLeft + NpcDropInventoryLimits.DROP_SLOT_X0, this.guiTop + 5));
         this.addLabel(new GuiLabel(3, "inv.inventory", this.guiLeft + 8, this.guiTop + 101));
         for (int i = 0; i < NpcDropInventoryLimits.DROP_SLOTS; ++i) {
-            int chance = 100;
-            if (this.npc.inventory.dropchance.containsKey(i)) {
-                chance = this.npc.inventory.dropchance.get(i);
-            }
-            if (chance <= 0 || chance > 100) {
-                chance = 100;
+            int chance = this.npc.inventory.dropChanceHundredths.getOrDefault(i, NpcDropChance.FULL);
+            if (chance < 0 || chance > NpcDropChance.FULL) {
+                chance = NpcDropChance.FULL;
             }
             this.chances.put(i, chance);
-            this.addSlider(new GuiSliderNop(
+            final int x = this.guiLeft + NpcDropInventoryLimits.dropChanceX(i);
+            final int y = this.guiTop + NpcDropInventoryLimits.dropChanceY(i);
+            final GuiTextFieldNop field = new GuiTextFieldNop(
+                    DROP_CHANCE_FIELD_ID + i,
                     (Screen) this,
-                    i,
-                    this.guiLeft + NpcDropInventoryLimits.dropSliderX(i),
-                    this.guiTop + NpcDropInventoryLimits.dropSliderY(i),
-                    NpcDropInventoryLimits.DROP_SLIDER_WIDTH,
-                    NpcDropInventoryLimits.DROP_SLIDER_HEIGHT,
-                    (float) chance / 100.0f));
+                    x,
+                    y,
+                    NpcDropInventoryLimits.DROP_CHANCE_WIDTH,
+                    NpcDropInventoryLimits.DROP_CHANCE_HEIGHT,
+                    NpcDropChance.formatPercent(chance));
+            field.setFilter(text -> DROP_CHANCE_INPUT.matcher(text).matches());
+            this.addTextField(field);
+            this.addLabel(new GuiLabel(
+                    DROP_PERCENT_LABEL_ID + i,
+                    new StringTextComponent("%"),
+                    CustomNpcResourceListener.DefaultTextColor,
+                    x + NpcDropInventoryLimits.DROP_CHANCE_WIDTH + 4,
+                    y + 5,
+                    6,
+                    0));
         }
     }
 
@@ -110,7 +127,13 @@ public class GuiNPCInv extends GuiContainerNPCInterface2<ContainerNPCInv> implem
 
     @Override
     public void save() {
-        this.npc.inventory.dropchance = this.chances;
+        // The window can close with a field still focused, so every field is read here rather than on unfocus.
+        final Map<Integer, Integer> dropChances = new HashMap<>();
+        for (int i = 0; i < NpcDropInventoryLimits.DROP_SLOTS; ++i) {
+            final GuiTextFieldNop field = this.getTextField(DROP_CHANCE_FIELD_ID + i);
+            dropChances.put(i, field == null ? this.chances.getOrDefault(i, NpcDropChance.FULL) : this.readChance(field, i));
+        }
+        this.npc.inventory.dropChanceHundredths = dropChances;
         this.npc.inventory.setExp(this.getTextField(0).getInteger(), this.getTextField(1).getInteger());
         Packets.sendServer(new SPacketMenuSave(EnumMenuType.INVENTORY, this.npc.inventory.save(new CompoundNBT())));
     }
@@ -122,16 +145,18 @@ public class GuiNPCInv extends GuiContainerNPCInterface2<ContainerNPCInv> implem
     }
 
     @Override
-    public void mouseDragged(final GuiSliderNop guiNpcSlider) {
-        guiNpcSlider.setMessage(new TranslationTextComponent("inv.dropChance").append(": " + (int) (guiNpcSlider.sliderValue * 100.0f) + "%"));
+    public void unFocused(final GuiTextFieldNop field) {
+        final int slot = field.id - DROP_CHANCE_FIELD_ID;
+        if (slot < 0 || slot >= NpcDropInventoryLimits.DROP_SLOTS) {
+            return;
+        }
+        final int chance = this.readChance(field, slot);
+        this.chances.put(slot, chance);
+        field.setValue(NpcDropChance.formatPercent(chance));
     }
 
-    @Override
-    public void mousePressed(final GuiSliderNop guiNpcSlider) {
-    }
-
-    @Override
-    public void mouseReleased(final GuiSliderNop guiNpcSlider) {
-        this.chances.put(guiNpcSlider.id, (int) (guiNpcSlider.sliderValue * 100.0f));
+    private int readChance(final GuiTextFieldNop field, final int slot) {
+        final int chance = NpcDropChance.parsePercent(field.getValue());
+        return chance < 0 ? this.chances.getOrDefault(slot, NpcDropChance.FULL) : chance;
     }
 }

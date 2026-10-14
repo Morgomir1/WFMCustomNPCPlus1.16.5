@@ -101,13 +101,13 @@ public final class DungeonDefinition {
     public DungeonDefinition(final String id, final String displayName) {
         this.id = id.toLowerCase();
         this.displayName = displayName;
-        this.roomHeight = 12;
+        this.roomHeight = 16;
         this.borderHeight = 4;
         this.placeCeiling = true;
         this.forceload = true;
         this.clearVolume = true;
         this.groundPlane = true;
-        this.clearHeadroom = 16;
+        this.clearHeadroom = 20;
         this.groundBlock = "minecraft:grass_block";
         this.groundUnder = "minecraft:dirt";
         this.aliases = new ArrayList<>();

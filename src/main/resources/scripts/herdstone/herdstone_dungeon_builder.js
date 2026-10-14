@@ -39,11 +39,11 @@ var MAX_FILL = 256;
 var CREATIVE_ONLY = true;
 var PLACE_CEILING = true;
 var FORCELOAD = true;
-var ROOM_HEIGHT = 12;
+var ROOM_HEIGHT = 16;
 var BORDER_HEIGHT = 4;
 var CLEAR_VOLUME = true;
 var GROUND_PLANE = true;
-var CLEAR_HEADROOM = 16;
+var CLEAR_HEADROOM = 20;
 var GROUND_BLOCK = "minecraft:grass_block";
 var GROUND_UNDER = "minecraft:dirt";
 
@@ -84,9 +84,9 @@ var MARK = {
 // floor = смещение Y от ног игрока (локация 1 = 0)
 var LEVELS = [
     { id: 1, name: "Гнилая просека", floor: 0, h: ROOM_HEIGHT },
-    { id: 2, name: "Осквернённая крипта", floor: -20, h: ROOM_HEIGHT },
-    { id: 3, name: "Корневые глубины", floor: -40, h: ROOM_HEIGHT },
-    { id: 4, name: "Провал Камня Стада", floor: -60, h: ROOM_HEIGHT }
+    { id: 2, name: "Осквернённая крипта", floor: -24, h: ROOM_HEIGHT },
+    { id: 3, name: "Корневые глубины", floor: -48, h: ROOM_HEIGHT },
+    { id: 4, name: "Провал Камня Стада", floor: -72, h: ROOM_HEIGHT }
 ];
 
 var LAYOUT = [];
@@ -195,14 +195,14 @@ function fillLayout() {
     ]); air();
     addEllipse(1, "A3", "room", 7, 21, 98, 62, "item"); air();
     addTrail(1, "path_A3", "path", 5, [79, 109, 62, 83]); air();
-    add(1, "A5", "room", 157, 86, 116, 83, ""); air(); walls(3);
-    add(1, "A5_chapel", "room", 167, 96, 34, 23, ""); air(); walls(3);
-    add(1, "A6", "room", 279, 97, 32, 32, "puzzle"); walls(8);
+    add(1, "A5", "room", 157, 86, 116, 83, ""); air(); walls(5);
+    add(1, "A5_chapel", "room", 167, 96, 34, 23, ""); air(); walls(5);
+    add(1, "A6", "room", 279, 97, 32, 32, "puzzle"); walls(11);
     addTrail(1, "path_A5_A6", "path", 4, [272, 112, 279, 112]); air();
-    add(1, "A4", "arena", 228, 12, 111, 63, "boss"); air(); walls(3);
+    add(1, "A4", "arena", 228, 12, 111, 63, "boss"); air(); walls(5);
     addTrail(1, "path_A5_A4", "path", 5, [250, 86, 257, 78]); air();
-    add(1, "entrance", "room", 90, 242, 24, 9, "gate"); air(); walls(3);
-    add(1, "exit_gate", "room", 168, 242, 27, 9, "gate"); air(); walls(3);
+    add(1, "entrance", "room", 90, 242, 24, 9, "gate"); air(); walls(5);
+    add(1, "exit_gate", "room", 168, 242, 27, 9, "gate"); air(); walls(5);
     addCircle(1, "gallows", "safe", 181, 223, 10, "gate"); air();
     addTrail(1, "path_exit", "path", 4, [181, 251, 150, 284]); air(); floorOf("minecraft:coarse_dirt");
     add(1, "ungor_1", "tower", 66, 152, 3, 3, "npc");
@@ -609,10 +609,10 @@ function rasterFootprint(jobs, rec, ox, oy, oz, openings, rooms, openAir) {
     var floor = floorBlock(rec);
     var corridor = rec.k == "corridor";
     var placeWalls = rec.k != "path" && rec.wallH >= 0;
-    var defaultH = corridor ? 5 : roomH(rec.lv);
+    var defaultH = corridor ? 7 : roomH(rec.lv);
     var h;
     if (rec.wallH > 0) h = rec.wallH;
-    else if (openAir) h = 2;
+    else if (openAir) h = 4;
     else h = defaultH;
     var xMin = rec.x;
     var zMin = rec.z;

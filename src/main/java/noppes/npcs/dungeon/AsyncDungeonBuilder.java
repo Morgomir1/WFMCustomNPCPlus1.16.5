@@ -232,8 +232,8 @@ public final class AsyncDungeonBuilder {
         final String floor = floorBlock(rec, th);
         final boolean corridor = rec.kind == Kind.CORRIDOR;
         final boolean placeWalls = rec.kind != Kind.PATH && rec.wallHeight >= 0;
-        final int defaultH = corridor ? 5 : def.levelById(rec.level).height;
-        final int h = rec.wallHeight > 0 ? rec.wallHeight : (openAir ? 2 : defaultH);
+        final int defaultH = corridor ? 7 : def.levelById(rec.level).height;
+        final int h = rec.wallHeight > 0 ? rec.wallHeight : (openAir ? 4 : defaultH);
         final int xMin = rec.x;
         final int zMin = rec.z;
         final int xMax = rec.x + rec.w - 1;

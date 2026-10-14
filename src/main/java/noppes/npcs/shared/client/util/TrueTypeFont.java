@@ -229,11 +229,24 @@ public class TrueTypeFont
         cache.g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         cache.g.drawString(c + "", g.x, g.y + metrics.getAscent());
         g.texture = cache.textureId;
+        resetUnpackState();
         CTextureUtil.uploadTextureImage(cache.textureId, cache.bufferedImage);
         this.glyphcache.put(c, g);
         return g;
     }
-    
+
+    /**
+     * Vanilla NativeImage uploads leave GL_UNPACK_ROW_LENGTH / SKIP_PIXELS / SKIP_ROWS set for their own region
+     * and never restore them. The atlas is uploaded whole with whatever is left, so stale values shift its rows
+     * and columns and every glyph drawn from it turns into overlapping garbage.
+     */
+    private static void resetUnpackState() {
+        RenderSystem.pixelStore(GL11.GL_UNPACK_ROW_LENGTH, 0);
+        RenderSystem.pixelStore(GL11.GL_UNPACK_SKIP_PIXELS, 0);
+        RenderSystem.pixelStore(GL11.GL_UNPACK_SKIP_ROWS, 0);
+        RenderSystem.pixelStore(GL11.GL_UNPACK_ALIGNMENT, 4);
+    }
+
     private TextureCache getCurrentTexture() {
         TextureCache cache = null;
         for (final TextureCache t : this.textures) {

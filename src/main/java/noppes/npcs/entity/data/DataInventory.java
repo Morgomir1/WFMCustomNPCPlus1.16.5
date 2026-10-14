@@ -31,7 +31,8 @@ import noppes.npcs.util.ValueUtil;
 
 public class DataInventory implements IInventory, INPCInventory {
     public Map<Integer, IItemStack> drops = new HashMap<>();
-    public Map<Integer, Integer> dropchance = new HashMap<>();
+    /** Drop slot to its chance in hundredths of a percent, see {@link NpcDropChance}; a missing slot drops always. */
+    public Map<Integer, Integer> dropChanceHundredths = new HashMap<>();
     public Map<Integer, IItemStack> weapons = new HashMap<>();
     public Map<Integer, IItemStack> armor = new HashMap<>();
     private int minExp = 0;
@@ -49,7 +50,10 @@ public class DataInventory implements IInventory, INPCInventory {
         nbttagcompound.put("NpcInv", (INBT) NBTTags.nbtIItemStackMap(this.drops));
         nbttagcompound.put("Armor", (INBT) NBTTags.nbtIItemStackMap(this.armor));
         nbttagcompound.put("Weapons", (INBT) NBTTags.nbtIItemStackMap(this.weapons));
-        nbttagcompound.put("DropChance", (INBT) NBTTags.nbtIntegerIntegerMap(this.dropchance));
+        final Map<Integer, Integer> legacyPercents = new HashMap<>();
+        this.dropChanceHundredths.forEach((slot, chance) -> legacyPercents.put(slot, NpcDropChance.toLegacyPercent(chance)));
+        nbttagcompound.put("DropChance", (INBT) NBTTags.nbtIntegerIntegerMap(legacyPercents));
+        nbttagcompound.put("DropChanceHundredths", (INBT) NBTTags.nbtIntegerIntegerMap(this.dropChanceHundredths));
         nbttagcompound.putInt("LootMode", this.lootMode);
         return nbttagcompound;
     }
@@ -60,7 +64,13 @@ public class DataInventory implements IInventory, INPCInventory {
         this.drops = NBTTags.getIItemStackMap(nbttagcompound.getList("NpcInv", 10));
         this.armor = NBTTags.getIItemStackMap(nbttagcompound.getList("Armor", 10));
         this.weapons = NBTTags.getIItemStackMap(nbttagcompound.getList("Weapons", 10));
-        this.dropchance = NBTTags.getIntegerIntegerMap(nbttagcompound.getList("DropChance", 10));
+        if (nbttagcompound.contains("DropChanceHundredths", 9)) {
+            this.dropChanceHundredths = NBTTags.getIntegerIntegerMap(nbttagcompound.getList("DropChanceHundredths", 10));
+        } else {
+            this.dropChanceHundredths = new HashMap<>();
+            NBTTags.getIntegerIntegerMap(nbttagcompound.getList("DropChance", 10))
+                    .forEach((slot, percent) -> this.dropChanceHundredths.put(slot, NpcDropChance.fromPercent(percent)));
+        }
         this.lootMode = nbttagcompound.getInt("LootMode");
     }
 
@@ -127,10 +137,10 @@ public class DataInventory implements IInventory, INPCInventory {
         }
         chance = ValueUtil.CorrectInt(chance, 1, 100);
         if (item == null || item.isEmpty()) {
-            this.dropchance.remove(slot);
+            this.dropChanceHundredths.remove(slot);
             this.drops.remove(slot);
         } else {
-            this.dropchance.put(slot, chance);
+            this.dropChanceHundredths.put(slot, NpcDropChance.fromPercent(chance));
             this.drops.put(slot, item);
         }
     }
@@ -143,12 +153,8 @@ public class DataInventory implements IInventory, INPCInventory {
             if (item == null || item.isEmpty()) {
                 continue;
             }
-            int dchance = 100;
-            if (this.dropchance.containsKey(i)) {
-                dchance = this.dropchance.get(i);
-            }
-            final int chance = this.npc.level.random.nextInt(100) + dchance;
-            if (chance < 100) {
+            final int chance = this.dropChanceHundredths.getOrDefault(i, NpcDropChance.FULL);
+            if (this.npc.level.random.nextInt(NpcDropChance.FULL) >= chance) {
                 continue;
             }
             list.add(item);

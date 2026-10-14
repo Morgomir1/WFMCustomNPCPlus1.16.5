@@ -89,6 +89,7 @@ public final class AsyncDungeonBuilder {
     static List<FillJob> compile(final DungeonDefinition def, final int ox, final int oy, final int oz,
                                  final Set<Integer> levels) {
         final List<FillJob> jobs = new ArrayList<>();
+        prepareSite(jobs, def, ox, oy, oz, levels);
         final List<Piece> pieces = def.pieces;
         final List<Piece> openings = new ArrayList<>();
         final List<Piece> rooms = new ArrayList<>();
@@ -111,6 +112,84 @@ public final class AsyncDungeonBuilder {
             compilePiece(jobs, def, rec, ox, oy, oz, openings, rooms);
         }
         return jobs;
+    }
+
+    private static void prepareSite(final List<FillJob> jobs, final DungeonDefinition def, final int ox,
+                                    final int oy, final int oz, final Set<Integer> levels) {
+        final int[] bb = bounds(def, levels);
+        final int x1 = ox + bb[0];
+        final int z1 = oz + bb[1];
+        final int x2 = ox + bb[2] - 1;
+        final int z2 = oz + bb[3] - 1;
+        if (x2 < x1 || z2 < z1) {
+            return;
+        }
+        if (def.clearVolume) {
+            final int[] yr = clearYRange(def, oy, levels);
+            addClear(jobs, x1, yr[0], z1, x2, yr[1], z2);
+        }
+        if (def.groundPlane && levels.contains(1)) {
+            final Set<Integer> only1 = new HashSet<>();
+            only1.add(1);
+            final int[] g = bounds(def, only1);
+            final int gx1 = ox + g[0];
+            final int gz1 = oz + g[1];
+            final int gx2 = ox + g[2] - 1;
+            final int gz2 = oz + g[3] - 1;
+            final int y0 = floorY(def, 1, oy);
+            if (gx2 >= gx1 && gz2 >= gz1) {
+                addFill(jobs, gx1, y0 - 1, gz1, gx2, y0 - 1, gz2, def.groundUnder);
+                addFill(jobs, gx1, y0, gz1, gx2, y0, gz2, def.groundBlock);
+            }
+        }
+    }
+
+    private static int[] clearYRange(final DungeonDefinition def, final int oy, final Set<Integer> levels) {
+        int yMin = Integer.MAX_VALUE;
+        int yMax = Integer.MIN_VALUE;
+        final List<Level> all = def.levels;
+        for (int i = 0, n = all.size(); i < n; i++) {
+            final Level lv = all.get(i);
+            if (!levels.contains(lv.id)) {
+                continue;
+            }
+            final int y0 = oy + lv.floorOffset;
+            if (y0 < yMin) {
+                yMin = y0;
+            }
+            int top = y0 + lv.height;
+            if (lv.id == 1) {
+                top = Math.max(top, y0 + def.clearHeadroom);
+            }
+            if (top > yMax) {
+                yMax = top;
+            }
+        }
+        if (def.groundPlane && levels.contains(1)) {
+            final int under = floorY(def, 1, oy) - 1;
+            if (under < yMin) {
+                yMin = under;
+            }
+        }
+        if (yMin < 1) {
+            yMin = 1;
+        }
+        if (yMax > 255) {
+            yMax = 255;
+        }
+        if (yMax < yMin) {
+            yMax = yMin;
+        }
+        return new int[] { yMin, yMax };
+    }
+
+    private static void addClear(final List<FillJob> jobs, final int x1, final int y1, final int z1,
+                                 final int x2, final int y2, final int z2) {
+        final int ya = Math.min(y1, y2);
+        final int yb = Math.max(y1, y2);
+        for (int y = ya; y <= yb; y++) {
+            addFill(jobs, x1, y, z1, x2, y, z2, "minecraft:air");
+        }
     }
 
     private static void compilePiece(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,

@@ -10,7 +10,8 @@
 //   /cncpdungeon cancel | status
 // Этот JS — запасной вариант через Global Player Scripts (!hsbuild).
 //
-// Встань в СЗ-угол терновой рамки локации 1 (сетка «0 / 0» на плане).
+// Встань в СЗ-угол терновой рамки локации 1 (сетка «0 / 0» на плане), лучше в полёте.
+// Сначала вырезается воздух по AABB данжа, затем плоскость травы под 1 этаж.
 // Данж уходит +X (восток) и +Z (юг), нижние этажи вниз от ног.
 // Лагеря чуть западнее рамки (отрицательный X) и южнее входа.
 //
@@ -40,6 +41,11 @@ var PLACE_CEILING = true;
 var FORCELOAD = true;
 var ROOM_HEIGHT = 12;
 var BORDER_HEIGHT = 4;
+var CLEAR_VOLUME = true;
+var GROUND_PLANE = true;
+var CLEAR_HEADROOM = 16;
+var GROUND_BLOCK = "minecraft:grass_block";
+var GROUND_UNDER = "minecraft:dirt";
 
 var TD_JOBS = "hs_build_jobs";
 var TD_IDX = "hs_build_idx";
@@ -447,6 +453,7 @@ function compile(jobs, ox, oy, oz, levels) {
     var want = {};
     var i;
     for (i = 0; i < levels.length; i++) want[levels[i]] = true;
+    prepareSite(jobs, ox, oy, oz, want, levels);
     var openings = [];
     var rooms = [];
     for (i = 0; i < LAYOUT.length; i++) {
@@ -696,6 +703,55 @@ function buildShaft(jobs, rec, ox, oy, oz) {
     enqueueFill(jobs, x1, yBot, z1, x2, yTop + roomH(rec.lv), z2, "minecraft:air");
     enqueueFill(jobs, x1, yBot, z1, x1, yTop, z1, "minecraft:ladder");
     if (rec.mk) enqueueSet(jobs, x1 + 1, yTop + 1, z1 + 1, MARK[rec.mk] || MARK.gate);
+}
+
+function prepareSite(jobs, ox, oy, oz, want, levels) {
+    var bb = boundsOf(levels);
+    var x1 = ox + bb.x1;
+    var z1 = oz + bb.z1;
+    var x2 = ox + bb.x2 - 1;
+    var z2 = oz + bb.z2 - 1;
+    if (x2 < x1 || z2 < z1) return;
+    var yr;
+    if (CLEAR_VOLUME) {
+        yr = clearYRange(oy, want);
+        enqueueFill(jobs, x1, yr.yMin, z1, x2, yr.yMax, z2, "minecraft:air");
+    }
+    if (GROUND_PLANE && want[1]) {
+        var g = boundsOf([1]);
+        var gx1 = ox + g.x1;
+        var gz1 = oz + g.z1;
+        var gx2 = ox + g.x2 - 1;
+        var gz2 = oz + g.z2 - 1;
+        var y0 = floorY(1, oy);
+        if (gx2 >= gx1 && gz2 >= gz1) {
+            enqueueFill(jobs, gx1, y0 - 1, gz1, gx2, y0 - 1, gz2, GROUND_UNDER);
+            enqueueFill(jobs, gx1, y0, gz1, gx2, y0, gz2, GROUND_BLOCK);
+        }
+    }
+}
+
+function clearYRange(oy, want) {
+    var yMin = 9999;
+    var yMax = -9999;
+    var i;
+    for (i = 0; i < LEVELS.length; i++) {
+        var lv = LEVELS[i];
+        if (!want[lv.id]) continue;
+        var y0 = oy + lv.floor;
+        if (y0 < yMin) yMin = y0;
+        var top = y0 + lv.h;
+        if (lv.id == 1 && y0 + CLEAR_HEADROOM > top) top = y0 + CLEAR_HEADROOM;
+        if (top > yMax) yMax = top;
+    }
+    if (GROUND_PLANE && want[1]) {
+        var under = floorY(1, oy) - 1;
+        if (under < yMin) yMin = under;
+    }
+    if (yMin < 1) yMin = 1;
+    if (yMax > 255) yMax = 255;
+    if (yMax < yMin) yMax = yMin;
+    return { yMin: yMin, yMax: yMax };
 }
 
 function boundsOf(levels) {

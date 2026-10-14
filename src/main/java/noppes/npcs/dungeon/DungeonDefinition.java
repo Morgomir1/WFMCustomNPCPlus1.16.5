@@ -86,6 +86,11 @@ public final class DungeonDefinition {
     public final int borderHeight;
     public final boolean placeCeiling;
     public final boolean forceload;
+    public final boolean clearVolume;
+    public final boolean groundPlane;
+    public final int clearHeadroom;
+    public final String groundBlock;
+    public final String groundUnder;
     public final List<String> aliases;
     public final List<Level> levels;
     public final Map<Integer, Theme> themes;
@@ -100,6 +105,11 @@ public final class DungeonDefinition {
         this.borderHeight = 4;
         this.placeCeiling = true;
         this.forceload = true;
+        this.clearVolume = true;
+        this.groundPlane = true;
+        this.clearHeadroom = 16;
+        this.groundBlock = "minecraft:grass_block";
+        this.groundUnder = "minecraft:dirt";
         this.aliases = new ArrayList<>();
         this.aliases.add(this.id);
         this.levels = new ArrayList<>();

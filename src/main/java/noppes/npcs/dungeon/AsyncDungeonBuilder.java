@@ -90,27 +90,41 @@ public final class AsyncDungeonBuilder {
                                  final Set<Integer> levels) {
         final List<FillJob> jobs = new ArrayList<>();
         final List<Piece> pieces = def.pieces;
+        final List<Piece> openings = new ArrayList<>();
+        final List<Piece> rooms = new ArrayList<>();
         for (int i = 0, n = pieces.size(); i < n; i++) {
             final Piece rec = pieces.get(i);
             if (!levels.contains(rec.level)) {
                 continue;
             }
-            compilePiece(jobs, def, rec, ox, oy, oz);
+            if (DungeonGeometry.isWalk(rec)) {
+                openings.add(rec);
+            } else if (DungeonGeometry.isSolidRoom(rec)) {
+                rooms.add(rec);
+            }
+        }
+        for (int i = 0, n = pieces.size(); i < n; i++) {
+            final Piece rec = pieces.get(i);
+            if (!levels.contains(rec.level)) {
+                continue;
+            }
+            compilePiece(jobs, def, rec, ox, oy, oz, openings, rooms);
         }
         return jobs;
     }
 
     private static void compilePiece(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,
-                                     final int ox, final int oy, final int oz) {
+                                     final int ox, final int oy, final int oz, final List<Piece> openings,
+                                     final List<Piece> rooms) {
         switch (rec.kind) {
             case BORDER:
                 buildBorder(jobs, def, rec, ox, oy, oz);
                 break;
             case PATH:
-                buildPath(jobs, def, rec, ox, oy, oz);
+                rasterFootprint(jobs, def, rec, ox, oy, oz, openings, rooms, true);
                 break;
             case CORRIDOR:
-                buildCorridor(jobs, def, rec, ox, oy, oz);
+                rasterFootprint(jobs, def, rec, ox, oy, oz, openings, rooms, false);
                 break;
             case SHAFT:
                 buildShaft(jobs, def, rec, ox, oy, oz);
@@ -122,57 +136,75 @@ public final class AsyncDungeonBuilder {
                 buildTower(jobs, def, rec, ox, oy, oz);
                 break;
             default:
-                buildBoxRoom(jobs, def, rec, ox, oy, oz);
+                rasterFootprint(jobs, def, rec, ox, oy, oz, openings, rooms, rec.openAir);
                 break;
         }
     }
 
-    private static void buildBoxRoom(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,
-                                     final int ox, final int oy, final int oz) {
-        final int x1 = ox + rec.x;
-        final int z1 = oz + rec.z;
-        final int x2 = x1 + rec.w - 1;
-        final int z2 = z1 + rec.d - 1;
+    private static void rasterFootprint(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,
+                                        final int ox, final int oy, final int oz, final List<Piece> openings,
+                                        final List<Piece> rooms, final boolean openAir) {
         final int y0 = floorY(def, rec.level, oy);
-        final int h = def.levelById(rec.level).height;
         final Theme th = theme(def, rec.level);
-        addFill(jobs, x1, y0, z1, x2, y0, z2, floorBlock(rec, th));
-        addFill(jobs, x1, y0 + 1, z1, x2, y0 + h - 1, z1, th.wall);
-        addFill(jobs, x1, y0 + 1, z2, x2, y0 + h - 1, z2, th.wall);
-        addFill(jobs, x1, y0 + 1, z1, x1, y0 + h - 1, z2, th.wall);
-        addFill(jobs, x2, y0 + 1, z1, x2, y0 + h - 1, z2, th.wall);
-        if (def.placeCeiling) {
-            addFill(jobs, x1, y0 + h, z1, x2, y0 + h, z2, th.ceil);
+        final String floor = floorBlock(rec, th);
+        final boolean corridor = rec.kind == Kind.CORRIDOR;
+        final boolean placeWalls = rec.kind != Kind.PATH && rec.wallHeight >= 0;
+        final int defaultH = corridor ? 5 : def.levelById(rec.level).height;
+        final int h = rec.wallHeight > 0 ? rec.wallHeight : (openAir ? 2 : defaultH);
+        final int xMin = rec.x;
+        final int zMin = rec.z;
+        final int xMax = rec.x + rec.w - 1;
+        final int zMax = rec.z + rec.d - 1;
+        for (int z = zMin; z <= zMax; z++) {
+            int floorRun = Integer.MIN_VALUE;
+            int wallRun = Integer.MIN_VALUE;
+            int ceilRun = Integer.MIN_VALUE;
+            for (int x = xMin; x <= xMax + 1; x++) {
+                final boolean inside = x <= xMax && DungeonGeometry.contains(rec, x, z);
+                if (inside) {
+                    if (floorRun == Integer.MIN_VALUE) {
+                        floorRun = x;
+                    }
+                } else if (floorRun != Integer.MIN_VALUE) {
+                    addFill(jobs, ox + floorRun, y0, oz + z, ox + x - 1, y0, oz + z, floor);
+                    floorRun = Integer.MIN_VALUE;
+                }
+                final boolean wallHere = placeWalls && inside && DungeonGeometry.perimeter(rec, x, z)
+                        && !skipWall(rec, x, z, openings, rooms);
+                if (wallHere) {
+                    if (wallRun == Integer.MIN_VALUE) {
+                        wallRun = x;
+                    }
+                } else if (wallRun != Integer.MIN_VALUE) {
+                    addFill(jobs, ox + wallRun, y0 + 1, oz + z, ox + x - 1, y0 + h - 1, oz + z, th.wall);
+                    wallRun = Integer.MIN_VALUE;
+                }
+                final boolean ceilHere = inside && def.placeCeiling && !openAir && !corridor;
+                final boolean corrCeil = inside && def.placeCeiling && corridor;
+                if (ceilHere || corrCeil) {
+                    if (ceilRun == Integer.MIN_VALUE) {
+                        ceilRun = x;
+                    }
+                } else if (ceilRun != Integer.MIN_VALUE) {
+                    addFill(jobs, ox + ceilRun, y0 + h, oz + z, ox + x - 1, y0 + h, oz + z, th.ceil);
+                    ceilRun = Integer.MIN_VALUE;
+                }
+            }
         }
         if (!rec.marker.isEmpty()) {
-            addSet(jobs, (x1 + x2) / 2, y0 + 1, (z1 + z2) / 2, marker(rec.marker));
+            addSet(jobs, ox + rec.x + rec.w / 2, y0 + 1, oz + rec.z + rec.d / 2, marker(rec.marker));
         }
     }
 
-    private static void buildPath(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,
-                                  final int ox, final int oy, final int oz) {
-        final int y0 = floorY(def, rec.level, oy);
-        addFill(jobs, ox + rec.x, y0, oz + rec.z, ox + rec.x + rec.w - 1, y0, oz + rec.z + rec.d - 1,
-                "minecraft:grass_path");
-    }
-
-    private static void buildCorridor(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,
-                                      final int ox, final int oy, final int oz) {
-        final int x1 = ox + rec.x;
-        final int z1 = oz + rec.z;
-        final int x2 = x1 + rec.w - 1;
-        final int z2 = z1 + rec.d - 1;
-        final int y0 = floorY(def, rec.level, oy);
-        final Theme th = theme(def, rec.level);
-        final int h = 5;
-        addFill(jobs, x1, y0, z1, x2, y0, z2, th.floor);
-        addFill(jobs, x1, y0 + 1, z1, x2, y0 + h - 1, z1, th.wall);
-        addFill(jobs, x1, y0 + 1, z2, x2, y0 + h - 1, z2, th.wall);
-        addFill(jobs, x1, y0 + 1, z1, x1, y0 + h - 1, z2, th.wall);
-        addFill(jobs, x2, y0 + 1, z1, x2, y0 + h - 1, z2, th.wall);
-        if (def.placeCeiling) {
-            addFill(jobs, x1, y0 + h, z1, x2, y0 + h, z2, th.ceil);
+    private static boolean skipWall(final Piece rec, final int x, final int z, final List<Piece> openings,
+                                    final List<Piece> rooms) {
+        if (DungeonGeometry.isSolidRoom(rec)) {
+            return DungeonGeometry.anyContains(openings, rec.level, x, z);
         }
+        if (DungeonGeometry.isWalk(rec)) {
+            return DungeonGeometry.anyContains(rooms, rec.level, x, z);
+        }
+        return false;
     }
 
     private static void buildBorder(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,
@@ -237,6 +269,9 @@ public final class AsyncDungeonBuilder {
     }
 
     private static String floorBlock(final Piece rec, final Theme th) {
+        if (rec.floorBlock != null && !rec.floorBlock.isEmpty()) {
+            return rec.floorBlock;
+        }
         switch (rec.kind) {
             case SAFE:
                 return "minecraft:mossy_cobblestone";

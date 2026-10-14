@@ -13,6 +13,10 @@ public final class DungeonDefinition {
         BORDER, TOWER, MARK, SHAFT
     }
 
+    public enum Shape {
+        RECT, ELLIPSE, POLY, PATH
+    }
+
     public static final class Level {
         public final int id;
         public final String name;
@@ -49,6 +53,12 @@ public final class DungeonDefinition {
         public final int d;
         public final String marker;
         public final int toLevel;
+        public Shape shape;
+        public int[] points;
+        public int thickness;
+        public boolean openAir;
+        public int wallHeight;
+        public String floorBlock;
 
         public Piece(final int level, final String id, final Kind kind, final int x, final int z,
                      final int w, final int d, final String marker, final int toLevel) {
@@ -61,6 +71,12 @@ public final class DungeonDefinition {
             this.d = d;
             this.marker = marker == null ? "" : marker;
             this.toLevel = toLevel;
+            this.shape = Shape.RECT;
+            this.points = new int[0];
+            this.thickness = 6;
+            this.openAir = false;
+            this.wallHeight = 0;
+            this.floorBlock = "";
         }
     }
 
@@ -74,6 +90,8 @@ public final class DungeonDefinition {
     public final List<Level> levels;
     public final Map<Integer, Theme> themes;
     public final List<Piece> pieces;
+
+    private Piece last;
 
     public DungeonDefinition(final String id, final String displayName) {
         this.id = id.toLowerCase();
@@ -108,12 +126,72 @@ public final class DungeonDefinition {
 
     public DungeonDefinition add(final int lv, final String id, final Kind kind, final int x, final int z,
                                  final int w, final int d, final String marker) {
-        this.pieces.add(new Piece(lv, id, kind, x, z, w, d, marker, 0));
+        return push(new Piece(lv, id, kind, x, z, w, d, marker, 0));
+    }
+
+    public DungeonDefinition addEllipse(final int lv, final String id, final Kind kind, final int x, final int z,
+                                        final int w, final int d, final String marker) {
+        add(lv, id, kind, x, z, w, d, marker);
+        this.last.shape = Shape.ELLIPSE;
+        return this;
+    }
+
+    public DungeonDefinition addCircle(final int lv, final String id, final Kind kind, final int cx, final int cz,
+                                       final int r, final String marker) {
+        add(lv, id, kind, cx - r, cz - r, r * 2 + 1, r * 2 + 1, marker);
+        this.last.shape = Shape.ELLIPSE;
+        return this;
+    }
+
+    public DungeonDefinition addPoly(final int lv, final String id, final Kind kind, final String marker,
+                                     final int... xz) {
+        final int[] bb = DungeonGeometry.bbox(xz, 0);
+        add(lv, id, kind, bb[0], bb[1], bb[2], bb[3], marker);
+        this.last.shape = Shape.POLY;
+        this.last.points = xz;
+        return this;
+    }
+
+    public DungeonDefinition addPath(final int lv, final String id, final Kind kind, final int width,
+                                     final int... xz) {
+        final int pad = (width + 1) / 2;
+        final int[] bb = DungeonGeometry.bbox(xz, pad);
+        add(lv, id, kind, bb[0], bb[1], bb[2], bb[3], "");
+        this.last.shape = Shape.PATH;
+        this.last.points = xz;
+        this.last.thickness = width;
         return this;
     }
 
     public DungeonDefinition shaft(final int fromLv, final int toLv, final String id, final int x, final int z) {
-        this.pieces.add(new Piece(fromLv, id, Kind.SHAFT, x, z, 3, 3, "gate", toLv));
+        return push(new Piece(fromLv, id, Kind.SHAFT, x, z, 3, 3, "gate", toLv));
+    }
+
+    public DungeonDefinition air() {
+        if (this.last != null) {
+            this.last.openAir = true;
+        }
+        return this;
+    }
+
+    public DungeonDefinition walls(final int height) {
+        if (this.last != null) {
+            this.last.wallHeight = height;
+        }
+        return this;
+    }
+
+    public DungeonDefinition noWalls() {
+        if (this.last != null) {
+            this.last.wallHeight = -1;
+        }
+        return this;
+    }
+
+    public DungeonDefinition floor(final String block) {
+        if (this.last != null) {
+            this.last.floorBlock = block == null ? "" : block;
+        }
         return this;
     }
 
@@ -129,5 +207,11 @@ public final class DungeonDefinition {
 
     public List<String> aliases() {
         return Collections.unmodifiableList(this.aliases);
+    }
+
+    private DungeonDefinition push(final Piece piece) {
+        this.pieces.add(piece);
+        this.last = piece;
+        return this;
     }
 }

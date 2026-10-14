@@ -34,8 +34,8 @@ var ArrayList = Java.type("java.util.ArrayList");
 // НАСТРОЙКИ
 // =========================
 var TIMER_ID = 8142;
-var JOBS_PER_TICK = 2;
-var MAX_FILL = 32768;
+var JOBS_PER_TICK = 1;
+var MAX_FILL = 256;
 var CREATIVE_ONLY = true;
 var PLACE_CEILING = true;
 var FORCELOAD = true;

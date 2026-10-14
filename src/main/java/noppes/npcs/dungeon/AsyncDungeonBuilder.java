@@ -13,7 +13,9 @@ import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -26,8 +28,12 @@ import noppes.npcs.dungeon.DungeonDefinition.Theme;
 
 @Mod.EventBusSubscriber(modid = "customnpcs", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class AsyncDungeonBuilder {
-    private static final int BLOCKS_PER_TICK = 6000;
-    private static final int PLACE_FLAGS = 2;
+    private static final int BLOCKS_PER_TICK = 400;
+    /** Потолок итераций: воздух→воздух не считается placement, иначе clear AABB вешает тик. */
+    private static final int CHECKS_PER_TICK = 1200;
+    private static final long NANOS_PER_TICK = 8_000_000L;
+    /** UPDATE_CLIENTS | UPDATE_KNOWN_SHAPE — без соседних апдейтов, иначе watchdog. */
+    private static final int PLACE_FLAGS = 2 | 16;
     private static final BlockPos.Mutable POS = new BlockPos.Mutable();
 
     private static Session session;
@@ -59,15 +65,13 @@ public final class AsyncDungeonBuilder {
             return "§e[dry] §f" + jobs.size() + " шагов, origin " + ox + " " + oy + " " + oz
                     + " §7" + def.displayName;
         }
-        session = new Session((ServerWorld) player.level, player.getUUID(), def.displayName, jobs);
+        final ServerWorld world = (ServerWorld) player.level;
         if (def.forceload) {
-            final int[] bb = bounds(def, levels);
-            final String cmd = "forceload add " + (ox + bb[0]) + " " + (oz + bb[1]) + " "
-                    + (ox + bb[2]) + " " + (oz + bb[3]);
-            player.getServer().getCommands().performCommand(player.createCommandSourceStack(), cmd);
+            forceChunks(world, bounds(def, levels), ox, oz);
         }
+        session = new Session(world, player.getUUID(), def.displayName, jobs);
         return "§2Каркас «" + def.displayName + "»: §f" + jobs.size() + " шагов §7с "
-                + ox + " " + oy + " " + oz;
+                + ox + " " + oy + " " + oz + " §8(чанки грузятся без подвисания тика)";
     }
 
     public static String cancel() {
@@ -430,6 +434,22 @@ public final class AsyncDungeonBuilder {
         return new int[] { x1, z1, x2, z2 };
     }
 
+    private static void forceChunks(final ServerWorld world, final int[] bb, final int ox, final int oz) {
+        final int x1 = ox + bb[0];
+        final int z1 = oz + bb[1];
+        final int x2 = ox + bb[2] - 1;
+        final int z2 = oz + bb[3] - 1;
+        final int cx1 = x1 >> 4;
+        final int cz1 = z1 >> 4;
+        final int cx2 = x2 >> 4;
+        final int cz2 = z2 >> 4;
+        for (int cx = cx1; cx <= cx2; cx++) {
+            for (int cz = cz1; cz <= cz2; cz++) {
+                world.getChunkSource().updateChunkForced(new ChunkPos(cx, cz), true);
+            }
+        }
+    }
+
     private static void addFill(final List<FillJob> jobs, final int x1, final int y1, final int z1,
                                 final int x2, final int y2, final int z2, final String block) {
         jobs.add(new FillJob(x1, y1, z1, x2, y2, z2, resolve(block)));
@@ -493,6 +513,7 @@ public final class AsyncDungeonBuilder {
         final int volume;
         final BlockState state;
         int cursor;
+        boolean waitingForChunk;
 
         FillJob(final int xa, final int ya, final int za, final int xb, final int yb, final int zb,
                 final BlockState state) {
@@ -506,14 +527,41 @@ public final class AsyncDungeonBuilder {
             this.state = state;
         }
 
-        int place(final ServerWorld world, final int budget) {
+        int place(final ServerWorld world, final int budget, final long deadlineNanos) {
+            this.waitingForChunk = false;
             int n = 0;
-            while (this.cursor < this.volume && n < budget) {
+            int checks = 0;
+            int lastCx = Integer.MIN_VALUE;
+            int lastCz = Integer.MIN_VALUE;
+            Chunk chunk = null;
+            while (this.cursor < this.volume && n < budget && checks < CHECKS_PER_TICK) {
+                if ((checks & 15) == 0 && System.nanoTime() >= deadlineNanos) {
+                    break;
+                }
+                checks++;
                 final int x = this.x1 + this.cursor % this.dx;
                 final int rem = this.cursor / this.dx;
                 final int y = this.y1 + rem % this.dy;
                 final int z = this.z1 + rem / this.dy;
-                world.setBlock(POS.set(x, y, z), this.state, PLACE_FLAGS);
+                final int cx = x >> 4;
+                final int cz = z >> 4;
+                if (cx != lastCx || cz != lastCz) {
+                    chunk = world.getChunkSource().getChunkNow(cx, cz);
+                    lastCx = cx;
+                    lastCz = cz;
+                    if (chunk == null) {
+                        world.getChunkSource().updateChunkForced(new ChunkPos(cx, cz), true);
+                        this.waitingForChunk = true;
+                        break;
+                    }
+                }
+                POS.set(x, y, z);
+                final BlockState old = chunk.getBlockState(POS);
+                if (old == this.state) {
+                    this.cursor++;
+                    continue;
+                }
+                world.setBlock(POS, this.state, PLACE_FLAGS);
                 this.cursor++;
                 n++;
             }
@@ -548,15 +596,23 @@ public final class AsyncDungeonBuilder {
         }
 
         void tick() {
+            final long deadline = System.nanoTime() + NANOS_PER_TICK;
             int budget = BLOCKS_PER_TICK;
-            while (budget > 0) {
+            while (budget > 0 && System.nanoTime() < deadline) {
                 if (this.index >= this.jobs.size()) {
                     finish();
                     return;
                 }
                 final FillJob job = this.jobs.get(this.index);
-                budget -= job.place(this.world, budget);
+                final int placed = job.place(this.world, budget, deadline);
                 this.jobCursor = job.cursor;
+                budget -= placed;
+                if (job.waitingForChunk) {
+                    return;
+                }
+                if (placed == 0 && !job.done()) {
+                    return;
+                }
                 if (job.done()) {
                     this.index++;
                     this.jobCursor = 0;

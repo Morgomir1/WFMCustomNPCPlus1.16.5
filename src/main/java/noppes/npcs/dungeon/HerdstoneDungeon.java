@@ -14,9 +14,9 @@ public final class HerdstoneDungeon {
         final DungeonDefinition d = new DungeonDefinition("herdstone", "Камень Расколотого Рога")
                 .alias("herdstone_dungeon", "hs", "herdherdstone");
         d.level(1, "Гнилая просека", 0);
-        d.level(2, "Осквернённая крипта", -20);
-        d.level(3, "Корневые глубины", -40);
-        d.level(4, "Провал Камня Стада", -60);
+        d.level(2, "Осквернённая крипта", -24);
+        d.level(3, "Корневые глубины", -48);
+        d.level(4, "Провал Камня Стада", -72);
         d.theme(1, "minecraft:grass_block", "minecraft:dark_oak_log", "minecraft:dark_oak_leaves");
         d.theme(2, "minecraft:stone_bricks", "minecraft:mossy_stone_bricks", "minecraft:cracked_stone_bricks");
         d.theme(3, "minecraft:mycelium", "minecraft:dark_oak_wood", "minecraft:dirt");
@@ -50,14 +50,14 @@ public final class HerdstoneDungeon {
                 143, 125, 146, 126, 150, 127, 153, 128, 157, 129).air();
         d.addEllipse(1, "A3", Kind.ROOM, 7, 21, 98, 62, "item").air();
         d.addPath(1, "path_A3", Kind.PATH, 5, 79, 109, 62, 83).air();
-        d.add(1, "A5", Kind.ROOM, 157, 86, 116, 83, "").air().walls(3);
-        d.add(1, "A5_chapel", Kind.ROOM, 167, 96, 34, 23, "").air().walls(3);
-        d.add(1, "A6", Kind.ROOM, 279, 97, 32, 32, "puzzle").walls(8);
+        d.add(1, "A5", Kind.ROOM, 157, 86, 116, 83, "").air().walls(5);
+        d.add(1, "A5_chapel", Kind.ROOM, 167, 96, 34, 23, "").air().walls(5);
+        d.add(1, "A6", Kind.ROOM, 279, 97, 32, 32, "puzzle").walls(11);
         d.addPath(1, "path_A5_A6", Kind.PATH, 4, 272, 112, 279, 112).air();
-        d.add(1, "A4", Kind.ARENA, 228, 12, 111, 63, "boss").air().walls(3);
+        d.add(1, "A4", Kind.ARENA, 228, 12, 111, 63, "boss").air().walls(5);
         d.addPath(1, "path_A5_A4", Kind.PATH, 5, 250, 86, 257, 78).air();
-        d.add(1, "entrance", Kind.ROOM, 90, 242, 24, 9, "gate").air().walls(3);
-        d.add(1, "exit_gate", Kind.ROOM, 168, 242, 27, 9, "gate").air().walls(3);
+        d.add(1, "entrance", Kind.ROOM, 90, 242, 24, 9, "gate").air().walls(5);
+        d.add(1, "exit_gate", Kind.ROOM, 168, 242, 27, 9, "gate").air().walls(5);
         d.addCircle(1, "gallows", Kind.SAFE, 181, 223, 10, "gate").air();
         d.addPath(1, "path_exit", Kind.PATH, 4, 181, 251, 150, 284).air()
                 .floor("minecraft:coarse_dirt");

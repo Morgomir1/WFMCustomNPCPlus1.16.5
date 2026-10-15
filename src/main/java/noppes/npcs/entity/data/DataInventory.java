@@ -14,8 +14,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.nbt.INBT;
 import net.minecraft.util.DamageSource;
-import net.minecraft.util.SoundCategory;
-import net.minecraft.util.SoundEvents;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.common.ForgeHooks;
 import noppes.npcs.NBTTags;
@@ -181,20 +179,10 @@ public class DataInventory implements IInventory, INPCInventory {
         if (!ForgeHooks.onLivingDrops((LivingEntity) this.npc, damagesource, list, enchant, true)) {
             for (final ItemEntity item : list) {
                 if (this.lootMode == 1 && entity instanceof PlayerEntity) {
-                    final PlayerEntity player = (PlayerEntity) entity;
-                    item.setPickUpDelay(2);
+                    // Auto loot is a regular pickup, so pickup event handlers (pouches, item gain marks) see it too
+                    item.setNoPickUpDelay();
                     this.npc.level.addFreshEntity(item);
-                    final ItemStack stack = item.getItem();
-                    final int i = stack.getCount();
-                    if (!player.inventory.add(stack)) {
-                        continue;
-                    }
-                    entity.level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ITEM_PICKUP, SoundCategory.PLAYERS, 0.2f, ((player.getRandom().nextFloat() - player.getRandom().nextFloat()) * 0.7f + 1.0f) * 2.0f);
-                    player.take(item, i);
-                    if (stack.getCount() > 0) {
-                        continue;
-                    }
-                    item.remove();
+                    item.playerTouch((PlayerEntity) entity);
                     continue;
                 }
                 this.npc.level.addFreshEntity(item);

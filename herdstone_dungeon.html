@@ -389,7 +389,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <circle class="stake" cx="192" cy="314" r="5"/><circle class="stake" cx="332" cy="314" r="5"/><circle class="stake" cx="192" cy="454" r="5"/><circle class="stake" cx="332" cy="454" r="5"/>
   <rect class="bm" x="252" y="374" width="20" height="20" transform="rotate(45 262 384)"/><text class="w" x="253" y="388">Б3</text>
   <text class="l" x="160" y="266">C5 Яма Горгона · арена Б3</text><text class="s" x="340" y="470">кормушки ×4</text>
-  <rect class="rm sec" x="30" y="450" width="96" height="58"/><text class="s" x="36" y="472">«Утроба»</text><text class="s" x="36" y="486">комната</text><text class="s" x="36" y="500">проглоченных</text>
   <circle class="ink" cx="262" cy="500" r="12"/><text class="w" x="256" y="504">↓</text><text class="s" x="282" y="508">Глотка → D</text>
   <!-- S3 -->
   <path class="sc" d="M448 318 C 330 250, 190 236, 130 196"/>
@@ -487,9 +486,8 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <article class="boss">
   <div class="eyebrow">Б3 · C5 Яма · ворота в локацию 4</div>
   <h3>Великая Утроба, Горгон</h3>
-  <div class="stat">Размер 12, HP 480, мили. Рядом комната «Утроба» (отдельный объём) и три точки спавна клона «Нерв» (HP 20, не двигается).</div>
+  <div class="stat">Размер 12, HP 480, мили. Бой на арене C5.</div>
   <ol class="ph">
-    <li><b>Глоток</b> раз в 20 с: ближайший игрок в 6 блоках → <code>setPosition</code> в Утробу, заспавнить 3 «Нерв», запомнить UUID в world storeddata. Горгону On Attack = Ничего. Скрипт нерва в <code>died</code>: счётчик −1; при 0 вернуть игрока в яму, Горгону Slowness 6 с и снова Мстить.</li>
     <li><b>Кормушка.</b> Четыре Scripted Block. ПКМ с окороком: <code>removeItem</code>, 8 с Горгону Ничего (стоит). Игроки бьют в спину обычным уроном.</li>
     <li><b>≤ 30% HP.</b> <code>getAi().setWalkingSpeed</code> ×1,5 (базу сохранить строкой). Каждые ~8 с <code>AbilityAPI.start(npc, "jump_slam", target)</code>.</li>
   </ol>
@@ -570,7 +568,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td>Гор, Унгор, Бестигор, Минотавр</td><td>Адды и патрули</td></tr>
 <tr><td>Кровохряк, Грул Кабанья Рука</td><td>Б1 (имена = цели Kill-квеста)</td></tr>
 <tr><td>Мургрот Туманный Глас, Тотем Мургрота, Мургрот-копия</td><td>Б2</td></tr>
-<tr><td>Великая Утроба, Нерв</td><td>Б3</td></tr>
+<tr><td>Великая Утроба</td><td>Б3</td></tr>
 <tr><td>Гарракс Расколотый Рог, Сердце жёлоба, Варп-кристалл</td><td>Б4</td></tr>
 <tr><td>Бормочущий</td><td>Секрет C4</td></tr>
 <tr><td>Шкрик</td><td>Диалог B4</td></tr>
@@ -794,38 +792,6 @@ function getInt(data, key) {
     if (!data.has(key)) return 0;
     return parseInt(String(data.get(key)));
 }</pre></details>
-
-<details><summary>Горгон: глоток в комнату нервов</summary>
-<pre>var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
-var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
-
-var GUT = [60, 32, 470];
-var CD = "hs_gut_cd";
-
-function tick(e) {
-    var npc = e.npc;
-    var w = npc.getWorld();
-    var d = npc.getStoreddata();
-    var now = w.getTotalTime();
-    if (now &lt; getInt(d, CD)) return;
-    var ps = w.getNearbyEntities(npc.getPos(), 6, EntitiesType.PLAYER);
-    if (ps.length == 0) return;
-    ps[0].setPosition(GUT[0], GUT[1], GUT[2]);
-    w.getStoreddata().put("hs_nerves", "3");
-    w.getStoreddata().put("hs_swallowed", String(ps[0].getUUID()));
-    w.spawnClone(GUT[0] - 2, GUT[1], GUT[2] + 3, 2, "Нерв");
-    w.spawnClone(GUT[0], GUT[1], GUT[2] + 3, 2, "Нерв");
-    w.spawnClone(GUT[0] + 2, GUT[1], GUT[2] + 3, 2, "Нерв");
-    npc.getAi().setRetaliateType(3);
-    d.put(CD, String(now + 400));
-}
-
-function getInt(data, key) {
-    if (!data.has(key)) return 0;
-    return parseInt(String(data.get(key)));
-}
-// На клоне «Нерв» в died: уменьшить hs_nerves; при 0 найти игрока по UUID,
-// setPosition обратно в яму, боссу setRetaliateType(0) и Slowness 6 с.</pre></details>
 
 <h3>Порядок работ</h3>
 <ol>

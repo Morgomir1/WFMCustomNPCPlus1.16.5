@@ -108,7 +108,6 @@ public final class HerdstoneDungeon {
         d.addCircle(3, "C5", Kind.ARENA, 146, 213, 61, "boss");
         d.addCircle(3, "C5_pit", Kind.ROOM, 146, 213, 21, "")
                 .floor("minecraft:soul_soil").noWalls();
-        d.add(3, "gut", Kind.SECRET, 17, 250, 53, 32, "");
         d.addPath(3, "path_C1_C2", Kind.CORRIDOR, 6, 72, 72, 100, 72);
         d.addPath(3, "path_C2_C3", Kind.CORRIDOR, 6, 222, 72, 239, 72);
         d.addPath(3, "path_C3_C3a", Kind.CORRIDOR, 6, 279, 150, 277, 167);

@@ -66,10 +66,10 @@ public final class AsyncDungeonBuilder {
                     + " §7" + def.displayName;
         }
         final ServerWorld world = (ServerWorld) player.level;
-        if (def.forceload) {
-            forceChunks(world, bounds(def, levels), ox, oz);
-        }
         session = new Session(world, player.getUUID(), def.displayName, jobs);
+        if (def.forceload) {
+            session.forceArea(bounds(def, levels), ox, oz);
+        }
         return "§2Каркас «" + def.displayName + "»: §f" + jobs.size() + " шагов §7с "
                 + ox + " " + oy + " " + oz + " §8(чанки грузятся без подвисания тика)";
     }
@@ -78,6 +78,7 @@ public final class AsyncDungeonBuilder {
         if (session == null) {
             return "§7Генерация не запущена.";
         }
+        session.releaseChunks();
         session = null;
         return "§7Генерация остановлена.";
     }
@@ -87,6 +88,7 @@ public final class AsyncDungeonBuilder {
             return "§7Генерация не запущена.";
         }
         return "§e" + session.index + "/" + session.jobs.size() + " §7" + session.name
+                + "  §f" + session.percent() + "%" + session.remainingText()
                 + "  блок " + session.jobCursor + "/" + session.currentVolume();
     }
 
@@ -434,22 +436,6 @@ public final class AsyncDungeonBuilder {
         return new int[] { x1, z1, x2, z2 };
     }
 
-    private static void forceChunks(final ServerWorld world, final int[] bb, final int ox, final int oz) {
-        final int x1 = ox + bb[0];
-        final int z1 = oz + bb[1];
-        final int x2 = ox + bb[2] - 1;
-        final int z2 = oz + bb[3] - 1;
-        final int cx1 = x1 >> 4;
-        final int cz1 = z1 >> 4;
-        final int cx2 = x2 >> 4;
-        final int cz2 = z2 >> 4;
-        for (int cx = cx1; cx <= cx2; cx++) {
-            for (int cz = cz1; cz <= cz2; cz++) {
-                world.getChunkSource().updateChunkForced(new ChunkPos(cx, cz), true);
-            }
-        }
-    }
-
     private static void addFill(final List<FillJob> jobs, final int x1, final int y1, final int z1,
                                 final int x2, final int y2, final int z2, final String block) {
         jobs.add(new FillJob(x1, y1, z1, x2, y2, z2, resolve(block)));
@@ -527,7 +513,8 @@ public final class AsyncDungeonBuilder {
             this.state = state;
         }
 
-        int place(final ServerWorld world, final int budget, final long deadlineNanos) {
+        int place(final Session owner, final int budget, final long deadlineNanos) {
+            final ServerWorld world = owner.world;
             this.waitingForChunk = false;
             int n = 0;
             int checks = 0;
@@ -550,7 +537,7 @@ public final class AsyncDungeonBuilder {
                     lastCx = cx;
                     lastCz = cz;
                     if (chunk == null) {
-                        world.getChunkSource().updateChunkForced(new ChunkPos(cx, cz), true);
+                        owner.forceChunk(cx, cz);
                         this.waitingForChunk = true;
                         break;
                     }
@@ -578,6 +565,11 @@ public final class AsyncDungeonBuilder {
         final UUID playerId;
         final String name;
         final List<FillJob> jobs;
+        /** Чанки, которые эта постройка держит загруженными; снимаются в конце и при отмене. */
+        final Set<Long> forcedChunks = new HashSet<>();
+        final long totalVolume;
+        final long startNanos = System.nanoTime();
+        long finishedVolume;
         int index;
         int jobCursor;
 
@@ -586,6 +578,58 @@ public final class AsyncDungeonBuilder {
             this.playerId = playerId;
             this.name = name;
             this.jobs = jobs;
+            long volume = 0L;
+            for (final FillJob job : jobs) {
+                volume += job.volume;
+            }
+            this.totalVolume = volume;
+        }
+
+        void forceArea(final int[] bb, final int ox, final int oz) {
+            final int cx1 = (ox + bb[0]) >> 4;
+            final int cz1 = (oz + bb[1]) >> 4;
+            final int cx2 = (ox + bb[2] - 1) >> 4;
+            final int cz2 = (oz + bb[3] - 1) >> 4;
+            for (int cx = cx1; cx <= cx2; cx++) {
+                for (int cz = cz1; cz <= cz2; cz++) {
+                    forceChunk(cx, cz);
+                }
+            }
+        }
+
+        /** Тикет принудительной загрузки: чанк грузится и генерируется вне тика, синхронной загрузки нет. */
+        void forceChunk(final int cx, final int cz) {
+            final ChunkPos pos = new ChunkPos(cx, cz);
+            if (this.forcedChunks.add(pos.toLong())) {
+                this.world.getChunkSource().updateChunkForced(pos, true);
+            }
+        }
+
+        void releaseChunks() {
+            for (final long packed : this.forcedChunks) {
+                this.world.getChunkSource().updateChunkForced(new ChunkPos(packed), false);
+            }
+            this.forcedChunks.clear();
+        }
+
+        long processedVolume() {
+            final long current = this.index < this.jobs.size() ? this.jobs.get(this.index).cursor : 0L;
+            return this.finishedVolume + current;
+        }
+
+        int percent() {
+            return this.totalVolume <= 0L ? 100 : (int) (processedVolume() * 100L / this.totalVolume);
+        }
+
+        /** Оценка по средней скорости с начала постройки: зависит от местности и генерации чанков. */
+        String remainingText() {
+            final long processed = processedVolume();
+            final double elapsedSeconds = (System.nanoTime() - this.startNanos) / 1.0E9D;
+            if (processed <= 0L || elapsedSeconds < 1.0D) {
+                return "";
+            }
+            final long seconds = Math.round((this.totalVolume - processed) / (processed / elapsedSeconds));
+            return String.format(Locale.ROOT, " §7осталось ~%d:%02d", seconds / 60L, seconds % 60L);
         }
 
         int currentVolume() {
@@ -604,7 +648,7 @@ public final class AsyncDungeonBuilder {
                     return;
                 }
                 final FillJob job = this.jobs.get(this.index);
-                final int placed = job.place(this.world, budget, deadline);
+                final int placed = job.place(this, budget, deadline);
                 this.jobCursor = job.cursor;
                 budget -= placed;
                 if (job.waitingForChunk) {
@@ -614,6 +658,7 @@ public final class AsyncDungeonBuilder {
                     return;
                 }
                 if (job.done()) {
+                    this.finishedVolume += job.volume;
                     this.index++;
                     this.jobCursor = 0;
                     if (this.index > 0 && this.index % 25 == 0) {
@@ -633,6 +678,7 @@ public final class AsyncDungeonBuilder {
                 player.sendMessage(new StringTextComponent("§aКаркас «" + this.name + "» готов. §7"
                         + this.jobs.size() + " шагов."), Util.NIL_UUID);
             }
+            releaseChunks();
             session = null;
         }
     }

@@ -388,9 +388,24 @@ public final class AsyncDungeonBuilder {
             case "item":
                 return "minecraft:lime_wool";
             case "npc":
+            case "pack":
                 return "minecraft:white_wool";
             case "valve":
+            case "elite":
                 return "minecraft:orange_wool";
+            case "stake":
+                return "minecraft:dark_oak_log";
+            case "totem":
+            case "menhir":
+                return "minecraft:bone_block";
+            case "heart":
+                return "minecraft:redstone_block";
+            case "crystal":
+                return "minecraft:emerald_block";
+            case "herb":
+                return "minecraft:lime_wool";
+            case "fog":
+                return "minecraft:green_wool";
             default:
                 return "minecraft:black_wool";
         }

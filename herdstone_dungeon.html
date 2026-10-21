@@ -140,7 +140,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <section id="rules">
 <h2>Правила данжа</h2>
 <div class="rules">
-  <div><b>Бой решают механики</b><span>Опасные удары боссов и элит снимают долю от <b>максимального</b> здоровья через <code>setHealth</code>. Броня, «Защита», Сопротивление и золотые яблоки их не уменьшают. Боссы регулярно снимают с игроков все эффекты, урон по боссу ограничен за удар. Общая громкость этих ударов — <code>HS.DMG</code> / ключ <code>hs_dmg</code> (см. Закон Стада, п. 9). Выживает тот, кто читает телеграфы и делает то, что требует механика.</span></div>
+  <div><b>Бой решают механики</b><span>Опасные удары боссов и элит снимают долю от <b>максимального</b> здоровья через <code>setHealth</code>. Броня, «Защита», Сопротивление и золотые яблоки их не уменьшают. Боссы регулярно снимают с игроков все эффекты, урон по боссу ограничен за удар. Общая громкость урона и HP боссов — <code>HS.DMG</code> / ключ <code>hs_dmg</code> (см. Закон Стада, п. 9). Выживает тот, кто читает телеграфы и делает то, что требует механика.</span></div>
   <div><b>Переходы — тоже бой</b><span>Между аренами — 40–170 блоков троп и коридоров шириной 6–8 блоков. На них стоят отряды по 3–4 моба и элиты. У каждого моба своя абилка с телеграфом, и удар по зазевавшемуся снимает 15–35% HP.</span></div>
   <div><b>Арены тесные</b><span>Б1 — 44×38 блоков, Б2 — круг радиусом 20, Б3 — радиусом 21, Б4 — радиусом 26. Убежать от механики через всю арену нельзя. Тех, кто полез на стену или к выходу, поводок возвращает в круг с потерей 25% HP.</span></div>
   <div><b>Один вход</b><span>Врата черепов на южной границе просеки. Граница — терновый декор и ряд <code>minecraft:barrier</code>. Барьер ставится один раз при постройке и больше не трогается.</span></div>
@@ -207,7 +207,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <div class="law"><b>6. Сброс.</b> 15 с без игроков на арене — <code>npc.reset()</code>: полное HP, фазы, ворота, адды убраны. Вылечиться на шорткате и вернуться к той же фазе нельзя.</div>
 <div class="law"><b>7. Ярость.</b> Через 6–10 минут боя босс раз в 10 с бьёт случайного игрока смертельным ударом. Затянуть бой регенерацией нельзя.</div>
 <div class="law"><b>8. Масштаб по группе.</b> На пуле <code>maxHP = BASE × (0,7 + 0,3·N)</code>, где N — игроки на арене. Соло — 100%, вчетвером — 190%: из-за потолка урона четверо всё равно не убьют босса вчетверо быстрее.</div>
-<div class="law"><b>9. Множитель урона данжа.</b> Одна переменная на весь данж: <code>HS.DMG</code> в <code>hs_core.js</code> (по умолчанию 1). Если в world storeddata есть ключ <code>hs_dmg</code>, он перекрывает файл — так можно крутить сложность, не переклеивая скрипт на каждом NPC. Множитель действует на все <code>hsStrike</code> (процентные удары мобов и боссов) и на <code>damage</code> / <code>damagePerTick</code> абилок через <code>hsStart</code>. Не трогает ярость (<code>hsKill</code>), автоатаку из GUI Stats и потолок урона <i>по</i> боссу. Примеры: 0,75 — легче, 1,25 — жёстче, 1,5 — очень жёстко. Проценты в таблицах боссов написаны при ×1.</div>
+<div class="law"><b>9. Множитель урона и HP боссов.</b> Одна переменная на весь данж: <code>HS.DMG</code> в <code>hs_core.js</code> (по умолчанию 1). Если в world storeddata есть ключ <code>hs_dmg</code>, он перекрывает файл — так можно крутить сложность, не переклеивая скрипт на каждом NPC. Множитель действует на все <code>hsStrike</code> (процентные удары мобов и боссов), на <code>damage</code> / <code>damagePerTick</code> абилок через <code>hsStart</code> и на max HP боссов: <code>BASE × (0,7 + 0,3·N) × HS.DMG</code>. Не трогает ярость (<code>hsKill</code>), автоатаку из GUI Stats, HP мобов переходов (они из вкладки Stats) и потолок урона <i>по</i> боссу. Примеры: 0,75 — легче, 1,25 — жёстче, 1,5 — очень жёстко. Проценты и BASE HP в таблицах написаны при ×1.</div>
 <div class="tbl"><table>
 <thead><tr><th>Босс</th><th>BASE HP</th><th>CAP</th><th>Окно уязвимости (×1)</th><th>Рассеивание</th><th>Ярость</th></tr></thead>
 <tbody>
@@ -744,7 +744,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <!-- ================= BOSSES ================= -->
 <section id="bosses">
 <h2>Боссы</h2>
-<p class="note">Каждый босс — NPC в клонере, Stats → Respawn 3600, AI → Return to start = да, фракция «Стадо Расколотого Рога». Модель — Display этой сборки (GeckoLib Custom Model). Скрипт: <code>hs_core.js</code> + файл босса, события <code>init</code>/<code>tick</code>/<code>timer</code>/<code>damaged</code>/<code>meleeAttack</code>/<code>died</code>. Все правила «Закона Стада» (потолок урона, рассеивание, поводок, сброс, ярость, масштаб HP, множитель <code>HS.DMG</code>) действуют у всех. Проценты ниже — при ×1. Ниже — только то, что у каждого своё.</p>
+<p class="note">Каждый босс — NPC в клонере, Stats → Respawn 3600, AI → Return to start = да, фракция «Стадо Расколотого Рога». Модель — Display этой сборки (GeckoLib Custom Model). Скрипт: <code>hs_core.js</code> + файл босса, события <code>init</code>/<code>tick</code>/<code>timer</code>/<code>damaged</code>/<code>meleeAttack</code>/<code>died</code>. Все правила «Закона Стада» (потолок урона, рассеивание, поводок, сброс, ярость, масштаб HP, множитель <code>HS.DMG</code>) действуют у всех. Проценты и BASE HP ниже — при ×1. Ниже — только то, что у каждого своё.</p>
 <div class="cols">
 <article class="boss">
   <div class="eyebrow">Б1 · A4 Загон 44×38 · ворота в локацию 2</div>
@@ -867,7 +867,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 
 <h3>4. Скрипты</h3>
 <p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. Координаты в файлах боссов — заглушки в блоках раскладки; после постройки подставь мировые (origin данжа + координата с карты). Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
-<p>Сложность исходящего урона крутится <b>в одном месте</b>: поле <code>HS.DMG</code> в первом файле (<code>hs_core.js</code>) или ключ world storeddata <code>hs_dmg</code> (перекрывает файл, пока сервер не перезапустят и ключ не сотрут). Боссы и мобы вызывают <code>hsStrike</code> / <code>hsStart</code>, поэтому править каждый спелл не нужно. Автоатака из вкладки Stats не масштабируется — её урон оставь маленьким, опасность идёт из скрипта.</p>
+<p>Сложность крутится <b>в одном месте</b>: поле <code>HS.DMG</code> в первом файле (<code>hs_core.js</code>) или ключ world storeddata <code>hs_dmg</code> (перекрывает файл, пока сервер не перезапустят и ключ не сотрут). Он множит и исходящий урон (<code>hsStrike</code> / <code>hsStart</code>), и HP боссов на пуле. Автоатака и HP мобов переходов — из вкладки Stats, их множитель не трогает.</p>
 
 <details open><summary>hs_core.js — общая библиотека (первый файл у боссов и мобов)</summary>
 <pre>// hs_core.js — общая библиотека Herdstone. В контейнере скрипта NPC это ПЕРВЫЙ файл,
@@ -884,7 +884,7 @@ var HS = {
     CAP: 12,           // потолок урона по боссу за один удар
     WEAK: 0.25,        // множитель урона вне окна уязвимости
     BASE_HP: 300,      // HP на одного игрока; на пуле × (0.7 + 0.3·N)
-    DMG: 1,            // множитель исходящего урона всего данжа (0.75 легче, 1.25 жёстче)
+    DMG: 1,            // множитель урона данжа и HP боссов (0.75 легче, 1.25 жёстче)
     ENRAGE_SEC: 360,   // через сколько секунд боя — смертельный удар раз в 10 с
     DISPEL_SEC: 50,    // рассеивание эффектов игроков
     EMPTY_SEC: 15,     // столько секунд без игроков на арене — полный сброс
@@ -936,8 +936,9 @@ function hsDespawnAll(npc, name) {
     for (var i = 0; i &lt; l.length; i++) l[i].despawn();
 }
 
-// Общий множитель урона. Сначала world storeddata "hs_dmg" (живёт до рестарта/ручной смены),
-// иначе HS.DMG из этого файла. hsKill / ярость / GUI-мили не трогает.
+// Общий множитель. Сначала world storeddata "hs_dmg" (живёт до рестарта/ручной смены),
+// иначе HS.DMG из этого файла. Умножает исходящий урон и max HP боссов.
+// hsKill / ярость / GUI-мили / потолок урона по боссу не трогает.
 function hsScale(world) {
     var v = HS.DMG;
     if (world != null) {
@@ -962,6 +963,11 @@ function hsStart(npc, id, target, params) {
         return AbilityAPI.start(npc, id, target, params);
     }
     return AbilityAPI.start(npc, id, target);
+}
+
+function hsBossHp(npc, nPlayers) {
+    var n = nPlayers &lt; 1 ? 1 : nPlayers;
+    return Math.max(1, Math.round(HS.BASE_HP * (0.7 + 0.3 * n) * hsScale(npc.getWorld())));
 }
 
 // Удар в долях максимального HP. setHealth не режется бронёй, «Защитой», Сопротивлением и поглощением.
@@ -1020,8 +1026,9 @@ function hsInit(npc) {
     hsPut(npc, "fight_at", 0);
     hsPut(npc, "empty_at", 0);
     hsPut(npc, "enrage_at", 0);
-    npc.getStats().setMaxHealth(HS.BASE_HP);
-    npc.setHealth(HS.BASE_HP);
+    var hp0 = hsBossHp(npc, 1);
+    npc.getStats().setMaxHealth(hp0);
+    npc.setHealth(hp0);
     if (GATE.length &gt; 0) hsSetGate(npc, true);
     return true;
 }
@@ -1033,7 +1040,7 @@ function hsFight(npc) {
     var fightAt = hsNum(npc, "fight_at");
     if (fightAt == 0) {
         if (ps.length == 0 || npc.getAttackTarget() == null) return null;
-        var hp = Math.round(HS.BASE_HP * (0.7 + 0.3 * ps.length));
+        var hp = hsBossHp(npc, ps.length);
         npc.getStats().setMaxHealth(hp);
         npc.setHealth(hp);
         hsPut(npc, "fight_at", now);
@@ -2078,8 +2085,9 @@ function setPlug(w, closed) {
 }</pre></details>
 
 <details><summary>Шкала урона данжа (опциональный Scripted Block у входа, ПКМ в креативе)</summary>
-<pre>// Пишет world storeddata "hs_dmg". Все NPC с hs_core читают его в hsScale.
-// Цикл: 0.75 → 1 → 1.25 → 1.5 → 2 → 0.75. Без блока достаточно поменять HS.DMG в ядре.
+<pre>// Пишет world storeddata "hs_dmg". Все NPC с hs_core читают его в hsScale:
+// исходящий урон и HP боссов. Цикл: 0.75 → 1 → 1.25 → 1.5 → 2 → 0.75.
+// Без блока достаточно поменять HS.DMG в ядре.
 var STEPS = [0.75, 1, 1.25, 1.5, 2];
 
 function interact(e) {
@@ -2097,7 +2105,7 @@ function interact(e) {
         }
     }
     d.put("hs_dmg", String(next));
-    e.player.message("§eУрон данжа ×" + next);
+    e.player.message("§eУрон и HP боссов ×" + next);
 }</pre></details>
 
 <details><summary>Туман C3 (скрытый Scripted Block)</summary>

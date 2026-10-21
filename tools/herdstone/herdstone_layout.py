@@ -137,6 +137,8 @@ L1 = [
          label="A4 Загон · арена Б1", sub=("44×38 бл. · 4 кола",), at=(200, 9)),
     path(1, "path_A5_A4", "PATH", 6, [262, 90, 270, 70, 278, 55], air=True,
          label="Загонная тропа", sub=("отряд",), at=(281, 76)),
+    circle(1, "sinkhole", "SAFE", 230, 26, 26, air=True, java=False, cls="rm sink",
+           label="Провал к Б4", sub=("открытый колодец · ночное небо",), at=(204, 58)),
     rect(1, "entrance", "ROOM", 90, 242, 24, 9, "gate", air=True, walls=5, cls="ink", tag="ВХОД"),
     rect(1, "exit_gate", "ROOM", 168, 242, 27, 9, "gate", air=True, walls=5, cls="ink", tag="ВЫХОД"),
     circle(1, "gallows", "SAFE", 181, 223, 10, "gate", air=True,
@@ -219,19 +221,19 @@ L4 = [
     path(4, "c_D1_D2", "CORRIDOR", 8, [151, 160, 104, 132]),
     circle(4, "D2", "ROOM", 80, 118, 30,
            label="D2 Круг Вызова", sub=("чемпион + бестигоры",), at=(50, 158)),
-    path(4, "c_D2_D3", "CORRIDOR", 8, [86, 92, 112, 62]),
-    circle(4, "D3", "ARENA", 122, 44, 26, "boss", tag="Б4",
-           label="D3 Роща · арена Б4", sub=("r 26",), at=(152, 66)),
-    path(4, "chan_n", "PATH", 3, [122, 44, 122, 21], floor="minecraft:red_nether_bricks", cls="chan"),
-    path(4, "chan_sw", "PATH", 3, [122, 44, 102, 58], floor="minecraft:red_nether_bricks", cls="chan"),
-    path(4, "chan_se", "PATH", 3, [122, 44, 142, 58], floor="minecraft:red_nether_bricks", cls="chan"),
-    mark(4, "stone", 122, 44, "boss", cls="stone", java=False),
-    *marks(4, "heart", "heart", [(122, 22), (103, 57), (141, 57)]),
-    *marks(4, "crystal", "crystal", [(112, 34), (132, 34), (112, 54), (132, 54)]),
-    rect(4, "D4", "ROOM", 158, 20, 40, 30, "item",
-         label="D4 Добыча", sub=("после Б4",), at=(160, 16)),
-    path(4, "c_D3_D4", "CORRIDOR", 6, [146, 38, 159, 35]),
-    mark(4, "exit_up", 190, 35, "gate", sub=("выход",), at=(184, 58)),
+    path(4, "c_D2_D3", "CORRIDOR", 8, [100, 100, 150, 70, 200, 48, 218, 40]),
+    circle(4, "D3", "ARENA", 230, 26, 26, "boss", tag="Б4", air=True,
+           label="D3 Роща · арена Б4", sub=("r 26 · колодец до неба",), at=(175, 72)),
+    path(4, "chan_n", "PATH", 3, [230, 26, 230, 4], floor="minecraft:red_nether_bricks", cls="chan"),
+    path(4, "chan_sw", "PATH", 3, [230, 26, 211, 39], floor="minecraft:red_nether_bricks", cls="chan"),
+    path(4, "chan_se", "PATH", 3, [230, 26, 249, 39], floor="minecraft:red_nether_bricks", cls="chan"),
+    mark(4, "stone", 230, 26, "boss", cls="stone", java=False),
+    *marks(4, "heart", "heart", [(230, 4), (211, 39), (249, 39)]),
+    *marks(4, "crystal", "crystal", [(220, 16), (240, 16), (220, 36), (240, 36)]),
+    rect(4, "D4", "ROOM", 164, 2, 40, 28, "item",
+         label="D4 Добыча", sub=("после Б4",), at=(120, 10)),
+    path(4, "c_D3_D4", "CORRIDOR", 6, [208, 22, 198, 16]),
+    mark(4, "exit_up", 198, 16, "gate", sub=("выход",), at=(184, 48)),
     path(4, "S4", "CORRIDOR", 4, [95, 140, 120, 230, 300, 230, 300, 174], floor=CYAN),
     mark(4, "S4_mark", 210, 230, "sc", tag="S4"),
     *marks(4, "pack", "pack", [(292, 150), (210, 200), (60, 100)]),
@@ -251,7 +253,7 @@ CAPTIONS = {
     1: "Сетка 10 / 50 блоков · рамка данжа 350×247 · арена Б1 44×38 · переходы A1 → A2 → A3 → Тропа черепов → A5 → A4",
     2: "Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20) · S2: рычаг в Притворе B4 → B1",
     3: "Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · S3: лестница из Норы к C1 · пунктир — потайной лаз в C4",
-    4: "Порядок: D0 → D1 → D2 → арена D3 (r 26) · красные линии — жёлобы · S4: лестница из Круга Вызова к D0",
+    4: "Порядок: D0 → D1 → D2 → арена D3 (r 26, открытый колодец западнее A4) · красные линии — жёлобы · S4: лестница из Круга Вызова к D0",
 }
 
 
@@ -334,6 +336,19 @@ def check() -> list[str]:
             x, z = p.geom
             if not any(contains(a, x, z) for a in areas[p.lv]) and not on_path(p.lv, x, z):
                 errors.append(f"L{p.lv} {p.id}: ({x}, {z}) вне зон и проходов")
+    for p in PIECES:
+        if p.lv != 4 or p.id != "D3" or p.shape != "circle":
+            continue
+        cx, cz, r = p.geom
+        pts = [(cx, cz)]
+        for k in range(16):
+            ang = k * math.pi / 8
+            pts.append((cx + r * math.cos(ang), cz + r * math.sin(ang)))
+        for lv in (1, 2, 3):
+            hit = [a.id for a in areas[lv] if a.java and a.id != "sinkhole"
+                   and any(contains(a, x, z) for x, z in pts)]
+            if hit:
+                errors.append(f"D3 колодец неба пересекает L{lv}: {', '.join(hit)}")
     return errors
 
 
@@ -648,6 +663,7 @@ LEGEND = {
     "dot": ('<line class="pa dot" x1="2" y1="8" x2="24" y2="8"/>', "потайной лаз"),
     "rm": ('<rect class="rm" x="2" y="2" width="22" height="12"/>', "помещение / поляна"),
     "safe": ('<rect class="rm safe" x="2" y="2" width="22" height="12"/>', "безопасная зона"),
+    "sink": ('<circle class="rm sink" cx="13" cy="8" r="6"/>', "открытый провал к арене Б4"),
     "water": ('<rect class="rm water" x="2" y="2" width="22" height="12"/>', "затоплено"),
     "warp": ('<rect class="rm warp" x="2" y="2" width="22" height="12"/>', "ядовитый туман"),
     "sec": ('<rect class="rm sec" x="2" y="2" width="22" height="12"/>', "скрытое помещение"),
@@ -686,6 +702,8 @@ def legend_keys(lv) -> list[str]:
     for p in ps:
         if p.cls in ("ord", "dst", "border", "out", "chan"):
             add(p.cls)
+        elif p.cls == "rm sink":
+            add("sink")
         elif p.cls == "ink" and p.shape == "rect":
             add("gate")
         elif p.cls == "pa dot":

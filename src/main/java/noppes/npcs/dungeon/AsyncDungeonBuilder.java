@@ -279,6 +279,48 @@ public final class AsyncDungeonBuilder {
         if (!rec.marker.isEmpty()) {
             addSet(jobs, ox + rec.x + rec.w / 2, y0 + 1, oz + rec.z + rec.d / 2, marker(rec.marker));
         }
+        if (openAir && rec.kind == Kind.ARENA && rec.level > 1) {
+            carveSkyWell(jobs, def, rec, ox, oy, oz, y0, h);
+        }
+    }
+
+    /** Воздух от верха стен арены до headroom поверхности и парапет вокруг провала на L1. */
+    private static void carveSkyWell(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,
+                                     final int ox, final int oy, final int oz, final int y0, final int h) {
+        final int yTop = floorY(def, 1, oy) + def.clearHeadroom;
+        final int yFrom = y0 + h;
+        if (yTop < yFrom) {
+            return;
+        }
+        final int xMin = rec.x;
+        final int zMin = rec.z;
+        final int xMax = rec.x + rec.w - 1;
+        final int zMax = rec.z + rec.d - 1;
+        final int y1 = floorY(def, 1, oy);
+        for (int z = zMin; z <= zMax; z++) {
+            int airRun = Integer.MIN_VALUE;
+            int rimRun = Integer.MIN_VALUE;
+            for (int x = xMin; x <= xMax + 1; x++) {
+                final boolean inside = x <= xMax && DungeonGeometry.contains(rec, x, z);
+                final boolean rim = inside && DungeonGeometry.perimeter(rec, x, z);
+                if (inside) {
+                    if (airRun == Integer.MIN_VALUE) {
+                        airRun = x;
+                    }
+                } else if (airRun != Integer.MIN_VALUE) {
+                    addClear(jobs, ox + airRun, yFrom, oz + z, ox + x - 1, yTop, oz + z);
+                    airRun = Integer.MIN_VALUE;
+                }
+                if (rim) {
+                    if (rimRun == Integer.MIN_VALUE) {
+                        rimRun = x;
+                    }
+                } else if (rimRun != Integer.MIN_VALUE) {
+                    addFill(jobs, ox + rimRun, y1, oz + z, ox + x - 1, y1 + 3, oz + z, "minecraft:dark_oak_log");
+                    rimRun = Integer.MIN_VALUE;
+                }
+            }
+        }
     }
 
     private static boolean skipWall(final Piece rec, final int x, final int z, final List<Piece> openings,

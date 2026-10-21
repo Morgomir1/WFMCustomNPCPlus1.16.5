@@ -83,6 +83,13 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 .route{fill:none;stroke:var(--ink);stroke-width:2.5}
 .tw{fill:var(--bark)} .stake{fill:var(--bark)} .tot{fill:var(--puz)} .herd{fill:var(--ink)} .itm{fill:var(--moss)}
 .chan{stroke:var(--boss);stroke-width:5;fill:none}
+.el{fill:var(--destr);stroke:var(--ink);stroke-width:1.2} .hrt{fill:var(--boss);stroke:var(--ink);stroke-width:1.2} .cr{fill:var(--moss);stroke:var(--ink);stroke-width:1}
+.fog{fill:var(--moss);fill-opacity:.25;stroke:var(--moss);stroke-width:1.5;stroke-dasharray:3 3}
+.law{background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--boss);padding:10px 14px;margin:10px 0}
+.el{fill:var(--destr);stroke:var(--ink);stroke-width:1.2} .hrt{fill:var(--boss);stroke:var(--ink);stroke-width:1.5} .cr{fill:var(--moss);stroke:var(--ink);stroke-width:1}
+.fog{fill:var(--moss);fill-opacity:.18;stroke:var(--moss);stroke-width:1.5;stroke-dasharray:3 3}
+.el{fill:var(--destr);stroke:var(--paper);stroke-width:1.5} .hrt{fill:var(--boss);stroke:var(--ink);stroke-width:1.5}
+.cr{fill:var(--moss);stroke:var(--ink);stroke-width:1} .fog{fill:none;stroke:var(--moss);stroke-width:2;stroke-dasharray:3 3}
 .bm{fill:var(--boss)} .pm{fill:var(--puz)} .sm{fill:var(--sc)} .om{fill:var(--order)} .dm{fill:var(--destr)} .ink{fill:var(--ink)}
 .l{font:700 13px var(--sans);fill:var(--ink)}
 .s{font:11px var(--mono);fill:var(--muted)}
@@ -108,11 +115,11 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <header>
   <div class="eyebrow">Данж · сборка в CustomNPC+ 1.16.5 · Warhammer Fantasy · Зверолюды</div>
   <h1>Камень Расколотого Рога</h1>
-  <p class="lead">Логово мятежного стада в Драквальде из четырёх локаций: Гнилая просека, Осквернённая крипта, Корневые глубины и Провал Камня Стада. Каждая локация заканчивается ареной с боссом, и только через неё можно пройти дальше. Вход один, выход один, после последнего босса. Стадо враждебно и Порядку, и Разрушению, поэтому все квесты внутри данжа одинаковые для обеих сторон.</p>
-  <div class="meta"><span>Игроки: <b>1–4</b></span><span>Снаряжение: <b>железо → алмаз</b></span><span>Время: <b>60–90 мин</b></span><span>Респаун всего: <b>1 час</b></span><span>Этаж: <b>350×247 блоков</b></span><span>Глубина: <b>≈80 блоков</b></span></div>
+  <p class="lead">Логово мятежного стада в Драквальде из четырёх локаций: Гнилая просека, Осквернённая крипта, Корневые глубины и Провал Камня Стада. Каждая локация — длинные переходы с отрядами и элитами, которые бьют больно и по-разному, и тесная арена с боссом, через которую лежит путь дальше. Ни один бой здесь не выигрывается бронёй и зельями: опасные удары снимают процент от максимального здоровья, боссы срывают с игроков эффекты, а урон по боссу ограничен за удар. Вход один, выход один, после последнего босса. Стадо враждебно и Порядку, и Разрушению, поэтому все квесты внутри данжа одинаковые для обеих сторон.</p>
+  <div class="meta"><span>Игроки: <b>1–4</b></span><span>Снаряжение: <b>любое — решают механики</b></span><span>Время: <b>60–90 мин</b></span><span>Респаун всего: <b>1 час</b></span><span>Этаж: <b>350×247 блоков</b></span><span>Глубина: <b>≈80 блоков</b></span></div>
 </header>
 
-<nav aria-label="Разделы"><a href="#lore">Лор</a><a href="#rules">Правила</a><a href="#camps">Лагеря и квесты</a><a href="#cut">Разрез</a><a href="#l1">Локация 1</a><a href="#l2">Локация 2</a><a href="#l3">Локация 3</a><a href="#l4">Локация 4</a><a href="#bosses">Боссы</a><a href="#sc">Шорткаты</a><a href="#items">Предметы</a><a href="#cnpc">CustomNPC</a></nav>
+<nav aria-label="Разделы"><a href="#lore">Лор</a><a href="#rules">Правила</a><a href="#audit">Ревизия</a><a href="#law">Закон Стада</a><a href="#bestiary">Бестиарий</a><a href="#camps">Лагеря и квесты</a><a href="#cut">Разрез</a><a href="#l1">Локация 1</a><a href="#l2">Локация 2</a><a href="#l3">Локация 3</a><a href="#l4">Локация 4</a><a href="#bosses">Боссы</a><a href="#sc">Шорткаты</a><a href="#cnpc">CustomNPC</a></nav>
 
 <!-- ================= LORE ================= -->
 <section id="lore">
@@ -133,13 +140,105 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <section id="rules">
 <h2>Правила данжа</h2>
 <div class="rules">
-  <div><b>Один вход</b><span>Врата черепов на южной границе просеки. Граница — терновый декор и ряд <code>minecraft:barrier</code> (ставит смотритель из списка координат). Входа в CNPC для «невидимой стены» нет.</span></div>
-  <div><b>Один выход</b><span>Подъём Висельника открывается только из арены последнего босса после его смерти. Снаружи в него не войти.</span></div>
-  <div><b>Арены — шлюзы</b><span>Проход в следующую локацию начинается в арене босса. Ворота открываются после смерти босса и закрываются, когда он возрождается.</span></div>
-  <div><b>Респаун 1 час</b><span>Через час возрождаются все мобы и боссы, а головоломки, вода, ворота и шорткаты сбрасываются. Делает это NPC-«смотритель».</span></div>
-  <div><b>Шорткаты не обходят боссов</b><span>Все шорткаты ведут внутри одной локации: от прихожей арены назад к началу локации. Срезают мобов и головоломки, но не арены.</span></div>
+  <div><b>Бой решают механики</b><span>Опасные удары боссов и элит снимают долю от <b>максимального</b> здоровья через <code>setHealth</code>. Броня, «Защита», Сопротивление и золотые яблоки их не уменьшают. Боссы регулярно снимают с игроков все эффекты, урон по боссу ограничен за удар. Выживает тот, кто читает телеграфы и делает то, что требует механика.</span></div>
+  <div><b>Переходы — тоже бой</b><span>Между аренами — 40–170 блоков троп и коридоров шириной 6–8 блоков. На них стоят отряды по 3–4 моба и элиты. У каждого моба своя абилка с телеграфом, и удар по зазевавшемуся снимает 15–35% HP.</span></div>
+  <div><b>Арены тесные</b><span>Б1 — 44×38 блоков, Б2 — круг радиусом 20, Б3 — радиусом 21, Б4 — радиусом 26. Убежать от механики через всю арену нельзя. Тех, кто полез на стену или к выходу, поводок возвращает в круг с потерей 25% HP.</span></div>
+  <div><b>Один вход</b><span>Врата черепов на южной границе просеки. Граница — терновый декор и ряд <code>minecraft:barrier</code>. Барьер ставится один раз при постройке и больше не трогается.</span></div>
+  <div><b>Один выход</b><span>Подъём Висельника закрыт барьером. Его снимает <code>died</code> Гарракса и возвращает <code>init</code> Гарракса при возрождении. Снаружи в выход не войти.</span></div>
+  <div><b>Арены — шлюзы</b><span>Проход в следующую локацию начинается в арене босса. Завал снимает <code>died</code> босса и ставит <code>init</code>: CNPC вызывает <code>init</code> при каждом возрождении NPC.</span></div>
+  <div><b>Респаун 1 час</b><span>Встроенный Respawn 3600 у всех мобов и боссов. Таймер считается в реальном времени и хранится в NBT NPC, возрождение — при загрузке чанка. Ни <code>/forceload</code>, ни NPC-смотритель не нужны.</span></div>
+  <div><b>Нет глобального состояния</b><span>Состояние хранится на самом боссе или блоке (storeddata, tempdata, таймеры NPC). Ключей в world storeddata, которые надо кому-то обнулять, нет.</span></div>
+  <div><b>Шорткаты не обходят боссов</b><span>Все шорткаты ведут внутри одной локации: от прихожей арены назад к её началу. Срезают переходы с мобами, но не арены. Закрываются сами через час.</span></div>
   <div><b>Квесты универсальные</b><span>Ни одна механика внутри данжа не привязана к фракции. Задания одни и те же, лагеря выдают их через разных NPC.</span></div>
 </div>
+</section>
+
+<!-- ================= AUDIT ================= -->
+<section id="audit">
+<h2>Ревизия механик</h2>
+<h3>Раунд 2: упор на бой</h3>
+<p>Игроки на сервере пропускают всё, что можно пропустить: стелс, приманки, головоломки. Поэтому из плана убрано всё, что можно обойти силой, а сложность перенесена в боссов и мобов, механики которых обязательны.</p>
+<div class="tbl"><table>
+<thead><tr><th>Что</th><th>Было</th><th>Стало</th><th>Почему</th></tr></thead>
+<tbody>
+<tr><td>Стелс A2, Мускусная маска</td><td>Вышки унгоров, маска отменяет агро</td><td>Вышки лучников с ядовитым плевком + три отряда на тропе</td><td>Стелс, который можно проигнорировать, ничего не проверяет. Лучники и отряды проверяют бой</td></tr>
+<tr><td>Мясо минотаврам, кормушки Горгона, пиршество D1</td><td>Окорок отвлекает или останавливает</td><td>Минотавры — элиты с «Кровавым безумием», у Горгона стаки «Раздирания» и сжатие арены</td><td>Приманка превращала бой в обход, а без неё игроки просто били</td></tr>
+<tr><td>Головоломки</td><td>Вентили B2, тотемы B3, барабаны C2, колокольня A6</td><td>На их месте отряды и элиты: шаманы, Тотем Стада, Барабанщик</td><td>Головоломка останавливает группу, но не проверяет, умеет ли она драться</td></tr>
+<tr><td>Ключевые предметы и тайники</td><td>Засов, Тотемный амулет, Рог Бра-шамана, Гнилой окорок, маска</td><td>Убраны. Обряд Б4 срывают только кристаллы, настоящего Мургрота выдают частицы</td><td>Ни одна механика не держится на предмете, который можно пронести между заходами или потерять</td></tr>
+<tr><td>Шкрик</td><td>Кормление окороком открывает S2</td><td>Только диалог с подсказками по Мургроту. S2 — рычаг</td><td>Нет предметов — нечем кормить</td></tr>
+<tr><td>Размер арен</td><td>Б1 111×63, Б2 эллипс 167×75, Б3 r 61, Б4 r 86</td><td>Б1 44×38, Б2 r 20, Б3 r 21, Б4 r 26</td><td>На огромной арене от любой механики уходят бегом. На тесной надо знать паттерн</td></tr>
+<tr><td>Переходы</td><td>Короткие коридоры 6–7 блоков длиной</td><td>40–170 блоков, ширина 6–8, по 1–3 отряда и элите на каждом</td><td>Бой между боссами — часть данжа, а не пробежка</td></tr>
+<tr><td>Урон по игроку</td><td><code>damage(n)</code> и урон абилок</td><td>Доля от максимального HP через <code>setHealth</code>. Смертельный удар: <code>clearPotionEffects</code> → <code>setHealth(1)</code> → <code>dealPureDamage(100)</code></td><td>Обычный урон режут броня, «Защита», Сопротивление и поглощение. <code>setHealth</code> они не трогают</td></tr>
+<tr><td>Урон по боссу</td><td>Без ограничений</td><td>Потолок за удар (12–14), вне окна уязвимости ×0,25</td><td>Иначе незерит с Остротой V и Силой II сносит босса раньше, чем тот покажет механику</td></tr>
+</tbody></table></div>
+
+<h3>Раунд 1: что не собирается в CNPC</h3>
+<p>План сверен с исходниками этой сборки CNPC 1.16.5 (<code>lib/CustomNPCs v1.16.5-deobf-sources.jar</code>) и модовыми <code>AbilityAPI</code>/<code>TelegraphAPI</code>/<code>ZoneAPI</code>. Оставлены только механики, которые собираются штатным GUI и скриптами без доработки Java.</p>
+<div class="tbl"><table>
+<thead><tr><th>Механика</th><th>Было</th><th>Стало</th><th>Почему</th></tr></thead>
+<tbody>
+<tr><td>Сброс данжа</td><td>NPC-смотритель раз в час, <code>/forceload</code> чанков</td><td>Respawn 3600 + <code>init</code> боссов закрывает ворота + самозакрывающиеся Scripted Block</td><td>Смотритель работает только в загруженном чанке. Респаун CNPC и так считается в реальном времени и срабатывает при загрузке чанка (<code>killedtime</code> в NBT), а <code>reset()</code> вызывает <code>init</code></td></tr>
+<tr><td>Общие ключи world storeddata</td><td>Обнуляет смотритель</td><td>Состояние на боссе/блоке, в tempdata или таймерах NPC</td><td>Без смотрителя их некому обнулять</td></tr>
+<tr><td>S3 пузырьковый лифт</td><td><code>setBlock</code> песка душ и воды</td><td>Готовая лестничная шахта за завалом, скрипт только снимает завал</td><td><code>world.setBlock</code> ставит блок с флагом 2 без оповещения соседей — столб пузырей не образуется</td></tr>
+<tr><td>S4 лестница</td><td><code>setBlock("minecraft:ladder")</code> по Y</td><td>Готовая лестница за люком из полных блоков</td><td><code>setBlock</code> ставит состояние по умолчанию (лестница всегда «на север»)</td></tr>
+<tr><td>Решётки и калитки</td><td><code>iron_bars</code> / <code>oak_fence</code> через <code>setBlock</code></td><td>Только полные блоки (кирпич, доски, бревно)</td><td>Состояние по умолчанию у панелей и заборов без соединений — получается столбик с щелями</td></tr>
+<tr><td>Туман C3</td><td>Невидимый NPC, <code>PotionEffectType_CONFUSION</code></td><td>Скрытый Scripted Block, <code>PotionEffectType_NAUSEA</code></td><td>Константы <code>CONFUSION</code> в CNPC нет — скрипт падал бы</td></tr>
+<tr><td>Мургрот «стоит и стреляет»</td><td>On Attack = Ничего</td><td>On Attack = Мстить, скорость ходьбы 0</td><td>При On Attack = Ничего (3) CNPC не добавляет ни мили-, ни рендж-атаку</td></tr>
+<tr><td>Оглушение боссов</td><td>«Стоит и не бьёт»</td><td>On Attack = Ничего + скорость 0 на время оглушения, затем вернуть</td><td>Как раз из-за строки выше: режим 3 снимает все атаки</td></tr>
+<tr><td>Круг Вызова D2</td><td>Чемпион фракции Стада с диалогом</td><td>Бестигоры во фракции «Нейтралы данжа», при вызове — <code>setFaction</code> Стада</td><td>NPC враждебной фракции не открывает диалог (<code>mobInteract</code> сразу выходит)</td></tr>
+<tr><td>Варп-кристаллы Б4</td><td><code>world.thunderStrike</code> раз в 5 с</td><td>−10% HP игрокам в радиусе 4 + частицы и звук</td><td>Молния поджигает подземную рощу из дерева</td></tr>
+<tr><td>Призванные адды, копии, сердца, тотемы</td><td>Те же клоны с Respawn 3600</td><td>Отдельные клоны «… (призыв)» с Respawn = Нет</td><td>Клон с респауном остаётся в мире навсегда — каждый вызов копил бы мобов</td></tr>
+<tr><td>Проверка «второй босс мёртв», «тотем жив»</td><td>«Если его нет рядом»</td><td><code>isAlive()</code> у найденного NPC</td><td>Убитый NPC с респауном остаётся сущностью в мире до возрождения</td></tr>
+<tr><td>Задержки абилок</td><td>Счётчики в <code>tick</code></td><td><code>npc.getTimers().forceStart(id, тики, false)</code> + событие <code>timer</code></td><td><code>tick</code> NPC идёт раз в 10 тиков — для «удар через 1,5 с после телеграфа» это слишком грубо</td></tr>
+<tr><td><code>player.kill()</code> как смерть</td><td>—</td><td><code>hsKill</code>: снять эффекты, 1 HP, MAGIC-урон</td><td>Для игроков <code>kill()</code> — это <code>remove()</code>, а не смерть</td></tr>
+<tr><td>Kill-квесты в группе</td><td>Type: Kill</td><td>Type: Area Kill</td><td>Kill засчитывается только добившему; Area Kill — всем игрокам в 10 блоках</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ================= LAW ================= -->
+<section id="law">
+<h2>Закон Стада: общие правила боссов</h2>
+<p>Все боссы подключают общий файл <code>hs_core.js</code> (раздел CustomNPC). Он даёт восемь правил, которые делают бой одинаково опасным для группы в железе и для группы в незерите под зельями.</p>
+<div class="law"><b>1. Потолок урона.</b> В <code>damaged</code>: <code>e.damage = min(e.damage, CAP) × множитель</code>. CAP 12–14. Вне окна уязвимости множитель 0,25, в окне — 1, в фазе неуязвимости удар отменяется. После удара у NPC 10 тиков неуязвимости, поэтому вся группа вместе наносит боссу не больше ≈ 2×CAP в секунду. Решает не сила оружия, а то, сколько времени босс открыт.</div>
+<div class="law"><b>2. Удары в процентах.</b> <code>hsStrike(p, 0.3)</code> — минус 30% максимального HP через <code>setHealth</code>, мимо брони, «Защиты», Сопротивления и поглощения. Если удар добивает — <code>hsKill</code>: снять все эффекты, оставить 1 HP и добить MAGIC-уроном 100. Тотем бессмертия спасает один раз — это честно.</div>
+<div class="law"><b>3. Рассеивание.</b> Раз в 45–50 с босс снимает с игроков на арене все эффекты: Сопротивление, Силу, регенерацию, поглощение. Зелья держатся только до следующего рёва.</div>
+<div class="law"><b>4. Телеграф перед каждым опасным ударом.</b> Красный круг, конус или полоса <code>TelegraphAPI</code> горят 1,5–2 с, затем срабатывает удар по тем, кто остался внутри. Смерть в данже всегда означает «стоял в красном» или «не сделал механику».</div>
+<div class="law"><b>5. Поводок.</b> Игрок до 8 блоков за краем арены или выше пола на 4+ блока (столб, жемчуг на стену) переносится в центр и теряет 25% HP. Стрелять со стены и танцевать в дверях нельзя.</div>
+<div class="law"><b>6. Сброс.</b> 15 с без игроков на арене — <code>npc.reset()</code>: полное HP, фазы, ворота, адды убраны. Вылечиться на шорткате и вернуться к той же фазе нельзя.</div>
+<div class="law"><b>7. Ярость.</b> Через 6–10 минут боя босс раз в 10 с бьёт случайного игрока смертельным ударом. Затянуть бой регенерацией нельзя.</div>
+<div class="law"><b>8. Масштаб по группе.</b> На пуле <code>maxHP = BASE × (0,7 + 0,3·N)</code>, где N — игроки на арене. Соло — 100%, вчетвером — 190%: из-за потолка урона четверо всё равно не убьют босса вчетверо быстрее.</div>
+<div class="tbl"><table>
+<thead><tr><th>Босс</th><th>BASE HP</th><th>CAP</th><th>Окно уязвимости (×1)</th><th>Рассеивание</th><th>Ярость</th></tr></thead>
+<tbody>
+<tr><td>Кровохряк</td><td>300</td><td>12</td><td>6 с оглушения после кола; иначе ×0,25</td><td>— (рычит Грул)</td><td>6 мин</td></tr>
+<tr><td>Грул Кабанья Рука</td><td>220</td><td>12</td><td>Всегда</td><td>45 с</td><td>6 мин</td></tr>
+<tr><td>Мургрот</td><td>260</td><td>12</td><td>Пока на арене нет живых тотемов</td><td>50 с</td><td>7 мин</td></tr>
+<tr><td>Горгон</td><td>520</td><td>14</td><td>Всегда</td><td>50 с</td><td>8 мин</td></tr>
+<tr><td>Гарракс</td><td>900</td><td>14</td><td>Фазы 1 и 2б; в фазе 2 неуязвим; в фазе 3 ×0,25, пока живы кристаллы</td><td>50 с</td><td>10 мин</td></tr>
+<tr><td>Бормочущий (секрет)</td><td>380</td><td>12</td><td>Всегда</td><td>50 с</td><td>8 мин</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ================= BESTIARY ================= -->
+<section id="bestiary">
+<h2>Бестиарий переходов</h2>
+<p>Мобы стоят отрядами по 3–4 (белые точки на картах) и поодиночке как элиты (кружок с буквой). Все абилки — штатные из <code>AbilityAPI</code>, настройка — пресеты <code>CASTS</code> в <code>hs_mob.js</code>. Процентный удар снимается только с тех, кто остался в телеграфе.</p>
+<div class="tbl"><table>
+<thead><tr><th>Моб</th><th>Где</th><th>HP</th><th>Что делает</th><th>Как не умереть</th></tr></thead>
+<tbody>
+<tr><td><b>Гор-рубака</b></td><td>Отряды всех этажей</td><td>45</td><td>Рывок 8 блоков после полосы-телеграфа 1,2 с: −15% HP.</td><td>Шаг в сторону с полосы. После рывка он секунду стоит — бей.</td></tr>
+<tr><td><b>Гор-щитоносец</b> (Щ)</td><td>A1, A5, вожаки отрядов</td><td>80</td><td><code>shield_block</code> на 3 с: спереди в конусе 120° урон не проходит.</td><td>Заходить сбоку и со спины. Бить в лоб в щит — пустая трата времени.</td></tr>
+<tr><td><b>Унгор-лучник</b></td><td>Вышки A2, отряды</td><td>35</td><td>Стрелы и ядовитый плевок <code>crimson_blob</code>: лужа r 2,5 с ядом на 8 с.</td><td>Выходить из лужи. Вышки бить первыми: снизу лучник видит всех.</td></tr>
+<tr><td><b>Унгор-рейдер</b></td><td>Отряды, адды Грула</td><td>40</td><td>Каждый удар — Slowness II на 2 с.</td><td>Не стоять в толпе рейдеров: замедление не даёт уйти из телеграфов.</td></tr>
+<tr><td><b>Бра-шаман</b> (Ш)</td><td>B2, B3</td><td>60</td><td>Раз в 6 с лечит стадо в 8 блоках на 15% и даёт Сопротивление. Раз в 20 с — «Проклятая песнь» (фиолетовый круг r 12, 4 с): если за это время не нанести ему 20 урона, все в круге теряют 35% HP и получают тошноту.</td><td>Убивать первым. На песнь — все на шамана или все из круга.</td></tr>
+<tr><td><b>Тотем Стада</b> (Т)</td><td>B3</td><td>80</td><td>Стоит. Стаду в 8 блоках постоянно даёт Сопротивление II (−40% урона).</td><td>Сначала тотем, потом всё остальное.</td></tr>
+<tr><td><b>Бестигор-палач</b> (П)</td><td>A3, A5</td><td>120</td><td>Удар-конус <code>barrow_sentinel</code> с добиванием по цели ниже 35% HP. Вращение <code>weapon_spin</code> r 4: −25% HP всем внутри в конце.</td><td>С низким HP к нему не подходить. Из вращения выходить сразу.</td></tr>
+<tr><td><b>Центигор</b> (Ц)</td><td>Галерея костей</td><td>100</td><td>Таран 18 блоков вдоль галереи, телеграф 1,5 с: −30% HP.</td><td>Прятаться в ниши по бокам галереи (через каждые 12 блоков).</td></tr>
+<tr><td><b>Барабанщик</b> (Б)</td><td>C2</td><td>120</td><td>Раз в 8 с даёт всем зверолюдам в 20 блоках Скорость и Силу. На 50% зовёт двух горов. Подошли ближе 4 блоков — отскакивает (<code>retreat_dash</code>).</td><td>Прорываться к нему первым, отряды — потом.</td></tr>
+<tr><td><b>Отродье Хаоса</b> (О)</td><td>C3</td><td>170</td><td>Хватка мертвецов под целью (держит Slowness IV, через 2 с −20% HP) и вращение r 4 (−25%).</td><td>Из хватки выходить до конца телеграфа — в тумане это сложнее.</td></tr>
+<tr><td><b>Минотавр</b> (М)</td><td>C3а, D1</td><td>220</td><td>Прыжок на дальнюю цель (круг r 4, −30%) и рывок 12 блоков (−25%). «Кровавое безумие»: смерть любого минотавра лечит остальных на 20% и даёт Силу на 30 с.</td><td>В D1 бить всех четверых ровно и добивать почти одновременно.</td></tr>
+<tr><td><b>Чемпион Круга</b> (Ч)</td><td>D2</td><td>260</td><td>Пресет палача, дуэль в кольце из барьера.</td><td>Победа открывает S4.</td></tr>
+</tbody></table></div>
 </section>
 
 <!-- ================= CAMPS ================= -->
@@ -171,13 +270,13 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td>4</td><td>«Ночь Тайн»</td><td>Убить думбулла Гарракса и сорвать обряд</td><td>Прерви обряд, пока Камень не проснулся.</td><td>Сломай обряд мятежника и принеси его рога.</td></tr>
 <tr><td>★</td><td>«Шёпот трясины» (необяз.)</td><td>Убить Джабберслайта</td><td>Тварь в топи сводит людей с ума.</td><td>Даже стадо боится Бормочущего. Докажи, что ты сильнее.</td></tr>
 </tbody></table></div>
-<p class="note">В Global → Quests заведи <b>один</b> квест на цель (Type: Kill, имя цели = имя Display босса, например «Грул Кабанья Рука»). В диалоге Отто и в диалоге Гурхака укажи этот же квест (Dialog → Quest). Availability диалога: Faction = своя, Friendly. Completion = Instant. Текст журнала нейтральный; окраска только в репликах. Повтор: в карточке квеста включи Repeatable, если нужно ходить после каждого респауна босса.</p>
+<p class="note">В Global → Quests заведи <b>один</b> квест на цель (Type: <b>Area Kill</b>, имя цели = имя Display босса, например «Грул Кабанья Рука»). Area Kill засчитывает убийство всем игрокам с активным квестом в 10 блоках от цели; обычный Kill — только добившему. В диалоге Отто и в диалоге Гурхака укажи этот же квест (Dialog → Quest). Availability диалога: Faction = своя, Friendly. Completion = Instant. Текст журнала нейтральный; окраска только в репликах. Повтор: в карточке квеста включи Repeatable, если нужно ходить после каждого респауна босса.</p>
 </section>
 
 <!-- ================= CROSS SECTION ================= -->
 <section id="cut">
 <h2>Вертикальный разрез</h2>
-<p>Сплошная линия — маршрут. Красные ромбы — арены, через которые лежит переход между локациями. Бирюзовый пунктир — шорткаты, все внутри своих локаций. Чёрный пунктир — единственный выход.</p>
+<p>Сплошная линия — маршрут. Фиолетовые кружки — переходы с элитами. Красные ромбы — арены, через которые лежит переход между локациями. Бирюзовый пунктир — шорткаты, все внутри своих локаций. Чёрный пунктир — единственный выход.</p>
 <p class="note">Масштаб планов: терновая рамка локации 1 = <b>350×247 блоков</b> (длинная сторона 350). Тонкая сетка — 10 блоков, жирная — 50. Остальные этажи в том же масштабе. Разрез схематичный (Y слоёв ориентировочно 64–80 / 44–60 / 24–40 / 4–20).</p>
 <div class="mapbox">
 <svg viewBox="0 0 800 400" role="img" aria-label="Разрез данжа">
@@ -197,18 +296,18 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <rect class="ink" x="124" y="66" width="12" height="16"/><text class="l" x="112" y="56">вход</text>
   <circle class="ink" cx="190" cy="74" r="5"/><text class="s" x="176" y="96">A1</text>
   <circle class="ink" cx="280" cy="74" r="5"/><text class="s" x="266" y="96">A2–A3</text>
-  <rect class="pm" x="382" y="66" width="16" height="16"/><text class="s" x="364" y="100">A5–A6</text>
+  <circle class="el" cx="390" cy="74" r="7"/><text class="s" x="376" y="100">A5</text>
   <rect class="bm" x="511" y="65" width="18" height="18" transform="rotate(45 520 74)"/><text class="l" x="536" y="70">Б1 арена</text>
   <circle class="ink" cx="420" cy="156" r="5"/><text class="s" x="404" y="180">B1–B2</text>
-  <rect class="pm" x="312" y="148" width="16" height="16"/><text class="s" x="306" y="180">B3</text>
+  <circle class="el" cx="320" cy="156" r="7"/><text class="s" x="306" y="180">B3</text>
   <circle class="ink" cx="230" cy="156" r="5"/><text class="s" x="222" y="180">B4</text>
   <rect class="bm" x="141" y="147" width="18" height="18" transform="rotate(45 150 156)"/><text class="l" x="80" y="186">Б2 арена</text>
-  <rect class="pm" x="252" y="236" width="16" height="16"/><text class="s" x="246" y="268">C2</text>
+  <circle class="el" cx="260" cy="244" r="7"/><text class="s" x="246" y="268">C2</text>
   <circle class="ink" cx="380" cy="244" r="5"/><text class="s" x="364" y="268">C3–C3а</text>
   <rect class="bm" x="511" y="235" width="18" height="18" transform="rotate(45 520 244)"/><text class="l" x="536" y="240">Б3 арена</text>
   <path class="pa dot" d="M520 244 L 680 244"/><rect class="bm" x="671" y="235" width="18" height="18" transform="rotate(45 680 244)" opacity=".6"/><text class="s" x="650" y="270">C4 секрет</text>
   <circle class="ink" cx="610" cy="336" r="5"/><text class="s" x="598" y="360">D1</text>
-  <rect class="pm" x="682" y="328" width="16" height="16"/><text class="s" x="680" y="360">D2</text>
+  <circle class="el" cx="690" cy="336" r="7"/><text class="s" x="680" y="360">D2</text>
   <rect class="bm" x="731" y="327" width="18" height="18" transform="rotate(45 740 336)"/><text class="l" x="700" y="380">Б4 арена</text>
   <!-- exit -->
   <path class="out" d="M748 330 C 790 300, 790 12, 700 12 L 150 12 L 136 40"/>
@@ -219,300 +318,488 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <path class="sc" d="M382 252 C 320 280, 200 280, 152 252"/><text class="lsc" x="262" y="282">S3</text>
   <path class="sc" d="M688 344 C 660 372, 560 372, 524 344"/><text class="lsc" x="600" y="382">S4</text>
 </svg>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ord" x="2" y="2" width="22" height="12"/></svg>лагерь Порядка</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="dst" x="2" y="2" width="22" height="12"/></svg>лагерь Разрушения</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="route" x1="1" y1="8" x2="25" y2="8"/></svg>основной маршрут</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="4"/></svg>зона локации</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="pm" x="7" y="2" width="12" height="12"/></svg>головоломка / испытание</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)" opacity=".6"/></svg>секретный босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa dot" x1="2" y1="8" x2="24" y2="8"/></svg>потайной проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span></div></div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ord" x="2" y="2" width="22" height="12"/></svg>лагерь Порядка</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="dst" x="2" y="2" width="22" height="12"/></svg>лагерь Разрушения</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="route" x1="1" y1="8" x2="25" y2="8"/></svg>основной маршрут</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="4"/></svg>зона локации</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="6"/></svg>переход с элитами</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)" opacity=".6"/></svg>секретный босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa dot" x1="2" y1="8" x2="24" y2="8"/></svg>потайной проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span></div></div>
 </div>
 </section>
 
 <!-- ================= LEVEL 1 ================= -->
 <section id="l1">
 <h2>Локация 1 · Гнилая просека</h2>
-<p>Открытый лес из тёмного дуба и ели. Ближе к руинам листва становится багровой (crimson stem, nether wart block). Локация учит игроков стелсу и показывает, что не каждую стычку нужно начинать. Заканчивается ареной Б1, в которой находится спуск в крипту.</p>
+<p>Открытый лес из тёмного дуба и ели. Ближе к руинам листва становится багровой (crimson stem, nether wart block). Локация знакомит с правилами данжа: у каждого моба есть телеграф, и кто в нём остался, теряет треть здоровья. Путь один: Преддверие → Тропа вышек → Лагерь унгоров → Тропа черепов → Двор обители → Загонная тропа → арена Б1.</p>
 <div class="mapbox">
-<svg viewBox="0 0 800 580" role="img" aria-label="План локации 1 с лагерями фракций">
+<!-- MAP:L1 -->
+<svg viewBox="0 0 800 580" role="img" aria-label="План локации 1 · Гнилая просека">
   <rect class="bg" width="800" height="580"/><rect class="gr" width="800" height="580"/>
   <g class="blkgrid" pointer-events="none" transform="translate(150,18)"><line class="grid-major" x1="0.0" y1="0" x2="0.0" y2="444.6"/><text class="ax" x="0.0" y="-7" text-anchor="middle">0</text><line class="grid-minor" x1="18.0" y1="0" x2="18.0" y2="444.6"/><line class="grid-minor" x1="36.0" y1="0" x2="36.0" y2="444.6"/><line class="grid-minor" x1="54.0" y1="0" x2="54.0" y2="444.6"/><line class="grid-minor" x1="72.0" y1="0" x2="72.0" y2="444.6"/><line class="grid-major" x1="90.0" y1="0" x2="90.0" y2="444.6"/><text class="ax" x="90.0" y="-7" text-anchor="middle">50</text><line class="grid-minor" x1="108.0" y1="0" x2="108.0" y2="444.6"/><line class="grid-minor" x1="126.0" y1="0" x2="126.0" y2="444.6"/><line class="grid-minor" x1="144.0" y1="0" x2="144.0" y2="444.6"/><line class="grid-minor" x1="162.0" y1="0" x2="162.0" y2="444.6"/><line class="grid-major" x1="180.0" y1="0" x2="180.0" y2="444.6"/><text class="ax" x="180.0" y="-7" text-anchor="middle">100</text><line class="grid-minor" x1="198.0" y1="0" x2="198.0" y2="444.6"/><line class="grid-minor" x1="216.0" y1="0" x2="216.0" y2="444.6"/><line class="grid-minor" x1="234.0" y1="0" x2="234.0" y2="444.6"/><line class="grid-minor" x1="252.0" y1="0" x2="252.0" y2="444.6"/><line class="grid-major" x1="270.0" y1="0" x2="270.0" y2="444.6"/><text class="ax" x="270.0" y="-7" text-anchor="middle">150</text><line class="grid-minor" x1="288.0" y1="0" x2="288.0" y2="444.6"/><line class="grid-minor" x1="306.0" y1="0" x2="306.0" y2="444.6"/><line class="grid-minor" x1="324.0" y1="0" x2="324.0" y2="444.6"/><line class="grid-minor" x1="342.0" y1="0" x2="342.0" y2="444.6"/><line class="grid-major" x1="360.0" y1="0" x2="360.0" y2="444.6"/><text class="ax" x="360.0" y="-7" text-anchor="middle">200</text><line class="grid-minor" x1="378.0" y1="0" x2="378.0" y2="444.6"/><line class="grid-minor" x1="396.0" y1="0" x2="396.0" y2="444.6"/><line class="grid-minor" x1="414.0" y1="0" x2="414.0" y2="444.6"/><line class="grid-minor" x1="432.0" y1="0" x2="432.0" y2="444.6"/><line class="grid-major" x1="450.0" y1="0" x2="450.0" y2="444.6"/><text class="ax" x="450.0" y="-7" text-anchor="middle">250</text><line class="grid-minor" x1="468.0" y1="0" x2="468.0" y2="444.6"/><line class="grid-minor" x1="486.0" y1="0" x2="486.0" y2="444.6"/><line class="grid-minor" x1="504.0" y1="0" x2="504.0" y2="444.6"/><line class="grid-minor" x1="522.0" y1="0" x2="522.0" y2="444.6"/><line class="grid-major" x1="540.0" y1="0" x2="540.0" y2="444.6"/><text class="ax" x="540.0" y="-7" text-anchor="middle">300</text><line class="grid-minor" x1="558.0" y1="0" x2="558.0" y2="444.6"/><line class="grid-minor" x1="576.0" y1="0" x2="576.0" y2="444.6"/><line class="grid-minor" x1="594.0" y1="0" x2="594.0" y2="444.6"/><line class="grid-minor" x1="612.0" y1="0" x2="612.0" y2="444.6"/><line class="grid-major" x1="630.0" y1="0" x2="630.0" y2="444.6"/><text class="ax" x="630.0" y="-7" text-anchor="middle">350</text><line class="grid-major" x1="0" y1="0.0" x2="630.0" y2="0.0"/><text class="ax" x="-6" y="3.0" text-anchor="end">0</text><line class="grid-minor" x1="0" y1="18.0" x2="630.0" y2="18.0"/><line class="grid-minor" x1="0" y1="36.0" x2="630.0" y2="36.0"/><line class="grid-minor" x1="0" y1="54.0" x2="630.0" y2="54.0"/><line class="grid-minor" x1="0" y1="72.0" x2="630.0" y2="72.0"/><line class="grid-major" x1="0" y1="90.0" x2="630.0" y2="90.0"/><text class="ax" x="-6" y="93.0" text-anchor="end">50</text><line class="grid-minor" x1="0" y1="108.0" x2="630.0" y2="108.0"/><line class="grid-minor" x1="0" y1="126.0" x2="630.0" y2="126.0"/><line class="grid-minor" x1="0" y1="144.0" x2="630.0" y2="144.0"/><line class="grid-minor" x1="0" y1="162.0" x2="630.0" y2="162.0"/><line class="grid-major" x1="0" y1="180.0" x2="630.0" y2="180.0"/><text class="ax" x="-6" y="183.0" text-anchor="end">100</text><line class="grid-minor" x1="0" y1="198.0" x2="630.0" y2="198.0"/><line class="grid-minor" x1="0" y1="216.0" x2="630.0" y2="216.0"/><line class="grid-minor" x1="0" y1="234.0" x2="630.0" y2="234.0"/><line class="grid-minor" x1="0" y1="252.0" x2="630.0" y2="252.0"/><line class="grid-major" x1="0" y1="270.0" x2="630.0" y2="270.0"/><text class="ax" x="-6" y="273.0" text-anchor="end">150</text><line class="grid-minor" x1="0" y1="288.0" x2="630.0" y2="288.0"/><line class="grid-minor" x1="0" y1="306.0" x2="630.0" y2="306.0"/><line class="grid-minor" x1="0" y1="324.0" x2="630.0" y2="324.0"/><line class="grid-minor" x1="0" y1="342.0" x2="630.0" y2="342.0"/><line class="grid-major" x1="0" y1="360.0" x2="630.0" y2="360.0"/><text class="ax" x="-6" y="363.0" text-anchor="end">200</text><line class="grid-minor" x1="0" y1="378.0" x2="630.0" y2="378.0"/><line class="grid-minor" x1="0" y1="396.0" x2="630.0" y2="396.0"/><line class="grid-minor" x1="0" y1="414.0" x2="630.0" y2="414.0"/><line class="grid-minor" x1="0" y1="432.0" x2="630.0" y2="432.0"/><text class="ax" x="315.0" y="-18" text-anchor="middle">блоки · 10 / 50</text></g>
-  <!-- outside forest strip -->
   <rect x="0" y="470" width="800" height="110" fill="var(--paper)" opacity=".55"/>
   <text class="s" x="14" y="490">ОПУШКА · вне данжа</text>
-  <!-- border -->
-  <rect class="border" x="150" y="18" width="630" height="444"/>
-  <text class="s" x="560" y="452">терновая стена · граница данжа</text>
-  <!-- camps -->
-  <rect class="ord" x="20" y="498" width="210" height="72"/>
+  <rect class="border" x="150" y="18" width="630" height="444.6"/>
+  <rect class="ord" x="20.4" y="498.6" width="210.6" height="72"/>
+  <rect class="dst" x="569.4" y="498.6" width="210.6" height="72"/>
+  <rect class="rm" x="281.4" y="372.6" width="104.4" height="79.2"/>
+  <polygon class="rm" points="295.8,372.6 252.6,300.6 261.6,228.6 330,205.2 425.4,228.6 425.4,270 344.4,257.4 313.8,300.6 340.8,372.6"/>
+  <ellipse class="rm" cx="250.8" cy="111.6" rx="88.2" ry="55.8"/>
+  <rect class="rm" x="432.6" y="172.8" width="208.8" height="149.4"/>
+  <rect class="rm" x="450.6" y="190.8" width="61.2" height="41.4"/>
+  <rect class="rm boss" x="614.4" y="50.4" width="79.2" height="68.4"/>
+  <rect class="ink" x="312" y="453.6" width="43.2" height="16.2"/>
+  <rect class="ink" x="452.4" y="453.6" width="48.6" height="16.2"/>
+  <circle class="rm safe" cx="476.7" cy="420.3" r="18.9"/>
+  <polyline class="pa" style="stroke-width:9" points="229.2,534.6 400.2,534.6 569.4,534.6"/>
+  <polyline class="pa" style="stroke-width:10.8" points="400.2,534.6 335.4,469.8"/>
+  <polyline class="pa" style="stroke-width:14.4" points="333.6,372.6 330,367.2 326.4,361.8 322.8,356.4 319.2,351 315.6,345.6 312,340.2 308.4,333 306.6,327.6 303,322.2 301.2,316.8 299.4,311.4 297.6,306 295.8,300.6 294,295.2 294,289.8 294,284.4 292.2,279 292.2,273.6 294,270 294,264.6 294,259.2 295.8,255.6 297.6,250.2 299.4,246.6 303,241.2 304.8,239.4 297.6,226.8 292.2,214.2"/>
+  <polyline class="pa" style="stroke-width:14.4" points="292.2,214.2 258,154.8"/>
+  <polyline class="pa" style="stroke-width:14.4" points="330,117 375,144 411,176.4 438,198"/>
+  <polyline class="pa" style="stroke-width:10.8" points="621.6,180 636,144 650.4,117"/>
+  <polyline class="out" points="475.8,469.8 420,529.2"/>
+  <polyline class="sc" points="439.8,313.2 438,318.6 434.4,322.2 432.6,327.6 430.8,331.2 427.2,334.8 425.4,338.4 421.8,342 420,345.6 418.2,349.2 414.6,352.8 412.8,354.6 411,358.2 409.2,361.8 405.6,363.6 403.8,367.2 402,370.8 400.2,372.6 398.4,376.2 394.8,378 393,381.6 391.2,383.4 389.4,387 387.6,388.8 382.2,392.4"/>
+  <circle class="ink" cx="401.1" cy="535.5" r="6"/>
+  <polygon class="bm" points="654,71.6 667,84.6 654,97.6 641,84.6"/>
+  <text class="w" x="654" y="88.6" text-anchor="middle">Б1</text>
+  <text class="w" x="333.6" y="465.7" text-anchor="middle">ВХОД</text>
+  <text class="w" x="476.7" y="465.7" text-anchor="middle">ВЫХОД</text>
+  <circle class="tw" cx="271.5" cy="294.3" r="7"/>
+  <circle class="tw" cx="303.9" cy="224.1" r="7"/>
+  <circle class="tw" cx="386.7" cy="234.9" r="7"/>
+  <circle class="tw" cx="325.5" cy="337.5" r="7"/>
+  <circle class="sm" cx="420.9" cy="350.1" r="10"/>
+  <text class="w" x="420.9" y="354.1" text-anchor="middle">S1</text>
+  <circle class="stake" cx="626.1" cy="62.1" r="5"/>
+  <circle class="stake" cx="683.7" cy="62.1" r="5"/>
+  <circle class="stake" cx="626.1" cy="108.9" r="5"/>
+  <circle class="stake" cx="683.7" cy="108.9" r="5"/>
+  <circle class="herd" cx="317.9" cy="407.9" r="3"/>
+  <circle class="herd" cx="325.9" cy="407.9" r="3"/>
+  <circle class="herd" cx="321.9" cy="401.9" r="3"/>
+  <circle class="herd" cx="299.9" cy="317.9" r="3"/>
+  <circle class="herd" cx="307.9" cy="317.9" r="3"/>
+  <circle class="herd" cx="303.9" cy="311.9" r="3"/>
+  <circle class="herd" cx="317.9" cy="263.9" r="3"/>
+  <circle class="herd" cx="325.9" cy="263.9" r="3"/>
+  <circle class="herd" cx="321.9" cy="257.9" r="3"/>
+  <circle class="herd" cx="371.9" cy="240.5" r="3"/>
+  <circle class="herd" cx="379.9" cy="240.5" r="3"/>
+  <circle class="herd" cx="375.9" cy="234.5" r="3"/>
+  <circle class="herd" cx="263.9" cy="92.9" r="3"/>
+  <circle class="herd" cx="271.9" cy="92.9" r="3"/>
+  <circle class="herd" cx="267.9" cy="86.9" r="3"/>
+  <circle class="herd" cx="200.9" cy="137.9" r="3"/>
+  <circle class="herd" cx="208.9" cy="137.9" r="3"/>
+  <circle class="herd" cx="204.9" cy="131.9" r="3"/>
+  <circle class="herd" cx="371.9" cy="150.5" r="3"/>
+  <circle class="herd" cx="379.9" cy="150.5" r="3"/>
+  <circle class="herd" cx="375.9" cy="144.5" r="3"/>
+  <circle class="herd" cx="560.9" cy="218.9" r="3"/>
+  <circle class="herd" cx="568.9" cy="218.9" r="3"/>
+  <circle class="herd" cx="564.9" cy="212.9" r="3"/>
+  <circle class="herd" cx="629.3" cy="159.5" r="3"/>
+  <circle class="herd" cx="637.3" cy="159.5" r="3"/>
+  <circle class="herd" cx="633.3" cy="153.5" r="3"/>
+  <circle class="el" cx="222.9" cy="108.9" r="8"/>
+  <text class="w" x="222.9" y="112.9" text-anchor="middle">П</text>
+  <circle class="el" cx="492.9" cy="252.9" r="8"/>
+  <text class="w" x="492.9" y="256.9" text-anchor="middle">Щ</text>
+  <circle class="el" cx="591.9" cy="288.9" r="8"/>
+  <text class="w" x="591.9" y="292.9" text-anchor="middle">П</text>
+  <circle class="ink" cx="678.3" cy="67.5" r="11"/>
+  <text class="w" x="678.3" y="71.5" text-anchor="middle">↓</text>
+  <text class="l" x="286.8" y="388.8">A1 Преддверие</text>
+  <text class="s" x="286.8" y="403.8">отряд: 2 рубаки + щитоносец</text>
+  <text class="l" x="157.2" y="324">A2 Тропа вышек</text>
+  <text class="s" x="157.2" y="339">4 вышки лучников</text>
+  <text class="s" x="157.2" y="352">3 отряда</text>
+  <text class="l" x="189.6" y="48.6">A3 Лагерь унгоров</text>
+  <text class="s" x="189.6" y="63.6">элита: бестигор-палач</text>
+  <text class="l" x="351.6" y="118.8">Тропа черепов</text>
+  <text class="s" x="351.6" y="133.8">отряд + засада</text>
+  <text class="l" x="436.2" y="165.6">A5 Двор обители</text>
+  <text class="s" x="436.2" y="180.6">2 элиты: щитоносец-вожак,</text>
+  <text class="s" x="436.2" y="193.6">бестигор-палач · отряд</text>
+  <text class="s" x="457.8" y="214.2">часовня</text>
+  <text class="l" x="510" y="34.2">A4 Загон · арена Б1</text>
+  <text class="s" x="510" y="49.2">44×38 бл. · 4 кола</text>
+  <text class="l" x="655.8" y="154.8">Загонная тропа</text>
+  <text class="s" x="655.8" y="169.8">отряд</text>
+  <text class="l" x="438" y="388.8">Подъём Висельника</text>
+  <text class="s" x="438" y="403.8">↑ из арены Б4</text>
+  <text class="s" x="628.8" y="129.6">спуск в крипту</text>
+  <text class="s" x="560" y="456">терновая стена · граница данжа</text>
   <rect class="om" x="30" y="508" width="10" height="22"/>
   <text class="lo" x="48" y="522">ЛАГЕРЬ ПОРЯДКА</text><text class="s" x="48" y="538">Застава Волчьего Брода</text><text class="s" x="48" y="552">Отто · торговец · респаун</text>
-  <rect class="dst" x="570" y="498" width="210" height="72"/>
   <rect class="dm" x="580" y="508" width="10" height="22"/>
   <text class="ld" x="598" y="522">ЛАГЕРЬ РАЗРУШЕНИЯ</text><text class="s" x="598" y="538">Чёрный круг</text><text class="s" x="598" y="552">Гурхак · торговец · респаун</text>
-  <!-- crossroads paths -->
-  <path class="pa" d="M230 534 L 400 534 L 570 534"/>
-  <path class="pa" d="M400 534 L 335 470"/>
-  <circle class="ink" cx="400" cy="534" r="6"/><text class="s" x="372" y="560">Перекрёсток</text>
-  <!-- entrance & exit -->
-  <rect class="ink" x="312" y="454" width="44" height="16"/><text class="w" x="318" y="466">ВХОД</text>
-  <text class="s" x="240" y="490" dx="0">Врата черепов</text>
-  <rect class="ink" x="452" y="454" width="48" height="16"/><text class="w" x="455" y="466">ВЫХОД</text>
-  <path class="out" d="M476 470 L 420 530"/>
-  <text class="s" x="470" y="492">только изнутри, после Б4</text>
-  <circle class="rm" cx="476" cy="420" r="18" style="fill:var(--moss-t)"/><text class="s" x="440" y="404">Подъём Висельника</text><text class="s" x="500" y="426">↑ из арены Б4</text>
-  <!-- A1 -->
-  <rect class="rm safe" x="282" y="372" width="104" height="80"/>
-  <text class="l" x="292" y="394">A1 Преддверие</text><text class="s" x="292" y="410">жертвенник у ворот</text><text class="s" x="292" y="424">засада 3 горов</text>
-  <!-- A2 stealth -->
-  <path class="st" d="M296 372 L 252 300 L 262 228 L 330 206 L 425 228 L 425 270 L 345 258 L 314 300 L 340 372 Z"/>
-  <path class="pa" d="M334 372 C 300 330, 282 280, 300 246 S 385 240, 432 250"/>
-  <circle class="tw" cx="268" cy="292" r="7"/><circle class="tw" cx="302" cy="222" r="7"/><circle class="tw" cx="384" cy="232" r="7"/><circle class="tw" cx="322" cy="334" r="7"/>
-  <text class="l" x="168" y="330">A2 Тропа</text><text class="l" x="168" y="346">тотемов</text><text class="s" x="168" y="362">вышки унгоров</text>
-  <!-- A3 -->
-  <path class="pa t" d="M292 214 L 262 168"/>
-  <ellipse class="rm" cx="250" cy="112" rx="88" ry="56"/>
-  <circle class="herd" cx="222" cy="106" r="4"/><circle class="herd" cx="252" cy="128" r="4"/><circle class="herd" cx="280" cy="98" r="4"/><circle class="herd" cx="204" cy="134" r="4"/>
-  <rect class="itm" x="296" y="118" width="12" height="12"/>
-  <text class="l" x="196" y="84">A3 Лагерь унгоров</text><text class="s" x="190" y="186">необяз. · Мускусная маска</text>
-  <!-- A5 -->
-  <rect class="rm" x="432" y="172" width="208" height="150"/>
-  <rect class="rm" x="450" y="190" width="62" height="42"/><text class="s" x="456" y="215">часовня</text>
-  <rect class="ink" x="560" y="250" width="16" height="16"/><text class="s" x="540" y="284">статуя Зигмара</text>
-  <text class="l" x="440" y="164">A5 Двор обители</text>
-  <!-- A6 -->
-  <path class="pa t" d="M640 220 L 652 220"/>
-  <rect class="rm" x="652" y="192" width="58" height="58"/><rect class="pm" x="671" y="211" width="20" height="20"/>
-  <text class="l" x="652" y="268">A6 Колокольня</text><text class="s" x="652" y="282">паркур · засов</text>
-  <!-- A4 arena -->
-  <path class="pa" d="M600 172 L 612 158"/>
-  <rect class="ink" x="596" y="154" width="30" height="8"/>
-  <rect class="rm boss" x="560" y="40" width="200" height="114"/>
-  <circle class="stake" cx="590" cy="64" r="5"/><circle class="stake" cx="660" cy="64" r="5"/><circle class="stake" cx="590" cy="130" r="5"/><circle class="stake" cx="660" cy="130" r="5"/>
-  <rect class="bm" x="616" y="88" width="20" height="20" transform="rotate(45 626 98)"/><text class="w" x="617" y="102">Б1</text>
-  <circle class="ink" cx="726" cy="70" r="14"/><text class="w" x="719" y="74">↓</text><text class="s" x="702" y="100">спуск</text><text class="s" x="702" y="114">в крипту</text>
-  <text class="l" x="566" y="34">A4 Загон разоргоров · арена Б1</text>
-  <!-- S1 -->
-  <path class="sc" d="M440 314 C 420 350, 400 370, 386 392"/>
-  <circle class="sm" cx="420" cy="350" r="9"/><text class="w" x="412" y="354">S1</text>
-  <!-- compass/scale -->
+  <text class="s" x="372" y="560">Перекрёсток</text>
+  <text class="s" x="246" y="490">Врата черепов</text>
+  <text class="s" x="470" y="492">выход только изнутри, после Б4</text>
   <g transform="translate(176,48)"><path class="ink" d="M0 -14 L6 6 L0 2 L-6 6Z"/><text class="s" x="-4" y="22">С</text></g>
-  <line class="sl" x1="40" y1="460" x2="120" y2="460"/><text class="s" x="40" y="452">0 — 32 блока</text>
+  <line class="sl" x1="40" y1="462" x2="130" y2="462"/>
+  <text class="s" x="40" y="454">0 — 50 блоков</text>
 </svg>
-<div class="cap">Сетка 10 / 50 блоков · рамка данжа 350×247 · заштриховано — зона стелса · пунктирная коричневая рамка — граница данжа</div>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ord" x="2" y="2" width="22" height="12"/></svg>лагерь Порядка</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="dst" x="2" y="2" width="22" height="12"/></svg>лагерь Разрушения</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="border" x1="0" y1="8" x2="26" y2="8"/></svg>граница данжа (терновая стена)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm safe" x="2" y="2" width="22" height="12"/></svg>безопасная зона</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="st" x="2" y="2" width="22" height="12"/></svg>зона стелса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="tw" cx="13" cy="8" r="5"/></svg>вышка унгоров</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="13" cy="8" r="3.5"/></svg>зверолюды</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="stake" cx="13" cy="8" r="3.5"/></svg>заострённый кол</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="itm" x="8" y="3" width="10" height="10"/></svg>ключевой предмет</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="pm" x="7" y="2" width="12" height="12"/></svg>головоломка / испытание</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>номер шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><path class="ink" d="M13 1 L17 13 L13 10 L9 13Z"/></svg>север</span></div></div>
+<div class="cap">Сетка 10 / 50 блоков · рамка данжа 350×247 · арена Б1 44×38 · переходы A1 → A2 → A3 → Тропа черепов → A5 → A4<br>Элиты: П — бестигор-палач, Щ — гор-щитоносец (вожак отряда)</div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ord" x="2" y="2" width="22" height="12"/></svg>лагерь Порядка</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="dst" x="2" y="2" width="22" height="12"/></svg>лагерь Разрушения</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="border" x1="0" y1="8" x2="26" y2="8"/></svg>граница данжа (терновая стена)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm safe" x="2" y="2" width="22" height="12"/></svg>безопасная зона</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="tw" cx="13" cy="8" r="5"/></svg>вышка унгоров-лучников</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="stake" cx="13" cy="8" r="4"/></svg>заострённый кол</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>рычаг шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><path class="ink" d="M13 1 L17 13 L13 10 L9 13Z"/></svg>север</span></div></div>
+<!-- /MAP:L1 -->
 </div>
 <div class="tbl"><table>
-<thead><tr><th>Зона</th><th>Что происходит</th><th>Активность</th></tr></thead>
+<thead><tr><th>Зона</th><th>Кто стоит</th><th>Чему учит</th></tr></thead>
 <tbody>
 <tr><td><b>Лагеря</b></td><td>Квестодатели (Dialog), торговцы (Role → Trader), спаун через <code>setSpawnpoint</code>. Фракция лагеря, Attack hostile factions, Stats aggro ≈ 16.</td><td>Хабы</td></tr>
-<tr><td><b>A1 Преддверие</b></td><td>Три клона «Гор» из вкладки клонера. Респаун 3600. Здесь заканчивается калитка S1.</td><td>Бой</td></tr>
-<tr><td><b>A2 Тропа тотемов</b></td><td>Четыре унгора-лучника (Inventory → projectile, дальность стрельбы в Stats). Кусты — декор, стелса «вне обзора» в CNPC нет. Маска на голове отменяет агро в событии <code>target</code>. Если агро прошло — один раз <code>spawnClone</code> 6 горов (флаг в storeddata вышки, чтобы не спамить).</td><td>Лучники + маска</td></tr>
-<tr><td><b>A3 Лагерь унгоров</b></td><td>Обычные унгоры. Маска — предмет в сундуке (ваниль) или дроп с вожака (Inventory NPC).</td><td>Бой или кража</td></tr>
-<tr><td><b>A5 Двор обители</b></td><td>Декор. Scripted Block калитки S1: ПКМ снимает ряд barrier/забора по списку координат.</td><td>Переход</td></tr>
-<tr><td><b>A6 Колокольня</b></td><td>Паркур блоками. Наверху сундук с Засовом (слиток с именем). Ворота Б1 — Scripted Block: открыть, только если в руке Засов (<code>getInventoryHeldItem</code>).</td><td>Паркур</td></tr>
-<tr><td><b>A4 Загон</b></td><td>Два босса-клона. В <code>died</code> каждого: если оба мертвы — снять решётки спуска списком <code>removeBlock</code>.</td><td>Б1</td></tr>
+<tr><td><b>A1 Преддверие</b></td><td>Отряд: 2 гора-рубаки и щитоносец. Здесь заканчивается калитка S1.</td><td>Полоса рывка и щит: уходить с линии, заходить сбоку</td></tr>
+<tr><td><b>A2 Тропа вышек</b></td><td>4 вышки унгоров-лучников (стрелы + ядовитый плевок) и 3 отряда на тропе шириной 8. Стелса нет: вышки видят всех.</td><td>Не стоять в лужах, лучников снимать первыми</td></tr>
+<tr><td><b>A3 Лагерь унгоров</b></td><td>Бестигор-палач и 2 отряда. Тропа ведёт через лагерь — обойти нельзя.</td><td>Добивание палача: с низким HP не подходить</td></tr>
+<tr><td><b>Тропа черепов</b></td><td>Тропа 70 блоков, шириной 8: отряд в середине, ещё один отряд рейдеров стоит за деревьями у края.</td><td>Замедление рейдеров</td></tr>
+<tr><td><b>A5 Двор обители</b></td><td>Щитоносец-вожак, второй палач, отряд. Scripted Block калитки S1 у стены двора.</td><td>Всё вместе</td></tr>
+<tr><td><b>Загонная тропа</b></td><td>Отряд у входа в загон.</td><td>—</td></tr>
+<tr><td><b>A4 Загон</b></td><td>Б1: Грул и Кровохряк, 4 кола по углам. Завал спуска снимается, когда мертвы оба.</td><td>Босс</td></tr>
 </tbody></table></div>
 </section>
 
 <!-- ================= LEVEL 2 ================= -->
 <section id="l2">
 <h2>Локация 2 · Осквернённая крипта</h2>
-<p>Склепы монастыря, разорённые стадом: надгробия разбиты, на стенах рога и знаки Хаоса, через потолок проросли корни, половина этажа затоплена. Локация про головоломки и переговоры. Попасть сюда можно только из арены Б1, выйти — только через арену Б2.</p>
+<p>Склепы монастыря, разорённые стадом: надгробия разбиты, на стенах рога и знаки Хаоса, через потолок проросли корни, половина этажа затоплена. Локация про шаманов: их надо убивать первыми, иначе стадо не умирает. Путь: B1 → B2 → B3 → Галерея костей → B4 → арена B5.</p>
 <div class="mapbox">
-<svg viewBox="0 0 800 520" role="img" aria-label="План локации 2">
+<!-- MAP:L2 -->
+<svg viewBox="0 0 800 520" role="img" aria-label="План локации 2 · Осквернённая крипта">
   <rect class="bg" width="800" height="520"/><rect class="gr" width="800" height="520"/>
   <g class="blkgrid" pointer-events="none" transform="translate(0,0)"><line class="grid-major" x1="0.0" y1="0" x2="0.0" y2="444.6"/><text class="ax" x="0.0" y="-7" text-anchor="middle">0</text><line class="grid-minor" x1="18.0" y1="0" x2="18.0" y2="444.6"/><line class="grid-minor" x1="36.0" y1="0" x2="36.0" y2="444.6"/><line class="grid-minor" x1="54.0" y1="0" x2="54.0" y2="444.6"/><line class="grid-minor" x1="72.0" y1="0" x2="72.0" y2="444.6"/><line class="grid-major" x1="90.0" y1="0" x2="90.0" y2="444.6"/><text class="ax" x="90.0" y="-7" text-anchor="middle">50</text><line class="grid-minor" x1="108.0" y1="0" x2="108.0" y2="444.6"/><line class="grid-minor" x1="126.0" y1="0" x2="126.0" y2="444.6"/><line class="grid-minor" x1="144.0" y1="0" x2="144.0" y2="444.6"/><line class="grid-minor" x1="162.0" y1="0" x2="162.0" y2="444.6"/><line class="grid-major" x1="180.0" y1="0" x2="180.0" y2="444.6"/><text class="ax" x="180.0" y="-7" text-anchor="middle">100</text><line class="grid-minor" x1="198.0" y1="0" x2="198.0" y2="444.6"/><line class="grid-minor" x1="216.0" y1="0" x2="216.0" y2="444.6"/><line class="grid-minor" x1="234.0" y1="0" x2="234.0" y2="444.6"/><line class="grid-minor" x1="252.0" y1="0" x2="252.0" y2="444.6"/><line class="grid-major" x1="270.0" y1="0" x2="270.0" y2="444.6"/><text class="ax" x="270.0" y="-7" text-anchor="middle">150</text><line class="grid-minor" x1="288.0" y1="0" x2="288.0" y2="444.6"/><line class="grid-minor" x1="306.0" y1="0" x2="306.0" y2="444.6"/><line class="grid-minor" x1="324.0" y1="0" x2="324.0" y2="444.6"/><line class="grid-minor" x1="342.0" y1="0" x2="342.0" y2="444.6"/><line class="grid-major" x1="360.0" y1="0" x2="360.0" y2="444.6"/><text class="ax" x="360.0" y="-7" text-anchor="middle">200</text><line class="grid-minor" x1="378.0" y1="0" x2="378.0" y2="444.6"/><line class="grid-minor" x1="396.0" y1="0" x2="396.0" y2="444.6"/><line class="grid-minor" x1="414.0" y1="0" x2="414.0" y2="444.6"/><line class="grid-minor" x1="432.0" y1="0" x2="432.0" y2="444.6"/><line class="grid-major" x1="450.0" y1="0" x2="450.0" y2="444.6"/><text class="ax" x="450.0" y="-7" text-anchor="middle">250</text><line class="grid-minor" x1="468.0" y1="0" x2="468.0" y2="444.6"/><line class="grid-minor" x1="486.0" y1="0" x2="486.0" y2="444.6"/><line class="grid-minor" x1="504.0" y1="0" x2="504.0" y2="444.6"/><line class="grid-minor" x1="522.0" y1="0" x2="522.0" y2="444.6"/><line class="grid-major" x1="540.0" y1="0" x2="540.0" y2="444.6"/><text class="ax" x="540.0" y="-7" text-anchor="middle">300</text><line class="grid-minor" x1="558.0" y1="0" x2="558.0" y2="444.6"/><line class="grid-minor" x1="576.0" y1="0" x2="576.0" y2="444.6"/><line class="grid-minor" x1="594.0" y1="0" x2="594.0" y2="444.6"/><line class="grid-minor" x1="612.0" y1="0" x2="612.0" y2="444.6"/><line class="grid-major" x1="630.0" y1="0" x2="630.0" y2="444.6"/><text class="ax" x="630.0" y="-7" text-anchor="middle">350</text><line class="grid-major" x1="0" y1="0.0" x2="630.0" y2="0.0"/><text class="ax" x="-6" y="3.0" text-anchor="end">0</text><line class="grid-minor" x1="0" y1="18.0" x2="630.0" y2="18.0"/><line class="grid-minor" x1="0" y1="36.0" x2="630.0" y2="36.0"/><line class="grid-minor" x1="0" y1="54.0" x2="630.0" y2="54.0"/><line class="grid-minor" x1="0" y1="72.0" x2="630.0" y2="72.0"/><line class="grid-major" x1="0" y1="90.0" x2="630.0" y2="90.0"/><text class="ax" x="-6" y="93.0" text-anchor="end">50</text><line class="grid-minor" x1="0" y1="108.0" x2="630.0" y2="108.0"/><line class="grid-minor" x1="0" y1="126.0" x2="630.0" y2="126.0"/><line class="grid-minor" x1="0" y1="144.0" x2="630.0" y2="144.0"/><line class="grid-minor" x1="0" y1="162.0" x2="630.0" y2="162.0"/><line class="grid-major" x1="0" y1="180.0" x2="630.0" y2="180.0"/><text class="ax" x="-6" y="183.0" text-anchor="end">100</text><line class="grid-minor" x1="0" y1="198.0" x2="630.0" y2="198.0"/><line class="grid-minor" x1="0" y1="216.0" x2="630.0" y2="216.0"/><line class="grid-minor" x1="0" y1="234.0" x2="630.0" y2="234.0"/><line class="grid-minor" x1="0" y1="252.0" x2="630.0" y2="252.0"/><line class="grid-major" x1="0" y1="270.0" x2="630.0" y2="270.0"/><text class="ax" x="-6" y="273.0" text-anchor="end">150</text><line class="grid-minor" x1="0" y1="288.0" x2="630.0" y2="288.0"/><line class="grid-minor" x1="0" y1="306.0" x2="630.0" y2="306.0"/><line class="grid-minor" x1="0" y1="324.0" x2="630.0" y2="324.0"/><line class="grid-minor" x1="0" y1="342.0" x2="630.0" y2="342.0"/><line class="grid-major" x1="0" y1="360.0" x2="630.0" y2="360.0"/><text class="ax" x="-6" y="363.0" text-anchor="end">200</text><line class="grid-minor" x1="0" y1="378.0" x2="630.0" y2="378.0"/><line class="grid-minor" x1="0" y1="396.0" x2="630.0" y2="396.0"/><line class="grid-minor" x1="0" y1="414.0" x2="630.0" y2="414.0"/><line class="grid-minor" x1="0" y1="432.0" x2="630.0" y2="432.0"/><text class="ax" x="315.0" y="-18" text-anchor="middle">блоки · 10 / 50</text></g>
-  <path class="pa" d="M650 120 L 586 168"/><path class="pa" d="M312 216 L 252 216"/><path class="pa" d="M600 276 L 642 304"/><path class="pa" d="M652 372 L 566 410"/>
-  <!-- B1 -->
-  <rect class="rm" x="600" y="40" width="150" height="80"/>
-  <text class="l" x="610" y="62">B1 Спуск</text><text class="s" x="610" y="78">↑ из арены Б1</text><text class="s" x="610" y="94">засада горов</text>
-  <!-- B2 -->
-  <path class="rm water" d="M302 140 L 592 150 L 612 250 L 572 320 L 342 320 L 312 250 Z"/>
-  <circle class="pm" cx="352" cy="190" r="10"/><text class="w" x="344" y="194">V1</text>
-  <circle class="pm" cx="560" cy="200" r="10"/><text class="w" x="552" y="204">V2</text>
-  <circle class="pm" cx="452" cy="300" r="10"/><text class="w" x="444" y="304">V3</text>
-  <text class="l" x="370" y="170">B2 Затопленные катакомбы</text><text class="s" x="390" y="240">3 вентиля-решётки</text>
-  <!-- B3 -->
-  <rect class="rm" x="50" y="140" width="202" height="150"/>
-  <rect class="tot" x="76" y="166" width="14" height="14"/><rect class="tot" x="212" y="166" width="14" height="14"/><rect class="tot" x="76" y="250" width="14" height="14"/><rect class="tot" x="212" y="250" width="14" height="14"/>
-  <rect class="rm" x="126" y="190" width="50" height="46"/><rect class="itm" x="144" y="206" width="14" height="14"/>
-  <text class="l" x="58" y="132">B3 Оссуарий тотемов</text><text class="s" x="112" y="256">реликварий</text>
-  <!-- B4 -->
-  <rect class="rm" x="642" y="282" width="128" height="92"/>
-  <circle class="ink" cx="740" cy="350" r="6"/>
-  <text class="l" x="650" y="304">B4 Притвор</text><text class="s" x="650" y="320">Шкрик на цепи</text><text class="s" x="650" y="334">прихожая арены</text>
-  <!-- B5 arena -->
-  <ellipse class="rm boss" cx="430" cy="434" rx="150" ry="66"/>
-  <rect class="tot" x="322" y="426" width="14" height="14"/><rect class="tot" x="524" y="426" width="14" height="14"/><rect class="tot" x="423" y="374" width="14" height="14"/><rect class="tot" x="423" y="478" width="14" height="14"/>
-  <rect class="bm" x="420" y="424" width="20" height="20" transform="rotate(45 430 434)"/><text class="w" x="421" y="438">Б2</text>
-  <text class="l" x="474" y="360">B5 Святилище · арена Б2</text>
-  <circle class="ink" cx="300" cy="476" r="14"/><text class="w" x="293" y="480">↓</text><text class="s" x="216" y="506">корневая шахта → C1</text>
-  <!-- S2 -->
-  <path class="sc" d="M712 282 C 730 230, 720 170, 690 122"/>
-  <circle class="sm" cx="726" cy="210" r="9"/><text class="w" x="718" y="214">S2</text>
-  <line class="sl" x1="40" y1="30" x2="120" y2="30"/><text class="s" x="40" y="22">0 — 32 блока</text>
+  <polyline class="pa" style="stroke-width:14.4" points="540,77.4 540,151.2"/>
+  <polyline class="pa" style="stroke-width:14.4" points="311.4,216 250.2,216"/>
+  <polyline class="pa" style="stroke-width:14.4" points="144,286.2 144,331.2 450,331.2"/>
+  <polyline class="pa" style="stroke-width:14.4" points="453.6,381.6 388.8,399.6"/>
+  <rect class="rm" x="496.8" y="18" width="86.4" height="61.2"/>
+  <polygon class="rm water" points="306,144 594,144 608.4,244.8 572.4,306 342,306 309.6,244.8"/>
+  <rect class="rm" x="43.2" y="126" width="208.8" height="162"/>
+  <rect class="rm" x="450" y="316.8" width="100.8" height="79.2"/>
+  <circle class="rm boss" cx="360.9" cy="400.5" r="36.9"/>
+  <polyline class="sc" points="549,327.6 615.6,320.4 619.2,216 615.6,108 579.6,72"/>
+  <circle class="ink" cx="518.4" cy="367.2" r="6"/>
+  <polygon class="bm" points="360.9,387.5 373.9,400.5 360.9,413.5 347.9,400.5"/>
+  <text class="w" x="360.9" y="404.5" text-anchor="middle">Б2</text>
+  <rect class="tot" x="329.7" y="372.9" width="12" height="12"/>
+  <rect class="tot" x="380.1" y="372.9" width="12" height="12"/>
+  <rect class="tot" x="329.7" y="416.1" width="12" height="12"/>
+  <rect class="tot" x="380.1" y="416.1" width="12" height="12"/>
+  <circle class="sm" cx="620.1" cy="216.9" r="10"/>
+  <text class="w" x="620.1" y="220.9" text-anchor="middle">S2</text>
+  <circle class="herd" cx="509.9" cy="38.9" r="3"/>
+  <circle class="herd" cx="517.9" cy="38.9" r="3"/>
+  <circle class="herd" cx="513.9" cy="32.9" r="3"/>
+  <circle class="herd" cx="374.9" cy="182.9" r="3"/>
+  <circle class="herd" cx="382.9" cy="182.9" r="3"/>
+  <circle class="herd" cx="378.9" cy="176.9" r="3"/>
+  <circle class="herd" cx="536.9" cy="200.9" r="3"/>
+  <circle class="herd" cx="544.9" cy="200.9" r="3"/>
+  <circle class="herd" cx="540.9" cy="194.9" r="3"/>
+  <circle class="herd" cx="77.9" cy="254.9" r="3"/>
+  <circle class="herd" cx="85.9" cy="254.9" r="3"/>
+  <circle class="herd" cx="81.9" cy="248.9" r="3"/>
+  <circle class="herd" cx="203.9" cy="164.9" r="3"/>
+  <circle class="herd" cx="211.9" cy="164.9" r="3"/>
+  <circle class="herd" cx="207.9" cy="158.9" r="3"/>
+  <circle class="herd" cx="497.3" cy="371.9" r="3"/>
+  <circle class="herd" cx="505.3" cy="371.9" r="3"/>
+  <circle class="herd" cx="501.3" cy="365.9" r="3"/>
+  <circle class="el" cx="450.9" cy="270.9" r="8"/>
+  <text class="w" x="450.9" y="274.9" text-anchor="middle">Ш</text>
+  <circle class="el" cx="108.9" cy="180.9" r="8"/>
+  <text class="w" x="108.9" y="184.9" text-anchor="middle">Ш</text>
+  <circle class="el" cx="180.9" cy="243.9" r="8"/>
+  <text class="w" x="180.9" y="247.9" text-anchor="middle">Ш</text>
+  <circle class="el" cx="216.9" cy="332.1" r="8"/>
+  <text class="w" x="216.9" y="336.1" text-anchor="middle">Ц</text>
+  <circle class="el" cx="360.9" cy="332.1" r="8"/>
+  <text class="w" x="360.9" y="336.1" text-anchor="middle">Ц</text>
+  <circle class="el" cx="144.9" cy="213.3" r="8"/>
+  <text class="w" x="144.9" y="217.3" text-anchor="middle">Т</text>
+  <circle class="ink" cx="344.7" cy="416.7" r="11"/>
+  <text class="w" x="344.7" y="420.7" text-anchor="middle">↓</text>
+  <circle class="ink" cx="528.3" cy="49.5" r="11"/>
+  <text class="w" x="528.3" y="53.5" text-anchor="middle">↑</text>
+  <text class="l" x="417.6" y="10.8">B1 Спуск</text>
+  <text class="s" x="417.6" y="25.8">засада у лестницы</text>
+  <text class="l" x="352.8" y="165.6">B2 Затопленные катакомбы</text>
+  <text class="s" x="352.8" y="180.6">по колено в воде · 2 отряда</text>
+  <text class="s" x="352.8" y="193.6">элита: бра-шаман</text>
+  <text class="l" x="48.6" y="118.8">B3 Оссуарий</text>
+  <text class="s" x="48.6" y="133.8">2 шамана + тотем Стада</text>
+  <text class="s" x="48.6" y="146.8">2 отряда</text>
+  <text class="l" x="172.8" y="356.4">Галерея костей</text>
+  <text class="s" x="172.8" y="371.4">2 центигора — уходи в ниши</text>
+  <text class="l" x="453.6" y="309.6">B4 Притвор</text>
+  <text class="s" x="453.6" y="324.6">Шкрик · отряд</text>
+  <text class="l" x="270" y="356.4">B5 Святилище · арена Б2</text>
+  <text class="s" x="270" y="371.4">r 20</text>
+  <text class="s" x="270" y="444.6">корневая шахта → C1</text>
+  <line class="sl" x1="650" y1="490" x2="740" y2="490"/>
+  <text class="s" x="650" y="482">0 — 50 блоков</text>
 </svg>
-<div class="cap">Сетка в том же масштабе, что локация 1 · порядок: B1 → B2 (три вентиля) → B3 → B4 → арена B5 · S2: решётка из Притвора к спуску</div>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm water" x="2" y="2" width="22" height="12"/></svg>затоплено</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="pm" cx="13" cy="8" r="6"/></svg>вентиль</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="tot" x="9" y="4" width="8" height="8"/></svg>тотем</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="itm" x="8" y="3" width="10" height="10"/></svg>ключевой предмет</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="5"/></svg>NPC (Шкрик)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>номер шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<div class="cap">Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20) · S2: рычаг в Притворе B4 → B1<br>Элиты: Ш — бра-шаман, Ц — центигор, Т — тотем Стада</div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm water" x="2" y="2" width="22" height="12"/></svg>затоплено</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="tot" x="8" y="3" width="10" height="10"/></svg>тотем Мургрота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="5"/></svg>NPC (Шкрик)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>рычаг шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<!-- /MAP:L2 -->
 </div>
-<h3>B2 Головоломка: три вентиля</h3>
-<p>Зал может быть с водой как декор (статика). Проходы к B3 и B4 закрыты тремя решётками. Три Scripted Block (V1, V2, V3): в storeddata блока ключ <code>id</code> = <code>1</code>/<code>2</code>/<code>3</code>. ПКМ дописывает id в world storeddata <code>valves</code>. Порядок <b>2 → 1 → 3</b> (подсказка на табличках-надгробиях). Каждый верный шаг: <code>removeBlock</code> своей решётки (5–8 координат). Неверный: обнулить <code>valves</code>, вернуть все решётки <code>setBlock(..., "minecraft:iron_bars")</code>, <code>spawnClone</code> «Гор» ×2. Слив целого зала водой в CNPC не делается.</p>
-<h3>B3 Головоломка: тотемы Тёмных Богов</h3>
-<p>Четыре Scripted Block. ПКМ крутит storeddata <code>god</code> по кругу: <code>K</code> → <code>N</code> → <code>T</code> → <code>S</code>. Имя блока в чат/табличка рядом показывает текущий знак. Невидимый NPC у решётки B5 в <code>tick</code> раз в 8 с делает <code>say</code> строк молитвы (порядок богов = ответ). Когда все четыре совпали с кодом — снять блоки реликвария, внутри сундук с Тотемным амулетом.</p>
-<h3>B4 Притвор: Шкрик</h3>
-<p>NPC Шкрик, фракция нейтральная, Role нет, Dialog включён. Availability опции «накормить»: у игрока есть Гнилой окорок. В <code>dialogOption</code>: <code>removeItem</code> окорока, <code>say</code> подсказки, открыть S2 (<code>removeBlock</code> решётки). Убить — обычная смерть, респаун 3600. Запасной рычаг S2 — Scripted Block в B1 (под водой-декором).</p>
+<div class="tbl"><table>
+<thead><tr><th>Зона</th><th>Кто стоит</th><th>Чему учит</th></tr></thead>
+<tbody>
+<tr><td><b>B1 Спуск</b></td><td>Отряд у подножия лестницы из A4.</td><td>—</td></tr>
+<tr><td><b>B2 Затопленные катакомбы</b></td><td>Вода по щиколотку — декор (слой воды на полу, плавать не нужно). 2 отряда и бра-шаман в глубине зала.</td><td>Песнь шамана: сбить или выйти из круга</td></tr>
+<tr><td><b>B3 Оссуарий</b></td><td>Тотем Стада в центре, 2 бра-шамана, 2 отряда. Самый тяжёлый пулл этажа.</td><td>Порядок целей: тотем → шаманы → остальные</td></tr>
+<tr><td><b>Галерея костей</b></td><td>Коридор 200 блоков шириной 8, по бокам ниши глубиной 3 через каждые 12 блоков. 2 центигора.</td><td>Таран: уходить в нишу</td></tr>
+<tr><td><b>B4 Притвор</b></td><td>Отряд. Шкрик — нейтральный NPC с диалогом: рассказывает про тотемы, песнь и порчу Мургрота. Рычаг S2.</td><td>Подсказки к Б2</td></tr>
+<tr><td><b>B5 Святилище</b></td><td>Б2: Мургрот. 4 точки тотемов.</td><td>Босс</td></tr>
+</tbody></table></div>
 </section>
 
 <!-- ================= LEVEL 3 ================= -->
 <section id="l3">
 <h2>Локация 3 · Корневые глубины</h2>
-<p>Земляные пещеры, сквозь которые идут корни толщиной с дом: dark oak wood, мицелий, шрумлайты, костные блоки. Чем ниже, тем больше зелёного свечения варпа. Локация про ритм, выживание в тумане и большую арену. Вход из арены Б2, выход через арену Б3.</p>
+<p>Земляные пещеры, сквозь которые идут корни толщиной с дом: dark oak wood, мицелий, шрумлайты, костные блоки. Чем ниже, тем больше зелёного свечения варпа. Локация про давление: Барабанщик разгоняет стадо, а в тумане приходится драться с отродьями. Путь: C1 → C2 → C3 → C3а → арена C5.</p>
 <div class="mapbox">
-<svg viewBox="0 0 800 520" role="img" aria-label="План локации 3">
+<!-- MAP:L3 -->
+<svg viewBox="0 0 800 520" role="img" aria-label="План локации 3 · Корневые глубины">
   <rect class="bg" width="800" height="520"/><rect class="gr" width="800" height="520"/>
   <g class="blkgrid" pointer-events="none" transform="translate(0,0)"><line class="grid-major" x1="0.0" y1="0" x2="0.0" y2="444.6"/><text class="ax" x="0.0" y="-7" text-anchor="middle">0</text><line class="grid-minor" x1="18.0" y1="0" x2="18.0" y2="444.6"/><line class="grid-minor" x1="36.0" y1="0" x2="36.0" y2="444.6"/><line class="grid-minor" x1="54.0" y1="0" x2="54.0" y2="444.6"/><line class="grid-minor" x1="72.0" y1="0" x2="72.0" y2="444.6"/><line class="grid-major" x1="90.0" y1="0" x2="90.0" y2="444.6"/><text class="ax" x="90.0" y="-7" text-anchor="middle">50</text><line class="grid-minor" x1="108.0" y1="0" x2="108.0" y2="444.6"/><line class="grid-minor" x1="126.0" y1="0" x2="126.0" y2="444.6"/><line class="grid-minor" x1="144.0" y1="0" x2="144.0" y2="444.6"/><line class="grid-minor" x1="162.0" y1="0" x2="162.0" y2="444.6"/><line class="grid-major" x1="180.0" y1="0" x2="180.0" y2="444.6"/><text class="ax" x="180.0" y="-7" text-anchor="middle">100</text><line class="grid-minor" x1="198.0" y1="0" x2="198.0" y2="444.6"/><line class="grid-minor" x1="216.0" y1="0" x2="216.0" y2="444.6"/><line class="grid-minor" x1="234.0" y1="0" x2="234.0" y2="444.6"/><line class="grid-minor" x1="252.0" y1="0" x2="252.0" y2="444.6"/><line class="grid-major" x1="270.0" y1="0" x2="270.0" y2="444.6"/><text class="ax" x="270.0" y="-7" text-anchor="middle">150</text><line class="grid-minor" x1="288.0" y1="0" x2="288.0" y2="444.6"/><line class="grid-minor" x1="306.0" y1="0" x2="306.0" y2="444.6"/><line class="grid-minor" x1="324.0" y1="0" x2="324.0" y2="444.6"/><line class="grid-minor" x1="342.0" y1="0" x2="342.0" y2="444.6"/><line class="grid-major" x1="360.0" y1="0" x2="360.0" y2="444.6"/><text class="ax" x="360.0" y="-7" text-anchor="middle">200</text><line class="grid-minor" x1="378.0" y1="0" x2="378.0" y2="444.6"/><line class="grid-minor" x1="396.0" y1="0" x2="396.0" y2="444.6"/><line class="grid-minor" x1="414.0" y1="0" x2="414.0" y2="444.6"/><line class="grid-minor" x1="432.0" y1="0" x2="432.0" y2="444.6"/><line class="grid-major" x1="450.0" y1="0" x2="450.0" y2="444.6"/><text class="ax" x="450.0" y="-7" text-anchor="middle">250</text><line class="grid-minor" x1="468.0" y1="0" x2="468.0" y2="444.6"/><line class="grid-minor" x1="486.0" y1="0" x2="486.0" y2="444.6"/><line class="grid-minor" x1="504.0" y1="0" x2="504.0" y2="444.6"/><line class="grid-minor" x1="522.0" y1="0" x2="522.0" y2="444.6"/><line class="grid-major" x1="540.0" y1="0" x2="540.0" y2="444.6"/><text class="ax" x="540.0" y="-7" text-anchor="middle">300</text><line class="grid-minor" x1="558.0" y1="0" x2="558.0" y2="444.6"/><line class="grid-minor" x1="576.0" y1="0" x2="576.0" y2="444.6"/><line class="grid-minor" x1="594.0" y1="0" x2="594.0" y2="444.6"/><line class="grid-minor" x1="612.0" y1="0" x2="612.0" y2="444.6"/><line class="grid-major" x1="630.0" y1="0" x2="630.0" y2="444.6"/><text class="ax" x="630.0" y="-7" text-anchor="middle">350</text><line class="grid-major" x1="0" y1="0.0" x2="630.0" y2="0.0"/><text class="ax" x="-6" y="3.0" text-anchor="end">0</text><line class="grid-minor" x1="0" y1="18.0" x2="630.0" y2="18.0"/><line class="grid-minor" x1="0" y1="36.0" x2="630.0" y2="36.0"/><line class="grid-minor" x1="0" y1="54.0" x2="630.0" y2="54.0"/><line class="grid-minor" x1="0" y1="72.0" x2="630.0" y2="72.0"/><line class="grid-major" x1="0" y1="90.0" x2="630.0" y2="90.0"/><text class="ax" x="-6" y="93.0" text-anchor="end">50</text><line class="grid-minor" x1="0" y1="108.0" x2="630.0" y2="108.0"/><line class="grid-minor" x1="0" y1="126.0" x2="630.0" y2="126.0"/><line class="grid-minor" x1="0" y1="144.0" x2="630.0" y2="144.0"/><line class="grid-minor" x1="0" y1="162.0" x2="630.0" y2="162.0"/><line class="grid-major" x1="0" y1="180.0" x2="630.0" y2="180.0"/><text class="ax" x="-6" y="183.0" text-anchor="end">100</text><line class="grid-minor" x1="0" y1="198.0" x2="630.0" y2="198.0"/><line class="grid-minor" x1="0" y1="216.0" x2="630.0" y2="216.0"/><line class="grid-minor" x1="0" y1="234.0" x2="630.0" y2="234.0"/><line class="grid-minor" x1="0" y1="252.0" x2="630.0" y2="252.0"/><line class="grid-major" x1="0" y1="270.0" x2="630.0" y2="270.0"/><text class="ax" x="-6" y="273.0" text-anchor="end">150</text><line class="grid-minor" x1="0" y1="288.0" x2="630.0" y2="288.0"/><line class="grid-minor" x1="0" y1="306.0" x2="630.0" y2="306.0"/><line class="grid-minor" x1="0" y1="324.0" x2="630.0" y2="324.0"/><line class="grid-minor" x1="0" y1="342.0" x2="630.0" y2="342.0"/><line class="grid-major" x1="0" y1="360.0" x2="630.0" y2="360.0"/><text class="ax" x="-6" y="363.0" text-anchor="end">200</text><line class="grid-minor" x1="0" y1="378.0" x2="630.0" y2="378.0"/><line class="grid-minor" x1="0" y1="396.0" x2="630.0" y2="396.0"/><line class="grid-minor" x1="0" y1="414.0" x2="630.0" y2="414.0"/><line class="grid-minor" x1="0" y1="432.0" x2="630.0" y2="432.0"/><text class="ax" x="315.0" y="-18" text-anchor="middle">блоки · 10 / 50</text></g>
-  <path class="pa" d="M130 130 L 180 130"/><path class="pa" d="M400 130 L 430 130"/><path class="pa" d="M502 270 L 498 300"/><path class="pa" d="M444 344 L 368 360"/><path class="pa dot" d="M680 268 L 680 300"/>
-  <!-- C1 -->
-  <rect class="rm" x="50" y="50" width="80" height="160"/>
-  <text class="l" x="54" y="42">C1 Корневой спуск</text><text class="s" x="56" y="76">↑ из арены Б2</text><text class="s" x="56" y="92">лианы · 22 бл.</text>
-  <!-- C2 -->
-  <rect class="rm" x="180" y="60" width="220" height="140"/>
-  <circle class="pm" cx="230" cy="110" r="10"/><circle class="pm" cx="290" cy="100" r="10"/><circle class="pm" cx="350" cy="110" r="10"/><circle class="pm" cx="290" cy="160" r="13"/>
-  <text class="l" x="190" y="52">C2 Зал барабанов</text><text class="s" x="200" y="190">ритм открывает ворота</text>
-  <!-- C3 -->
-  <path class="rm warp" d="M430 60 L 720 70 L 740 180 L 690 268 L 520 270 L 430 200 Z"/>
-  <circle class="itm" cx="490" cy="110" r="5"/><circle class="itm" cx="580" cy="170" r="5"/><circle class="itm" cx="660" cy="120" r="5"/><circle class="itm" cx="620" cy="230" r="5"/>
-  <text class="l" x="470" y="92">C3 Варп-топь</text><text class="s" x="470" y="226">туман: 40 с</text><text class="s" x="470" y="240">точки = святые травы</text>
-  <!-- C3a -->
-  <rect class="rm" x="444" y="300" width="112" height="56"/><text class="l" x="452" y="322">C3а Кормовая</text><text class="l" x="452" y="338">нора</text>
-  <!-- C4 secret -->
-  <rect class="rm sec" x="600" y="300" width="160" height="110"/>
-  <rect class="bm" x="671" y="336" width="18" height="18" transform="rotate(45 680 345)" opacity=".7"/>
-  <text class="l" x="608" y="428">C4 Топь Бормочущего</text><text class="s" x="608" y="442">секрет · Джабберслайт</text>
-  <!-- C5 arena -->
-  <circle class="rm boss" cx="262" cy="384" r="110"/><circle class="rm" cx="262" cy="384" r="38"/>
-  <circle class="stake" cx="192" cy="314" r="5"/><circle class="stake" cx="332" cy="314" r="5"/><circle class="stake" cx="192" cy="454" r="5"/><circle class="stake" cx="332" cy="454" r="5"/>
-  <rect class="bm" x="252" y="374" width="20" height="20" transform="rotate(45 262 384)"/><text class="w" x="253" y="388">Б3</text>
-  <text class="l" x="160" y="266">C5 Яма Горгона · арена Б3</text><text class="s" x="340" y="470">кормушки ×4</text>
-  <circle class="ink" cx="262" cy="500" r="12"/><text class="w" x="256" y="504">↓</text><text class="s" x="282" y="508">Глотка → D</text>
-  <!-- S3 -->
-  <path class="sc" d="M448 318 C 330 250, 190 236, 130 196"/>
-  <circle class="sm" cx="300" cy="244" r="9"/><text class="w" x="292" y="248">S3</text>
-  <line class="sl" x1="620" y1="490" x2="700" y2="490"/><text class="s" x="620" y="482">0 — 32 блока</text>
+  <polyline class="pa" style="stroke-width:14.4" points="307.8,403.2 232.2,403.2"/>
+  <polyline class="pa" style="stroke-width:14.4" points="135,271.8 135,230.4"/>
+  <polyline class="pa" style="stroke-width:10.8" points="374.4,135 406.8,135"/>
+  <polyline class="pa" style="stroke-width:14.4" points="459,160.2 522,252"/>
+  <polyline class="pa dot" points="356.4,54 482.4,54"/>
+  <rect class="rm" x="306" y="370.8" width="90" height="68.4"/>
+  <rect class="rm" x="36" y="270" width="198" height="162"/>
+  <polygon class="rm warp" points="36,36 360,36 387,144 342,234 72,234 36,162"/>
+  <rect class="rm" x="405" y="104.4" width="72" height="57.6"/>
+  <circle class="rm boss" cx="540.9" cy="274.5" r="38.7"/>
+  <rect class="rm sec" x="482.4" y="14.4" width="129.6" height="72"/>
+  <polyline class="sc" points="441,160.2 446.4,270 432,360 392.4,387"/>
+  <polygon class="bm" points="540.9,261.5 553.9,274.5 540.9,287.5 527.9,274.5"/>
+  <text class="w" x="540.9" y="278.5" text-anchor="middle">Б3</text>
+  <polygon class="bm" points="547.2,37.4 560.2,50.4 547.2,63.4 534.2,50.4" opacity=".7"/>
+  <text class="w" x="547.2" y="54.4" text-anchor="middle">★</text>
+  <circle class="sm" cx="443.7" cy="270.9" r="10"/>
+  <text class="w" x="443.7" y="274.9" text-anchor="middle">S3</text>
+  <rect class="ink" x="509.1" y="27.3" width="6" height="12"/>
+  <rect class="ink" x="581.1" y="27.3" width="6" height="12"/>
+  <rect class="ink" x="509.1" y="63.3" width="6" height="12"/>
+  <rect class="ink" x="581.1" y="63.3" width="6" height="12"/>
+  <circle class="itm" cx="90.9" cy="72.9" r="5"/>
+  <circle class="itm" cx="198.9" cy="54.9" r="5"/>
+  <circle class="itm" cx="324.9" cy="108.9" r="5"/>
+  <circle class="itm" cx="252.9" cy="207.9" r="5"/>
+  <circle class="fog" cx="198.9" cy="126.9" r="12"/>
+  <circle class="herd" cx="356.9" cy="389.9" r="3"/>
+  <circle class="herd" cx="364.9" cy="389.9" r="3"/>
+  <circle class="herd" cx="360.9" cy="383.9" r="3"/>
+  <circle class="herd" cx="68.9" cy="308.9" r="3"/>
+  <circle class="herd" cx="76.9" cy="308.9" r="3"/>
+  <circle class="herd" cx="72.9" cy="302.9" r="3"/>
+  <circle class="herd" cx="185.9" cy="398.9" r="3"/>
+  <circle class="herd" cx="193.9" cy="398.9" r="3"/>
+  <circle class="herd" cx="189.9" cy="392.9" r="3"/>
+  <circle class="herd" cx="77.9" cy="407.9" r="3"/>
+  <circle class="herd" cx="85.9" cy="407.9" r="3"/>
+  <circle class="herd" cx="81.9" cy="401.9" r="3"/>
+  <circle class="herd" cx="212.9" cy="182.9" r="3"/>
+  <circle class="herd" cx="220.9" cy="182.9" r="3"/>
+  <circle class="herd" cx="216.9" cy="176.9" r="3"/>
+  <circle class="el" cx="135.9" cy="351.9" r="8"/>
+  <text class="w" x="135.9" y="355.9" text-anchor="middle">Б</text>
+  <circle class="el" cx="126.9" cy="108.9" r="8"/>
+  <text class="w" x="126.9" y="112.9" text-anchor="middle">О</text>
+  <circle class="el" cx="270.9" cy="90.9" r="8"/>
+  <text class="w" x="270.9" y="94.9" text-anchor="middle">О</text>
+  <circle class="el" cx="441.9" cy="132.3" r="8"/>
+  <text class="w" x="441.9" y="136.3" text-anchor="middle">М</text>
+  <circle class="ink" cx="542.7" cy="294.3" r="11"/>
+  <text class="w" x="542.7" y="298.3" text-anchor="middle">↓</text>
+  <circle class="ink" cx="344.7" cy="416.7" r="11"/>
+  <text class="w" x="344.7" y="420.7" text-anchor="middle">↑</text>
+  <text class="l" x="313.2" y="363.6">C1 Корневой спуск</text>
+  <text class="s" x="313.2" y="378.6">отряд</text>
+  <text class="l" x="41.4" y="262.8">C2 Зал барабанов</text>
+  <text class="s" x="41.4" y="277.8">Барабанщик + 3 отряда</text>
+  <text class="l" x="43.2" y="27">C3 Варп-топь</text>
+  <text class="s" x="43.2" y="42">туман · святые травы</text>
+  <text class="s" x="43.2" y="55">2 элиты-отродья · отряд</text>
+  <text class="l" x="406.8" y="97.2">C3а Нора</text>
+  <text class="s" x="406.8" y="112.2">минотавр</text>
+  <text class="l" x="532.8" y="226.8">C5 Яма · арена Б3</text>
+  <text class="s" x="532.8" y="241.8">r 21</text>
+  <text class="l" x="486" y="104.4">C4 Топь Бормочущего</text>
+  <text class="s" x="486" y="119.4">секрет · 4 менгира</text>
+  <text class="s" x="572.4" y="320.4">Глотка → D0</text>
+  <line class="sl" x1="650" y1="490" x2="740" y2="490"/>
+  <text class="s" x="650" y="482">0 — 50 блоков</text>
 </svg>
-<div class="cap">S3 — лифт на пузырьковом столбе от Кормовой норы к C1 · пунктирная стена C4 — потайной проход · сетка 10 / 50 блоков</div>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm warp" x="2" y="2" width="22" height="12"/></svg>ядовитый туман</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm sec" x="2" y="2" width="22" height="12"/></svg>скрытое помещение</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)" opacity=".6"/></svg>секретный босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa dot" x1="2" y1="8" x2="24" y2="8"/></svg>потайной проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="pm" cx="13" cy="8" r="6"/></svg>барабан</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="itm" cx="13" cy="8" r="4"/></svg>святая трава</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="stake" cx="13" cy="8" r="3.5"/></svg>заострённый кол</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>номер шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<div class="cap">Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · S3: лестница из Норы к C1 · пунктир — потайной лаз в C4<br>Элиты: Б — Барабанщик, О — отродье Хаоса, М — минотавр</div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa dot" x1="2" y1="8" x2="24" y2="8"/></svg>потайной лаз</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm warp" x="2" y="2" width="22" height="12"/></svg>ядовитый туман</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm sec" x="2" y="2" width="22" height="12"/></svg>скрытое помещение</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="itm" cx="13" cy="8" r="4"/></svg>святая трава</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="fog" cx="13" cy="8" r="6"/></svg>источник тумана (скрытый блок)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="10" y="2" width="6" height="12"/></svg>менгир (укрытие)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>рычаг шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<!-- /MAP:L3 -->
 </div>
-<h3>C2 Головоломка: зов стада</h3>
-<p>Четыре Scripted Block-барабана, в storeddata ключ <code>L</code>/<code>R</code>/<code>B</code>. Scripted Item «Рог Бра-шамана»: ПКМ пишет world storeddata <code>hornBlown=1</code> и звук. Пока рог не трубили — барабаны в <code>interact</code> только пишут игроку сообщение. Ритм за 6 с (120 тиков): <b>L L R B</b>. Ошибка — <code>spawnClone</code> «Унгор» ×3 (на них тот же скрипт маски, что у вышек). Успех — снять решётки ворот списком координат.</p>
+<div class="tbl"><table>
+<thead><tr><th>Зона</th><th>Кто стоит</th><th>Чему учит</th></tr></thead>
+<tbody>
+<tr><td><b>C1 Корневой спуск</b></td><td>Отряд у шахты из B5. Здесь выходит лестница S3.</td><td>—</td></tr>
+<tr><td><b>C2 Зал барабанов</b></td><td>Барабанщик в центре, 3 отряда вокруг. Пока он жив, отряды под Скоростью и Силой.</td><td>Прорыв к приоритетной цели</td></tr>
+<tr><td><b>C3 Варп-топь</b></td><td>Туман (тошнота + иссушение), 4 святые травы, 2 отродья Хаоса и отряд.</td><td>Хватка и вращение в тумане</td></tr>
+<tr><td><b>C3а Нора</b></td><td>Минотавр — первая встреча, один. Scripted Block S3.</td><td>Прыжок и рывок минотавра</td></tr>
+<tr><td><b>C4 Топь Бормочущего</b></td><td>Секрет: потайной лаз из C3. Джабберслайт и 4 менгира.</td><td>Необязательный босс</td></tr>
+<tr><td><b>C5 Яма</b></td><td>Б3: Горгон.</td><td>Босс</td></tr>
+</tbody></table></div>
 <h3>C3 Варп-топь</h3>
-<p>Невидимый неуязвимый NPC «Туман» стоит в топи. В <code>tick</code>: игроки в радиусе (EntitiesType.PLAYER). Если у игрока storeddata <code>hs_clean_until</code> ещё не истек — пропуск. Иначе <code>addPotionEffect</code> тошнота 3 с и иссушение 2 с (это секунды). Четыре Scripted Block «святая трава»: ПКМ пишет игроку <code>hs_clean_until = now + 300</code>. Зона урона мода здесь не используется: она не умеет пропускать «чистых» игроков.</p>
+<p>Скрытый Scripted Block «Туман» под полом топи. В <code>tick</code> (раз в 10 тиков): игроки в кубе ±16 блоков. Если у игрока storeddata <code>hs_clean_until</code> ещё не истёк — пропуск. Иначе тошнота 3 с и иссушение 2 с. Четыре Scripted Block «святая трава»: ПКМ пишет игроку <code>hs_clean_until = now + 300</code> тиков (15 с чистоты). Бой с отродьями идёт от травы к траве.</p>
 <h3>C4 Секрет: Топь Бормочущего</h3>
-<p>Тупик, дальше данжа нет. Четыре менгира — обычные блоки камня. Раз в 12 с босс в <code>tick</code> берёт игроков в радиусе 15. Кто дальше 2.5 блока от любого менгира — тошнота, слепота, замедление на 6 с. Укрытие проверяется дистанцией, не линией взгляда.</p>
+<p>Тупик, дальше данжа нет. Четыре менгира — обычные столбы из камня. Раз в 12 с Бормочущий поднимает взгляд: у менгиров на 2 с загораются золотые круги r 2,5. Кто в этот момент не стоит в круге, теряет 70% HP и получает тошноту. Укрытие проверяется дистанцией, не линией взгляда.</p>
 </section>
 
 <!-- ================= LEVEL 4 ================= -->
 <section id="l4">
 <h2>Локация 4 · Провал Камня Стада</h2>
-<p>Огромная карстовая воронка, над которой виден клочок ночного неба. Внутри подземная роща: искривлённые деревья, каменные круги, костры. В центре стоит Камень Стада: crying obsidian, зелёное стекло, свет снизу. Вход из арены Б3. Единственный выход из всего данжа — Подъём Висельника, который открывается в арене Б4.</p>
+<p>Огромная карстовая воронка, над которой виден клочок ночного неба. Внутри подземная роща: искривлённые деревья, каменные круги, костры. В центре арены стоит Камень Стада: crying obsidian, зелёное стекло, свет снизу. Вход из арены Б3. Единственный выход из данжа — Подъём Висельника, который открывается после Б4.</p>
 <div class="mapbox">
-<svg viewBox="0 0 800 540" role="img" aria-label="План локации 4">
+<!-- MAP:L4 -->
+<svg viewBox="0 0 800 540" role="img" aria-label="План локации 4 · Провал Камня Стада">
   <rect class="bg" width="800" height="540"/><rect class="gr" width="800" height="540"/>
   <g class="blkgrid" pointer-events="none" transform="translate(0,0)"><line class="grid-major" x1="0.0" y1="0" x2="0.0" y2="444.6"/><text class="ax" x="0.0" y="-7" text-anchor="middle">0</text><line class="grid-minor" x1="18.0" y1="0" x2="18.0" y2="444.6"/><line class="grid-minor" x1="36.0" y1="0" x2="36.0" y2="444.6"/><line class="grid-minor" x1="54.0" y1="0" x2="54.0" y2="444.6"/><line class="grid-minor" x1="72.0" y1="0" x2="72.0" y2="444.6"/><line class="grid-major" x1="90.0" y1="0" x2="90.0" y2="444.6"/><text class="ax" x="90.0" y="-7" text-anchor="middle">50</text><line class="grid-minor" x1="108.0" y1="0" x2="108.0" y2="444.6"/><line class="grid-minor" x1="126.0" y1="0" x2="126.0" y2="444.6"/><line class="grid-minor" x1="144.0" y1="0" x2="144.0" y2="444.6"/><line class="grid-minor" x1="162.0" y1="0" x2="162.0" y2="444.6"/><line class="grid-major" x1="180.0" y1="0" x2="180.0" y2="444.6"/><text class="ax" x="180.0" y="-7" text-anchor="middle">100</text><line class="grid-minor" x1="198.0" y1="0" x2="198.0" y2="444.6"/><line class="grid-minor" x1="216.0" y1="0" x2="216.0" y2="444.6"/><line class="grid-minor" x1="234.0" y1="0" x2="234.0" y2="444.6"/><line class="grid-minor" x1="252.0" y1="0" x2="252.0" y2="444.6"/><line class="grid-major" x1="270.0" y1="0" x2="270.0" y2="444.6"/><text class="ax" x="270.0" y="-7" text-anchor="middle">150</text><line class="grid-minor" x1="288.0" y1="0" x2="288.0" y2="444.6"/><line class="grid-minor" x1="306.0" y1="0" x2="306.0" y2="444.6"/><line class="grid-minor" x1="324.0" y1="0" x2="324.0" y2="444.6"/><line class="grid-minor" x1="342.0" y1="0" x2="342.0" y2="444.6"/><line class="grid-major" x1="360.0" y1="0" x2="360.0" y2="444.6"/><text class="ax" x="360.0" y="-7" text-anchor="middle">200</text><line class="grid-minor" x1="378.0" y1="0" x2="378.0" y2="444.6"/><line class="grid-minor" x1="396.0" y1="0" x2="396.0" y2="444.6"/><line class="grid-minor" x1="414.0" y1="0" x2="414.0" y2="444.6"/><line class="grid-minor" x1="432.0" y1="0" x2="432.0" y2="444.6"/><line class="grid-major" x1="450.0" y1="0" x2="450.0" y2="444.6"/><text class="ax" x="450.0" y="-7" text-anchor="middle">250</text><line class="grid-minor" x1="468.0" y1="0" x2="468.0" y2="444.6"/><line class="grid-minor" x1="486.0" y1="0" x2="486.0" y2="444.6"/><line class="grid-minor" x1="504.0" y1="0" x2="504.0" y2="444.6"/><line class="grid-minor" x1="522.0" y1="0" x2="522.0" y2="444.6"/><line class="grid-major" x1="540.0" y1="0" x2="540.0" y2="444.6"/><text class="ax" x="540.0" y="-7" text-anchor="middle">300</text><line class="grid-minor" x1="558.0" y1="0" x2="558.0" y2="444.6"/><line class="grid-minor" x1="576.0" y1="0" x2="576.0" y2="444.6"/><line class="grid-minor" x1="594.0" y1="0" x2="594.0" y2="444.6"/><line class="grid-minor" x1="612.0" y1="0" x2="612.0" y2="444.6"/><line class="grid-major" x1="630.0" y1="0" x2="630.0" y2="444.6"/><text class="ax" x="630.0" y="-7" text-anchor="middle">350</text><line class="grid-major" x1="0" y1="0.0" x2="630.0" y2="0.0"/><text class="ax" x="-6" y="3.0" text-anchor="end">0</text><line class="grid-minor" x1="0" y1="18.0" x2="630.0" y2="18.0"/><line class="grid-minor" x1="0" y1="36.0" x2="630.0" y2="36.0"/><line class="grid-minor" x1="0" y1="54.0" x2="630.0" y2="54.0"/><line class="grid-minor" x1="0" y1="72.0" x2="630.0" y2="72.0"/><line class="grid-major" x1="0" y1="90.0" x2="630.0" y2="90.0"/><text class="ax" x="-6" y="93.0" text-anchor="end">50</text><line class="grid-minor" x1="0" y1="108.0" x2="630.0" y2="108.0"/><line class="grid-minor" x1="0" y1="126.0" x2="630.0" y2="126.0"/><line class="grid-minor" x1="0" y1="144.0" x2="630.0" y2="144.0"/><line class="grid-minor" x1="0" y1="162.0" x2="630.0" y2="162.0"/><line class="grid-major" x1="0" y1="180.0" x2="630.0" y2="180.0"/><text class="ax" x="-6" y="183.0" text-anchor="end">100</text><line class="grid-minor" x1="0" y1="198.0" x2="630.0" y2="198.0"/><line class="grid-minor" x1="0" y1="216.0" x2="630.0" y2="216.0"/><line class="grid-minor" x1="0" y1="234.0" x2="630.0" y2="234.0"/><line class="grid-minor" x1="0" y1="252.0" x2="630.0" y2="252.0"/><line class="grid-major" x1="0" y1="270.0" x2="630.0" y2="270.0"/><text class="ax" x="-6" y="273.0" text-anchor="end">150</text><line class="grid-minor" x1="0" y1="288.0" x2="630.0" y2="288.0"/><line class="grid-minor" x1="0" y1="306.0" x2="630.0" y2="306.0"/><line class="grid-minor" x1="0" y1="324.0" x2="630.0" y2="324.0"/><line class="grid-minor" x1="0" y1="342.0" x2="630.0" y2="342.0"/><line class="grid-major" x1="0" y1="360.0" x2="630.0" y2="360.0"/><text class="ax" x="-6" y="363.0" text-anchor="end">200</text><line class="grid-minor" x1="0" y1="378.0" x2="630.0" y2="378.0"/><line class="grid-minor" x1="0" y1="396.0" x2="630.0" y2="396.0"/><line class="grid-minor" x1="0" y1="414.0" x2="630.0" y2="414.0"/><line class="grid-minor" x1="0" y1="432.0" x2="630.0" y2="432.0"/><text class="ax" x="315.0" y="-18" text-anchor="middle">блоки · 10 / 50</text></g>
-  <path class="pa" d="M100 266 L 116 222"/><path class="pa" d="M300 140 L 350 140"/><path class="pa" d="M468 184 L 506 226"/>
-  <!-- D0 -->
-  <circle class="ink" cx="96" cy="282" r="12"/><text class="w" x="90" y="286">↑</text><text class="s" x="40" y="314">D0 из Глотки (Б3)</text>
-  <!-- D1 -->
-  <rect class="rm" x="60" y="60" width="240" height="160"/>
-  <rect class="rm" x="110" y="110" width="140" height="50"/><text class="s" x="122" y="140">пиршественный стол</text>
-  <circle class="herd" cx="130" cy="98" r="6"/><circle class="herd" cx="200" cy="98" r="6"/><circle class="herd" cx="160" cy="178" r="6"/><circle class="herd" cx="230" cy="178" r="6"/>
-  <path class="st" d="M66 66 L 294 66 L 294 82 L 66 82 Z"/>
-  <text class="l" x="68" y="52">D1 Пиршество минотавров</text><text class="s" x="68" y="210">штриховка — балка галереи</text>
-  <!-- D2 -->
-  <circle class="rm" cx="420" cy="130" r="70"/><rect class="pm" x="410" y="120" width="20" height="20"/>
-  <text class="l" x="370" y="50">D2 Круг Вызова</text><text class="s" x="364" y="218">поединок с бестигором</text>
-  <!-- D3 arena -->
-  <circle class="rm boss" cx="570" cy="370" r="155"/>
-  <path class="chan" d="M570 370 L 570 230"/><path class="chan" d="M570 370 L 450 440"/><path class="chan" d="M570 370 L 690 440"/>
-  <circle class="pm" cx="570" cy="236" r="9"/><circle class="pm" cx="456" cy="436" r="9"/><circle class="pm" cx="684" cy="436" r="9"/>
-  <polygon class="ink" points="570,340 590,370 570,402 550,370"/>
-  <text class="l" x="598" y="354">Камень Стада</text>
-  <rect class="bm" x="610" y="380" width="20" height="20" transform="rotate(45 620 390)"/><text class="w" x="611" y="394">Б4</text>
-  <text class="l" x="440" y="196" dy="-2" dx="120">D3 Роща · арена Б4</text>
-  <!-- D4 + exit -->
-  <rect class="rm" x="690" y="470" width="96" height="56"/><text class="l" x="698" y="490">D4 добыча</text><text class="s" x="698" y="506">сундук стада</text>
-  <circle class="ink" cx="762" cy="448" r="12"/><text class="w" x="756" y="452">↑</text>
-  <text class="l" x="730" y="396">ВЫХОД</text><text class="s" x="730" y="412">Подъём</text><text class="s" x="730" y="426">Висельника</text>
-  <!-- S4 -->
-  <path class="sc" d="M366 176 C 300 262, 180 296, 108 290"/>
-  <circle class="sm" cx="250" cy="266" r="9"/><text class="w" x="242" y="270">S4</text>
-  <line class="sl" x1="40" y1="30" x2="120" y2="30"/><text class="s" x="40" y="22">0 — 32 блока</text>
+  <polyline class="pa" style="stroke-width:14.4" points="516.6,306 482.4,306"/>
+  <polyline class="pa" style="stroke-width:14.4" points="271.8,288 187.2,237.6"/>
+  <polyline class="pa" style="stroke-width:14.4" points="154.8,165.6 201.6,111.6"/>
+  <polyline class="pa" style="stroke-width:10.8" points="262.8,68.4 286.2,63"/>
+  <rect class="rm" x="514.8" y="262.8" width="54" height="54"/>
+  <rect class="rm" x="270" y="244.8" width="216" height="147.6"/>
+  <rect class="rm" x="324" y="297" width="108" height="36"/>
+  <circle class="rm" cx="144.9" cy="213.3" r="54.9"/>
+  <circle class="rm boss" cx="220.5" cy="80.1" r="47.7"/>
+  <rect class="rm" x="284.4" y="36" width="72" height="54"/>
+  <polyline class="chan" points="219.6,79.2 219.6,37.8"/>
+  <polyline class="chan" points="219.6,79.2 183.6,104.4"/>
+  <polyline class="chan" points="219.6,79.2 255.6,104.4"/>
+  <polyline class="sc" points="171,252 216,414 540,414 540,313.2"/>
+  <polygon class="bm" points="220.5,67.1 233.5,80.1 220.5,93.1 207.5,80.1"/>
+  <text class="w" x="220.5" y="84.1" text-anchor="middle">Б4</text>
+  <polygon class="ink" points="220.5,71.1 229.5,80.1 220.5,89.1 211.5,80.1"/>
+  <circle class="hrt" cx="220.5" cy="40.5" r="7"/>
+  <circle class="hrt" cx="186.3" cy="103.5" r="7"/>
+  <circle class="hrt" cx="254.7" cy="103.5" r="7"/>
+  <polygon class="cr" points="202.5,55.1 209.5,62.1 202.5,69.1 195.5,62.1"/>
+  <polygon class="cr" points="238.5,55.1 245.5,62.1 238.5,69.1 231.5,62.1"/>
+  <polygon class="cr" points="202.5,91.1 209.5,98.1 202.5,105.1 195.5,98.1"/>
+  <polygon class="cr" points="238.5,91.1 245.5,98.1 238.5,105.1 231.5,98.1"/>
+  <rect class="itm" x="314.4" y="57" width="12" height="12"/>
+  <circle class="ink" cx="342.9" cy="63.9" r="11"/>
+  <text class="w" x="342.9" y="67.9" text-anchor="middle">↑</text>
+  <circle class="sm" cx="378.9" cy="414.9" r="10"/>
+  <text class="w" x="378.9" y="418.9" text-anchor="middle">S4</text>
+  <circle class="herd" cx="522.5" cy="272.9" r="3"/>
+  <circle class="herd" cx="530.5" cy="272.9" r="3"/>
+  <circle class="herd" cx="526.5" cy="266.9" r="3"/>
+  <circle class="herd" cx="374.9" cy="362.9" r="3"/>
+  <circle class="herd" cx="382.9" cy="362.9" r="3"/>
+  <circle class="herd" cx="378.9" cy="356.9" r="3"/>
+  <circle class="herd" cx="104.9" cy="182.9" r="3"/>
+  <circle class="herd" cx="112.9" cy="182.9" r="3"/>
+  <circle class="herd" cx="108.9" cy="176.9" r="3"/>
+  <circle class="el" cx="315.9" cy="270.9" r="8"/>
+  <text class="w" x="315.9" y="274.9" text-anchor="middle">М</text>
+  <circle class="el" cx="450.9" cy="270.9" r="8"/>
+  <text class="w" x="450.9" y="274.9" text-anchor="middle">М</text>
+  <circle class="el" cx="315.9" cy="369.9" r="8"/>
+  <text class="w" x="315.9" y="373.9" text-anchor="middle">М</text>
+  <circle class="el" cx="450.9" cy="369.9" r="8"/>
+  <text class="w" x="450.9" y="373.9" text-anchor="middle">М</text>
+  <circle class="el" cx="144.9" cy="213.3" r="8"/>
+  <text class="w" x="144.9" y="217.3" text-anchor="middle">Ч</text>
+  <circle class="ink" cx="542.7" cy="294.3" r="11"/>
+  <text class="w" x="542.7" y="298.3" text-anchor="middle">↑</text>
+  <text class="l" x="518.4" y="255.6">D0</text>
+  <text class="s" x="518.4" y="270.6">из Глотки</text>
+  <text class="l" x="273.6" y="237.6">D1 Пиршество минотавров</text>
+  <text class="s" x="273.6" y="252.6">4 минотавра · отряд</text>
+  <text class="s" x="334.8" y="318.6">пиршественный стол</text>
+  <text class="l" x="90" y="284.4">D2 Круг Вызова</text>
+  <text class="s" x="90" y="299.4">чемпион + бестигоры</text>
+  <text class="l" x="273.6" y="118.8">D3 Роща · арена Б4</text>
+  <text class="s" x="273.6" y="133.8">r 26</text>
+  <text class="l" x="288" y="28.8">D4 Добыча</text>
+  <text class="s" x="288" y="43.8">после Б4</text>
+  <text class="s" x="331.2" y="104.4">выход</text>
+  <line class="sl" x1="650" y1="510" x2="740" y2="510"/>
+  <text class="s" x="650" y="502">0 — 50 блоков</text>
 </svg>
-<div class="cap">Красные линии — кровавые жёлобы · S4: лестница из Круга Вызова к D0 · D4 и выход после Б4 · сетка 10 / 50 блоков</div>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="ink" points="13,1 18,8 13,15 8,8"/></svg>Камень Стада</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="chan" x1="2" y1="8" x2="24" y2="8"/></svg>кровавый жёлоб</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="pm" cx="13" cy="8" r="5"/></svg>сердце жёлоба (разбить)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="pm" x="7" y="2" width="12" height="12"/></svg>головоломка / испытание</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="13" cy="8" r="5"/></svg>минотавр</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="st" x="2" y="2" width="22" height="12"/></svg>зона стелса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>номер шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<div class="cap">Порядок: D0 → D1 → D2 → арена D3 (r 26) · красные линии — жёлобы · S4: лестница из Круга Вызова к D0<br>Элиты: М — минотавр, Ч — Чемпион Круга</div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="hrt" cx="13" cy="8" r="6"/></svg>сердце жёлоба</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="cr" points="13,1 19,8 13,15 7,8"/></svg>варп-кристалл</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="ink" points="13,1 19,8 13,15 7,8"/></svg>Камень Стада</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="chan" x1="2" y1="8" x2="24" y2="8"/></svg>кровавый жёлоб</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="itm" x="8" y="3" width="10" height="10"/></svg>добыча</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>рычаг шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<!-- /MAP:L4 -->
 </div>
-<h3>D1 Пиршество минотавров</h3>
-<p>Четыре клона «Минотавр», в <code>init</code> AI → On Attack = Ничего (<code>setRetaliateType(3)</code>), пока world storeddata <code>hs_feast</code> не <code>1</code>. Варианты:</p>
-<ul>
-  <li><b>Паркур</b> — балка под потолком (блоки, без скрипта).</li>
-  <li><b>Окорох</b> — Scripted Block стола: забрать окорок, 20 с держать минотавров в режиме Ничего, затем <code>hs_feast=1</code> и всем <code>setRetaliateType(0)</code>. Драки минотавров друг с другом в CNPC нет (одна фракция).</li>
-  <li><b>Бой</b> — ударить любого: в <code>damaged</code> выставить <code>hs_feast=1</code> и мстить всем четырём. Сундук — ваниль после зачистки или дроп с последнего.</li>
-</ul>
+<div class="tbl"><table>
+<thead><tr><th>Зона</th><th>Кто стоит</th><th>Чему учит</th></tr></thead>
+<tbody>
+<tr><td><b>D0</b></td><td>Отряд у подножия Глотки.</td><td>—</td></tr>
+<tr><td><b>D1 Пиршество минотавров</b></td><td>4 минотавра вокруг стола и отряд. Агрятся вместе: <code>damaged</code> любого будит остальных.</td><td>«Кровавое безумие»: убивать равномерно</td></tr>
+<tr><td><b>D2 Круг Вызова</b></td><td>Чемпион Круга и бестигоры (нейтральные до вызова).</td><td>Дуэль, открывает S4</td></tr>
+<tr><td><b>D3 Роща</b></td><td>Б4: Гарракс, Камень, 3 жёлоба с сердцами, 4 места кристаллов.</td><td>Финал</td></tr>
+<tr><td><b>D4</b></td><td>Добыча и выход наверх после Б4.</td><td>—</td></tr>
+</tbody></table></div>
 <h3>D2 Круг Вызова</h3>
-<p>Восемь клонов «Бестигор», один с Dialog «Право Вызова». Опция принять: скрипт ставит кольцо barrier (список координат), остальным семи On Attack = Ничего, чемпион — Мстить. В <code>died</code> чемпиона: снять barrier, семерым тоже Ничего (расступились). Опция отказаться / ударить любого: всем восьми Мстить, барьеры не ставить. После победы Scripted Block спускает лестницу S4.</p>
+<p>Бестигоры во фракции «Нейтралы данжа»: NPC враждебной фракции диалог не откроет. Чемпион — отдельный клон «Чемпион Круга» с Dialog «Право Вызова». Опция «принять» (<code>dialogOption</code>): поставить кольцо <code>minecraft:barrier</code> по списку координат, чемпиону <code>setFaction(id Стада)</code> и On Attack = Мстить. <code>died</code> чемпиона: снять кольцо и записать в <code>world.getTempdata()</code> <code>hs_d2_won_until = now + 72000</code>. Опция «отказаться» или удар по любому бестигору (<code>damaged</code>): всем <code>setFaction</code> Стада, кольцо не ставится — группа дерётся со всеми сразу. <code>init</code> каждого бестигора возвращает фракцию «Нейтралы данжа». В <code>tick</code> бестигора без цели и без игроков в радиусе 32 — вернуть нейтральную фракцию; чемпион заодно снимает кольцо. Scripted Block S4 открывает люк, только пока не истёк <code>hs_d2_won_until</code>.</p>
 </section>
 
 <!-- ================= BOSSES ================= -->
 <section id="bosses">
 <h2>Боссы</h2>
-<p class="note">Цифры на 2–3 игроков в железе/алмазе; для соло делите HP на 1,6. Каждый босс — NPC в клонере, Advanced → Respawn 3600, фракция «Стадо Расколотого Рога». Модель — Display этой сборки (GeckoLib Custom Model). Вкладка Scripts: вставь скрипт с <code>tick</code>/<code>died</code>/<code>damaged</code>. Рывок и круговой удар — id абилок мода <code>dash</code> и <code>weapon_spin</code> (вкладка Scripts, <code>AbilityAPI.start</code>). Остальное — клоны, диалоги и storeddata.</p>
+<p class="note">Каждый босс — NPC в клонере, Stats → Respawn 3600, AI → Return to start = да, фракция «Стадо Расколотого Рога». Модель — Display этой сборки (GeckoLib Custom Model). Скрипт: <code>hs_core.js</code> + файл босса, события <code>init</code>/<code>tick</code>/<code>timer</code>/<code>damaged</code>/<code>meleeAttack</code>/<code>died</code>. Все правила «Закона Стада» (потолок урона, рассеивание, поводок, сброс, ярость, масштаб HP) действуют у всех. Ниже — только то, что у каждого своё.</p>
 <div class="cols">
 <article class="boss">
-  <div class="eyebrow">Б1 · A4 Загон · ворота в локацию 2</div>
+  <div class="eyebrow">Б1 · A4 Загон 44×38 · ворота в локацию 2</div>
   <h3>Грул Кабанья Рука и Кровохряк</h3>
-  <div class="stat">Два отдельных NPC на арене (наездника в CNPC для боя не ставим). Кровохряк: размер 8, HP 260, мили. Грул: размер 6, HP 180, мили. Клоны: «Кровохряк», «Грул Кабанья Рука».</div>
+  <div class="stat">Два NPC. Кровохряк: размер 8, BASE HP 300, урон по нему ×0,25 вне оглушения. Грул: размер 6, BASE HP 220. По углам загона 4 кола (бревно тёмного дуба в 2 блока).</div>
   <ol class="ph">
-    <li><b>Кровохряк.</b> Скрипт: пока жив и есть цель — <code>AbilityAPI.start(npc, "dash", target, AbilityAPI.params("chargeTicks", 20, "distance", 14.0, "damage", 12.0))</code> с кулдауном по <code>getTotalTime</code>. Колья в загоне — только декор.</li>
-    <li><b>Грул.</b> При HP ≤ 50% один раз <code>spawnClone</code> четырёх «Унгор» (флаг в storeddata). В <code>died</code> Грула и кабана: если второго уже нет — открыть спуск (список <code>removeBlock</code>).</li>
+    <li><b>Таран</b> (кабан, раз в 9 с). Красная полоса 14×3 блока горит 2 с, потом кабан проносится по ней. Задетым −30% HP.</li>
+    <li><b>Кол.</b> Если таран закончился в 2,5 блока от целого кола, кол ломается, а кабан оглушён на 6 с и получает полный урон. Колов 4 на бой. Без них кабана придётся бить с множителем ×0,25 — до ярости не успеть.</li>
+    <li><b>Метка охоты</b> (Грул, раз в 15 с). Случайный игрок светится 6 с, следующий таран идёт в него. Отмеченный встаёт перед колом, остальные уходят с линии.</li>
+    <li><b>Рёв Стада</b> (Грул, раз в 45 с). Рассеивание всех эффектов и 2 унгора-рейдера. Удары Грула замедляют.</li>
+    <li><b>Месть.</b> Убили Грула первым — кабан таранит раз в 6 с и под Силой, а метки больше нет. Убили кабана первым — Грул под Силой II и быстрее. Завал спуска снимается, когда мертвы оба.</li>
   </ol>
-  <p><b>Дроп:</b> шкура / клык — слоты дропа в Inventory NPC.</p>
 </article>
 <article class="boss">
-  <div class="eyebrow">Б2 · B5 Святилище · ворота в локацию 3</div>
+  <div class="eyebrow">Б2 · B5 Святилище r 20 · ворота в локацию 3</div>
   <h3>Мургрот Туманный Глас, бра-шаман</h3>
-  <div class="stat">Размер 5, HP 220. Рендж: в GUI Inventory предмет в слот снаряда, Stats дальность &gt; 8. AI On Attack = Ничего, чтобы стоял и стрелял.</div>
+  <div class="stat">Размер 5, BASE HP 260. Рендж (снаряд в Inventory, дальность в Stats), On Attack = Мстить, скорость 0.</div>
   <ol class="ph">
-    <li><b>Четыре тотема.</b> Клоны «Тотем Мургрота», HP 60, не двигаются (walking speed 0, On Attack = Ничего). В <code>tick</code> Мургрота: если в радиусе арены жив хоть один тотем (по имени/тегу) — в <code>damaged</code> <code>setCanceled(true)</code>. Раз в 10 с <code>setPosition</code> на координаты ближайшего живого тотема.</li>
-    <li><b>≤ 60% HP.</b> Один раз за бой: <code>spawnClone</code> трёх «Мургрот-копия» (HP 1). Если у игрока в инвентаре предмет с именем «Тотемный» — копиям <code>addPotionEffect(PotionEffectType_GLOWING, 30, 0, false)</code> (30 секунд). Игрокам в арене слепота 4 с.</li>
-    <li><b>≤ 25% HP.</b> Один раз: <code>spawnClone</code> «Унгор» ×4. Случайному игроку Weakness и Slowness 8 с.</li>
+    <li><b>Тотемы.</b> На пуле, на 66% и на 33% у четырёх точек встают «Тотем Мургрота» (HP 40). Пока жив хоть один, Мургрот неуязвим.</li>
+    <li><b>Песнь безумия</b> (раз в 25 с, когда тотемов нет). Фиолетовый круг на всю арену, 5 с. Если за это время группа не нанесла Мургроту 60 урона (с учётом потолка), все теряют 50% HP и получают тошноту, а Мургрот лечится на 10%.</li>
+    <li><b>Порча Хаоса</b> (раз в 20 с). Красный круг r 6 следует за случайным игроком 4 с. Каждый в круге теряет 25% HP × число задетых: один — 25%, двое — по 50%, четверо — смерть. Разбегаться.</li>
+    <li><b>Иллюзии</b> (50%, один раз). Мургрот прыгает в случайную точку, рядом встают 3 копии (HP 1). Удар по копии снимает 30% HP ударившему. Над настоящим Мургротом вьются частицы ведьмы.</li>
   </ol>
-  <p><b>Дроп:</b> Рог Бра-шамана (кость с именем, Scripted Item). <code>died</code> открывает шахту вниз.</p>
 </article>
 <article class="boss">
-  <div class="eyebrow">Б3 · C5 Яма · ворота в локацию 4</div>
+  <div class="eyebrow">Б3 · C5 Яма r 21 · ворота в локацию 4</div>
   <h3>Великая Утроба, Горгон</h3>
-  <div class="stat">Размер 12, HP 480, мили. Бой на арене C5.</div>
+  <div class="stat">Размер 12, BASE HP 520, CAP 14, мили.</div>
   <ol class="ph">
-    <li><b>Кормушка.</b> Четыре Scripted Block. ПКМ с окороком: <code>removeItem</code>, 8 с Горгону Ничего (стоит). Игроки бьют в спину обычным уроном.</li>
-    <li><b>≤ 30% HP.</b> <code>getAi().setWalkingSpeed</code> ×1,5 (базу сохранить строкой). Каждые ~8 с <code>AbilityAPI.start(npc, "jump_slam", target)</code>.</li>
+    <li><b>Раздирание.</b> Каждый удар Горгона даёт цели стак. На 5 стаках −50% HP, стаки сбрасываются. Стак спадает раз в 3 с без ударов. Танк меняется или отходит на 3 стаках.</li>
+    <li><b>Пасть</b> (раз в 12 с). Красный конус 9 блоков, 60°, 1,5 с: −70% HP.</li>
+    <li><b>Прыжок</b> (раз в 16 с) в самого дальнего игрока: круг r 5, 2 с, −30% всем внутри. Дальнобойщика не спасает дистанция.</li>
+    <li><b>Сжатие ямы</b> (66% и 33%). На 20 с безопасен только центр r 13: за ним зона урона и −10% HP в секунду. В тесноте приходится стоять рядом с Пастью и Раздиранием.</li>
+    <li><b>Бешенство</b> (25%). Скорость +2, все перезарядки ×0,6.</li>
   </ol>
-  <p><b>Дроп:</b> рог Горгона. <code>died</code> открывает Глотку.</p>
 </article>
 <article class="boss">
-  <div class="eyebrow">Б4 · D3 Роща · финал и выход</div>
+  <div class="eyebrow">Б4 · D3 Роща r 26 · финал и выход</div>
   <h3>Гарракс Расколотый Рог, думбулл</h3>
-  <div class="stat">Размер 10, HP 900, двуручный топор в руках. Фазы в storeddata <code>"1"</code> / <code>"2"</code> / <code>"3"</code>.</div>
+  <div class="stat">Размер 10, BASE HP 900, CAP 14, двуручный топор. Фазы в storeddata: <code>1</code> → <code>2</code> → <code>2b</code> → <code>3</code>.</div>
   <ol class="ph">
-    <li><b>100–60%.</b> Чередовать <code>weapon_spin</code> и <code>dash</code> (кулдаун по world time). Один каст одновременно (<code>AbilityAPI.isBusy</code>).</li>
-    <li><b>60–30%.</b> <code>setPosition</code> на Камень, в <code>damaged</code> отмена урона. Каждые 10 с <code>spawnClone</code> «Гор» ×2, иногда «Минотавр». Три клона «Сердце жёлоба» (HP по вкусу). Их <code>died</code> увеличивает <code>channels</code>. При 3 — снять неуязвимость.</li>
-    <li><b>≤ 30%.</b> <code>getDisplay().setSize(12)</code>, Strength II и Resistance I на 60 с. Срыв: Scripted Block Камня + Рог в руке <b>или</b> четыре клона «Варп-кристалл» (HP 80); в <code>tick</code> кристалла <code>world.thunderStrike</code> раз в 5 с по своей позиции. При роге или 4 смертях — снять баффы размером обратно, отнять 15% HP.</li>
+    <li><b>Фаза 1 (100–60%).</b> Раз в 5 с одно из трёх: вращение r 4,5 (−25% в конце), таран по полосе 14 блоков (−35%) или «Раскол» — конус 9 блоков, 60° (−60%). Раз в 20 с <b>Клеймо</b>: золотой круг r 3 на игроке, через 6 с −80% HP, деленные на всех в круге. Один — 80%, двое — по 40%, трое — по 27%.</li>
+    <li><b>Фаза 2 (60%).</b> Гарракс встаёт на Камень и неуязвим. У концов жёлобов встают три «Сердца жёлоба» (HP 150, потолок 15 за удар). На три сердца — 45 с, иначе Камень убивает всех на арене. Каждые 10 с два гора.</li>
+    <li><b>Фаза 2б.</b> Сердца разбиты — снова фаза 1 до 30%.</li>
+    <li><b>Фаза 3, Ночь Тайн (30%).</b> 4 варп-кристалла (HP 80): каждый раз в 5 с снимает 10% HP всем в 4 блоках. Пока живы кристаллы, урон по Гарраксу ×0,25. Раз в 15 с на арене загорается столько золотых кругов r 2, сколько игроков: за 3,5 с в каждом должен стоять кто-то. Каждый пустой круг — −60% HP всем. Все кристаллы разбиты — обряд сорван: Гарракс теряет 15% HP и снова уязвим.</li>
   </ol>
-  <p><b>Дроп:</b> топор и рога в Inventory. <code>died</code> снимает barrier с D4 и выхода.</p>
+  <p><code>died</code> снимает barrier с D4 и Подъёма Висельника, <code>init</code> ставит обратно.</p>
 </article>
 <article class="boss">
   <div class="eyebrow">★ · C4 Топь · необязательный</div>
   <h3>Бормочущий, Джабберслайт</h3>
-  <div class="stat">Размер 7, HP 350, мили + скрипт взгляда.</div>
+  <div class="stat">Размер 7, BASE HP 380, мили.</div>
   <ol class="ph">
-    <li><b>Взгляд</b> раз в 12 с: игроки дальше 2.5 от менгиров в радиусе 15 получают три эффекта на 6 с.</li>
-    <li><b>Яд с удара.</b> В <code>meleeAttack</code> цели <code>addPotionEffect(PotionEffectType_POISON, 2, 0, false)</code>.</li>
+    <li><b>Взгляд</b> раз в 12 с: 2 с на то, чтобы встать в золотой круг у менгира. Вне круга −70% HP и тошнота.</li>
+    <li><b>Яд с удара</b>: Poison II на 4 с. Между взглядами надо успеть и бить, и не сгнить.</li>
   </ol>
-  <p><b>Дроп:</b> лук с именем в Inventory NPC.</p>
 </article>
 </div>
 </section>
@@ -520,288 +807,1276 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <!-- ================= SHORTCUTS ================= -->
 <section id="sc">
 <h2>Шорткаты</h2>
-<p>Все шорткаты открываются изнутри и закрываются при часовом сбросе. Каждый ведёт от прихожей арены назад к началу той же локации. Если группа погибла на боссе, она возвращается к арене через срезку и не зачищает локацию заново. Предыдущие арены по пути при этом пусты, пока не прошёл час.</p>
+<p>Все шорткаты открываются изнутри и закрываются сами через час. Каждый ведёт от прихожей арены назад к началу той же локации. Если группа погибла на боссе, она возвращается к арене через срезку и не проходит переходы заново. Босс к этому времени уже сброшен: 15 с без игроков на арене возвращают ему полное HP.</p>
+<p>Все четыре сделаны одинаково: проход построен заранее и закрыт завалом из <b>полных</b> блоков. Scripted Block по шаблону «самозакрывающийся проход» снимает завал и через час ставит его обратно.</p>
 <div class="tbl"><table>
 <thead><tr><th>№</th><th>Откуда → куда</th><th>Как открывается</th><th>Реализация</th></tr></thead>
 <tbody>
-<tr><td><span class="tag t-s">S1</span></td><td>A5 Двор → A1 Преддверие</td><td>Scripted Block с внутренней стороны двора, ПКМ</td><td>В скрипте блока перечисли 6–10 координат калитки. ПКМ: <code>removeBlock</code>. Смотритель при сбросе: <code>setBlock(..., "minecraft:oak_fence")</code>.</td></tr>
-<tr><td><span class="tag t-s">S2</span></td><td>B4 Притвор → B1 Спуск</td><td>Опция диалога Шкрика или Scripted Block-рычаг в B1</td><td>Те же координаты решётки: <code>iron_bars</code> / воздух.</td></tr>
-<tr><td><span class="tag t-s">S3</span></td><td>C3а Кормовая нора → C1</td><td>Scripted Block «затор» в корне</td><td>ПКМ: в шахте <code>setBlock</code> столбика <code>minecraft:soul_sand</code> и над ним <code>minecraft:water</code> (пузырьковый лифт ванили). Сброс: убрать воду и песок, вернуть затор.</td></tr>
-<tr><td><span class="tag t-s">S4</span></td><td>D2 Круг Вызова → D0</td><td>Scripted Block после победы в Круге</td><td>Столбик <code>minecraft:ladder</code> по Y. Сброс: <code>removeBlock</code> лестниц.</td></tr>
+<tr><td><span class="tag t-s">S1</span></td><td>A5 Двор → A1 Преддверие</td><td>Scripted Block у стены двора, ПКМ</td><td>Калитка из досок тёмного дуба, 6–10 координат.</td></tr>
+<tr><td><span class="tag t-s">S2</span></td><td>B4 Притвор → B1 Спуск</td><td>Scripted Block-рычаг в Притворе</td><td>Коридор вдоль восточной стены, завал из каменного кирпича у B1.</td></tr>
+<tr><td><span class="tag t-s">S3</span></td><td>C3а Нора → C1</td><td>Scripted Block «затор» в корне</td><td>Лестничная шахта построена заранее, снизу её закрывает затор из корней (dark oak wood).</td></tr>
+<tr><td><span class="tag t-s">S4</span></td><td>D2 Круг Вызова → D0</td><td>Scripted Block после победы в Круге</td><td>Лестница построена заранее, сверху люк из полных блоков. Блок открывает его, только пока в <code>world.getTempdata()</code> не истёк <code>hs_d2_won_until</code>.</td></tr>
 </tbody></table></div>
 </section>
 
-<!-- ================= ITEMS ================= -->
-<section id="items">
-<h2>Ключевые предметы</h2>
-<div class="tbl"><table>
-<thead><tr><th>Предмет</th><th>Где</th><th>Зачем</th><th>Ванильная основа</th></tr></thead>
-<tbody>
-<tr><td>Мускусная маска</td><td>Сундук A3 или дроп вожака</td><td>На голове: унгоры в <code>target</code> отменяют агро</td><td>Кожаный шлем, Display name содержит «Мускусная». Дать игроку: положить в сундук или NPC drop.</td></tr>
-<tr><td>Засов загона</td><td>Сундук A6</td><td>ПКМ по Scripted Block ворот Б1</td><td>Железный слиток с именем. Проверка: <code>player.getInventoryHeldItem().getDisplayName()</code>.</td></tr>
-<tr><td>Тотемный амулет</td><td>Сундук реликвария B3</td><td>Копии Мургрота светятся</td><td>Сердце моря с именем. Поиск в инвентаре циклом слотов, не <code>inventoryItemCount</code> (он смотрит id, не имя).</td></tr>
-<tr><td>Рог Бра-шамана</td><td>Дроп Б2</td><td>Барабаны C2 и Камень в финале</td><td>Кость → Global Items / Scripted Item. <code>interact</code>: звук + <code>hornBlown</code> или <code>riteBroken</code> у Камня.</td></tr>
-<tr><td>Гнилой окорок</td><td>Сундуки кухни, кормушки</td><td>Диалог Шкрика, стол D1, кормушки Б3</td><td>Гнилая плоть с именем. Availability диалога: Has Item. В скрипте: цикл инвентаря по имени, затем <code>removeItem</code> по id + количество.</td></tr>
-</tbody></table></div>
-<p class="note">На выходе Scripted Block: телепорт на опушку и снять рог/засов/амулет/маску/окорок циклом по имени в инвентаре и броне головы. Иначе рог пронесёт C2 в следующем заходе.</p>
-</section>
 
 <!-- ================= CNPC ================= -->
 <section id="cnpc">
 <h2>Как собрать это в CustomNPC+</h2>
-<p class="note">Ниже только то, что ставится руками в GUI и скриптах этой сборки. Скрипты — Nashorn: <code>var</code> и <code>function</code>, storeddata только строками. В начале файла: <code>var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();</code> и при необходимости <code>EntitiesType</code>, <code>AbilityAPI</code>. Командные блоки, <code>/fill</code> и <code>/effect</code> не нужны.</p>
+<p class="note">Ниже только то, что ставится руками в GUI и скриптах этой сборки. Скрипты — Nashorn: <code>var</code> и <code>function</code>, storeddata только строками. У каждого NPC в контейнере скриптов <b>два файла</b>: первый — <code>hs_core.js</code> (общий), второй — файл босса или моба. Глобальные <code>function init</code>/<code>tick</code>/<code>timer</code> из второго файла перекрывают одноимённые из первого, поэтому в ядре нет событий, только функции <code>hs*</code>. Командные блоки, <code>/fill</code> и <code>/effect</code> не нужны. Раскладка комнат и маркеров — <code>tools/herdstone/herdstone_layout.py</code>.</p>
 
 <h3>1. Фракции (Global → Factions)</h3>
 <ol>
   <li><b>Порядок</b> — дружественна игрокам Порядка, враждебна Разрушению и Стаду.</li>
   <li><b>Разрушение</b> — наоборот.</li>
   <li><b>Стадо Расколотого Рога</b> — враждебна обеим. Все мобы и боссы данжа.</li>
-  <li><b>Нейтралы данжа</b> — Шкрик. Neutral ко всем, чтобы горы его не били.</li>
+  <li><b>Нейтралы данжа</b> — Шкрик и бестигоры Круга Вызова. Neutral к игрокам и к Стаду. NPC враждебной игроку фракции не открывает диалог, поэтому все, с кем говорят, сидят здесь.</li>
 </ol>
 <p>У лагерных NPC: Faction = своя, галочка Attack hostile factions, Stats aggro 16. Очки фракции игроку даёт диалог «доклад» после квеста (Faction options в диалоге).</p>
 
 <h3>2. Клонер</h3>
-<p>Сохрани NPC с <b>точным Display name</b> — его же пиши в <code>spawnClone(x, y, z, TAB, "Имя")</code>. Одна вкладка, например tab <code>2</code>:</p>
+<p>Сохрани NPC с <b>точным Display name</b> — его же пиши в <code>spawnClone(x, y, z, TAB, "Имя")</code>. Одна вкладка, например tab <code>2</code>. На картах белые точки — отряды, кружок с буквой — элита.</p>
 <div class="tbl"><table>
-<thead><tr><th>Имя в клонере</th><th>Зачем</th></tr></thead>
+<thead><tr><th>Имя в клонере</th><th>Скрипт</th><th>Зачем</th></tr></thead>
 <tbody>
-<tr><td>Гор, Унгор, Бестигор, Минотавр</td><td>Адды и патрули</td></tr>
-<tr><td>Кровохряк, Грул Кабанья Рука</td><td>Б1 (имена = цели Kill-квеста)</td></tr>
-<tr><td>Мургрот Туманный Глас, Тотем Мургрота, Мургрот-копия</td><td>Б2</td></tr>
-<tr><td>Великая Утроба</td><td>Б3</td></tr>
-<tr><td>Гарракс Расколотый Рог, Сердце жёлоба, Варп-кристалл</td><td>Б4</td></tr>
-<tr><td>Бормочущий</td><td>Секрет C4</td></tr>
-<tr><td>Шкрик</td><td>Диалог B4</td></tr>
+<tr><td>Гор-рубака, Гор-щитоносец, Унгор-лучник, Унгор-рейдер, Бестигор-палач, Центигор, Отродье Хаоса</td><td><code>hs_core</code> + <code>hs_mob</code> с нужным пресетом CASTS</td><td>Отряды и элиты переходов, Respawn 3600</td></tr>
+<tr><td>Бра-шаман</td><td><code>hs_core</code> + шаман</td><td>Элита B2/B3</td></tr>
+<tr><td>Тотем Стада</td><td>только тотем</td><td>Элита B3, скорость 0, On Attack = Ничего</td></tr>
+<tr><td>Барабанщик</td><td><code>hs_core</code> + барабанщик</td><td>Элита C2</td></tr>
+<tr><td>Минотавр</td><td><code>hs_core</code> + <code>hs_mob</code> (пресет минотавра) + безумие</td><td>C3а, D1</td></tr>
+<tr><td>Гор (призыв), Унгор-рейдер (призыв)</td><td>как у расставленных</td><td>Адды. Respawn = Нет</td></tr>
+<tr><td>Кровохряк, Грул Кабанья Рука</td><td><code>hs_core</code> + свой файл</td><td>Б1 (имена = цели квеста)</td></tr>
+<tr><td>Мургрот Туманный Глас, Тотем Мургрота, Мургрот-копия</td><td>Мургрот / без скрипта / копия</td><td>Б2 (копия и тотемы — Respawn = Нет)</td></tr>
+<tr><td>Великая Утроба</td><td><code>hs_core</code> + Горгон</td><td>Б3</td></tr>
+<tr><td>Гарракс Расколотый Рог, Сердце жёлоба, Варп-кристалл</td><td>Гарракс / сердце / кристалл</td><td>Б4 (сердца и кристаллы — Respawn = Нет)</td></tr>
+<tr><td>Бормочущий</td><td><code>hs_core</code> + взгляд</td><td>Секрет C4</td></tr>
+<tr><td>Шкрик, Чемпион Круга</td><td>диалог; чемпион — пресет палача</td><td>B4 и D2, фракция «Нейтралы данжа»</td></tr>
 </tbody></table></div>
-<p>Всем мобам данжа: Advanced → Respawn Yes, 3600 секунд. Чанки данжа: <code>/forceload</code>, иначе респаун и смотритель встанут.</p>
+<p>Расставленным мобам и боссам: Stats → Respawn = Да, 3600 секунд. Это реальные секунды: время смерти пишется в NBT NPC, и если чанк выгружен, NPC возродится при следующей загрузке чанка. <code>/forceload</code> не нужен. Return to start = да у боссов (после <code>setPosition</code> и <code>reset()</code> возвращаются в арену).</p>
 
-<h3>3. Смотритель</h3>
-<p>Невидимый неуязвимый NPC в загруженном чанке, фракция нейтральная, не агрится. Скрипт на вкладке Scripts. Раз в час (метка <code>world.getTotalTime()</code> в storeddata) он:</p>
+<h3>3. Сброс без смотрителя</h3>
+<p>Отдельного NPC, который держит весь данж, нет. Каждая часть сбрасывает себя сама и только тогда, когда рядом есть игроки:</p>
 <ul>
-  <li>если в радиусе любой из четырёх арен есть игрок — откладывает сброс на 1200 тиков;</li>
-  <li>иначе ставит обратно решётки, калитки, barrier выхода, лестницы S4, затор S3;</li>
-  <li>обнуляет world storeddata: <code>valves</code>, <code>hornBlown</code>, <code>channels</code>, <code>riteBroken</code>, <code>hs_feast</code>.</li>
+  <li><b>Мобы и боссы</b> — встроенный Respawn 3600. Бой на арене: 15 с без игроков — <code>npc.reset()</code> (ядро).</li>
+  <li><b>Ворота арен и выход</b> — <code>died</code> босса снимает завал, <code>init</code> босса ставит обратно. CNPC вызывает <code>init</code> из <code>reset()</code> при каждом возрождении. Координаты завала — массив <code>GATE</code> в файле босса.</li>
+  <li><b>Шорткаты</b> — Scripted Block пишет себе в storeddata время закрытия, а в <code>tick</code> (раз в 10 тиков, только в загруженном чанке) ставит блоки обратно, если рядом нет игроков.</li>
 </ul>
-<p>Мобы сами встанут по Respawn 3600. Большую воду не сбрасываем — её в головоломке нет.</p>
+<p>Время везде — <code>world.getTotalTime()</code> (тики, 72000 = час). Оно стоит, пока сервер выключен. На игру это не влияет.</p>
+<p>Маркеры строителя: pack — белая шерсть, elite — оранжевая, stake — бревно тёмного дуба, totem/menhir — блок кости, heart — редстоун, crystal — изумруд, herb — лаймовая шерсть, fog — зелёная, sc — бирюзовая, boss — красная.</p>
 
-<details open><summary>Смотритель (вставь на NPC)</summary>
-<pre>var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
-var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+<h3>4. Скрипты</h3>
+<p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. Координаты в файлах боссов — заглушки в блоках раскладки; после постройки подставь мировые (origin данжа + координата с карты). Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
 
-var HOUR = 72000;
-var NEXT_KEY = "hs_next_reset";
-var ARENAS = [ [626, 70, 98, 30], [430, 52, 434, 20], [262, 30, 384, 22], [570, 10, 370, 30] ];
-var BARS = [ [720, 60, 64], [721, 60, 64] ]; // свои координаты решёток спуска Б1
-
-function init(e) {
-    var d = e.npc.getStoreddata();
-    var now = e.npc.getWorld().getTotalTime();
-    if (!d.has(NEXT_KEY)) d.put(NEXT_KEY, String(now + HOUR));
-}
-
-function tick(e) {
-    var npc = e.npc;
-    var w = npc.getWorld();
-    var d = npc.getStoreddata();
-    var now = w.getTotalTime();
-    if (now &lt; getInt(d, NEXT_KEY)) return;
-    if (busy(w)) { d.put(NEXT_KEY, String(now + 1200)); return; }
-    var i;
-    for (i = 0; i &lt; BARS.length; i++) w.setBlock(BARS[i][0], BARS[i][1], BARS[i][2], "minecraft:iron_bars", 0);
-    var sd = w.getStoreddata();
-    sd.put("valves", "");
-    sd.put("hornBlown", "0");
-    sd.put("channels", "0");
-    sd.put("riteBroken", "0");
-    sd.put("hs_feast", "0");
-    d.put(NEXT_KEY, String(now + HOUR));
-    w.broadcast("§2Лес шевелится. Стадо вернулось.");
-}
-
-function busy(w) {
-    var i;
-    for (i = 0; i &lt; ARENAS.length; i++) {
-        var a = ARENAS[i];
-        if (w.getNearbyEntities(NpcAPI.getIPos(a[0], a[1], a[2]), a[3], EntitiesType.PLAYER).length &gt; 0) return true;
-    }
-    return false;
-}
-
-function getInt(data, key) {
-    if (!data.has(key)) return 0;
-    return parseInt(String(data.get(key)));
-}</pre></details>
-
-<details><summary>Ворота после смерти босса (каждый из Б1–Б4, свой список)</summary>
-<pre>var GATE = [ [720, 60, 64], [721, 60, 64] ];
-
-function died(e) {
-    var w = e.npc.getWorld();
-    var i;
-    for (i = 0; i &lt; GATE.length; i++) w.removeBlock(GATE[i][0], GATE[i][1], GATE[i][2]);
-    w.playSoundAt(e.npc.getPos(), "minecraft:block.iron_door.open", 3.0, 0.5);
-    e.npc.say("§7Путь вниз открыт.");
-}</pre></details>
-
-<details><summary>Унгор: маска на голове игрока</summary>
-<pre>var EquipmentSlot = Java.type("net.minecraft.inventory.EquipmentSlotType");
+<details open><summary>hs_core.js — общая библиотека (первый файл у боссов и мобов)</summary>
+<pre>// hs_core.js — общая библиотека Herdstone. В контейнере скрипта NPC это ПЕРВЫЙ файл,
+// файл конкретного босса/моба — второй и переопределяет поля HS.
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
+var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
+var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
+var Combat = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
 
-function target(e) {
-    var t = e.entity;
-    if (t == null) return;
-    if (typeof t.typeOf == "function" &amp;&amp; !t.typeOf(1)) return;
-    try {
-        var st = t.getMCEntity().getItemBySlot(EquipmentSlot.HEAD);
-        if (st == null || st.isEmpty()) return;
-        var name = String(NpcAPI.getIItemStack(st).getDisplayName());
-        if (name.indexOf("Мускусная") &gt;= 0) e.setCanceled(true);
-    } catch (ex) {}
-}</pre></details>
+var HS = {
+    TAB: 2,            // вкладка клонера
+    ARENA_R: 20,       // радиус арены от точки спауна (home) босса
+    CAP: 12,           // потолок урона по боссу за один удар
+    WEAK: 0.25,        // множитель урона вне окна уязвимости
+    BASE_HP: 300,      // HP на одного игрока; на пуле × (0.7 + 0.3·N)
+    ENRAGE_SEC: 360,   // через сколько секунд боя — смертельный удар раз в 10 с
+    DISPEL_SEC: 50,    // рассеивание эффектов игроков
+    EMPTY_SEC: 15,     // столько секунд без игроков на арене — полный сброс
+    RED: 0xC0FF3030,
+    GOLD: 0xC0FFC030,
+    PURPLE: 0xC0B040FF
+};
+var GATE = [];                                   // [[x, y, z], ...] завал выхода из арены
+var GATE_BLOCK = "minecraft:polished_blackstone_bricks";
 
-<details><summary>Барабан C2 (Scripted Block, в storeddata блока ключ key = L / R / B)</summary>
-<pre>var CODE = "LLRB";
-var GATE = [ [290, 34, 200], [291, 34, 200] ];
+function hsNow(npc) { return Number(npc.getWorld().getTotalTime()); }
+function hsGet(npc, k, def) { var d = npc.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
+function hsNum(npc, k) { return Number(hsGet(npc, k, "0")); }
+function hsPut(npc, k, v) { npc.getStoreddata().put(k, String(v)); }
+function hsHome(npc) { return [npc.getHomeX() + 0.5, npc.getHomeY(), npc.getHomeZ() + 0.5]; }
+function hsFlat(e, x, z) { var dx = e.getX() - x, dz = e.getZ() - z; return Math.sqrt(dx * dx + dz * dz); }
+function hsRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function hsYawTo(npc, t) { return Combat.computeYaw(t.getX() - npc.getX(), t.getZ() - npc.getZ()); }
 
-function interact(e) {
-    var w = e.block.getWorld();
-    var td = w.getTempdata();
-    var sd = w.getStoreddata();
-    if (String(sd.get("hornBlown")) != "1") {
-        e.player.message("§7Барабан глухо молчит.");
-        return;
-    }
-    var now = w.getTotalTime();
-    var seq = td.get("drumSeq") || "";
-    if (seq == "" || now - (td.get("drumStart") || 0) &gt; 120) {
-        seq = "";
-        td.put("drumStart", now);
-    }
-    seq += String(e.block.getStoreddata().get("key"));
-    w.playSoundAt(e.block.getPos(), "minecraft:block.note_block.basedrum", 2.0, 0.6);
-    if (CODE.indexOf(seq) != 0) {
-        td.put("drumSeq", "");
-        w.spawnClone(200, 33, 80, 2, "Унгор");
-        return;
-    }
-    td.put("drumSeq", seq);
-    if (seq == CODE) {
-        var i;
-        for (i = 0; i &lt; GATE.length; i++) w.removeBlock(GATE[i][0], GATE[i][1], GATE[i][2]);
-    }
-}</pre></details>
-
-<details><summary>Туман C3 (невидимый NPC в топи)</summary>
-<pre>var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
-var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
-
-function tick(e) {
-    var npc = e.npc;
-    var w = npc.getWorld();
-    var now = w.getTotalTime();
-    var list = w.getNearbyEntities(npc.getPos(), 16, EntitiesType.PLAYER);
-    var i;
-    for (i = 0; i &lt; list.length; i++) {
+// Игроки (не креатив и не наблюдатель) в круге радиуса r. getNearbyEntities ищет по кубу.
+function hsPlayersAt(npc, x, y, z, r) {
+    var list = npc.getWorld().getNearbyEntities(NpcAPI.getIPos(x, y, z), Math.ceil(r) + 1, 1);
+    var out = [];
+    for (var i = 0; i &lt; list.length; i++) {
         var p = list[i];
-        if (now &lt; getInt(p.getStoreddata(), "hs_clean_until")) continue;
-        p.addPotionEffect(PotionEffectType_CONFUSION, 3, 0, true);
-        p.addPotionEffect(PotionEffectType_WITHER, 2, 0, true);
+        if (!p.isAlive() || p.getGamemode() == 1 || p.getGamemode() == 3) continue;
+        if (hsFlat(p, x, z) &lt;= r) out.push(p);
+    }
+    return out;
+}
+function hsPlayers(npc, r) {
+    var h = hsHome(npc);
+    return hsPlayersAt(npc, h[0], h[1], h[2], r || HS.ARENA_R);
+}
+
+// Живые NPC с точным именем в пределах арены.
+function hsFind(npc, name) {
+    var h = hsHome(npc);
+    var list = npc.getWorld().getNearbyEntities(NpcAPI.getIPos(h[0], h[1], h[2]), HS.ARENA_R + 10, 2);
+    var out = [];
+    for (var i = 0; i &lt; list.length; i++) {
+        if (String(list[i].getName()) == name &amp;&amp; list[i].isAlive()) out.push(list[i]);
+    }
+    return out;
+}
+function hsCount(npc, name) { return hsFind(npc, name).length; }
+function hsDespawnAll(npc, name) {
+    var l = hsFind(npc, name);
+    for (var i = 0; i &lt; l.length; i++) l[i].despawn();
+}
+
+// Удар в долях максимального HP. setHealth не режется бронёй, «Защитой», Сопротивлением и поглощением.
+function hsStrike(p, pct) {
+    var dmg = p.getMaxHealth() * pct;
+    if (p.getHealth() - dmg &lt; 1) { hsKill(p); return; }
+    p.setHealth(p.getHealth() - dmg);
+    p.getWorld().playSoundAt(p.getPos(), "minecraft:entity.player.hurt", 1.0, 0.7);
+}
+// Смерть: снять эффекты (Сопротивление, поглощение), 1 HP, MAGIC-урон мимо брони.
+// Тотем бессмертия спасает один раз — так и задумано. player.kill() нельзя: это remove().
+function hsKill(p) {
+    p.clearPotionEffects();
+    p.setHealth(1);
+    Combat.dealPureDamage(p, 100, true);
+}
+function hsDispel(npc, ps) {
+    for (var i = 0; i &lt; ps.length; i++) {
+        ps[i].clearPotionEffects();
+        ps[i].message("§5Рёв Стада срывает с тебя все чары.");
+    }
+    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", 3.0, 0.6);
+}
+
+// Потолок урона за удар. mul = 1 в окне уязвимости, HS.WEAK вне его, 0 — неуязвим.
+function hsCap(e, mul) {
+    if (mul &lt;= 0) { e.setCanceled(true); return; }
+    e.damage = Math.min(e.damage, HS.CAP) * mul;
+}
+
+// Линия от NPC по yaw: попадает ли игрок в полосу длиной len и полушириной half.
+function hsOnLine(p, sx, sz, yaw, len, half) {
+    var r = (yaw + 90) * Math.PI / 180;
+    var fx = Math.cos(r), fz = Math.sin(r);
+    var dx = p.getX() - sx, dz = p.getZ() - sz;
+    var t = dx * fx + dz * fz;
+    if (t &lt; -1 || t &gt; len) return false;
+    return Math.abs(dx * fz - dz * fx) &lt;= half;
+}
+
+function hsSetGate(npc, closed) {
+    var w = npc.getWorld();
+    for (var i = 0; i &lt; GATE.length; i++) {
+        var pos = NpcAPI.getIPos(GATE[i][0], GATE[i][1], GATE[i][2]);
+        if (closed) w.setBlock(pos, GATE_BLOCK);
+        else w.removeBlock(pos);
     }
 }
 
-function getInt(data, key) {
-    if (!data.has(key)) return 0;
-    return parseInt(String(data.get(key)));
+// Вызывать в начале init. false — NPC мёртв (init пришёл на трупе), дальше не идти.
+function hsInit(npc) {
+    if (!npc.isAlive()) return false;
+    npc.getTimers().clear();
+    AbilityAPI.cancel(npc);
+    hsPut(npc, "fight_at", 0);
+    hsPut(npc, "empty_at", 0);
+    hsPut(npc, "enrage_at", 0);
+    npc.getStats().setMaxHealth(HS.BASE_HP);
+    npc.setHealth(HS.BASE_HP);
+    if (GATE.length &gt; 0) hsSetGate(npc, true);
+    return true;
 }
-// Святая трава — Scripted Block:
-// function interact(e) {
-//   e.player.getStoreddata().put("hs_clean_until", String(e.block.getWorld().getTotalTime() + 300));
-// }</pre></details>
 
-<details><summary>Гарракс: фазы + dash / weapon_spin</summary>
-<pre>var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
+// Вызывать первым в tick (раз в 10 тиков). Возвращает игроков на арене, если идёт бой, иначе null.
+function hsFight(npc) {
+    var now = hsNow(npc);
+    var ps = hsPlayers(npc);
+    var fightAt = hsNum(npc, "fight_at");
+    if (fightAt == 0) {
+        if (ps.length == 0 || npc.getAttackTarget() == null) return null;
+        var hp = Math.round(HS.BASE_HP * (0.7 + 0.3 * ps.length));
+        npc.getStats().setMaxHealth(hp);
+        npc.setHealth(hp);
+        hsPut(npc, "fight_at", now);
+        hsPut(npc, "dispel_at", now + HS.DISPEL_SEC * 20);
+        return ps;
+    }
+    if (ps.length == 0) {
+        var ea = hsNum(npc, "empty_at");
+        if (ea == 0) hsPut(npc, "empty_at", now);
+        else if (now - ea &gt; HS.EMPTY_SEC * 20) npc.reset();
+        return null;
+    }
+    hsPut(npc, "empty_at", 0);
+    hsLeash(npc);
+    if (now &gt;= hsNum(npc, "dispel_at")) {
+        hsDispel(npc, ps);
+        hsPut(npc, "dispel_at", now + HS.DISPEL_SEC * 20);
+    }
+    if (now - fightAt &gt; HS.ENRAGE_SEC * 20 &amp;&amp; now &gt;= hsNum(npc, "enrage_at")) {
+        hsPut(npc, "enrage_at", now + 200);
+        npc.say("§4Стадо не ждёт!");
+        hsKill(hsRandom(ps));
+    }
+    return ps;
+}
 
-var STONE = [570, 12, 370];
-var PHASE = "hs_g_phase";
-var IMMUNE = "hs_g_immune";
-var WAVE = "hs_g_wave";
-var TAB = 2;
+// Поводок: кто у выхода (до 8 блоков за краем) или забрался выше пола на 4+ — в центр и −25% HP.
+function hsLeash(npc) {
+    var h = hsHome(npc);
+    var ps = hsPlayers(npc, HS.ARENA_R + 8);
+    for (var i = 0; i &lt; ps.length; i++) {
+        var p = ps[i];
+        if (hsFlat(p, h[0], h[2]) &gt; HS.ARENA_R || p.getY() &gt; h[1] + 4) {
+            p.setPosition(h[0], h[1], h[2]);
+            hsStrike(p, 0.25);
+            p.message("§cСтадо швыряет тебя обратно в круг.");
+        }
+    }
+}</pre></details>
+
+<details><summary>hs_mob.js — универсальный моб перехода (второй файл; CASTS — пресет)</summary>
+<pre>// hs_mob.js — второй файл после hs_core.js у мобов переходов. Меняется только блок настроек.
+// Каждая запись CASTS: абилка мода + зона, в которой через hitAt тиков снимается pct от макс. HP.
+// shape: "line" — полоса от моба к цели (рывок), "target" — круг на месте цели (прыжок),
+//        "self" — круг вокруг моба в момент удара (вращение), "" — только урон самой абилки.
+var CASTS = [
+    { ability: "dash", cd: 120, min: 3, max: 10, shape: "line", len: 8, size: 1.5, hitAt: 30, pct: 0.15,
+      params: function () { return AbilityAPI.params("chargeTicks", 24, "distance", 8.0, "damage", 6.0); } }
+];
+var SLOW_ON_HIT = 0;     // &gt; 0: мили-удар вешает Slowness II на столько секунд (унгор-рейдер)
+var POISON_ON_HIT = 0;   // &gt; 0: мили-удар вешает Poison I на столько секунд
+
+var T_HIT = 1;
 
 function init(e) {
-    var d = e.npc.getStoreddata();
-    d.put(PHASE, "1");
-    d.put(IMMUNE, "0");
-    e.npc.getWorld().getStoreddata().put("channels", "0");
-    e.npc.getWorld().getStoreddata().put("riteBroken", "0");
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    npc.getTimers().clear();
+    for (var i = 0; i &lt; CASTS.length; i++) hsPut(npc, "cd_" + i, 0);
 }
 
 function tick(e) {
     var npc = e.npc;
     if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
-    var d = npc.getStoreddata();
-    var w = npc.getWorld();
-    var now = w.getTotalTime();
-    var hp = npc.getHealth() / npc.getMaxHealth();
-    var ph = String(d.get(PHASE));
-
-    if (ph == "1" &amp;&amp; hp &lt;= 0.6) {
-        AbilityAPI.cancel(npc);
-        d.put(PHASE, "2");
-        d.put(IMMUNE, "1");
-        npc.setPosition(STONE[0], STONE[1], STONE[2]);
-        npc.say("§4КРОВЬ — КАМНЮ!");
-        d.put(WAVE, String(now + 200));
-        return;
-    }
-    if (ph == "2" &amp;&amp; getInt(w.getStoreddata(), "channels") &gt;= 3) {
-        d.put(IMMUNE, "0");
-        d.put(PHASE, "2b");
-    }
-    if ((ph == "2b" || ph == "2") &amp;&amp; hp &lt;= 0.3) {
-        d.put(PHASE, "3");
-        npc.getDisplay().setSize(12);
-        npc.addPotionEffect(PotionEffectType_STRENGTH, 60, 1, true);
-        npc.addPotionEffect(PotionEffectType_RESISTANCE, 60, 0, true);
-        npc.say("§2Ночь Тайн пришла!");
-    }
-    if (String(d.get(PHASE)) == "3" &amp;&amp; String(w.getStoreddata().get("riteBroken")) == "1") {
-        w.getStoreddata().put("riteBroken", "0");
-        npc.getDisplay().setSize(10);
-        npc.setHealth(npc.getHealth() - npc.getMaxHealth() * 0.15);
-        npc.say("§cНЕТ! Камень… молчит…");
-    }
-    if (String(d.get(PHASE)) == "2" &amp;&amp; now &gt;= getInt(d, WAVE)) {
-        w.spawnClone(STONE[0] + 8, STONE[1], STONE[2], TAB, "Гор");
-        w.spawnClone(STONE[0] - 8, STONE[1], STONE[2], TAB, "Гор");
-        d.put(WAVE, String(now + 200));
-        return;
-    }
-    if (String(d.get(IMMUNE)) == "1") return;
-    if (AbilityAPI.isBusy(npc)) return;
+    if (AbilityAPI.isBusy(npc) || npc.getTimers().has(T_HIT)) return;
     var t = npc.getAttackTarget();
     if (t == null || !t.isAlive()) return;
-    if (Math.random() &lt; 0.5) AbilityAPI.start(npc, "weapon_spin", t);
-    else AbilityAPI.start(npc, "dash", t, AbilityAPI.params("chargeTicks", 20, "distance", 14.0));
+    var dist = hsFlat(t, npc.getX(), npc.getZ());
+    var now = hsNow(npc);
+    for (var i = 0; i &lt; CASTS.length; i++) {
+        var c = CASTS[i];
+        if (now &lt; hsNum(npc, "cd_" + i) || dist &lt; c.min || dist &gt; c.max) continue;
+        var yaw = hsYawTo(npc, t);
+        if (!AbilityAPI.start(npc, c.ability, t, c.params())) continue;
+        hsPut(npc, "cd_" + i, now + c.cd);
+        if (c.pct &lt;= 0) return;
+        hsPut(npc, "hit_i", i);
+        hsPut(npc, "hit_yaw", yaw);
+        hsPut(npc, "hit_x", c.shape == "target" ? t.getX() : npc.getX());
+        hsPut(npc, "hit_z", c.shape == "target" ? t.getZ() : npc.getZ());
+        if (c.shape == "line") TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, c.len, c.size * 2, c.hitAt, HS.RED);
+        if (c.shape == "target") TelegraphAPI.circle(npc, t.getX(), t.getY(), t.getZ(), c.size, c.hitAt, HS.RED);
+        npc.getTimers().forceStart(T_HIT, c.hitAt, false);
+        return;
+    }
+}
+
+function timer(e) {
+    if (e.id != T_HIT) return;
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    var c = CASTS[hsNum(npc, "hit_i")];
+    var x = hsNum(npc, "hit_x"), z = hsNum(npc, "hit_z"), yaw = hsNum(npc, "hit_yaw");
+    if (c.shape == "self") { x = npc.getX(); z = npc.getZ(); }
+    var ps = hsPlayersAt(npc, x, npc.getY(), z, c.shape == "line" ? c.len + 1 : c.size);
+    for (var i = 0; i &lt; ps.length; i++) {
+        if (c.shape == "line" &amp;&amp; !hsOnLine(ps[i], x, z, yaw, c.len, c.size)) continue;
+        hsStrike(ps[i], c.pct);
+    }
+}
+
+function meleeAttack(e) {
+    if (e.target == null || !e.target.typeOf(1)) return;
+    if (SLOW_ON_HIT &gt; 0) e.target.addPotionEffect(PotionEffectType_SLOWNESS, SLOW_ON_HIT, 1, false);
+    if (POISON_ON_HIT &gt; 0) e.target.addPotionEffect(PotionEffectType_POISON, POISON_ON_HIT, 0, false);
+}</pre></details>
+
+<details><summary>Пресеты CASTS: рубака, щитоносец, лучник, палач, центигор, отродье, минотавр</summary>
+<pre>// Пресеты CASTS для hs_mob.js — скопировать нужный блок вместо CASTS по умолчанию.
+
+// Гор-рубака: короткий рывок. Телеграф-полоса 1,2 с, задетым −15% HP.
+var CASTS_GOR = [
+    { ability: "dash", cd: 120, min: 3, max: 10, shape: "line", len: 8, size: 1.5, hitAt: 30, pct: 0.15,
+      params: function () { return AbilityAPI.params("chargeTicks", 24, "distance", 8.0, "damage", 6.0); } }
+];
+// Гор-щитоносец: щит 3 с, спереди (120°) урон не проходит. Бить сбоку и со спины.
+var CASTS_SHIELD = [
+    { ability: "shield_block", cd: 140, min: 0, max: 6, shape: "", pct: 0,
+      params: function () { return AbilityAPI.params("activeTicks", 60, "blockAngle", 120.0); } }
+];
+// Унгор-лучник: ядовитый плевок — лужа r 2.5 на 8 с (стрелы — обычный рендж в GUI).
+var CASTS_ARCHER = [
+    { ability: "crimson_blob", cd: 200, min: 5, max: 20, shape: "", pct: 0,
+      params: function () {
+          return AbilityAPI.params("chargeTicks", 20, "landRadius", 2.5, "zoneTicks", 160, "damage", 2.0,
+              "effectId", "minecraft:poison", "effectDuration", 60, "zoneColor", 0x8040C040);
+      } }
+];
+// Бестигор-палач: конус с добиванием (по цели &lt; 35% HP) и вращение — из вращения выходить.
+var CASTS_EXECUTIONER = [
+    { ability: "barrow_sentinel", cd: 100, min: 0, max: 4, shape: "", pct: 0,
+      params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 3.5, "damage", 9.0, "executeHpThreshold", 0.35, "executeBonusDamage", 14.0); } },
+    { ability: "weapon_spin", cd: 240, min: 0, max: 5, shape: "self", size: 4, hitAt: 56, pct: 0.25,
+      params: function () { return AbilityAPI.params("chargeTicks", 20, "activeTicks", 36, "radius", 4.0, "damagePerTick", 2.0); } }
+];
+// Центигор: длинный таран по галерее. Уходить в ниши.
+var CASTS_CENTIGOR = [
+    { ability: "dash", cd: 160, min: 6, max: 20, shape: "line", len: 18, size: 1.8, hitAt: 40, pct: 0.30,
+      params: function () { return AbilityAPI.params("chargeTicks", 30, "distance", 18.0, "damage", 8.0); } }
+];
+// Отродье Хаоса: хватка мертвецов под целью (держит на месте) + вращение.
+var CASTS_SPAWN = [
+    { ability: "grasping_dead", cd: 160, min: 2, max: 14, shape: "target", size: 2, hitAt: 40, pct: 0.20,
+      params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 2.0, "effectAmplifier", 3); } },
+    { ability: "weapon_spin", cd: 200, min: 0, max: 5, shape: "self", size: 4, hitAt: 56, pct: 0.25,
+      params: function () { return AbilityAPI.params("chargeTicks", 20, "activeTicks", 36, "radius", 4.0, "damagePerTick", 2.5); } }
+];
+// Минотавр: прыжок на дальнюю цель + рывок.
+var CASTS_MINOTAUR = [
+    { ability: "jump_slam", cd: 180, min: 5, max: 16, shape: "target", size: 4, hitAt: 40, pct: 0.30,
+      params: function () { return AbilityAPI.params("chargeTicks", 24, "landRadius", 4.0, "damage", 8.0); } },
+    { ability: "dash", cd: 140, min: 3, max: 12, shape: "line", len: 12, size: 1.8, hitAt: 36, pct: 0.25,
+      params: function () { return AbilityAPI.params("chargeTicks", 28, "distance", 12.0, "damage", 8.0); } }
+];</pre></details>
+
+<details><summary>Бра-шаман: лечение стада и Проклятая песнь</summary>
+<pre>// Бра-шаман: hs_core.js + этот файл. Лечит стадо и поёт «Проклятую песнь», которую надо сбить уроном.
+var HEAL_EVERY = 120;     // 6 с
+var SONG_EVERY = 400;     // 20 с
+var SONG_TICKS = 80;      // 4 с на срыв
+var SONG_BREAK = 20;      // столько урона за песнь её срывает
+var SONG_R = 12;
+var T_SONG = 1;
+
+function init(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    npc.getTimers().clear();
+    hsPut(npc, "heal_at", 0);
+    hsPut(npc, "song_at", hsNow(npc) + 200);
+    hsPut(npc, "song", 0);
+}
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive() || npc.getAttackTarget() == null) return;
+    var now = hsNow(npc);
+    if (now &gt;= hsNum(npc, "heal_at")) {
+        hsPut(npc, "heal_at", now + HEAL_EVERY);
+        var list = npc.getWorld().getNearbyEntities(npc.getPos(), 8, 2);
+        for (var i = 0; i &lt; list.length; i++) {
+            var a = list[i];
+            if (!a.isAlive() || a.getFaction().getId() != npc.getFaction().getId()) continue;
+            a.setHealth(Math.min(a.getMaxHealth(), a.getHealth() + a.getMaxHealth() * 0.15));
+            a.addPotionEffect(PotionEffectType_RESISTANCE, 5, 0, false);
+        }
+        npc.getWorld().spawnParticle("happy_villager", npc.getX(), npc.getY() + 1, npc.getZ(), 4, 1, 4, 0.1, 30);
+    }
+    if (now &gt;= hsNum(npc, "song_at") &amp;&amp; !npc.getTimers().has(T_SONG)) {
+        hsPut(npc, "song_at", now + SONG_EVERY);
+        hsPut(npc, "song", 1);
+        hsPut(npc, "song_dmg", 0);
+        hsPut(npc, "song_tg", TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), SONG_R, SONG_TICKS, HS.PURPLE));
+        npc.say("§5Шаман заводит Проклятую песнь! Бейте его!");
+        npc.getTimers().forceStart(T_SONG, SONG_TICKS, false);
+    }
 }
 
 function damaged(e) {
-    if (String(e.npc.getStoreddata().get(IMMUNE)) == "1") e.setCanceled(true);
+    var npc = e.npc;
+    if (hsGet(npc, "song", "0") != "1") return;
+    var dmg = hsNum(npc, "song_dmg") + e.damage;
+    hsPut(npc, "song_dmg", dmg);
+    if (dmg &lt; SONG_BREAK) return;
+    hsPut(npc, "song", 0);
+    npc.getTimers().stop(T_SONG);
+    TelegraphAPI.remove(hsGet(npc, "song_tg", ""));
+    npc.say("§7Песнь сорвана.");
 }
 
-function getInt(data, key) {
-    if (!data.has(key)) return 0;
-    return parseInt(String(data.get(key)));
+function timer(e) {
+    var npc = e.npc;
+    if (e.id != T_SONG || !npc.isAlive() || hsGet(npc, "song", "0") != "1") return;
+    hsPut(npc, "song", 0);
+    var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), SONG_R);
+    for (var i = 0; i &lt; ps.length; i++) {
+        hsStrike(ps[i], 0.35);
+        ps[i].addPotionEffect(PotionEffectType_NAUSEA, 6, 0, false);
+    }
 }</pre></details>
+
+<details><summary>Тотем Стада (один файл, без ядра)</summary>
+<pre>// Тотем Стада (NPC: скорость 0, On Attack = Ничего). Только этот файл, без ядра.
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    var list = npc.getWorld().getNearbyEntities(npc.getPos(), 8, 2);
+    for (var i = 0; i &lt; list.length; i++) {
+        var a = list[i];
+        if (a == npc || !a.isAlive() || a.getFaction().getId() != npc.getFaction().getId()) continue;
+        a.addPotionEffect(PotionEffectType_RESISTANCE, 2, 1, true);   // Resistance II: −40% урона
+    }
+    npc.getWorld().spawnParticle("crimson_spore", npc.getX(), npc.getY() + 1, npc.getZ(), 4, 0.5, 4, 0, 20);
+}</pre></details>
+
+<details><summary>Барабанщик C2</summary>
+<pre>// Барабанщик C2: hs_core.js + этот файл. Пока жив — разгоняет стадо. Прячется за отрядами.
+var DRUM_EVERY = 160;   // 8 с
+var DRUM_R = 20;
+
+function init(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    hsPut(npc, "drum_at", 0);
+    hsPut(npc, "flee_at", 0);
+    hsPut(npc, "called", 0);
+}
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
+    var t = npc.getAttackTarget();
+    if (t == null) return;
+    var w = npc.getWorld();
+    var now = hsNow(npc);
+    if (now &gt;= hsNum(npc, "drum_at")) {
+        hsPut(npc, "drum_at", now + DRUM_EVERY);
+        var list = w.getNearbyEntities(npc.getPos(), DRUM_R, 2);
+        for (var i = 0; i &lt; list.length; i++) {
+            var a = list[i];
+            if (!a.isAlive() || a.getFaction().getId() != npc.getFaction().getId()) continue;
+            a.addPotionEffect(PotionEffectType_SPEED, 8, 0, false);
+            a.addPotionEffect(PotionEffectType_STRENGTH, 8, 0, false);
+        }
+        w.playSoundAt(npc.getPos(), "minecraft:block.note_block.basedrum", 4.0, 0.5);
+    }
+    if (hsGet(npc, "called", "0") == "0" &amp;&amp; npc.getHealth() &lt;= npc.getMaxHealth() * 0.5) {
+        hsPut(npc, "called", 1);
+        w.spawnClone(npc.getX() + 2, npc.getY(), npc.getZ(), HS.TAB, "Гор (призыв)");
+        w.spawnClone(npc.getX() - 2, npc.getY(), npc.getZ(), HS.TAB, "Гор (призыв)");
+        npc.say("§6БУМ-БУМ! Ко мне, стадо!");
+    }
+    if (now &gt;= hsNum(npc, "flee_at") &amp;&amp; hsFlat(t, npc.getX(), npc.getZ()) &lt; 4 &amp;&amp; !AbilityAPI.isBusy(npc)) {
+        hsPut(npc, "flee_at", now + 200);
+        AbilityAPI.start(npc, "retreat_dash", t, AbilityAPI.params("distance", 8.0));
+    }
+}</pre></details>
+
+<details><summary>Минотавр: Кровавое безумие (третий файл после hs_mob)</summary>
+<pre>// Минотавр: hs_core.js + hs_mob.js (CASTS = пресет минотавра) + этот файл.
+// «Кровавое безумие»: смерть минотавра лечит и усиливает всех живых минотавров рядом.
+function died(e) {
+    var npc = e.npc;
+    var list = npc.getWorld().getNearbyEntities(npc.getPos(), 24, 2);
+    for (var i = 0; i &lt; list.length; i++) {
+        var m = list[i];
+        if (m == npc || !m.isAlive() || String(m.getName()) != "Минотавр") continue;
+        m.setHealth(Math.min(m.getMaxHealth(), m.getHealth() + m.getMaxHealth() * 0.2));
+        m.addPotionEffect(PotionEffectType_STRENGTH, 30, 0, false);
+        m.say("§4Минотавр впадает в кровавое безумие!");
+    }
+}</pre></details>
+
+<details><summary>Кровохряк (Б1)</summary>
+<pre>// Кровохряк (Б1): hs_core.js + этот файл.
+HS.BASE_HP = 300;
+HS.ARENA_R = 20;
+HS.ENRAGE_SEC = 360;
+HS.DISPEL_SEC = 99999;   // рассеивает Грул
+GATE = [ [295, 64, 18], [296, 64, 18], [295, 65, 18], [296, 65, 18] ];   // свои координаты
+var PARTNER = "Грул Кабанья Рука";
+var STAKES = [ [264, 65, 24], [296, 65, 24], [264, 65, 50], [296, 65, 50] ];  // нижний блок кола
+var STAKE_BLOCK = "minecraft:dark_oak_log";
+var RAM_LEN = 14;
+var RAM_EVERY = 180;     // 9 с
+var STUN_TICKS = 120;    // 6 с
+var T_RAM = 1, T_STUN = 2;
+
+function init(e) {
+    var npc = e.npc;
+    if (!hsInit(npc)) return;
+    var w = npc.getWorld();
+    for (var i = 0; i &lt; STAKES.length; i++) {
+        w.setBlock(NpcAPI.getIPos(STAKES[i][0], STAKES[i][1], STAKES[i][2]), STAKE_BLOCK);
+        w.setBlock(NpcAPI.getIPos(STAKES[i][0], STAKES[i][1] + 1, STAKES[i][2]), STAKE_BLOCK);
+    }
+    if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
+    npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
+    npc.getAi().setRetaliateType(0);
+    hsPut(npc, "stun", 0);
+    hsPut(npc, "ram_at", 0);
+    hsPut(npc, "mark_until", 0);
+    hsPut(npc, "widowed", 0);
+}
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
+    var ps = hsFight(npc);
+    if (ps == null) return;
+    var now = hsNow(npc);
+    if (hsGet(npc, "widowed", "0") == "0" &amp;&amp; hsCount(npc, PARTNER) == 0) {
+        hsPut(npc, "widowed", 1);
+        npc.addPotionEffect(PotionEffectType_STRENGTH, 99999, 0, true);
+        npc.say("§4Кровохряк визжит над телом хозяина!");
+    }
+    if (hsGet(npc, "stun", "0") == "1" || AbilityAPI.isBusy(npc) || npc.getTimers().has(T_RAM)) return;
+    if (now &lt; hsNum(npc, "ram_at")) return;
+    var t = markedTarget(npc, now) || npc.getAttackTarget();
+    if (t == null || !t.isAlive()) return;
+    var yaw = hsYawTo(npc, t);
+    hsPut(npc, "ram_x", npc.getX());
+    hsPut(npc, "ram_z", npc.getZ());
+    hsPut(npc, "ram_yaw", yaw);
+    TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, RAM_LEN, 3.0, 40, HS.RED);
+    AbilityAPI.start(npc, "dash", t, AbilityAPI.params("chargeTicks", 30, "activeTicks", 8,
+        "distance", RAM_LEN * 1.0, "damage", 4.0, "hitRadius", 1.8));
+    npc.getTimers().forceStart(T_RAM, 40, false);
+    hsPut(npc, "ram_at", now + (hsGet(npc, "widowed", "0") == "1" ? 120 : RAM_EVERY));
+}
+
+// Грул пишет кабану UUID отмеченного игрока: следующий таран идёт в него.
+function markedTarget(npc, now) {
+    if (now &gt; hsNum(npc, "mark_until")) return null;
+    var p = npc.getWorld().getEntity(hsGet(npc, "mark_uuid", ""));
+    return (p != null &amp;&amp; p.isAlive()) ? p : null;
+}
+
+function timer(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    if (e.id == T_STUN) {
+        hsPut(npc, "stun", 0);
+        npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
+        npc.getAi().setRetaliateType(0);
+        return;
+    }
+    if (e.id != T_RAM) return;
+    var sx = hsNum(npc, "ram_x"), sz = hsNum(npc, "ram_z"), yaw = hsNum(npc, "ram_yaw");
+    var ps = hsPlayersAt(npc, sx, npc.getY(), sz, RAM_LEN + 1);
+    for (var i = 0; i &lt; ps.length; i++) {
+        if (hsOnLine(ps[i], sx, sz, yaw, RAM_LEN, 1.8)) hsStrike(ps[i], 0.30);
+    }
+    var w = npc.getWorld();
+    for (var j = 0; j &lt; STAKES.length; j++) {
+        var s = STAKES[j];
+        if (String(w.getBlock(s[0], s[1], s[2]).getName()) != STAKE_BLOCK) continue;
+        if (hsFlat(npc, s[0] + 0.5, s[2] + 0.5) &gt; 2.5) continue;
+        w.removeBlock(NpcAPI.getIPos(s[0], s[1], s[2]));
+        w.removeBlock(NpcAPI.getIPos(s[0], s[1] + 1, s[2]));
+        hsPut(npc, "stun", 1);
+        npc.getAi().setWalkingSpeed(0);
+        npc.getAi().setRetaliateType(3);
+        npc.getTimers().forceStart(T_STUN, STUN_TICKS, false);
+        w.playSoundAt(npc.getPos(), "minecraft:block.wood.break", 3.0, 0.5);
+        npc.say("§eКровохряк насадился на кол и оглушён!");
+        return;
+    }
+}
+
+function damaged(e) {
+    hsCap(e, hsGet(e.npc, "stun", "0") == "1" ? 1 : HS.WEAK);
+}
+
+function died(e) {
+    AbilityAPI.cancel(e.npc);
+    if (hsCount(e.npc, PARTNER) &gt; 0) return;
+    hsSetGate(e.npc, false);
+    e.npc.say("§7Путь вниз открыт.");
+}</pre></details>
+
+<details><summary>Грул Кабанья Рука (Б1)</summary>
+<pre>// Грул Кабанья Рука (Б1): hs_core.js + этот файл.
+HS.BASE_HP = 220;
+HS.ARENA_R = 20;
+HS.ENRAGE_SEC = 360;
+HS.DISPEL_SEC = 45;
+GATE = [ [295, 64, 18], [296, 64, 18], [295, 65, 18], [296, 65, 18] ];   // те же, что у кабана
+var BOAR = "Кровохряк";
+var MARK_EVERY = 300;    // 15 с
+var CALL_EVERY = 900;    // 45 с
+
+function init(e) {
+    var npc = e.npc;
+    if (!hsInit(npc)) return;
+    hsPut(npc, "mark_at", 0);
+    hsPut(npc, "call_at", 0);
+    hsPut(npc, "widowed", 0);
+}
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    var ps = hsFight(npc);
+    if (ps == null) return;
+    var now = hsNow(npc);
+    var boar = hsFind(npc, BOAR);
+    if (boar.length == 0 &amp;&amp; hsGet(npc, "widowed", "0") == "0") {
+        hsPut(npc, "widowed", 1);
+        npc.addPotionEffect(PotionEffectType_STRENGTH, 99999, 1, true);
+        npc.getAi().setWalkingSpeed(Math.min(10, npc.getAi().getWalkingSpeed() + 2));
+        npc.say("§4Ты убил моего кабана! Я сам тебя растопчу!");
+    }
+    if (boar.length &gt; 0 &amp;&amp; now &gt;= hsNum(npc, "mark_at")) {
+        hsPut(npc, "mark_at", now + MARK_EVERY);
+        var p = hsRandom(ps);
+        p.addPotionEffect(PotionEffectType_GLOWING, 6, 0, false);
+        boar[0].getStoreddata().put("mark_uuid", String(p.getUUID()));
+        boar[0].getStoreddata().put("mark_until", String(now + 120));
+        for (var i = 0; i &lt; ps.length; i++) ps[i].message("§6Грул метит §f" + p.getName() + "§6 — кабан пойдёт на него!");
+        p.message("§eВстань перед целым колом!");
+    }
+    if (now &gt;= hsNum(npc, "call_at")) {
+        hsPut(npc, "call_at", now + CALL_EVERY);
+        if (hsCount(npc, "Унгор-рейдер (призыв)") &lt; 4) {
+            var h = hsHome(npc);
+            npc.getWorld().spawnClone(h[0] + 6, h[1], h[2], HS.TAB, "Унгор-рейдер (призыв)");
+            npc.getWorld().spawnClone(h[0] - 6, h[1], h[2], HS.TAB, "Унгор-рейдер (призыв)");
+        }
+    }
+}
+
+function meleeAttack(e) {
+    if (e.target != null &amp;&amp; e.target.typeOf(1)) e.target.addPotionEffect(PotionEffectType_SLOWNESS, 3, 1, false);
+}
+
+function damaged(e) {
+    hsCap(e, 1);
+}
+
+function died(e) {
+    if (hsCount(e.npc, BOAR) &gt; 0) return;
+    hsSetGate(e.npc, false);
+    e.npc.say("§7Путь вниз открыт.");
+}</pre></details>
+
+<details><summary>Мургрот Туманный Глас (Б2)</summary>
+<pre>// Мургрот Туманный Глас (Б2): hs_core.js + этот файл. Скорость 0, On Attack = Мстить, рендж в GUI.
+HS.BASE_HP = 260;
+HS.ARENA_R = 20;
+HS.ENRAGE_SEC = 420;
+GATE = [ [189, 40, 241], [190, 40, 241], [189, 41, 241], [190, 41, 241] ];   // завал шахты B5_down
+var TOTEM = "Тотем Мургрота";
+var COPY = "Мургрот-копия";
+var TOTEMS = [ [186, 40, 210], [214, 40, 210], [186, 40, 234], [214, 40, 234] ];
+var SONG_EVERY = 500, SONG_TICKS = 100, SONG_BREAK = 60;
+var ROT_EVERY = 400, ROT_TICKS = 80, ROT_R = 6;
+var T_SONG = 1, T_ROT = 2;
+
+function init(e) {
+    var npc = e.npc;
+    if (!hsInit(npc)) return;
+    hsDespawnAll(npc, COPY);
+    hsPut(npc, "wave", 0);
+    hsPut(npc, "immune", 0);
+    hsPut(npc, "song", 0);
+    hsPut(npc, "copies", 0);
+    hsPut(npc, "song_at", 0);
+    hsPut(npc, "rot_at", 0);
+}
+
+function raiseTotems(npc) {
+    var w = npc.getWorld();
+    for (var i = 0; i &lt; TOTEMS.length; i++) {
+        var p = TOTEMS[i];
+        var near = w.getNearbyEntities(NpcAPI.getIPos(p[0], p[1], p[2]), 2, 2);
+        var alive = false;
+        for (var j = 0; j &lt; near.length; j++) if (String(near[j].getName()) == TOTEM &amp;&amp; near[j].isAlive()) alive = true;
+        if (!alive) w.spawnClone(p[0] + 0.5, p[1], p[2] + 0.5, HS.TAB, TOTEM);
+    }
+}
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    var ps = hsFight(npc);
+    if (ps == null) return;
+    var now = hsNow(npc);
+    var hp = npc.getHealth() / npc.getMaxHealth();
+    var want = hp &gt; 0.66 ? 1 : (hp &gt; 0.33 ? 2 : 3);
+    if (want &gt; hsNum(npc, "wave")) {
+        hsPut(npc, "wave", want);
+        raiseTotems(npc);
+        npc.say("§5Тотемы, встаньте! Мургрот не падёт!");
+    }
+    var immune = hsCount(npc, TOTEM) &gt; 0;
+    hsPut(npc, "immune", immune ? 1 : 0);
+    if (immune) return;
+
+    if (hsGet(npc, "copies", "0") == "0" &amp;&amp; hp &lt;= 0.5) {
+        hsPut(npc, "copies", 1);
+        var w = npc.getWorld();
+        var h = hsHome(npc);
+        for (var c = 0; c &lt; 3; c++) {
+            var a = Math.random() * Math.PI * 2;
+            w.spawnClone(h[0] + Math.cos(a) * 10, h[1], h[2] + Math.sin(a) * 10, HS.TAB, COPY);
+        }
+        var a2 = Math.random() * Math.PI * 2;
+        npc.setPosition(h[0] + Math.cos(a2) * 10, h[1], h[2] + Math.sin(a2) * 10);
+        for (var b = 0; b &lt; ps.length; b++) ps[b].addPotionEffect(PotionEffectType_BLINDNESS, 3, 0, false);
+    }
+    if (hsCount(npc, COPY) &gt; 0) {
+        npc.getWorld().spawnParticle("witch", npc.getX(), npc.getY() + 2.6, npc.getZ(), 0.3, 0.3, 0.3, 0, 12);
+    }
+    if (npc.getTimers().has(T_SONG) || npc.getTimers().has(T_ROT)) return;
+    if (now &gt;= hsNum(npc, "song_at")) {
+        hsPut(npc, "song_at", now + SONG_EVERY);
+        hsPut(npc, "song", 1);
+        hsPut(npc, "song_dmg", 0);
+        var h2 = hsHome(npc);
+        hsPut(npc, "song_tg", TelegraphAPI.circle(npc, h2[0], h2[1], h2[2], HS.ARENA_R, SONG_TICKS, HS.PURPLE));
+        npc.say("§5Песнь безумия! (сбейте §f" + SONG_BREAK + "§5 урона за 5 с)");
+        npc.getTimers().forceStart(T_SONG, SONG_TICKS, false);
+        return;
+    }
+    if (now &gt;= hsNum(npc, "rot_at")) {
+        hsPut(npc, "rot_at", now + ROT_EVERY);
+        var p = hsRandom(ps);
+        hsPut(npc, "rot_uuid", p.getUUID());
+        var id = TelegraphAPI.circle(npc, p.getX(), p.getY(), p.getZ(), ROT_R, ROT_TICKS, HS.RED);
+        TelegraphAPI.follow(id, p);
+        p.addPotionEffect(PotionEffectType_GLOWING, 4, 0, false);
+        p.message("§cНа тебе Порча Хаоса — отойди от всех!");
+        npc.getTimers().forceStart(T_ROT, ROT_TICKS, false);
+    }
+}
+
+function timer(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    if (e.id == T_SONG &amp;&amp; hsGet(npc, "song", "0") == "1") {
+        hsPut(npc, "song", 0);
+        var ps = hsPlayers(npc);
+        for (var i = 0; i &lt; ps.length; i++) {
+            hsStrike(ps[i], 0.5);
+            ps[i].addPotionEffect(PotionEffectType_NAUSEA, 6, 0, false);
+        }
+        npc.setHealth(Math.min(npc.getMaxHealth(), npc.getHealth() + npc.getMaxHealth() * 0.1));
+    }
+    if (e.id == T_ROT) {
+        var t = npc.getWorld().getEntity(hsGet(npc, "rot_uuid", ""));
+        if (t == null || !t.isAlive()) return;
+        var hit = hsPlayersAt(npc, t.getX(), t.getY(), t.getZ(), ROT_R);
+        for (var j = 0; j &lt; hit.length; j++) hsStrike(hit[j], 0.25 * hit.length);
+    }
+}
+
+function damaged(e) {
+    var npc = e.npc;
+    if (hsGet(npc, "immune", "0") == "1") { e.setCanceled(true); return; }
+    hsCap(e, 1);
+    if (hsGet(npc, "song", "0") != "1") return;
+    var dmg = hsNum(npc, "song_dmg") + e.damage;
+    hsPut(npc, "song_dmg", dmg);
+    if (dmg &lt; SONG_BREAK) return;
+    hsPut(npc, "song", 0);
+    npc.getTimers().stop(T_SONG);
+    TelegraphAPI.remove(hsGet(npc, "song_tg", ""));
+    npc.say("§7Песнь сорвана!");
+}
+
+function died(e) {
+    hsDespawnAll(e.npc, COPY);
+    hsDespawnAll(e.npc, TOTEM);
+    hsSetGate(e.npc, false);
+    e.npc.say("§7Туман рассеивается. Корни расступаются.");
+}</pre></details>
+
+<details><summary>Мургрот-копия</summary>
+<pre>// Мургрот-копия (HP 1, Respawn = Нет): hs_core.js + этот файл. Удар по копии бьёт по ударившему.
+function damaged(e) {
+    var src = e.source;
+    if (src != null &amp;&amp; src.typeOf(1)) {
+        hsStrike(src, 0.3);
+        src.message("§5Это была иллюзия.");
+    }
+}</pre></details>
+
+<details><summary>Горгон (Б3)</summary>
+<pre>// Великая Утроба, Горгон (Б3): hs_core.js + этот файл.
+HS.BASE_HP = 520;
+HS.CAP = 14;
+HS.ARENA_R = 21;
+HS.ENRAGE_SEC = 480;
+GATE = [ [299, 16, 173], [300, 16, 173], [299, 17, 173], [300, 17, 173] ];   // завал Глотки C5_down
+var REND_MAX = 5;
+var SAFE_R = 13;          // при сжатии безопасен только круг r 13
+var T_CONE = 1, T_SLAM = 2;
+
+function init(e) {
+    var npc = e.npc;
+    if (!hsInit(npc)) return;
+    if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
+    npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
+    hsPut(npc, "shrink", 0);
+    hsPut(npc, "shrink_until", 0);
+    hsPut(npc, "frenzy", 0);
+    hsPut(npc, "cone_at", hsNow(npc) + 160);
+    hsPut(npc, "slam_at", hsNow(npc) + 240);
+}
+
+function cd(npc, ticks) { return hsGet(npc, "frenzy", "0") == "1" ? Math.round(ticks * 0.6) : ticks; }
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
+    var ps = hsFight(npc);
+    if (ps == null) return;
+    var now = hsNow(npc);
+    var hp = npc.getHealth() / npc.getMaxHealth();
+    var h = hsHome(npc);
+    decayRend(npc, ps, now);
+
+    var shrink = hsNum(npc, "shrink");
+    if ((shrink &lt; 1 &amp;&amp; hp &lt;= 0.66) || (shrink &lt; 2 &amp;&amp; hp &lt;= 0.33)) {
+        hsPut(npc, "shrink", shrink + 1);
+        hsPut(npc, "shrink_until", now + 400);
+        ZoneAPI.hazardRing(npc, h[0], h[1], h[2], HS.ARENA_R, SAFE_R, 400, 2.0, 20);
+        npc.say("§4Яма сжимается! К центру!");
+    }
+    if (now &lt; hsNum(npc, "shrink_until") &amp;&amp; now % 20 &lt; 10) {
+        for (var i = 0; i &lt; ps.length; i++) if (hsFlat(ps[i], h[0], h[2]) &gt; SAFE_R) hsStrike(ps[i], 0.10);
+    }
+    if (hsGet(npc, "frenzy", "0") == "0" &amp;&amp; hp &lt;= 0.25) {
+        hsPut(npc, "frenzy", 1);
+        npc.getAi().setWalkingSpeed(Math.min(10, hsNum(npc, "base_speed") + 2));
+        npc.say("§4Горгон в бешенстве!");
+    }
+
+    if (AbilityAPI.isBusy(npc) || npc.getTimers().has(T_CONE) || npc.getTimers().has(T_SLAM)) return;
+    var t = npc.getAttackTarget();
+    if (t == null || !t.isAlive()) return;
+    if (now &gt;= hsNum(npc, "cone_at")) {
+        hsPut(npc, "cone_at", now + cd(npc, 240));
+        var yaw = hsYawTo(npc, t);
+        hsPut(npc, "cone_x", npc.getX());
+        hsPut(npc, "cone_z", npc.getZ());
+        hsPut(npc, "cone_yaw", yaw);
+        TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 8.0, 30.0, 30, HS.RED);
+        npc.getTimers().forceStart(T_CONE, 30, false);
+        return;
+    }
+    if (now &gt;= hsNum(npc, "slam_at")) {
+        var far = ps[0];
+        for (var j = 1; j &lt; ps.length; j++) if (hsFlat(ps[j], npc.getX(), npc.getZ()) &gt; hsFlat(far, npc.getX(), npc.getZ())) far = ps[j];
+        hsPut(npc, "slam_at", now + cd(npc, 320));
+        hsPut(npc, "slam_x", far.getX());
+        hsPut(npc, "slam_z", far.getZ());
+        TelegraphAPI.circle(npc, far.getX(), far.getY(), far.getZ(), 5.0, 40, HS.RED);
+        AbilityAPI.start(npc, "jump_slam", far, AbilityAPI.params("chargeTicks", 24, "landRadius", 5.0, "damage", 6.0));
+        npc.getTimers().forceStart(T_SLAM, 40, false);
+    }
+}
+
+function timer(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    var ps = hsPlayers(npc);
+    var i;
+    if (e.id == T_CONE) {
+        var ox = hsNum(npc, "cone_x"), oz = hsNum(npc, "cone_z"), yaw = hsNum(npc, "cone_yaw");
+        for (i = 0; i &lt; ps.length; i++) {
+            if (hsFlat(ps[i], ox, oz) &lt;= 8 &amp;&amp; Combat.isInFrontCone(ox, oz, yaw, ps[i], 30.0)) hsStrike(ps[i], 0.7);
+        }
+    }
+    if (e.id == T_SLAM) {
+        var sx = hsNum(npc, "slam_x"), sz = hsNum(npc, "slam_z");
+        for (i = 0; i &lt; ps.length; i++) if (hsFlat(ps[i], sx, sz) &lt;= 5) hsStrike(ps[i], 0.3);
+    }
+}
+
+// «Раздирание»: стаки на цели в tempdata Горгона, ключ — UUID игрока.
+function meleeAttack(e) {
+    var p = e.target;
+    if (p == null || !p.typeOf(1)) return;
+    var td = e.npc.getTempdata();
+    var key = "rend_" + p.getUUID();
+    var n = (td.has(key) ? Number(String(td.get(key))) : 0) + 1;
+    td.put("at_" + p.getUUID(), String(hsNow(e.npc)));
+    if (n &gt;= REND_MAX) {
+        td.put(key, "0");
+        hsStrike(p, 0.5);
+        p.message("§4Горгон разрывает тебя!");
+        return;
+    }
+    td.put(key, String(n));
+    p.message("§cРаздирание: " + n + "/" + REND_MAX + " — отойди, пока не спадёт");
+}
+
+function decayRend(npc, ps, now) {
+    var td = npc.getTempdata();
+    for (var i = 0; i &lt; ps.length; i++) {
+        var u = ps[i].getUUID();
+        if (!td.has("rend_" + u)) continue;
+        var n = Number(String(td.get("rend_" + u)));
+        if (n &lt;= 0 || now - Number(String(td.get("at_" + u))) &lt; 60) continue;
+        td.put("rend_" + u, String(n - 1));
+        td.put("at_" + u, String(now));
+    }
+}
+
+function damaged(e) {
+    hsCap(e, 1);
+}
+
+function died(e) {
+    hsSetGate(e.npc, false);
+    e.npc.say("§7Утроба затихла. Глотка открыта.");
+}</pre></details>
+
+<details><summary>Гарракс (Б4)</summary>
+<pre>// Гарракс Расколотый Рог (Б4): hs_core.js + этот файл. Всё состояние — в storeddata самого Гарракса.
+HS.BASE_HP = 900;
+HS.CAP = 14;
+HS.ARENA_R = 26;
+HS.ENRAGE_SEC = 600;
+GATE = [ [190, -8, 35], [190, -7, 35] ];   // barrier выхода (Подъём Висельника) и проход в D4
+GATE_BLOCK = "minecraft:barrier";
+var STONE = [122, -8, 44];
+var HEARTS = [ [122, -8, 22], [103, -8, 57], [141, -8, 57] ];
+var CRYSTALS = [ [112, -8, 34], [132, -8, 34], [112, -8, 54], [132, -8, 54] ];
+var HEART = "Сердце жёлоба", CRYSTAL = "Варп-кристалл", ADD = "Гор (призыв)";
+var HEARTS_TICKS = 900;   // 45 с на три сердца
+var T_HIT = 1, T_BRAND = 2, T_HEARTS = 3, T_CIRCLES = 4;
+
+function init(e) {
+    var npc = e.npc;
+    if (!hsInit(npc)) return;
+    hsDespawnAll(npc, HEART);
+    hsDespawnAll(npc, CRYSTAL);
+    if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
+    npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
+    npc.getAi().setRetaliateType(0);
+    npc.getDisplay().setSize(10);
+    hsPut(npc, "phase", "1");
+    hsPut(npc, "rite_done", 0);
+    hsPut(npc, "cast_at", 0);
+    hsPut(npc, "brand_at", 0);
+    hsPut(npc, "circles_at", 0);
+    hsPut(npc, "wave_at", 0);
+}
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
+    var ps = hsFight(npc);
+    if (ps == null) return;
+    var w = npc.getWorld();
+    var now = hsNow(npc);
+    var hp = npc.getHealth() / npc.getMaxHealth();
+    var ph = hsGet(npc, "phase", "1");
+    var i;
+
+    if (ph == "1" &amp;&amp; hp &lt;= 0.6) {
+        AbilityAPI.cancel(npc);
+        hsPut(npc, "phase", "2");
+        npc.getAi().setRetaliateType(3);
+        npc.getAi().setWalkingSpeed(0);
+        npc.setPosition(STONE[0] + 0.5, STONE[1], STONE[2] + 0.5);
+        for (i = 0; i &lt; HEARTS.length; i++) w.spawnClone(HEARTS[i][0] + 0.5, HEARTS[i][1], HEARTS[i][2] + 0.5, HS.TAB, HEART);
+        npc.getTimers().forceStart(T_HEARTS, HEARTS_TICKS, false);
+        npc.say("§4КРОВЬ — КАМНЮ! У вас 45 ударов сердца!");
+        return;
+    }
+    if (ph == "2") {
+        if (hsCount(npc, HEART) == 0) {
+            npc.getTimers().stop(T_HEARTS);
+            hsPut(npc, "phase", "2b");
+            npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
+            npc.getAi().setRetaliateType(0);
+            npc.say("§cЖёлобы пусты…");
+        } else if (now &gt;= hsNum(npc, "wave_at")) {
+            hsPut(npc, "wave_at", now + 200);
+            if (hsCount(npc, ADD) &lt; 6) {
+                w.spawnClone(STONE[0] + 8, STONE[1], STONE[2], HS.TAB, ADD);
+                w.spawnClone(STONE[0] - 8, STONE[1], STONE[2], HS.TAB, ADD);
+            }
+        }
+        return;
+    }
+    if (ph == "2b" &amp;&amp; hp &lt;= 0.3) {
+        hsPut(npc, "phase", "3");
+        npc.getDisplay().setSize(12);
+        for (i = 0; i &lt; CRYSTALS.length; i++) w.spawnClone(CRYSTALS[i][0] + 0.5, CRYSTALS[i][1], CRYSTALS[i][2] + 0.5, HS.TAB, CRYSTAL);
+        npc.say("§2Ночь Тайн пришла!");
+        ph = "3";
+    }
+    var rite = ph == "3" &amp;&amp; hsGet(npc, "rite_done", "0") == "0";
+    if (rite &amp;&amp; hsCount(npc, CRYSTAL) == 0) {
+        hsPut(npc, "rite_done", 1);
+        rite = false;
+        npc.getDisplay().setSize(10);
+        npc.setHealth(Math.max(1, npc.getHealth() - npc.getMaxHealth() * 0.15));
+        npc.say("§cНЕТ! Камень… молчит…");
+    }
+
+    if (now &gt;= hsNum(npc, "brand_at") &amp;&amp; !npc.getTimers().has(T_BRAND)) {
+        hsPut(npc, "brand_at", now + 400);
+        var b = hsRandom(ps);
+        hsPut(npc, "brand_uuid", b.getUUID());
+        TelegraphAPI.follow(TelegraphAPI.circle(npc, b.getX(), b.getY(), b.getZ(), 3.0, 120, HS.GOLD), b);
+        b.addPotionEffect(PotionEffectType_GLOWING, 6, 0, false);
+        for (i = 0; i &lt; ps.length; i++) ps[i].message("§6Клеймо на §f" + b.getName() + "§6 — встаньте рядом и разделите удар!");
+        npc.getTimers().forceStart(T_BRAND, 120, false);
+    }
+    if (rite &amp;&amp; now &gt;= hsNum(npc, "circles_at") &amp;&amp; !npc.getTimers().has(T_CIRCLES)) {
+        hsPut(npc, "circles_at", now + 300);
+        var h = hsHome(npc), pts = [];
+        for (i = 0; i &lt; ps.length; i++) {
+            var a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 12;
+            var cx = h[0] + Math.cos(a) * r, cz = h[2] + Math.sin(a) * r;
+            pts.push(cx.toFixed(1) + ":" + cz.toFixed(1));
+            TelegraphAPI.circle(npc, cx, h[1], cz, 2.0, 70, HS.GOLD);
+        }
+        hsPut(npc, "circles", pts.join(";"));
+        npc.say("§2Камень жаждет! Встаньте в круги!");
+        npc.getTimers().forceStart(T_CIRCLES, 70, false);
+    }
+
+    if (AbilityAPI.isBusy(npc) || npc.getTimers().has(T_HIT) || now &lt; hsNum(npc, "cast_at")) return;
+    var t = npc.getAttackTarget();
+    if (t == null || !t.isAlive()) return;
+    hsPut(npc, "cast_at", now + 100);
+    var yaw = hsYawTo(npc, t);
+    hsPut(npc, "hit_x", npc.getX());
+    hsPut(npc, "hit_z", npc.getZ());
+    hsPut(npc, "hit_yaw", yaw);
+    var roll = Math.random();
+    if (roll &lt; 0.34) {
+        hsPut(npc, "hit", "spin");
+        AbilityAPI.start(npc, "weapon_spin", t, AbilityAPI.params("chargeTicks", 20, "activeTicks", 40, "radius", 4.5, "damagePerTick", 2.0));
+        npc.getTimers().forceStart(T_HIT, 60, false);
+    } else if (roll &lt; 0.67) {
+        hsPut(npc, "hit", "dash");
+        TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 14.0, 3.6, 40, HS.RED);
+        AbilityAPI.start(npc, "dash", t, AbilityAPI.params("chargeTicks", 30, "distance", 14.0, "damage", 6.0, "hitRadius", 1.8));
+        npc.getTimers().forceStart(T_HIT, 40, false);
+    } else {
+        hsPut(npc, "hit", "cone");
+        TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 9.0, 30.0, 36, HS.RED);
+        npc.getTimers().forceStart(T_HIT, 36, false);
+    }
+}
+
+function timer(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    var ps = hsPlayers(npc);
+    var i;
+    if (e.id == T_HEARTS) {
+        if (hsCount(npc, HEART) == 0) return;
+        npc.say("§4Камень напился. Вы — следующие.");
+        for (i = 0; i &lt; ps.length; i++) hsKill(ps[i]);
+        return;
+    }
+    if (e.id == T_BRAND) {
+        var b = npc.getWorld().getEntity(hsGet(npc, "brand_uuid", ""));
+        if (b == null || !b.isAlive()) return;
+        var share = hsPlayersAt(npc, b.getX(), b.getY(), b.getZ(), 3.0);
+        for (i = 0; i &lt; share.length; i++) hsStrike(share[i], 0.8 / share.length);
+        return;
+    }
+    if (e.id == T_CIRCLES) {
+        var pts = hsGet(npc, "circles", "").split(";"), empty = 0;
+        for (i = 0; i &lt; pts.length; i++) {
+            var xz = pts[i].split(":");
+            if (xz.length &lt; 2) continue;
+            if (hsPlayersAt(npc, Number(xz[0]), npc.getY(), Number(xz[1]), 2.0).length == 0) empty++;
+        }
+        if (empty == 0) return;
+        npc.say("§2Камень пьёт из пустых кругов!");
+        for (i = 0; i &lt; ps.length; i++) hsStrike(ps[i], 0.6 * empty);
+        return;
+    }
+    if (e.id != T_HIT) return;
+    var kind = hsGet(npc, "hit", ""), ox = hsNum(npc, "hit_x"), oz = hsNum(npc, "hit_z"), yaw = hsNum(npc, "hit_yaw");
+    for (i = 0; i &lt; ps.length; i++) {
+        var p = ps[i];
+        if (kind == "spin" &amp;&amp; hsFlat(p, npc.getX(), npc.getZ()) &lt;= 4.5) hsStrike(p, 0.25);
+        if (kind == "dash" &amp;&amp; hsOnLine(p, ox, oz, yaw, 14, 1.8)) hsStrike(p, 0.35);
+        if (kind == "cone" &amp;&amp; hsFlat(p, ox, oz) &lt;= 9 &amp;&amp; Combat.isInFrontCone(ox, oz, yaw, p, 30.0)) hsStrike(p, 0.6);
+    }
+}
+
+function damaged(e) {
+    var npc = e.npc;
+    var ph = hsGet(npc, "phase", "1");
+    if (ph == "2") { e.setCanceled(true); return; }
+    hsCap(e, ph == "3" &amp;&amp; hsGet(npc, "rite_done", "0") == "0" ? HS.WEAK : 1);
+}
+
+function died(e) {
+    AbilityAPI.cancel(e.npc);
+    hsDespawnAll(e.npc, HEART);
+    hsDespawnAll(e.npc, CRYSTAL);
+    hsSetGate(e.npc, false);
+    e.npc.say("§7Камень трескается. Подъём Висельника свободен.");
+}</pre></details>
+
+<details><summary>Варп-кристалл</summary>
+<pre>// Варп-кристалл (HP 80, Respawn = Нет, скорость 0, On Attack = Ничего): hs_core.js + это.
+// Раз в 5 с снимает 10% HP всем в 4 блоках. Молнию не используем — она поджигает рощу.
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    var now = hsNow(npc);
+    if (now &lt; hsNum(npc, "pulse_at")) return;
+    hsPut(npc, "pulse_at", now + 100);
+    var w = npc.getWorld();
+    w.spawnParticle("happy_villager", npc.getX(), npc.getY() + 1, npc.getZ(), 2, 1, 2, 0.1, 40);
+    w.playSoundAt(npc.getPos(), "minecraft:block.beacon.power_select", 2.0, 0.6);
+    var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), 4);
+    for (var i = 0; i &lt; ps.length; i++) hsStrike(ps[i], 0.10);
+}</pre></details>
+
+<details><summary>Сердце жёлоба</summary>
+<pre>// Сердце жёлоба (HP 150, Respawn = Нет, скорость 0, On Attack = Ничего). Без ядра.
+// Потолок 15 за удар: три сердца за 45 с требуют всей группы, а не одного «ваншота».
+function damaged(e) {
+    e.damage = Math.min(e.damage, 15);
+}</pre></details>
+
+<details><summary>Бормочущий (секрет C4)</summary>
+<pre>// Бормочущий, Джабберслайт (секрет C4): hs_core.js + этот файл.
+HS.BASE_HP = 380;
+HS.ARENA_R = 22;
+HS.ENRAGE_SEC = 480;
+var MENHIRS = [ [284, 30, 18], [324, 30, 18], [284, 30, 38], [324, 30, 38] ];
+var COVER = 2.5;
+var GAZE_EVERY = 240;     // 12 с
+var T_GAZE = 1;
+
+function init(e) {
+    var npc = e.npc;
+    if (!hsInit(npc)) return;
+    hsPut(npc, "gaze_at", hsNow(npc) + 200);
+}
+
+function tick(e) {
+    var npc = e.npc;
+    if (!npc.isAlive()) return;
+    var ps = hsFight(npc);
+    if (ps == null || npc.getTimers().has(T_GAZE)) return;
+    var now = hsNow(npc);
+    if (now &lt; hsNum(npc, "gaze_at")) return;
+    hsPut(npc, "gaze_at", now + GAZE_EVERY);
+    for (var i = 0; i &lt; MENHIRS.length; i++) {
+        TelegraphAPI.circle(npc, MENHIRS[i][0] + 0.5, MENHIRS[i][1], MENHIRS[i][2] + 0.5, COVER, 40, HS.GOLD);
+    }
+    npc.say("§2Бормочущий поднимает взгляд… К менгирам!");
+    npc.getTimers().forceStart(T_GAZE, 40, false);
+}
+
+function timer(e) {
+    var npc = e.npc;
+    if (e.id != T_GAZE || !npc.isAlive()) return;
+    var ps = hsPlayers(npc);
+    for (var i = 0; i &lt; ps.length; i++) {
+        var safe = false;
+        for (var j = 0; j &lt; MENHIRS.length; j++) {
+            if (hsFlat(ps[i], MENHIRS[j][0] + 0.5, MENHIRS[j][2] + 0.5) &lt;= COVER) safe = true;
+        }
+        if (safe) continue;
+        hsStrike(ps[i], 0.7);
+        ps[i].addPotionEffect(PotionEffectType_NAUSEA, 6, 0, false);
+    }
+}
+
+function meleeAttack(e) {
+    if (e.target != null &amp;&amp; e.target.typeOf(1)) e.target.addPotionEffect(PotionEffectType_POISON, 4, 1, false);
+}
+
+function damaged(e) {
+    hsCap(e, 1);
+}</pre></details>
+
+<details><summary>Самозакрывающийся проход (Scripted Block S1–S4)</summary>
+<pre>// Самозакрывающийся проход: Scripted Block шорткатов S1–S4.
+var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
+var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+
+var PLUG = [ [150, 65, 184], [150, 66, 184], [151, 65, 184], [151, 66, 184] ];
+var PLUG_BLOCK = "minecraft:dark_oak_planks"; // только полные блоки
+var CLOSE_AFTER = 72000;                      // тиков = 1 час
+var SAFE_RADIUS = 12;
+
+function interact(e) {
+    var w = e.block.getWorld();
+    setPlug(w, false);
+    e.block.getStoreddata().put("close_at", String(w.getTotalTime() + CLOSE_AFTER));
+    w.playSoundAt(e.block.getPos(), "minecraft:block.wooden_door.open", 1.0, 0.8);
+}
+
+function tick(e) {
+    var d = e.block.getStoreddata();
+    if (!d.has("close_at")) return;
+    var w = e.block.getWorld();
+    if (w.getTotalTime() &lt; Number(String(d.get("close_at")))) return;
+    var p = PLUG[0];
+    if (w.getNearbyEntities(NpcAPI.getIPos(p[0], p[1], p[2]), SAFE_RADIUS, EntitiesType.PLAYER).length &gt; 0) return;
+    setPlug(w, true);
+    d.remove("close_at");
+}
+
+function setPlug(w, closed) {
+    var i;
+    for (i = 0; i &lt; PLUG.length; i++) {
+        var pos = NpcAPI.getIPos(PLUG[i][0], PLUG[i][1], PLUG[i][2]);
+        if (closed) w.setBlock(pos, PLUG_BLOCK);
+        else w.removeBlock(pos);
+    }
+}</pre></details>
+
+<details><summary>Туман C3 (скрытый Scripted Block)</summary>
+<pre>// Туман C3: скрытый Scripted Block под полом топи.
+var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
+
+function tick(e) {
+    var w = e.block.getWorld();
+    var now = w.getTotalTime();
+    var list = w.getNearbyEntities(e.block.getPos(), 16, EntitiesType.PLAYER);
+    var i;
+    for (i = 0; i &lt; list.length; i++) {
+        var p = list[i];
+        var d = p.getStoreddata();
+        if (d.has("hs_clean_until") &amp;&amp; now &lt; Number(String(d.get("hs_clean_until")))) continue;
+        p.addPotionEffect(PotionEffectType_NAUSEA, 3, 0, true);
+        p.addPotionEffect(PotionEffectType_WITHER, 2, 0, true);
+    }
+}
+// Святая трава — отдельный Scripted Block:
+// function interact(e) {
+//   e.player.getStoreddata().put("hs_clean_until", String(e.block.getWorld().getTotalTime() + 300));
+// }</pre></details>
+
 
 <h3>Порядок работ</h3>
 <ol>
-  <li>Три фракции. Лагеря: квестодатели, Trader, <code>setSpawnpoint</code> в interact.</li>
-  <li>Пять Kill-квестов, по два диалога (Отто / Гурхак) на каждый, Completion Instant.</li>
-  <li>Терновая стена + barrier. Каркас локаций. Решётки на выходах из арен — сразу.</li>
-  <li>Клоны из таблицы, Respawn 3600, сохранить в cloner tab 2.</li>
-  <li>Scripted Block: вентили, тотемы, барабаны, трава, кормушки, калитки, Камень, выход.</li>
-  <li>Скрипты боссов и унгоров. Смотритель. <code>/forceload</code> на чанки данжа.</li>
-  <li>Проход за Порядок и за Разрушение. Смерть на арене → шорткат. Час ожидания → сброс ворот при пустой арене и откладывание, если стоишь внутри.</li>
+  <li>Четыре фракции. Лагеря: квестодатели, Trader, <code>setSpawnpoint</code> в interact.</li>
+  <li>Пять Area Kill-квестов, по два диалога (Отто / Гурхак) на каждый, Completion Instant.</li>
+  <li>Построить каркас: <code>/dungeon herdstone</code> (раскладка из <code>HerdstoneDungeon</code>). Шорткаты закрыты завалами из полных блоков. Ворота арен и выход — тоже завалы; координаты скопировать в <code>GATE</code> боссов.</li>
+  <li>Клоны из таблицы: расставленные — Respawn 3600, «(призыв)», копии, сердца, кристаллы, тотемы Мургрота — Respawn = Нет. Tab 2.</li>
+  <li>Скрипты: ядро + файл босса/моба. У мобов — свой пресет CASTS. У Горгона Return to start = да.</li>
+  <li>Scripted Block: шорткаты, туман, святые травы, рычаг S2, люк S4 (проверка <code>hs_d2_won_until</code> в <code>interact</code>).</li>
+  <li>Проход за Порядок и за Разрушение. Смерть на арене → шорткат. Час ожидания у ворот: босс возродился, ворота закрылись.</li>
 </ol>
 </section>
 

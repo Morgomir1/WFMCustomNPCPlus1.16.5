@@ -120,7 +120,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <div class="meta"><span>Игроки: <b>1–4</b></span><span>Снаряжение: <b>любое — решают механики</b></span><span>Время: <b>60–90 мин</b></span><span>Респаун всего: <b>1 час</b></span><span>Этаж: <b>350×247 блоков</b></span><span>Глубина: <b>≈80 блоков</b></span></div>
 </header>
 
-<nav aria-label="Разделы"><a href="#lore">Лор</a><a href="#rules">Правила</a><a href="#law">Закон Стада</a><a href="#bestiary">Бестиарий</a><a href="#camps">Лагеря и квесты</a><a href="#cut">Разрез</a><a href="#l1">Локация 1</a><a href="#l2">Локация 2</a><a href="#l3">Локация 3</a><a href="#l4">Локация 4</a><a href="#bosses">Боссы</a><a href="#sc">Шорткаты</a><a href="#cnpc">CustomNPC</a></nav>
+<nav aria-label="Разделы"><a href="#lore">Лор</a><a href="#rules">Правила</a><a href="#law">Закон Стада</a><a href="#bestiary">Бестиарий</a><a href="#camps">Лагеря и квесты</a><a href="#cut">Разрез</a><a href="#l1">Локация 1</a><a href="#l2">Локация 2</a><a href="#l3">Локация 3</a><a href="#l4">Локация 4</a><a href="#bosses">Боссы</a><a href="#cnpc">CustomNPC</a></nav>
 
 <!-- ================= LORE ================= -->
 <section id="lore">
@@ -149,7 +149,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <div><b>Арены — шлюзы</b><span>Проход в следующую локацию начинается в арене босса. Завал снимает <code>died</code> босса и ставит <code>init</code>: CNPC вызывает <code>init</code> при каждом возрождении NPC.</span></div>
   <div><b>Респаун 1 час</b><span>Встроенный Respawn 3600 у всех мобов и боссов. Таймер считается в реальном времени и хранится в NBT NPC, возрождение — при загрузке чанка. Ни <code>/forceload</code>, ни NPC-смотритель не нужны.</span></div>
   <div><b>Нет глобального состояния</b><span>Состояние хранится на самом боссе или блоке (storeddata, tempdata, таймеры NPC). Ключей в world storeddata, которые надо кому-то обнулять, нет.</span></div>
-  <div><b>Шорткаты не обходят боссов</b><span>Все шорткаты ведут внутри одной локации: от прихожей арены назад к её началу. Срезают переходы с мобами, но не арены. Закрываются сами через час.</span></div>
   <div><b>Квесты универсальные</b><span>Ни одна механика внутри данжа не привязана к фракции. Задания одни и те же, лагеря выдают их через разных NPC.</span></div>
 </div>
 </section>
@@ -163,7 +162,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <div class="law"><b>3. Рассеивание.</b> Раз в 45–50 с босс снимает с игроков на арене все эффекты: Сопротивление, Силу, регенерацию, поглощение. Зелья держатся только до следующего рёва.</div>
 <div class="law"><b>4. Телеграф перед каждым опасным ударом.</b> Красный круг, конус или полоса <code>TelegraphAPI</code> горят 1,5–2 с, затем срабатывает удар по тем, кто остался внутри. Смерть в данже всегда означает «стоял в красном» или «не сделал механику».</div>
 <div class="law"><b>5. Поводок.</b> Игрок до 8 блоков за краем арены или выше пола на 4+ блока (столб, жемчуг на стену) переносится в центр и теряет 25% HP. Стрелять со стены и танцевать в дверях нельзя.</div>
-<div class="law"><b>6. Сброс.</b> 15 с без игроков на арене — <code>npc.reset()</code>: полное HP, фазы, ворота, адды убраны. Вылечиться на шорткате и вернуться к той же фазе нельзя.</div>
+<div class="law"><b>6. Сброс.</b> 15 с без игроков на арене — <code>npc.reset()</code>: полное HP, фазы, ворота, адды убраны. Уйти с арены и вернуться к той же фазе нельзя.</div>
 <div class="law"><b>7. Ярость.</b> Через 6–10 минут боя босс раз в 10 с бьёт случайного игрока смертельным ударом. Затянуть бой регенерацией нельзя.</div>
 <div class="law"><b>8. Масштаб по группе.</b> На пуле <code>maxHP = BASE × (0,7 + 0,3·N)</code>, где N — игроки на арене. Соло — 100%, вчетвером — 190%: из-за потолка урона четверо всё равно не убьют босса вчетверо быстрее.</div>
 <div class="law"><b>9. Множитель урона и HP боссов.</b> Одна переменная на весь данж: <code>HS.DMG</code> в <code>hs_core.js</code> (по умолчанию 1). Если в world storeddata есть ключ <code>hs_dmg</code>, он перекрывает файл — так можно крутить сложность, не переклеивая скрипт на каждом NPC. Множитель действует на все <code>hsStrike</code> (процентные удары мобов и боссов), на <code>damage</code> / <code>damagePerTick</code> абилок через <code>hsStart</code> и на max HP боссов: <code>BASE × (0,7 + 0,3·N) × HS.DMG</code>. Не трогает ярость (<code>hsKill</code>), автоатаку из GUI Stats, HP мобов переходов (они из вкладки Stats) и потолок урона <i>по</i> боссу. Примеры: 0,75 — легче, 1,25 — жёстче, 1,5 — очень жёстко. Проценты и BASE HP в таблицах написаны при ×1.</div>
@@ -197,7 +196,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td><b>Барабанщик</b> (Б)</td><td>C2</td><td>120</td><td>Раз в 8 с даёт всем зверолюдам в 20 блоках Скорость и Силу. На 50% зовёт двух горов. Подошли ближе 4 блоков — отскакивает (<code>retreat_dash</code>).</td><td>Прорываться к нему первым, отряды — потом.</td></tr>
 <tr><td><b>Отродье Хаоса</b> (О)</td><td>C3</td><td>170</td><td>Хватка мертвецов под целью (держит Slowness IV, через 2 с −20% HP) и вращение r 4 (−25%).</td><td>Из хватки выходить до конца телеграфа — в тумане это сложнее.</td></tr>
 <tr><td><b>Минотавр</b> (М)</td><td>C3а, D1</td><td>220</td><td>Прыжок на дальнюю цель (круг r 4, −30%) и рывок 12 блоков (−25%). «Кровавое безумие»: смерть любого минотавра лечит остальных на 20% и даёт Силу на 30 с.</td><td>В D1 бить всех четверых ровно и добивать почти одновременно.</td></tr>
-<tr><td><b>Чемпион Круга</b> (Ч)</td><td>D2</td><td>260</td><td>Пресет палача, дуэль в кольце из барьера.</td><td>Победа открывает S4.</td></tr>
+<tr><td><b>Чемпион Круга</b> (Ч)</td><td>D2</td><td>260</td><td>Пресет палача, дуэль в кольце из барьера.</td><td>Один на один в кольце. Удар по бестигору — бой со всеми сразу.</td></tr>
 </tbody></table></div>
 </section>
 
@@ -236,7 +235,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <!-- ================= CROSS SECTION ================= -->
 <section id="cut">
 <h2>Вертикальный разрез</h2>
-<p>Сплошная линия — маршрут. Фиолетовые кружки — переходы с элитами. Красные ромбы — арены, через которые лежит переход между локациями. Бирюзовый пунктир — шорткаты, все внутри своих локаций. Чёрный пунктир — единственный выход.</p>
+<p>Сплошная линия — маршрут. Фиолетовые кружки — переходы с элитами. Красные ромбы — арены, через которые лежит переход между локациями. Чёрный пунктир — единственный выход.</p>
 <p class="note">Масштаб планов: терновая рамка локации 1 = <b>350×247 блоков</b> (длинная сторона 350). Тонкая сетка — 10 блоков, жирная — 50. Остальные этажи в том же масштабе. Разрез схематичный (Y слоёв ориентировочно 64–80 / 44–60 / 24–40 / 4–20).</p>
 <div class="mapbox">
 <svg viewBox="0 0 800 400" role="img" aria-label="Разрез данжа">
@@ -273,13 +272,8 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <!-- exit -->
   <path class="out" d="M748 330 C 790 300, 790 12, 700 12 L 150 12 L 136 40"/>
   <text class="l" x="420" y="30">выход ← Подъём Висельника (только после Б4)</text>
-  <!-- shortcuts -->
-  <path class="sc" d="M390 64 C 340 40, 230 40, 192 64"/><text class="lsc" x="276" y="48">S1</text>
-  <path class="sc" d="M232 164 C 300 192, 400 192, 420 164"/><text class="lsc" x="318" y="194">S2</text>
-  <path class="sc" d="M382 252 C 320 280, 200 280, 152 252"/><text class="lsc" x="262" y="282">S3</text>
-  <path class="sc" d="M688 344 C 660 372, 560 372, 524 344"/><text class="lsc" x="600" y="382">S4</text>
 </svg>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ord" x="2" y="2" width="22" height="12"/></svg>лагерь Порядка</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="dst" x="2" y="2" width="22" height="12"/></svg>лагерь Разрушения</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="route" x1="1" y1="8" x2="25" y2="8"/></svg>основной маршрут</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="4"/></svg>зона локации</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="6"/></svg>переход с элитами</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)" opacity=".6"/></svg>секретный босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa dot" x1="2" y1="8" x2="24" y2="8"/></svg>потайной проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span></div></div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ord" x="2" y="2" width="22" height="12"/></svg>лагерь Порядка</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="dst" x="2" y="2" width="22" height="12"/></svg>лагерь Разрушения</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="route" x1="1" y1="8" x2="25" y2="8"/></svg>основной маршрут</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="4"/></svg>зона локации</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="6"/></svg>переход с элитами</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="bm" x="8" y="3" width="10" height="10" transform="rotate(45 13 8)" opacity=".6"/></svg>секретный босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa dot" x1="2" y1="8" x2="24" y2="8"/></svg>потайной проход</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span></div></div>
 </div>
 </section>
 
@@ -314,7 +308,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <polyline class="pa" style="stroke-width:14.4" points="330,117 375,144 411,176.4 438,198"/>
   <polyline class="pa" style="stroke-width:10.8" points="621.6,180 636,144 650.4,117"/>
   <polyline class="out" points="475.8,469.8 420,529.2"/>
-  <polyline class="sc" points="439.8,313.2 438,318.6 434.4,322.2 432.6,327.6 430.8,331.2 427.2,334.8 425.4,338.4 421.8,342 420,345.6 418.2,349.2 414.6,352.8 412.8,354.6 411,358.2 409.2,361.8 405.6,363.6 403.8,367.2 402,370.8 400.2,372.6 398.4,376.2 394.8,378 393,381.6 391.2,383.4 389.4,387 387.6,388.8 382.2,392.4"/>
   <circle class="ink" cx="401.1" cy="535.5" r="6"/>
   <polygon class="bm" points="654,71.6 667,84.6 654,97.6 641,84.6"/>
   <text class="w" x="654" y="88.6" text-anchor="middle">Б1</text>
@@ -324,8 +317,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <circle class="tw" cx="303.9" cy="224.1" r="7"/>
   <circle class="tw" cx="386.7" cy="234.9" r="7"/>
   <circle class="tw" cx="325.5" cy="337.5" r="7"/>
-  <circle class="sm" cx="420.9" cy="350.1" r="10"/>
-  <text class="w" x="420.9" y="354.1" text-anchor="middle">S1</text>
   <circle class="stake" cx="626.1" cy="62.1" r="5"/>
   <circle class="stake" cx="683.7" cy="62.1" r="5"/>
   <circle class="stake" cx="626.1" cy="108.9" r="5"/>
@@ -400,18 +391,18 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <text class="s" x="40" y="454">0 — 50 блоков</text>
 </svg>
 <div class="cap">Сетка 10 / 50 блоков · рамка данжа 350×247 · арена Б1 44×38 · переходы A1 → A2 → A3 → Тропа черепов → A5 → A4<br>Элиты: П — бестигор-палач, Щ — гор-щитоносец (вожак отряда)</div>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ord" x="2" y="2" width="22" height="12"/></svg>лагерь Порядка</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="dst" x="2" y="2" width="22" height="12"/></svg>лагерь Разрушения</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="border" x1="0" y1="8" x2="26" y2="8"/></svg>граница данжа (терновая стена)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm safe" x="2" y="2" width="22" height="12"/></svg>безопасная зона</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="rm sink" cx="13" cy="8" r="6"/></svg>открытый провал к арене Б4</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="tw" cx="13" cy="8" r="5"/></svg>вышка унгоров-лучников</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="stake" cx="13" cy="8" r="4"/></svg>заострённый кол</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>рычаг шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><path class="ink" d="M13 1 L17 13 L13 10 L9 13Z"/></svg>север</span></div></div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ord" x="2" y="2" width="22" height="12"/></svg>лагерь Порядка</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="dst" x="2" y="2" width="22" height="12"/></svg>лагерь Разрушения</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="border" x1="0" y1="8" x2="26" y2="8"/></svg>граница данжа (терновая стена)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="out" x1="1" y1="8" x2="25" y2="8"/></svg>путь к выходу (в одну сторону)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm safe" x="2" y="2" width="22" height="12"/></svg>безопасная зона</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="rm sink" cx="13" cy="8" r="6"/></svg>открытый провал к арене Б4</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="tw" cx="13" cy="8" r="5"/></svg>вышка унгоров-лучников</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="stake" cx="13" cy="8" r="4"/></svg>заострённый кол</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><path class="ink" d="M13 1 L17 13 L13 10 L9 13Z"/></svg>север</span></div></div>
 <!-- /MAP:L1 -->
 </div>
 <div class="tbl"><table>
 <thead><tr><th>Зона</th><th>Кто стоит</th><th>Чему учит</th></tr></thead>
 <tbody>
 <tr><td><b>Лагеря</b></td><td>Квестодатели (Dialog), торговцы (Role → Trader), спаун через <code>setSpawnpoint</code>. Фракция лагеря, Attack hostile factions, Stats aggro ≈ 16.</td><td>Хабы</td></tr>
-<tr><td><b>A1 Преддверие</b></td><td>Отряд: 2 гора-рубаки и щитоносец. Здесь заканчивается калитка S1.</td><td>Полоса рывка и щит: уходить с линии, заходить сбоку</td></tr>
+<tr><td><b>A1 Преддверие</b></td><td>Отряд: 2 гора-рубаки и щитоносец.</td><td>Полоса рывка и щит: уходить с линии, заходить сбоку</td></tr>
 <tr><td><b>A2 Тропа вышек</b></td><td>4 вышки унгоров-лучников (стрелы + ядовитый плевок) и 3 отряда на тропе шириной 8. Стелса нет: вышки видят всех.</td><td>Не стоять в лужах, лучников снимать первыми</td></tr>
 <tr><td><b>A3 Лагерь унгоров</b></td><td>Бестигор-палач и 2 отряда. Тропа ведёт через лагерь — обойти нельзя.</td><td>Добивание палача: с низким HP не подходить</td></tr>
 <tr><td><b>Тропа черепов</b></td><td>Тропа 70 блоков, шириной 8: отряд в середине, ещё один отряд рейдеров стоит за деревьями у края.</td><td>Замедление рейдеров</td></tr>
-<tr><td><b>A5 Двор обители</b></td><td>Щитоносец-вожак, второй палач, отряд. Scripted Block калитки S1 у стены двора.</td><td>Всё вместе</td></tr>
+<tr><td><b>A5 Двор обители</b></td><td>Щитоносец-вожак, второй палач, отряд.</td><td>Всё вместе</td></tr>
 <tr><td><b>Загонная тропа</b></td><td>Отряд у входа в загон.</td><td>—</td></tr>
 <tr><td><b>A4 Загон</b></td><td>Б1: Грул и Кровохряк, 4 кола по углам. Западнее — провал к арене Б4 (с просеки в яму не спускаются). Завал спуска снимается, когда мертвы оба.</td><td>Босс</td></tr>
 </tbody></table></div>
@@ -435,7 +426,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <rect class="rm" x="43.2" y="126" width="208.8" height="162"/>
   <rect class="rm" x="450" y="316.8" width="100.8" height="79.2"/>
   <circle class="rm boss" cx="360.9" cy="400.5" r="36.9"/>
-  <polyline class="sc" points="549,327.6 615.6,320.4 619.2,216 615.6,108 579.6,72"/>
   <circle class="ink" cx="518.4" cy="367.2" r="6"/>
   <polygon class="bm" points="360.9,387.5 373.9,400.5 360.9,413.5 347.9,400.5"/>
   <text class="w" x="360.9" y="404.5" text-anchor="middle">Б2</text>
@@ -443,8 +433,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <rect class="tot" x="380.1" y="372.9" width="12" height="12"/>
   <rect class="tot" x="329.7" y="416.1" width="12" height="12"/>
   <rect class="tot" x="380.1" y="416.1" width="12" height="12"/>
-  <circle class="sm" cx="620.1" cy="216.9" r="10"/>
-  <text class="w" x="620.1" y="220.9" text-anchor="middle">S2</text>
   <circle class="herd" cx="509.9" cy="38.9" r="3"/>
   <circle class="herd" cx="517.9" cy="38.9" r="3"/>
   <circle class="herd" cx="513.9" cy="32.9" r="3"/>
@@ -497,8 +485,8 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <line class="sl" x1="650" y1="490" x2="740" y2="490"/>
   <text class="s" x="650" y="482">0 — 50 блоков</text>
 </svg>
-<div class="cap">Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20) · S2: рычаг в Притворе B4 → B1<br>Элиты: Ш — бра-шаман, Ц — центигор, Т — тотем Стада</div>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm water" x="2" y="2" width="22" height="12"/></svg>затоплено</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="tot" x="8" y="3" width="10" height="10"/></svg>тотем Мургрота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="5"/></svg>NPC (Шкрик)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>рычаг шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<div class="cap">Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20)<br>Элиты: Ш — бра-шаман, Ц — центигор, Т — тотем Стада</div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm water" x="2" y="2" width="22" height="12"/></svg>затоплено</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="tot" x="8" y="3" width="10" height="10"/></svg>тотем Мургрота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="5"/></svg>NPC (Шкрик)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
 <!-- /MAP:L2 -->
 </div>
 <div class="tbl"><table>
@@ -508,7 +496,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td><b>B2 Затопленные катакомбы</b></td><td>Вода по щиколотку — декор (слой воды на полу, плавать не нужно). 2 отряда и бра-шаман в глубине зала.</td><td>Песнь шамана: сбить или выйти из круга</td></tr>
 <tr><td><b>B3 Оссуарий</b></td><td>Тотем Стада в центре, 2 бра-шамана, 2 отряда. Самый тяжёлый пулл этажа.</td><td>Порядок целей: тотем → шаманы → остальные</td></tr>
 <tr><td><b>Галерея костей</b></td><td>Коридор 200 блоков шириной 8, по бокам ниши глубиной 3 через каждые 12 блоков. 2 центигора.</td><td>Таран: уходить в нишу</td></tr>
-<tr><td><b>B4 Притвор</b></td><td>Отряд. Шкрик — нейтральный NPC с диалогом: рассказывает про тотемы, песнь и порчу Мургрота. Рычаг S2.</td><td>Подсказки к Б2</td></tr>
+<tr><td><b>B4 Притвор</b></td><td>Отряд. Шкрик — нейтральный NPC с диалогом: рассказывает про тотемы, песнь и порчу Мургрота.</td><td>Подсказки к Б2</td></tr>
 <tr><td><b>B5 Святилище</b></td><td>Б2: Мургрот. 4 точки тотемов.</td><td>Босс</td></tr>
 </tbody></table></div>
 </section>
@@ -533,13 +521,10 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <rect class="rm" x="405" y="104.4" width="72" height="57.6"/>
   <circle class="rm boss" cx="540.9" cy="274.5" r="38.7"/>
   <rect class="rm sec" x="482.4" y="14.4" width="129.6" height="72"/>
-  <polyline class="sc" points="441,160.2 446.4,270 432,360 392.4,387"/>
   <polygon class="bm" points="540.9,261.5 553.9,274.5 540.9,287.5 527.9,274.5"/>
   <text class="w" x="540.9" y="278.5" text-anchor="middle">Б3</text>
   <polygon class="bm" points="547.2,37.4 560.2,50.4 547.2,63.4 534.2,50.4" opacity=".7"/>
   <text class="w" x="547.2" y="54.4" text-anchor="middle">★</text>
-  <circle class="sm" cx="443.7" cy="270.9" r="10"/>
-  <text class="w" x="443.7" y="274.9" text-anchor="middle">S3</text>
   <rect class="ink" x="509.1" y="27.3" width="6" height="12"/>
   <rect class="ink" x="581.1" y="27.3" width="6" height="12"/>
   <rect class="ink" x="509.1" y="63.3" width="6" height="12"/>
@@ -593,17 +578,17 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <line class="sl" x1="650" y1="490" x2="740" y2="490"/>
   <text class="s" x="650" y="482">0 — 50 блоков</text>
 </svg>
-<div class="cap">Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · S3: лестница из Норы к C1 · пунктир — потайной лаз в C4 в обход колодца Б4<br>Элиты: Б — Барабанщик, О — отродье Хаоса, М — минотавр</div>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa dot" x1="2" y1="8" x2="24" y2="8"/></svg>потайной лаз</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm warp" x="2" y="2" width="22" height="12"/></svg>ядовитый туман</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm sec" x="2" y="2" width="22" height="12"/></svg>скрытое помещение</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="itm" cx="13" cy="8" r="4"/></svg>святая трава</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="fog" cx="13" cy="8" r="6"/></svg>источник тумана (скрытый блок)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="10" y="2" width="6" height="12"/></svg>менгир (укрытие)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>рычаг шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<div class="cap">Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · пунктир — потайной лаз в C4 в обход колодца Б4<br>Элиты: Б — Барабанщик, О — отродье Хаоса, М — минотавр</div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa dot" x1="2" y1="8" x2="24" y2="8"/></svg>потайной лаз</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm warp" x="2" y="2" width="22" height="12"/></svg>ядовитый туман</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm sec" x="2" y="2" width="22" height="12"/></svg>скрытое помещение</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="itm" cx="13" cy="8" r="4"/></svg>святая трава</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="fog" cx="13" cy="8" r="6"/></svg>источник тумана (скрытый блок)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="10" y="2" width="6" height="12"/></svg>менгир (укрытие)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
 <!-- /MAP:L3 -->
 </div>
 <div class="tbl"><table>
 <thead><tr><th>Зона</th><th>Кто стоит</th><th>Чему учит</th></tr></thead>
 <tbody>
-<tr><td><b>C1 Корневой спуск</b></td><td>Отряд у шахты из B5. Здесь выходит лестница S3.</td><td>—</td></tr>
+<tr><td><b>C1 Корневой спуск</b></td><td>Отряд у шахты из B5.</td><td>—</td></tr>
 <tr><td><b>C2 Зал барабанов</b></td><td>Барабанщик в центре, 3 отряда вокруг. Пока он жив, отряды под Скоростью и Силой.</td><td>Прорыв к приоритетной цели</td></tr>
 <tr><td><b>C3 Варп-топь</b></td><td>Туман (тошнота + иссушение), 4 святые травы, 2 отродья Хаоса и отряд.</td><td>Хватка и вращение в тумане</td></tr>
-<tr><td><b>C3а Нора</b></td><td>Минотавр — первая встреча, один. Scripted Block S3.</td><td>Прыжок и рывок минотавра</td></tr>
+<tr><td><b>C3а Нора</b></td><td>Минотавр — первая встреча, один.</td><td>Прыжок и рывок минотавра</td></tr>
 <tr><td><b>C4 Топь Бормочущего</b></td><td>Секрет: потайной лаз из C3 обходит колодец Б4 с юга. Джабберслайт и 4 менгира.</td><td>Необязательный босс</td></tr>
 <tr><td><b>C5 Яма</b></td><td>Б3: Горгон.</td><td>Босс</td></tr>
 </tbody></table></div>
@@ -635,7 +620,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <polyline class="chan" points="414,48.6 414,9"/>
   <polyline class="chan" points="414,48.6 379.8,72"/>
   <polyline class="chan" points="414,48.6 448.2,72"/>
-  <polyline class="sc" points="171,252 216,414 540,414 540,313.2"/>
   <polygon class="bm" points="414.9,36.5 427.9,49.5 414.9,62.5 401.9,49.5"/>
   <text class="w" x="414.9" y="53.5" text-anchor="middle">Б4</text>
   <polygon class="ink" points="414.9,40.5 423.9,49.5 414.9,58.5 405.9,49.5"/>
@@ -649,8 +633,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <rect class="itm" x="325.2" y="24.6" width="12" height="12"/>
   <circle class="ink" cx="357.3" cy="31.5" r="11"/>
   <text class="w" x="357.3" y="35.5" text-anchor="middle">↑</text>
-  <circle class="sm" cx="378.9" cy="414.9" r="10"/>
-  <text class="w" x="378.9" y="418.9" text-anchor="middle">S4</text>
   <circle class="herd" cx="522.5" cy="272.9" r="3"/>
   <circle class="herd" cx="530.5" cy="272.9" r="3"/>
   <circle class="herd" cx="526.5" cy="266.9" r="3"/>
@@ -687,8 +669,8 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
   <line class="sl" x1="650" y1="510" x2="740" y2="510"/>
   <text class="s" x="650" y="502">0 — 50 блоков</text>
 </svg>
-<div class="cap">Порядок: D0 → D1 → D2 → арена D3 (r 26, открытый колодец западнее A4) · красные линии — жёлобы · S4: лестница из Круга Вызова к D0<br>Элиты: М — минотавр, Ч — Чемпион Круга</div>
-<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="hrt" cx="13" cy="8" r="6"/></svg>сердце жёлоба</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="cr" points="13,1 19,8 13,15 7,8"/></svg>варп-кристалл</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="ink" points="13,1 19,8 13,15 7,8"/></svg>Камень Стада</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="chan" x1="2" y1="8" x2="24" y2="8"/></svg>кровавый жёлоб</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="itm" x="8" y="3" width="10" height="10"/></svg>добыча</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="sc" x1="1" y1="8" x2="25" y2="8"/></svg>шорткат (открывается изнутри)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="sm" cx="13" cy="8" r="6"/></svg>рычаг шортката</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
+<div class="cap">Порядок: D0 → D1 → D2 → арена D3 (r 26, открытый колодец западнее A4) · красные линии — жёлобы<br>Элиты: М — минотавр, Ч — Чемпион Круга</div>
+<div class="lg"><b>Условные обозначения</b><div><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="ink" x="1" y="4" width="24" height="8"/></svg>вход / выход / ворота</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="pa" x1="2" y1="8" x2="24" y2="8"/></svg>переход (ширина в масштабе)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm" x="2" y="2" width="22" height="12"/></svg>помещение / поляна</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="rm boss" x="2" y="2" width="22" height="12"/></svg>арена босса</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="bm" points="13,1 20,8 13,15 6,8"/></svg>босс</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="herd" cx="9" cy="10" r="3"/><circle class="herd" cx="17" cy="10" r="3"/><circle class="herd" cx="13" cy="4" r="3"/></svg>отряд зверолюдов (3–4 моба)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="el" cx="13" cy="8" r="7"/></svg>элита (буква — тип, см. подпись)</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="hrt" cx="13" cy="8" r="6"/></svg>сердце жёлоба</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="cr" points="13,1 19,8 13,15 7,8"/></svg>варп-кристалл</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><polygon class="ink" points="13,1 19,8 13,15 7,8"/></svg>Камень Стада</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><line class="chan" x1="2" y1="8" x2="24" y2="8"/></svg>кровавый жёлоб</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><rect class="itm" x="8" y="3" width="10" height="10"/></svg>добыча</span><span><svg width="26" height="16" viewBox="0 0 26 16" aria-hidden="true"><circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text></svg>переход между этажами</span></div></div>
 <!-- /MAP:L4 -->
 </div>
 <div class="tbl"><table>
@@ -696,12 +678,12 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tbody>
 <tr><td><b>D0</b></td><td>Отряд у подножия Глотки.</td><td>—</td></tr>
 <tr><td><b>D1 Пиршество минотавров</b></td><td>4 минотавра вокруг стола и отряд. Агрятся вместе: <code>damaged</code> любого будит остальных.</td><td>«Кровавое безумие»: убивать равномерно</td></tr>
-<tr><td><b>D2 Круг Вызова</b></td><td>Чемпион Круга и бестигоры (нейтральные до вызова).</td><td>Дуэль, открывает S4</td></tr>
+<tr><td><b>D2 Круг Вызова</b></td><td>Чемпион Круга и бестигоры (нейтральные до вызова).</td><td>Дуэль в кольце</td></tr>
 <tr><td><b>D3 Роща</b></td><td>Б4: Гарракс, Камень, 3 жёлоба с сердцами, 4 места кристаллов. Открытый колодец: над ареной нет комнат L1–L3, из рощи видно небо.</td><td>Финал</td></tr>
 <tr><td><b>D4</b></td><td>Добыча и выход наверх после Б4.</td><td>—</td></tr>
 </tbody></table></div>
 <h3>D2 Круг Вызова</h3>
-<p>Бестигоры во фракции «Нейтралы данжа»: NPC враждебной фракции диалог не откроет. Чемпион — отдельный клон «Чемпион Круга» с Dialog «Право Вызова». Опция «принять» (<code>dialogOption</code>): поставить кольцо <code>minecraft:barrier</code> по списку координат, чемпиону <code>setFaction(id Стада)</code> и On Attack = Мстить. <code>died</code> чемпиона: снять кольцо и записать в <code>world.getTempdata()</code> <code>hs_d2_won_until = now + 72000</code>. Опция «отказаться» или удар по любому бестигору (<code>damaged</code>): всем <code>setFaction</code> Стада, кольцо не ставится — группа дерётся со всеми сразу. <code>init</code> каждого бестигора возвращает фракцию «Нейтралы данжа». В <code>tick</code> бестигора без цели и без игроков в радиусе 32 — вернуть нейтральную фракцию; чемпион заодно снимает кольцо. Scripted Block S4 открывает люк, только пока не истёк <code>hs_d2_won_until</code>.</p>
+<p>Бестигоры во фракции «Нейтралы данжа»: NPC враждебной фракции диалог не откроет. Чемпион — отдельный клон «Чемпион Круга» с Dialog «Право Вызова». Опция «принять» (<code>dialogOption</code>): поставить кольцо <code>minecraft:barrier</code> по списку координат, чемпиону <code>setFaction(id Стада)</code> и On Attack = Мстить. <code>died</code> чемпиона снимает кольцо. Опция «отказаться» или удар по любому бестигору (<code>damaged</code>): всем <code>setFaction</code> Стада, кольцо не ставится — группа дерётся со всеми сразу. <code>init</code> каждого бестигора возвращает фракцию «Нейтралы данжа». В <code>tick</code> бестигора без цели и без игроков в радиусе 32 — вернуть нейтральную фракцию; чемпион заодно снимает кольцо. После круга коридор ведёт на арену Б4.</p>
 </section>
 
 <!-- ================= BOSSES ================= -->
@@ -768,22 +750,6 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 </div>
 </section>
 
-<!-- ================= SHORTCUTS ================= -->
-<section id="sc">
-<h2>Шорткаты</h2>
-<p>Все шорткаты открываются изнутри и закрываются сами через час. Каждый ведёт от прихожей арены назад к началу той же локации. Если группа погибла на боссе, она возвращается к арене через срезку и не проходит переходы заново. Босс к этому времени уже сброшен: 15 с без игроков на арене возвращают ему полное HP.</p>
-<p>Все четыре сделаны одинаково: проход построен заранее и закрыт завалом из <b>полных</b> блоков. Scripted Block по шаблону «самозакрывающийся проход» снимает завал и через час ставит его обратно.</p>
-<div class="tbl"><table>
-<thead><tr><th>№</th><th>Откуда → куда</th><th>Как открывается</th><th>Реализация</th></tr></thead>
-<tbody>
-<tr><td><span class="tag t-s">S1</span></td><td>A5 Двор → A1 Преддверие</td><td>Scripted Block у стены двора, ПКМ</td><td>Калитка из досок тёмного дуба, 6–10 координат.</td></tr>
-<tr><td><span class="tag t-s">S2</span></td><td>B4 Притвор → B1 Спуск</td><td>Scripted Block-рычаг в Притворе</td><td>Коридор вдоль восточной стены, завал из каменного кирпича у B1.</td></tr>
-<tr><td><span class="tag t-s">S3</span></td><td>C3а Нора → C1</td><td>Scripted Block «затор» в корне</td><td>Лестничная шахта построена заранее, снизу её закрывает затор из корней (dark oak wood).</td></tr>
-<tr><td><span class="tag t-s">S4</span></td><td>D2 Круг Вызова → D0</td><td>Scripted Block после победы в Круге</td><td>Лестница построена заранее, сверху люк из полных блоков. Блок открывает его, только пока в <code>world.getTempdata()</code> не истёк <code>hs_d2_won_until</code>.</td></tr>
-</tbody></table></div>
-</section>
-
-
 <!-- ================= CNPC ================= -->
 <section id="cnpc">
 <h2>Как собрать это в CustomNPC+</h2>
@@ -823,10 +789,9 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <ul>
   <li><b>Мобы и боссы</b> — встроенный Respawn 3600. Бой на арене: 15 с без игроков — <code>npc.reset()</code> (ядро).</li>
   <li><b>Ворота арен и выход</b> — <code>died</code> босса снимает завал, <code>init</code> босса ставит обратно. CNPC вызывает <code>init</code> из <code>reset()</code> при каждом возрождении. В файле босса одна мировая точка <code>ORIGIN</code> (центр арены); завал — оффсеты <code>GATE</code> от неё.</li>
-  <li><b>Шорткаты</b> — Scripted Block пишет себе в storeddata время закрытия, а в <code>tick</code> (раз в 10 тиков, только в загруженном чанке) ставит блоки обратно, если рядом нет игроков.</li>
 </ul>
 <p>Время везде — <code>world.getTotalTime()</code> (тики, 72000 = час). Оно стоит, пока сервер выключен. На игру это не влияет.</p>
-<p>Маркеры строителя: pack — белая шерсть, elite — оранжевая, stake — бревно тёмного дуба, totem/menhir — блок кости, heart — редстоун, crystal — изумруд, herb — лаймовая шерсть, fog — зелёная, sc — бирюзовая, boss — красная.</p>
+<p>Маркеры строителя: pack — белая шерсть, elite — оранжевая, stake — бревно тёмного дуба, totem/menhir — блок кости, heart — редстоун, crystal — изумруд, herb — лаймовая шерсть, fog — зелёная, boss — красная.</p>
 
 <h3>4. Скрипты</h3>
 <p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. В файле босса после постройки подставь <b>одну</b> мировую точку <code>ORIGIN</code> — центр арены (или оставь пустым: тогда берётся точка спауна NPC). Колья, тотемы, сердца, кристаллы, менгиры и завал — оффсеты <code>[dx, dy, dz]</code> от ORIGIN, их не пересчитывай. Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
@@ -2046,43 +2011,6 @@ function damaged(e) {
     hsCap(e, 1);
 }</pre></details>
 
-<details><summary>Самозакрывающийся проход (Scripted Block S1–S4)</summary>
-<pre>// Самозакрывающийся проход: Scripted Block шорткатов S1–S4.
-var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
-var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
-
-var PLUG = [ [150, 65, 184], [150, 66, 184], [151, 65, 184], [151, 66, 184] ];
-var PLUG_BLOCK = "minecraft:dark_oak_planks"; // только полные блоки
-var CLOSE_AFTER = 72000;                      // тиков = 1 час
-var SAFE_RADIUS = 12;
-
-function interact(e) {
-    var w = e.block.getWorld();
-    setPlug(w, false);
-    e.block.getStoreddata().put("close_at", String(w.getTotalTime() + CLOSE_AFTER));
-    w.playSoundAt(e.block.getPos(), "minecraft:block.wooden_door.open", 1.0, 0.8);
-}
-
-function tick(e) {
-    var d = e.block.getStoreddata();
-    if (!d.has("close_at")) return;
-    var w = e.block.getWorld();
-    if (w.getTotalTime() &lt; Number(String(d.get("close_at")))) return;
-    var p = PLUG[0];
-    if (w.getNearbyEntities(NpcAPI.getIPos(p[0], p[1], p[2]), SAFE_RADIUS, EntitiesType.PLAYER).length &gt; 0) return;
-    setPlug(w, true);
-    d.remove("close_at");
-}
-
-function setPlug(w, closed) {
-    var i;
-    for (i = 0; i &lt; PLUG.length; i++) {
-        var pos = NpcAPI.getIPos(PLUG[i][0], PLUG[i][1], PLUG[i][2]);
-        if (closed) w.setBlock(pos, PLUG_BLOCK);
-        else w.removeBlock(pos);
-    }
-}</pre></details>
-
 <details><summary>Шкала урона данжа (опциональный Scripted Block у входа, ПКМ в креативе)</summary>
 <pre>// Пишет world storeddata "hs_dmg". Все NPC с hs_core читают его в hsScale:
 // исходящий урон и HP боссов. Цикл: 0.75 → 1 → 1.25 → 1.5 → 2 → 0.75.
@@ -2134,11 +2062,11 @@ function tick(e) {
 <ol>
   <li>Четыре фракции. Лагеря: квестодатели, Trader, <code>setSpawnpoint</code> в interact.</li>
   <li>Пять Area Kill-квестов, по два диалога (Отто / Гурхак) на каждый, Completion Instant.</li>
-  <li>Построить каркас: <code>/dungeon herdstone</code> (раскладка из <code>HerdstoneDungeon</code>). Шорткаты закрыты завалами из полных блоков. Ворота арен и выход — тоже завалы; координаты скопировать в <code>GATE</code> боссов.</li>
+  <li>Построить каркас: <code>/dungeon herdstone</code> (раскладка из <code>HerdstoneDungeon</code>). Ворота арен и выход — завалы; координаты скопировать в <code>GATE</code> боссов.</li>
   <li>Клоны из таблицы: расставленные — Respawn 3600, «(призыв)», копии, сердца, кристаллы, тотемы Мургрота — Respawn = Нет. Tab 2.</li>
   <li>Скрипты: ядро + файл босса/моба. У мобов — свой пресет CASTS. У Горгона Return to start = да.</li>
-  <li>Scripted Block: шорткаты, туман, святые травы, рычаг S2, люк S4 (проверка <code>hs_d2_won_until</code> в <code>interact</code>). По желанию — блок шкалы <code>hs_dmg</code> у входа.</li>
-  <li>Проход за Порядок и за Разрушение. Смерть на арене → шорткат. Час ожидания у ворот: босс возродился, ворота закрылись.</li>
+  <li>Scripted Block: туман и святые травы. По желанию — блок шкалы <code>hs_dmg</code> у входа.</li>
+  <li>Проход за Порядок и за Разрушение. Час ожидания у ворот: босс возродился, ворота закрылись.</li>
 </ol>
 </section>
 

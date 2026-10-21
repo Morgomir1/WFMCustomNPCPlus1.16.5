@@ -133,7 +133,7 @@ public final class HerdstoneDungeon {
         d.addPath(3, "c_C3a_C5", Kind.CORRIDOR, 8, 255, 89, 290, 140);
         d.addCircle(3, "C5", Kind.ARENA, 300, 152, 21, "boss");
         d.add(3, "C4", Kind.SECRET, 268, 8, 72, 40, "boss");
-        d.addPath(3, "c_C3_C4", Kind.CORRIDOR, 3, 198, 30, 268, 30);
+        d.addPath(3, "c_C3_C4", Kind.CORRIDOR, 3, 200, 36, 200, 56, 290, 56, 290, 40);
         d.addPath(3, "S3", Kind.CORRIDOR, 4, 245, 89, 248, 150, 240, 200, 218, 215)
                 .floor("minecraft:cyan_terracotta");
         d.add(3, "S3_mark", Kind.MARK, 246, 150, 1, 1, "sc");
@@ -165,21 +165,21 @@ public final class HerdstoneDungeon {
         d.add(4, "D1_table", Kind.ROOM, 180, 165, 60, 20, "").floor("minecraft:spruce_planks").noWalls();
         d.addPath(4, "c_D1_D2", Kind.CORRIDOR, 8, 151, 160, 104, 132);
         d.addCircle(4, "D2", Kind.ROOM, 80, 118, 30, "");
-        d.addPath(4, "c_D2_D3", Kind.CORRIDOR, 8, 100, 100, 150, 70, 200, 48, 218, 40);
-        d.addCircle(4, "D3", Kind.ARENA, 230, 26, 26, "boss").air();
-        d.addPath(4, "chan_n", Kind.PATH, 3, 230, 26, 230, 4).floor("minecraft:red_nether_bricks");
-        d.addPath(4, "chan_sw", Kind.PATH, 3, 230, 26, 211, 39).floor("minecraft:red_nether_bricks");
-        d.addPath(4, "chan_se", Kind.PATH, 3, 230, 26, 249, 39).floor("minecraft:red_nether_bricks");
-        d.add(4, "heart_1", Kind.MARK, 230, 4, 1, 1, "heart");
-        d.add(4, "heart_2", Kind.MARK, 211, 39, 1, 1, "heart");
-        d.add(4, "heart_3", Kind.MARK, 249, 39, 1, 1, "heart");
-        d.add(4, "crystal_1", Kind.MARK, 220, 16, 1, 1, "crystal");
-        d.add(4, "crystal_2", Kind.MARK, 240, 16, 1, 1, "crystal");
-        d.add(4, "crystal_3", Kind.MARK, 220, 36, 1, 1, "crystal");
-        d.add(4, "crystal_4", Kind.MARK, 240, 36, 1, 1, "crystal");
-        d.add(4, "D4", Kind.ROOM, 164, 2, 40, 28, "item");
-        d.addPath(4, "c_D3_D4", Kind.CORRIDOR, 6, 208, 22, 198, 16);
-        d.add(4, "exit_up", Kind.MARK, 198, 16, 1, 1, "gate");
+        d.addPath(4, "c_D2_D3", Kind.CORRIDOR, 8, 100, 100, 150, 70, 200, 49, 218, 41);
+        d.addCircle(4, "D3", Kind.ARENA, 230, 27, 26, "boss").air();
+        d.addPath(4, "chan_n", Kind.PATH, 3, 230, 27, 230, 5).floor("minecraft:red_nether_bricks");
+        d.addPath(4, "chan_sw", Kind.PATH, 3, 230, 27, 211, 40).floor("minecraft:red_nether_bricks");
+        d.addPath(4, "chan_se", Kind.PATH, 3, 230, 27, 249, 40).floor("minecraft:red_nether_bricks");
+        d.add(4, "heart_1", Kind.MARK, 230, 5, 1, 1, "heart");
+        d.add(4, "heart_2", Kind.MARK, 211, 40, 1, 1, "heart");
+        d.add(4, "heart_3", Kind.MARK, 249, 40, 1, 1, "heart");
+        d.add(4, "crystal_1", Kind.MARK, 220, 17, 1, 1, "crystal");
+        d.add(4, "crystal_2", Kind.MARK, 240, 17, 1, 1, "crystal");
+        d.add(4, "crystal_3", Kind.MARK, 220, 37, 1, 1, "crystal");
+        d.add(4, "crystal_4", Kind.MARK, 240, 37, 1, 1, "crystal");
+        d.add(4, "D4", Kind.ROOM, 164, 3, 40, 28, "item");
+        d.addPath(4, "c_D3_D4", Kind.CORRIDOR, 6, 208, 23, 198, 17);
+        d.add(4, "exit_up", Kind.MARK, 198, 17, 1, 1, "gate");
         d.addPath(4, "S4", Kind.CORRIDOR, 4, 95, 140, 120, 230, 300, 230, 300, 174)
                 .floor("minecraft:cyan_terracotta");
         d.add(4, "S4_mark", Kind.MARK, 210, 230, 1, 1, "sc");

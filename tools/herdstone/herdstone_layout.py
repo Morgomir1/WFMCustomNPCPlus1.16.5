@@ -137,8 +137,8 @@ L1 = [
          label="A4 Загон · арена Б1", sub=("44×38 бл. · 4 кола",), at=(200, 9)),
     path(1, "path_A5_A4", "PATH", 6, [262, 90, 270, 70, 278, 55], air=True,
          label="Загонная тропа", sub=("отряд",), at=(281, 76)),
-    circle(1, "sinkhole", "SAFE", 230, 26, 26, air=True, java=False, cls="rm sink",
-           label="Провал к Б4", sub=("открытый колодец · ночное небо",), at=(204, 58)),
+    circle(1, "sinkhole", "SAFE", 230, 27, 26, air=True, java=False, cls="rm sink",
+           label="Провал к Б4", sub=("открытый колодец · ночное небо",), at=(168, 62)),
     rect(1, "entrance", "ROOM", 90, 242, 24, 9, "gate", air=True, walls=5, cls="ink", tag="ВХОД"),
     rect(1, "exit_gate", "ROOM", 168, 242, 27, 9, "gate", air=True, walls=5, cls="ink", tag="ВЫХОД"),
     circle(1, "gallows", "SAFE", 181, 223, 10, "gate", air=True,
@@ -199,7 +199,7 @@ L3 = [
            label="C5 Яма · арена Б3", sub=("r 21",), at=(296, 126)),
     rect(3, "C4", "SECRET", 268, 8, 72, 40, "boss", tag="★",
          label="C4 Топь Бормочущего", sub=("секрет · 4 менгира",), at=(270, 58)),
-    path(3, "c_C3_C4", "CORRIDOR", 3, [198, 30, 268, 30], cls="pa dot"),
+    path(3, "c_C3_C4", "CORRIDOR", 3, [200, 36, 200, 56, 290, 56, 290, 40], cls="pa dot"),
     path(3, "S3", "CORRIDOR", 4, [245, 89, 248, 150, 240, 200, 218, 215], floor=CYAN),
     mark(3, "S3_mark", 246, 150, "sc", tag="S3"),
     *marks(3, "menhir", "menhir", [(284, 18), (324, 18), (284, 38), (324, 38)]),
@@ -221,19 +221,19 @@ L4 = [
     path(4, "c_D1_D2", "CORRIDOR", 8, [151, 160, 104, 132]),
     circle(4, "D2", "ROOM", 80, 118, 30,
            label="D2 Круг Вызова", sub=("чемпион + бестигоры",), at=(50, 158)),
-    path(4, "c_D2_D3", "CORRIDOR", 8, [100, 100, 150, 70, 200, 48, 218, 40]),
-    circle(4, "D3", "ARENA", 230, 26, 26, "boss", tag="Б4", air=True,
-           label="D3 Роща · арена Б4", sub=("r 26 · колодец до неба",), at=(175, 72)),
-    path(4, "chan_n", "PATH", 3, [230, 26, 230, 4], floor="minecraft:red_nether_bricks", cls="chan"),
-    path(4, "chan_sw", "PATH", 3, [230, 26, 211, 39], floor="minecraft:red_nether_bricks", cls="chan"),
-    path(4, "chan_se", "PATH", 3, [230, 26, 249, 39], floor="minecraft:red_nether_bricks", cls="chan"),
-    mark(4, "stone", 230, 26, "boss", cls="stone", java=False),
-    *marks(4, "heart", "heart", [(230, 4), (211, 39), (249, 39)]),
-    *marks(4, "crystal", "crystal", [(220, 16), (240, 16), (220, 36), (240, 36)]),
-    rect(4, "D4", "ROOM", 164, 2, 40, 28, "item",
-         label="D4 Добыча", sub=("после Б4",), at=(120, 10)),
-    path(4, "c_D3_D4", "CORRIDOR", 6, [208, 22, 198, 16]),
-    mark(4, "exit_up", 198, 16, "gate", sub=("выход",), at=(184, 48)),
+    path(4, "c_D2_D3", "CORRIDOR", 8, [100, 100, 150, 70, 200, 49, 218, 41]),
+    circle(4, "D3", "ARENA", 230, 27, 26, "boss", tag="Б4", air=True,
+           label="D3 Роща · арена Б4", sub=("r 26 · колодец до неба",), at=(175, 73)),
+    path(4, "chan_n", "PATH", 3, [230, 27, 230, 5], floor="minecraft:red_nether_bricks", cls="chan"),
+    path(4, "chan_sw", "PATH", 3, [230, 27, 211, 40], floor="minecraft:red_nether_bricks", cls="chan"),
+    path(4, "chan_se", "PATH", 3, [230, 27, 249, 40], floor="minecraft:red_nether_bricks", cls="chan"),
+    mark(4, "stone", 230, 27, "boss", cls="stone", java=False),
+    *marks(4, "heart", "heart", [(230, 5), (211, 40), (249, 40)]),
+    *marks(4, "crystal", "crystal", [(220, 17), (240, 17), (220, 37), (240, 37)]),
+    rect(4, "D4", "ROOM", 164, 3, 40, 28, "item",
+         label="D4 Добыча", sub=("после Б4",), at=(120, 11)),
+    path(4, "c_D3_D4", "CORRIDOR", 6, [208, 23, 198, 17]),
+    mark(4, "exit_up", 198, 17, "gate", sub=("выход",), at=(168, 49)),
     path(4, "S4", "CORRIDOR", 4, [95, 140, 120, 230, 300, 230, 300, 174], floor=CYAN),
     mark(4, "S4_mark", 210, 230, "sc", tag="S4"),
     *marks(4, "pack", "pack", [(292, 150), (210, 200), (60, 100)]),
@@ -252,7 +252,7 @@ ELITE_CAP = {
 CAPTIONS = {
     1: "Сетка 10 / 50 блоков · рамка данжа 350×247 · арена Б1 44×38 · переходы A1 → A2 → A3 → Тропа черепов → A5 → A4",
     2: "Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20) · S2: рычаг в Притворе B4 → B1",
-    3: "Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · S3: лестница из Норы к C1 · пунктир — потайной лаз в C4",
+    3: "Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · S3: лестница из Норы к C1 · пунктир — потайной лаз в C4 в обход колодца Б4",
     4: "Порядок: D0 → D1 → D2 → арена D3 (r 26, открытый колодец западнее A4) · красные линии — жёлобы · S4: лестница из Круга Вызова к D0",
 }
 
@@ -339,17 +339,72 @@ def check() -> list[str]:
     for p in PIECES:
         if p.lv != 4 or p.id != "D3" or p.shape != "circle":
             continue
-        cx, cz, r = p.geom
-        pts = [(cx, cz)]
-        for k in range(16):
-            ang = k * math.pi / 8
-            pts.append((cx + r * math.cos(ang), cz + r * math.sin(ang)))
-        for lv in (1, 2, 3):
-            hit = [a.id for a in areas[lv] if a.java and a.id != "sinkhole"
-                   and any(contains(a, x, z) for x, z in pts)]
-            if hit:
-                errors.append(f"D3 колодец неба пересекает L{lv}: {', '.join(hit)}")
+        blocked = sky_well_hits(p.geom)
+        if blocked:
+            errors.append("D3 колодец неба пересекает: " + ", ".join(blocked))
     return errors
+
+
+def ellipse_block(cx, cz, r, x, z) -> bool:
+    """Как DungeonGeometry.insideEllipse для addCircle: радиус r+0.5, центр в (cx, cz)."""
+    rx = r + 0.5
+    dx = (x - cx) / rx
+    dz = (z - cz) / rx
+    return dx * dx + dz * dz <= 1.0
+
+
+def path_block(p: P, x: int, z: int) -> bool:
+    w, pts = p.geom
+    rad = w * 0.5
+    px, pz = x + 0.5, z + 0.5
+    for i in range(0, len(pts) - 2, 2):
+        ax, az, bx, bz = pts[i], pts[i + 1], pts[i + 2], pts[i + 3]
+        dx, dz = bx - ax, bz - az
+        ll = dx * dx + dz * dz
+        t = 0.0 if ll == 0 else max(0.0, min(1.0, ((px - ax) * dx + (pz - az) * dz) / ll))
+        if math.hypot(px - (ax + t * dx), pz - (az + t * dz)) <= rad:
+            return True
+    return False
+
+
+def upper_block(p: P, x: int, z: int) -> bool:
+    if p.shape == "path":
+        return path_block(p, x, z)
+    if p.shape == "shaft":
+        sx, sz = p.geom
+        return sx <= x < sx + 3 and sz <= z < sz + 3
+    if p.shape in ("mark", "tower") or p.kind == "BORDER" or p.id == "sinkhole":
+        return False
+    if p.shape == "poly":
+        return contains(p, x + 0.5, z + 0.5)
+    return contains(p, x, z)
+
+
+def sky_well_hits(geom) -> list[str]:
+    cx, cz, r = geom
+    rx = r + 0.5
+    x0, x1 = math.floor(cx - rx), math.ceil(cx + rx)
+    z0, z1 = math.floor(cz - rx), math.ceil(cz + rx)
+    found = []
+    seen = set()
+    upper = [p for p in PIECES if p.lv in (1, 2, 3)]
+    for z in range(z0, z1 + 1):
+        for x in range(x0, x1 + 1):
+            if not ellipse_block(cx, cz, r, x, z):
+                continue
+            if x <= 0 or z <= 0 or x >= FRAME_W - 1 or z >= FRAME_D - 1:
+                key = "рамка"
+                if key not in seen:
+                    seen.add(key)
+                    found.append(f"{key} ({x}, {z})")
+            for p in upper:
+                if not upper_block(p, x, z):
+                    continue
+                key = f"L{p.lv}:{p.id}"
+                if key not in seen:
+                    seen.add(key)
+                    found.append(f"{key} ({x}, {z})")
+    return found
 
 
 def on_path(lv, x, z, skip="") -> bool:

@@ -61,13 +61,6 @@ public final class HerdstoneDungeon {
         d.add(1, "ungor_2", Kind.TOWER, 84, 113, 3, 3, "npc");
         d.add(1, "ungor_3", Kind.TOWER, 130, 119, 3, 3, "npc");
         d.add(1, "ungor_4", Kind.TOWER, 96, 176, 3, 3, "npc");
-        d.addPath(1, "S1", Kind.PATH, 4,
-                161, 164, 160, 167, 158, 169, 157, 172, 156, 174, 154, 176, 153, 178, 151, 180,
-                150, 182, 149, 184, 147, 186, 146, 187, 145, 189, 144, 191, 142, 192, 141, 194,
-                140, 196, 139, 197, 138, 199, 136, 200, 135, 202, 134, 203, 133, 205, 132, 206,
-                129, 208).air()
-                .floor("minecraft:cyan_terracotta");
-        d.add(1, "S1_mark", Kind.MARK, 150, 184, 1, 1, "sc");
         d.add(1, "stake_1", Kind.MARK, 264, 24, 1, 1, "stake");
         d.add(1, "stake_2", Kind.MARK, 296, 24, 1, 1, "stake");
         d.add(1, "stake_3", Kind.MARK, 264, 50, 1, 1, "stake");
@@ -102,10 +95,6 @@ public final class HerdstoneDungeon {
         d.add(2, "totem_2", Kind.MARK, 214, 210, 1, 1, "totem");
         d.add(2, "totem_3", Kind.MARK, 186, 234, 1, 1, "totem");
         d.add(2, "totem_4", Kind.MARK, 214, 234, 1, 1, "totem");
-        d.addPath(2, "S2", Kind.CORRIDOR, 4,
-                305, 182, 342, 178, 344, 120, 342, 60, 322, 40)
-                .floor("minecraft:cyan_terracotta");
-        d.add(2, "S2_mark", Kind.MARK, 344, 120, 1, 1, "sc");
         d.add(2, "pack_1", Kind.MARK, 285, 20, 1, 1, "pack");
         d.add(2, "pack_2", Kind.MARK, 210, 100, 1, 1, "pack");
         d.add(2, "pack_3", Kind.MARK, 300, 110, 1, 1, "pack");
@@ -134,9 +123,6 @@ public final class HerdstoneDungeon {
         d.addCircle(3, "C5", Kind.ARENA, 300, 152, 21, "boss");
         d.add(3, "C4", Kind.SECRET, 268, 8, 72, 40, "boss");
         d.addPath(3, "c_C3_C4", Kind.CORRIDOR, 3, 200, 36, 200, 56, 290, 56, 290, 40);
-        d.addPath(3, "S3", Kind.CORRIDOR, 4, 245, 89, 248, 150, 240, 200, 218, 215)
-                .floor("minecraft:cyan_terracotta");
-        d.add(3, "S3_mark", Kind.MARK, 246, 150, 1, 1, "sc");
         d.add(3, "menhir_1", Kind.MARK, 284, 18, 1, 1, "menhir");
         d.add(3, "menhir_2", Kind.MARK, 324, 18, 1, 1, "menhir");
         d.add(3, "menhir_3", Kind.MARK, 284, 38, 1, 1, "menhir");
@@ -180,9 +166,6 @@ public final class HerdstoneDungeon {
         d.add(4, "D4", Kind.ROOM, 164, 3, 40, 28, "item");
         d.addPath(4, "c_D3_D4", Kind.CORRIDOR, 6, 208, 23, 198, 17);
         d.add(4, "exit_up", Kind.MARK, 198, 17, 1, 1, "gate");
-        d.addPath(4, "S4", Kind.CORRIDOR, 4, 95, 140, 120, 230, 300, 230, 300, 174)
-                .floor("minecraft:cyan_terracotta");
-        d.add(4, "S4_mark", Kind.MARK, 210, 230, 1, 1, "sc");
         d.add(4, "pack_1", Kind.MARK, 292, 150, 1, 1, "pack");
         d.add(4, "pack_2", Kind.MARK, 210, 200, 1, 1, "pack");
         d.add(4, "pack_3", Kind.MARK, 60, 100, 1, 1, "pack");

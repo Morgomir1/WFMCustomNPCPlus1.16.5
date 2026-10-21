@@ -52,7 +52,7 @@ class P:
     sub: tuple = ()
     at: tuple | None = None   # позиция подписи в блоках
     cls: str | None = None    # CSS-класс в SVG вместо вычисленного
-    tag: str = ""             # текст в значке (Б1, Ш, S2 ...)
+    tag: str = ""             # текст в значке (Б1, Ш, П ...)
     to_lv: int = 0
     svg: bool = True
     java: bool = True
@@ -104,14 +104,6 @@ A2_TRAIL = [
     79, 142, 80, 140, 80, 137, 80, 134, 81, 132, 82, 129, 83, 127, 85, 124, 86, 123,
     82, 116, 79, 109,
 ]
-S1_TRAIL = [
-    161, 164, 160, 167, 158, 169, 157, 172, 156, 174, 154, 176, 153, 178, 151, 180,
-    150, 182, 149, 184, 147, 186, 146, 187, 145, 189, 144, 191, 142, 192, 141, 194,
-    140, 196, 139, 197, 138, 199, 136, 200, 135, 202, 134, 203, 133, 205, 132, 206,
-    129, 208,
-]
-CYAN = "minecraft:cyan_terracotta"
-
 L1 = [
     rect(1, "border", "BORDER", 0, 0, FRAME_W, FRAME_D, cls="border"),
     rect(1, "camp_order", "CAMP_ORDER", -72, 267, 117, 40, "npc", air=True, cls="ord"),
@@ -148,8 +140,6 @@ L1 = [
     tower(1, "ungor_2", 84, 113),
     tower(1, "ungor_3", 130, 119),
     tower(1, "ungor_4", 96, 176),
-    path(1, "S1", "PATH", 4, S1_TRAIL, air=True, floor=CYAN),
-    mark(1, "S1_mark", 150, 184, "sc", tag="S1"),
     *marks(1, "stake", "stake", [(264, 24), (296, 24), (264, 50), (296, 50)]),
     *marks(1, "pack", "pack", [(95, 215), (85, 165), (95, 135), (125, 122), (65, 40), (30, 65),
                                (125, 72), (230, 110), (268, 77)]),
@@ -174,8 +164,6 @@ L2 = [
     circle(2, "B5", "ARENA", 200, 222, 20, "boss", tag="Б2",
            label="B5 Святилище · арена Б2", sub=("r 20",), at=(150, 198)),
     *marks(2, "totem", "totem", [(186, 210), (214, 210), (186, 234), (214, 234)]),
-    path(2, "S2", "CORRIDOR", 4, [305, 182, 342, 178, 344, 120, 342, 60, 322, 40], floor=CYAN),
-    mark(2, "S2_mark", 344, 120, "sc", tag="S2"),
     *marks(2, "pack", "pack", [(285, 20), (210, 100), (300, 110), (45, 140), (115, 90), (278, 205)]),
     *marks(2, "elite", "elite", [(250, 150), (60, 100), (100, 135), (120, 184), (200, 184), (80, 118)],
            tags=["Ш", "Ш", "Ш", "Ц", "Ц", "Т"]),
@@ -200,8 +188,6 @@ L3 = [
     rect(3, "C4", "SECRET", 268, 8, 72, 40, "boss", tag="★",
          label="C4 Топь Бормочущего", sub=("секрет · 4 менгира",), at=(270, 58)),
     path(3, "c_C3_C4", "CORRIDOR", 3, [200, 36, 200, 56, 290, 56, 290, 40], cls="pa dot"),
-    path(3, "S3", "CORRIDOR", 4, [245, 89, 248, 150, 240, 200, 218, 215], floor=CYAN),
-    mark(3, "S3_mark", 246, 150, "sc", tag="S3"),
     *marks(3, "menhir", "menhir", [(284, 18), (324, 18), (284, 38), (324, 38)]),
     *marks(3, "herb", "herb", [(50, 40), (110, 30), (180, 60), (140, 115)]),
     mark(3, "fog", 110, 70, "fog"),
@@ -234,8 +220,6 @@ L4 = [
          label="D4 Добыча", sub=("после Б4",), at=(120, 11)),
     path(4, "c_D3_D4", "CORRIDOR", 6, [208, 23, 198, 17]),
     mark(4, "exit_up", 198, 17, "gate", sub=("выход",), at=(168, 49)),
-    path(4, "S4", "CORRIDOR", 4, [95, 140, 120, 230, 300, 230, 300, 174], floor=CYAN),
-    mark(4, "S4_mark", 210, 230, "sc", tag="S4"),
     *marks(4, "pack", "pack", [(292, 150), (210, 200), (60, 100)]),
     *marks(4, "elite", "elite", [(175, 150), (250, 150), (175, 205), (250, 205), (80, 118)],
            tags=["М", "М", "М", "М", "Ч"]),
@@ -251,9 +235,9 @@ ELITE_CAP = {
 }
 CAPTIONS = {
     1: "Сетка 10 / 50 блоков · рамка данжа 350×247 · арена Б1 44×38 · переходы A1 → A2 → A3 → Тропа черепов → A5 → A4",
-    2: "Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20) · S2: рычаг в Притворе B4 → B1",
-    3: "Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · S3: лестница из Норы к C1 · пунктир — потайной лаз в C4 в обход колодца Б4",
-    4: "Порядок: D0 → D1 → D2 → арена D3 (r 26, открытый колодец западнее A4) · красные линии — жёлобы · S4: лестница из Круга Вызова к D0",
+    2: "Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20)",
+    3: "Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · пунктир — потайной лаз в C4 в обход колодца Б4",
+    4: "Порядок: D0 → D1 → D2 → арена D3 (r 26, открытый колодец западнее A4) · красные линии — жёлобы",
 }
 
 
@@ -569,8 +553,6 @@ def area_svg(m: Map, p: P) -> str:
 
 def path_svg(m: Map, p: P) -> str:
     w, pts = p.geom
-    if p.id.startswith("S") and p.id[1:].isdigit():
-        return f'<polyline class="sc" points="{m.pts(pts)}"/>'
     cls = p.cls or "pa"
     if cls in ("pa",):
         return f'<polyline class="pa" style="stroke-width:{f1(w * SCALE)}" points="{m.pts(pts)}"/>'
@@ -645,8 +627,6 @@ def symbol_svg(m: Map, p: P) -> list[str]:
         out.append(f'<circle class="fog" cx="{f1(x)}" cy="{f1(y)}" r="12"/>')
     elif mk == "menhir":
         out.append(f'<rect class="ink" x="{f1(x - 3)}" y="{f1(y - 6)}" width="6" height="12"/>')
-    elif mk == "sc":
-        out += [f'<circle class="sm" cx="{f1(x)}" cy="{f1(y)}" r="10"/>', text("w", x, y + 4, p.tag, "middle")]
     elif mk == "gate" and p.id == "exit_up":
         out += [f'<circle class="ink" cx="{f1(x)}" cy="{f1(y)}" r="11"/>', text("w", x, y + 4, "↑", "middle")]
     elif mk == "gate":
@@ -739,8 +719,6 @@ LEGEND = {
     "menhir": ('<rect class="ink" x="10" y="2" width="6" height="12"/>', "менгир (укрытие)"),
     "npc": ('<circle class="ink" cx="13" cy="8" r="5"/>', "NPC (Шкрик)"),
     "item": ('<rect class="itm" x="8" y="3" width="10" height="10"/>', "добыча"),
-    "sc": ('<line class="sc" x1="1" y1="8" x2="25" y2="8"/>', "шорткат (открывается изнутри)"),
-    "sm": ('<circle class="sm" cx="13" cy="8" r="6"/>', "рычаг шортката"),
     "shaft": ('<circle class="ink" cx="13" cy="8" r="7"/><text class="w" x="9" y="12" style="font-size:9px">↕</text>',
               "переход между этажами"),
     "north": ('<path class="ink" d="M13 1 L17 13 L13 10 L9 13Z"/>', "север"),
@@ -766,7 +744,7 @@ def legend_keys(lv) -> list[str]:
         elif p.cls == "stone":
             add("stone")
         elif p.shape == "path":
-            add("sc" if p.id[0] == "S" and p.id[1:].isdigit() else "pa")
+            add("pa")
         elif p.shape in AREA_SHAPES:
             add({"ARENA": "arena", "WATER": "water", "WARP": "warp", "SECRET": "sec", "SAFE": "safe"}.get(p.kind, "rm"))
             if p.marker == "boss":
@@ -778,7 +756,7 @@ def legend_keys(lv) -> list[str]:
         elif p.shape == "shaft":
             add("shaft")
         elif p.shape == "mark":
-            add({"sc": "sm"}.get(p.marker, p.marker) if p.marker in LEGEND or p.marker == "sc" else "gate")
+            add(p.marker if p.marker in LEGEND else "gate")
     if any(p.to_lv == lv for p in PIECES):
         add("shaft")
     if lv == 1:
@@ -804,16 +782,13 @@ def svg_level(lv) -> str:
     if lv == 1:
         o += ["  " + s for s in L1_BEFORE]
     for p in ps:
-        if p.shape == "path" and p.kind == "CORRIDOR" and not (p.id[0] == "S" and p.id[1:].isdigit()):
+        if p.shape == "path" and p.kind == "CORRIDOR":
             o.append("  " + path_svg(m, p))
     for p in ps:
         if p.shape in AREA_SHAPES:
             o.append("  " + area_svg(m, p))
     for p in ps:
-        if p.shape == "path" and p.kind == "PATH" and not (p.id[0] == "S" and p.id[1:].isdigit()):
-            o.append("  " + path_svg(m, p))
-    for p in ps:
-        if p.shape == "path" and p.id[0] == "S" and p.id[1:].isdigit():
+        if p.shape == "path" and p.kind == "PATH":
             o.append("  " + path_svg(m, p))
     for p in ps:
         o += ["  " + s for s in symbol_svg(m, p)]

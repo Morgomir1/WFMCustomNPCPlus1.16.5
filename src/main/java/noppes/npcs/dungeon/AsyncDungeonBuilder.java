@@ -425,8 +425,6 @@ public final class AsyncDungeonBuilder {
                 return "minecraft:red_wool";
             case "puzzle":
                 return "minecraft:yellow_wool";
-            case "sc":
-                return "minecraft:cyan_wool";
             case "item":
                 return "minecraft:lime_wool";
             case "npc":

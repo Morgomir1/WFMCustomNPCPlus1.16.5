@@ -859,14 +859,14 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <p>Отдельного NPC, который держит весь данж, нет. Каждая часть сбрасывает себя сама и только тогда, когда рядом есть игроки:</p>
 <ul>
   <li><b>Мобы и боссы</b> — встроенный Respawn 3600. Бой на арене: 15 с без игроков — <code>npc.reset()</code> (ядро).</li>
-  <li><b>Ворота арен и выход</b> — <code>died</code> босса снимает завал, <code>init</code> босса ставит обратно. CNPC вызывает <code>init</code> из <code>reset()</code> при каждом возрождении. Координаты завала — массив <code>GATE</code> в файле босса.</li>
+  <li><b>Ворота арен и выход</b> — <code>died</code> босса снимает завал, <code>init</code> босса ставит обратно. CNPC вызывает <code>init</code> из <code>reset()</code> при каждом возрождении. В файле босса одна мировая точка <code>ORIGIN</code> (центр арены); завал — оффсеты <code>GATE</code> от неё.</li>
   <li><b>Шорткаты</b> — Scripted Block пишет себе в storeddata время закрытия, а в <code>tick</code> (раз в 10 тиков, только в загруженном чанке) ставит блоки обратно, если рядом нет игроков.</li>
 </ul>
 <p>Время везде — <code>world.getTotalTime()</code> (тики, 72000 = час). Оно стоит, пока сервер выключен. На игру это не влияет.</p>
 <p>Маркеры строителя: pack — белая шерсть, elite — оранжевая, stake — бревно тёмного дуба, totem/menhir — блок кости, heart — редстоун, crystal — изумруд, herb — лаймовая шерсть, fog — зелёная, sc — бирюзовая, boss — красная.</p>
 
 <h3>4. Скрипты</h3>
-<p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. Координаты в файлах боссов — заглушки в блоках раскладки; после постройки подставь мировые (origin данжа + координата с карты). Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
+<p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. В файле босса после постройки подставь <b>одну</b> мировую точку <code>ORIGIN</code> — центр арены (или оставь пустым: тогда берётся точка спауна NPC). Колья, тотемы, сердца, кристаллы, менгиры и завал — оффсеты <code>[dx, dy, dz]</code> от ORIGIN, их не пересчитывай. Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
 <p>Сложность крутится <b>в одном месте</b>: поле <code>HS.DMG</code> в первом файле (<code>hs_core.js</code>) или ключ world storeddata <code>hs_dmg</code> (перекрывает файл, пока сервер не перезапустят и ключ не сотрут). Он множит и исходящий урон (<code>hsStrike</code> / <code>hsStart</code>), и HP боссов на пуле. Автоатака и HP мобов переходов — из вкладки Stats, их множитель не трогает.</p>
 
 <details open><summary>hs_core.js — общая библиотека (первый файл у боссов и мобов)</summary>
@@ -892,8 +892,35 @@ var HS = {
     GOLD: 0xC0FFC030,
     PURPLE: 0xC0B040FF
 };
-var GATE = [];                                   // [[x, y, z], ...] завал выхода из арены
+var ORIGIN = [];                                 // [x, y, z] — единственная мировая точка (центр арены). Пусто = спаун NPC
+var GATE = [];                                   // оффсеты завала от ORIGIN: [dx, dy, dz]
 var GATE_BLOCK = "minecraft:polished_blackstone_bricks";
+
+function hsOrigin(npc) {
+    if (ORIGIN != null &amp;&amp; ORIGIN.length &gt;= 3) return ORIGIN;
+    return [npc.getHomeX(), npc.getHomeY(), npc.getHomeZ()];
+}
+function hsXYZ(npc, off) {
+    var o = hsOrigin(npc);
+    return [o[0] + off[0], o[1] + off[1], o[2] + off[2]];
+}
+function hsIPosOff(npc, off) {
+    var a = hsXYZ(npc, off);
+    return NpcAPI.getIPos(a[0], a[1], a[2]);
+}
+function hsSpawnAt(npc, off, name) {
+    var a = hsXYZ(npc, off);
+    return npc.getWorld().spawnClone(a[0] + 0.5, a[1], a[2] + 0.5, HS.TAB, name);
+}
+function hsBox(dx, dy, dz, w, h, d) {
+    var out = [], x, y, z;
+    for (y = 0; y &lt; h; y++) {
+        for (z = 0; z &lt; d; z++) {
+            for (x = 0; x &lt; w; x++) out.push([dx + x, dy + y, dz + z]);
+        }
+    }
+    return out;
+}
 
 function hsNow(npc) { return Number(npc.getWorld().getTotalTime()); }
 function hsGet(npc, k, def) { var d = npc.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
@@ -1012,7 +1039,7 @@ function hsOnLine(p, sx, sz, yaw, len, half) {
 function hsSetGate(npc, closed) {
     var w = npc.getWorld();
     for (var i = 0; i &lt; GATE.length; i++) {
-        var pos = NpcAPI.getIPos(GATE[i][0], GATE[i][1], GATE[i][2]);
+        var pos = hsIPosOff(npc, GATE[i]);
         if (closed) w.setBlock(pos, GATE_BLOCK);
         else w.removeBlock(pos);
     }
@@ -1340,9 +1367,10 @@ HS.BASE_HP = 300;
 HS.ARENA_R = 20;
 HS.ENRAGE_SEC = 360;
 HS.DISPEL_SEC = 99999;   // рассеивает Грул
-GATE = [ [295, 64, 18], [296, 64, 18], [295, 65, 18], [296, 65, 18] ];   // свои координаты
+ORIGIN = [280, 64, 37];  // центр A4, подставь мировые x y z после постройки
+GATE = hsBox(15, 0, -19, 2, 2, 1);   // завал спуска у южной стены
 var PARTNER = "Грул Кабанья Рука";
-var STAKES = [ [264, 65, 24], [296, 65, 24], [264, 65, 50], [296, 65, 50] ];  // нижний блок кола
+var STAKES = [ [-16, 1, -13], [16, 1, -13], [-16, 1, 13], [16, 1, 13] ];  // нижний блок кола
 var STAKE_BLOCK = "minecraft:dark_oak_log";
 var RAM_LEN = 14;
 var RAM_EVERY = 180;     // 9 с
@@ -1354,8 +1382,9 @@ function init(e) {
     if (!hsInit(npc)) return;
     var w = npc.getWorld();
     for (var i = 0; i &lt; STAKES.length; i++) {
-        w.setBlock(NpcAPI.getIPos(STAKES[i][0], STAKES[i][1], STAKES[i][2]), STAKE_BLOCK);
-        w.setBlock(NpcAPI.getIPos(STAKES[i][0], STAKES[i][1] + 1, STAKES[i][2]), STAKE_BLOCK);
+        var p = hsXYZ(npc, STAKES[i]);
+        w.setBlock(NpcAPI.getIPos(p[0], p[1], p[2]), STAKE_BLOCK);
+        w.setBlock(NpcAPI.getIPos(p[0], p[1] + 1, p[2]), STAKE_BLOCK);
     }
     if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
     npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
@@ -1416,7 +1445,7 @@ function timer(e) {
     }
     var w = npc.getWorld();
     for (var j = 0; j &lt; STAKES.length; j++) {
-        var s = STAKES[j];
+        var s = hsXYZ(npc, STAKES[j]);
         if (String(w.getBlock(s[0], s[1], s[2]).getName()) != STAKE_BLOCK) continue;
         if (hsFlat(npc, s[0] + 0.5, s[2] + 0.5) &gt; 2.5) continue;
         w.removeBlock(NpcAPI.getIPos(s[0], s[1], s[2]));
@@ -1448,7 +1477,8 @@ HS.BASE_HP = 220;
 HS.ARENA_R = 20;
 HS.ENRAGE_SEC = 360;
 HS.DISPEL_SEC = 45;
-GATE = [ [295, 64, 18], [296, 64, 18], [295, 65, 18], [296, 65, 18] ];   // те же, что у кабана
+ORIGIN = [280, 64, 37];  // тот же центр A4, что у кабана
+GATE = hsBox(15, 0, -19, 2, 2, 1);
 var BOAR = "Кровохряк";
 var MARK_EVERY = 300;    // 15 с
 var CALL_EVERY = 900;    // 45 с
@@ -1512,10 +1542,11 @@ function died(e) {
 HS.BASE_HP = 260;
 HS.ARENA_R = 20;
 HS.ENRAGE_SEC = 420;
-GATE = [ [189, 40, 241], [190, 40, 241], [189, 41, 241], [190, 41, 241] ];   // завал шахты B5_down
+ORIGIN = [200, 40, 222];  // центр B5
+GATE = hsBox(-11, 0, 19, 2, 2, 1);   // завал шахты B5_down
 var TOTEM = "Тотем Мургрота";
 var COPY = "Мургрот-копия";
-var TOTEMS = [ [186, 40, 210], [214, 40, 210], [186, 40, 234], [214, 40, 234] ];
+var TOTEMS = [ [-14, 0, -12], [14, 0, -12], [-14, 0, 12], [14, 0, 12] ];
 var SONG_EVERY = 500, SONG_TICKS = 100, SONG_BREAK = 60;
 var ROT_EVERY = 400, ROT_TICKS = 80, ROT_R = 6;
 var T_SONG = 1, T_ROT = 2;
@@ -1535,11 +1566,11 @@ function init(e) {
 function raiseTotems(npc) {
     var w = npc.getWorld();
     for (var i = 0; i &lt; TOTEMS.length; i++) {
-        var p = TOTEMS[i];
+        var p = hsXYZ(npc, TOTEMS[i]);
         var near = w.getNearbyEntities(NpcAPI.getIPos(p[0], p[1], p[2]), 2, 2);
         var alive = false;
         for (var j = 0; j &lt; near.length; j++) if (String(near[j].getName()) == TOTEM &amp;&amp; near[j].isAlive()) alive = true;
-        if (!alive) w.spawnClone(p[0] + 0.5, p[1], p[2] + 0.5, HS.TAB, TOTEM);
+        if (!alive) hsSpawnAt(npc, TOTEMS[i], TOTEM);
     }
 }
 
@@ -1655,7 +1686,8 @@ HS.BASE_HP = 520;
 HS.CAP = 14;
 HS.ARENA_R = 21;
 HS.ENRAGE_SEC = 480;
-GATE = [ [299, 16, 173], [300, 16, 173], [299, 17, 173], [300, 17, 173] ];   // завал Глотки C5_down
+ORIGIN = [300, 16, 152];  // центр C5
+GATE = hsBox(-1, 0, 21, 2, 2, 1);   // завал Глотки C5_down
 var REND_MAX = 5;
 var SAFE_R = 13;          // при сжатии безопасен только круг r 13
 var T_CONE = 1, T_SLAM = 2;
@@ -1787,11 +1819,11 @@ HS.BASE_HP = 900;
 HS.CAP = 14;
 HS.ARENA_R = 26;
 HS.ENRAGE_SEC = 600;
-GATE = [ [190, -8, 35], [190, -7, 35] ];   // barrier выхода (Подъём Висельника) и проход в D4
+ORIGIN = [122, -8, 44];   // Камень Стада = центр D3
+GATE = hsBox(68, 0, -9, 1, 2, 1);   // barrier выхода (Подъём Висельника)
 GATE_BLOCK = "minecraft:barrier";
-var STONE = [122, -8, 44];
-var HEARTS = [ [122, -8, 22], [103, -8, 57], [141, -8, 57] ];
-var CRYSTALS = [ [112, -8, 34], [132, -8, 34], [112, -8, 54], [132, -8, 54] ];
+var HEARTS = [ [0, 0, -22], [-19, 0, 13], [19, 0, 13] ];
+var CRYSTALS = [ [-10, 0, -10], [10, 0, -10], [-10, 0, 10], [10, 0, 10] ];
 var HEART = "Сердце жёлоба", CRYSTAL = "Варп-кристалл", ADD = "Гор (призыв)";
 var HEARTS_TICKS = 900;   // 45 с на три сердца
 var T_HIT = 1, T_BRAND = 2, T_HEARTS = 3, T_CIRCLES = 4;
@@ -1829,8 +1861,9 @@ function tick(e) {
         hsPut(npc, "phase", "2");
         npc.getAi().setRetaliateType(3);
         npc.getAi().setWalkingSpeed(0);
-        npc.setPosition(STONE[0] + 0.5, STONE[1], STONE[2] + 0.5);
-        for (i = 0; i &lt; HEARTS.length; i++) w.spawnClone(HEARTS[i][0] + 0.5, HEARTS[i][1], HEARTS[i][2] + 0.5, HS.TAB, HEART);
+        var stone = hsOrigin(npc);
+        npc.setPosition(stone[0] + 0.5, stone[1], stone[2] + 0.5);
+        for (i = 0; i &lt; HEARTS.length; i++) hsSpawnAt(npc, HEARTS[i], HEART);
         npc.getTimers().forceStart(T_HEARTS, HEARTS_TICKS, false);
         npc.say("§4КРОВЬ — КАМНЮ! У вас 45 ударов сердца!");
         return;
@@ -1845,8 +1878,8 @@ function tick(e) {
         } else if (now &gt;= hsNum(npc, "wave_at")) {
             hsPut(npc, "wave_at", now + 200);
             if (hsCount(npc, ADD) &lt; 6) {
-                w.spawnClone(STONE[0] + 8, STONE[1], STONE[2], HS.TAB, ADD);
-                w.spawnClone(STONE[0] - 8, STONE[1], STONE[2], HS.TAB, ADD);
+                hsSpawnAt(npc, [8, 0, 0], ADD);
+                hsSpawnAt(npc, [-8, 0, 0], ADD);
             }
         }
         return;
@@ -1854,7 +1887,7 @@ function tick(e) {
     if (ph == "2b" &amp;&amp; hp &lt;= 0.3) {
         hsPut(npc, "phase", "3");
         npc.getDisplay().setSize(12);
-        for (i = 0; i &lt; CRYSTALS.length; i++) w.spawnClone(CRYSTALS[i][0] + 0.5, CRYSTALS[i][1], CRYSTALS[i][2] + 0.5, HS.TAB, CRYSTAL);
+        for (i = 0; i &lt; CRYSTALS.length; i++) hsSpawnAt(npc, CRYSTALS[i], CRYSTAL);
         npc.say("§2Ночь Тайн пришла!");
         ph = "3";
     }
@@ -1998,7 +2031,8 @@ function damaged(e) {
 HS.BASE_HP = 380;
 HS.ARENA_R = 22;
 HS.ENRAGE_SEC = 480;
-var MENHIRS = [ [284, 30, 18], [324, 30, 18], [284, 30, 38], [324, 30, 38] ];
+ORIGIN = [304, 30, 28];  // центр C4
+var MENHIRS = [ [-20, 0, -10], [20, 0, -10], [-20, 0, 10], [20, 0, 10] ];
 var COVER = 2.5;
 var GAZE_EVERY = 240;     // 12 с
 var T_GAZE = 1;
@@ -2018,7 +2052,8 @@ function tick(e) {
     if (now &lt; hsNum(npc, "gaze_at")) return;
     hsPut(npc, "gaze_at", now + GAZE_EVERY);
     for (var i = 0; i &lt; MENHIRS.length; i++) {
-        TelegraphAPI.circle(npc, MENHIRS[i][0] + 0.5, MENHIRS[i][1], MENHIRS[i][2] + 0.5, COVER, 40, HS.GOLD);
+        var m = hsXYZ(npc, MENHIRS[i]);
+        TelegraphAPI.circle(npc, m[0] + 0.5, m[1], m[2] + 0.5, COVER, 40, HS.GOLD);
     }
     npc.say("§2Бормочущий поднимает взгляд… К менгирам!");
     npc.getTimers().forceStart(T_GAZE, 40, false);
@@ -2031,7 +2066,8 @@ function timer(e) {
     for (var i = 0; i &lt; ps.length; i++) {
         var safe = false;
         for (var j = 0; j &lt; MENHIRS.length; j++) {
-            if (hsFlat(ps[i], MENHIRS[j][0] + 0.5, MENHIRS[j][2] + 0.5) &lt;= COVER) safe = true;
+            var m = hsXYZ(npc, MENHIRS[j]);
+            if (hsFlat(ps[i], m[0] + 0.5, m[2] + 0.5) &lt;= COVER) safe = true;
         }
         if (safe) continue;
         hsStrike(ps[i], 0.7);

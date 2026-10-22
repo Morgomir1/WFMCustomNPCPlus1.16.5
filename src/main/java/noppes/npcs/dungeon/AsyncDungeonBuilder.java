@@ -132,8 +132,7 @@ public final class AsyncDungeonBuilder {
             return;
         }
         if (def.clearVolume) {
-            final int[] yr = clearYRange(def, oy, levels);
-            addClear(jobs, x1, yr[0], z1, x2, yr[1], z2);
+            clearLevels(jobs, def, ox, oy, oz, levels);
         }
         if (def.groundPlane && levels.contains(1)) {
             final Set<Integer> only1 = new HashSet<>();
@@ -151,43 +150,44 @@ public final class AsyncDungeonBuilder {
         }
     }
 
-    private static int[] clearYRange(final DungeonDefinition def, final int oy, final Set<Integer> levels) {
-        int yMin = Integer.MAX_VALUE;
-        int yMax = Integer.MIN_VALUE;
+    /** Каждый этаж чистится только в своём пятне и на своей высоте, промежуток спирали не трогается. */
+    private static void clearLevels(final List<FillJob> jobs, final DungeonDefinition def, final int ox,
+                                    final int oy, final int oz, final Set<Integer> levels) {
         final List<Level> all = def.levels;
         for (int i = 0, n = all.size(); i < n; i++) {
             final Level lv = all.get(i);
             if (!levels.contains(lv.id)) {
                 continue;
             }
-            final int y0 = oy + lv.floorOffset;
-            if (y0 < yMin) {
-                yMin = y0;
+            final Set<Integer> one = new HashSet<>();
+            one.add(lv.id);
+            final int[] bb = bounds(def, one);
+            final int x1 = ox + bb[0];
+            final int z1 = oz + bb[1];
+            final int x2 = ox + bb[2] - 1;
+            final int z2 = oz + bb[3] - 1;
+            if (x2 < x1 || z2 < z1) {
+                continue;
             }
-            int top = y0 + lv.height;
+            int y0 = oy + lv.floorOffset;
+            int y1 = y0 + lv.height;
             if (lv.id == 1) {
-                top = Math.max(top, y0 + def.clearHeadroom);
+                y1 = Math.max(y1, y0 + def.clearHeadroom);
+                if (def.groundPlane) {
+                    y0 = y0 - 1;
+                }
             }
-            if (top > yMax) {
-                yMax = top;
+            if (y0 < 1) {
+                y0 = 1;
             }
-        }
-        if (def.groundPlane && levels.contains(1)) {
-            final int under = floorY(def, 1, oy) - 1;
-            if (under < yMin) {
-                yMin = under;
+            if (y1 > 255) {
+                y1 = 255;
             }
+            if (y1 < y0) {
+                continue;
+            }
+            addClear(jobs, x1, y0, z1, x2, y1, z2);
         }
-        if (yMin < 1) {
-            yMin = 1;
-        }
-        if (yMax > 255) {
-            yMax = 255;
-        }
-        if (yMax < yMin) {
-            yMax = yMin;
-        }
-        return new int[] { yMin, yMax };
     }
 
     private static void addClear(final List<FillJob> jobs, final int x1, final int y1, final int z1,
@@ -329,23 +329,59 @@ public final class AsyncDungeonBuilder {
             }
         }
         final int y1 = floorY(def, 1, oy);
-        if (y1 < 0 || y1 > yTop - 3) {
+        if (y1 < 0 || y1 > yTop - 4) {
             return;
         }
-        for (int z = zMin; z <= zMax; z++) {
-            int rimRun = Integer.MIN_VALUE;
-            for (int x = xMin; x <= xMax + 1; x++) {
-                final boolean inside = x <= xMax && DungeonGeometry.contains(rec, x, z);
-                final boolean rim = inside && DungeonGeometry.perimeter(rec, x, z);
-                if (rim) {
-                    if (rimRun == Integer.MIN_VALUE) {
-                        rimRun = x;
-                    }
-                } else if (rimRun != Integer.MIN_VALUE) {
-                    addFill(jobs, ox + rimRun, y1, oz + z, ox + x - 1, y1 + 3, oz + z, "minecraft:dark_oak_log");
-                    rimRun = Integer.MIN_VALUE;
+        final int cx = rec.x + rec.w / 2;
+        final int cz = rec.z + rec.d / 2;
+        buildWellStair(jobs, ox, oz, cx, cz, y0, y1);
+        final int rIn = rec.w / 2 + 1;
+        final int rOut = rIn + 2;
+        for (int z = cz - rOut; z <= cz + rOut; z++) {
+            for (int x = cx - rOut; x <= cx + rOut; x++) {
+                final int dx = x - cx;
+                final int dz = z - cz;
+                final int dist2 = dx * dx + dz * dz;
+                if (dist2 < rIn * rIn || dist2 > rOut * rOut) {
+                    continue;
                 }
+                addFill(jobs, ox + x, y1 + 1, oz + z, ox + x, y1 + 4, oz + z, "minecraft:barrier");
             }
+        }
+        addFill(jobs, ox + cx - 1, y1, oz + cz + rIn, ox + cx + 1, y1, oz + cz + rIn + 2, "minecraft:dark_oak_log");
+        addFill(jobs, ox + cx - 1, y1 + 1, oz + cz + rIn, ox + cx + 1, y1 + 3, oz + cz + rIn + 2, "minecraft:barrier");
+    }
+
+    /** Винт по внутренней кромке колодца: снизу от выхода арены, наверху — к южным воротам. */
+    private static void buildWellStair(final List<FillJob> jobs, final int ox, final int oz, final int cx,
+                                       final int cz, final int y0, final int y1) {
+        final int rise = y1 - y0;
+        if (rise < 2) {
+            return;
+        }
+        final double start = Math.atan2(-32.0, 10.0);
+        final double end = -Math.PI * 2.0;
+        final int steps = rise * 2;
+        int lastX = cx;
+        int lastZ = cz;
+        for (int i = 0; i <= steps; i++) {
+            final double t = i / (double) steps;
+            final double ang = start + (end - start) * t;
+            final int x = cx + (int) Math.round(Math.sin(ang) * 20.0);
+            final int z = cz + (int) Math.round(Math.cos(ang) * 20.0);
+            final int y = y0 + 1 + (rise - 1) * i / steps;
+            addFill(jobs, ox + x, y, oz + z, ox + x, y, oz + z, "minecraft:dark_oak_log");
+            addFill(jobs, ox + x, y + 1, oz + z, ox + x, y + 2, oz + z, "minecraft:air");
+            lastX = x;
+            lastZ = z;
+        }
+        final int landZ = cz + 26;
+        final int landSteps = Math.max(Math.abs(lastX - cx), Math.abs(lastZ - landZ));
+        for (int i = 0; i <= landSteps; i++) {
+            final int x = lastX + (cx - lastX) * i / Math.max(landSteps, 1);
+            final int z = lastZ + (landZ - lastZ) * i / Math.max(landSteps, 1);
+            addFill(jobs, ox + x, y1, oz + z, ox + x, y1, oz + z, "minecraft:dark_oak_log");
+            addFill(jobs, ox + x, y1 + 1, oz + z, ox + x, y1 + 2, oz + z, "minecraft:air");
         }
     }
 
@@ -399,17 +435,40 @@ public final class AsyncDungeonBuilder {
                                    final int ox, final int oy, final int oz) {
         final int x1 = ox + rec.x;
         final int z1 = oz + rec.z;
-        int yTop = floorY(def, rec.level, oy);
-        int yBot = floorY(def, rec.toLevel, oy);
-        if (yBot > yTop) {
-            final int t = yBot;
-            yBot = yTop;
-            yTop = t;
+        final int yTop = floorY(def, rec.level, oy);
+        final int yBot = floorY(def, rec.toLevel, oy);
+        final int yHi = Math.max(yTop, yBot);
+        final int yLo = Math.min(yTop, yBot);
+        final int top = yHi + def.levelById(rec.level).height;
+        if (rec.endX == Integer.MIN_VALUE) {
+            addFill(jobs, x1, yLo, z1, x1 + rec.w - 1, top, z1 + rec.d - 1, "minecraft:air");
+            addFill(jobs, x1, yLo, z1, x1, yHi, z1, "minecraft:ladder");
+            addSet(jobs, x1 + 1, yTop + 1, z1 + 1, marker("gate"));
+            return;
         }
-        addFill(jobs, x1, yBot, z1, x1 + rec.w - 1, yTop + def.levelById(rec.level).height, z1 + rec.d - 1,
-                "minecraft:air");
-        addFill(jobs, x1, yBot, z1, x1, yTop, z1, "minecraft:ladder");
+        final int x2 = ox + rec.endX;
+        final int z2 = oz + rec.endZ;
+        addFill(jobs, x1, yLo, z1, x1 + 2, top, z1 + 2, "minecraft:air");
+        addFill(jobs, x2, yLo, z2, x2 + 2, top, z2 + 2, "minecraft:air");
+        buildSlope(jobs, x1 + 1, z1 + 1, yTop, x2 + 1, z2 + 1, yBot);
+        addFill(jobs, x1, yLo, z1, x1 + 2, top, z1 + 2, "minecraft:air");
+        addFill(jobs, x2, yLo, z2, x2 + 2, top, z2 + 2, "minecraft:air");
         addSet(jobs, x1 + 1, yTop + 1, z1 + 1, marker("gate"));
+    }
+
+    private static void buildSlope(final List<FillJob> jobs, final int x1, final int z1, final int y1,
+                                   final int x2, final int z2, final int y2) {
+        final int steps = Math.max(Math.abs(x2 - x1), Math.abs(z2 - z1));
+        if (steps < 1) {
+            return;
+        }
+        for (int i = 0; i <= steps; i++) {
+            final int x = x1 + (x2 - x1) * i / steps;
+            final int z = z1 + (z2 - z1) * i / steps;
+            final int y = y1 + (y2 - y1) * i / steps;
+            addFill(jobs, x - 2, y, z - 2, x + 2, y, z + 2, "minecraft:stone_bricks");
+            addFill(jobs, x - 2, y + 1, z - 2, x + 2, y + 3, z + 2, "minecraft:air");
+        }
     }
 
     private static int floorY(final DungeonDefinition def, final int level, final int oy) {

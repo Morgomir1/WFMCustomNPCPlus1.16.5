@@ -4,7 +4,8 @@ import noppes.npcs.dungeon.DungeonDefinition.Kind;
 
 /**
  * Сгенерировано tools/herdstone/herdstone_layout.py — правь раскладку там, а не здесь.
- * 1 единица = 1 блок; на картах herdstone_dungeon.html 1 блок = 1.8 единицы SVG.
+ * 1 единица = 1 блок; на картах локаций 1 блок = 1.8 единицы SVG (координаты локальные).
+ * В мире этажи не столб: L1 как на плане, L2 и L3 отзеркалены на восток, L3 и L4 — на юг.
  */
 public final class HerdstoneDungeon {
     private HerdstoneDungeon() {
@@ -77,102 +78,102 @@ public final class HerdstoneDungeon {
         d.add(1, "elite_1", Kind.MARK, 40, 50, 1, 1, "elite");
         d.add(1, "elite_2", Kind.MARK, 190, 130, 1, 1, "elite");
         d.add(1, "elite_3", Kind.MARK, 245, 150, 1, 1, "elite");
-        d.shaft(1, 2, "A4_down", 292, 26);
+        d.ramp(1, 2, "A4_down", 292, 26, 421, 26);
     }
 
     private static void level2(final DungeonDefinition d) {
-        d.add(2, "B1", Kind.ROOM, 276, 10, 48, 34, "");
-        d.addPath(2, "c_B1_B2", Kind.CORRIDOR, 8, 300, 43, 300, 84);
+        d.add(2, "B1", Kind.ROOM, 392, 10, 48, 34, "");
+        d.addPath(2, "c_B1_B2", Kind.CORRIDOR, 8, 415, 43, 415, 84);
         d.addPoly(2, "B2", Kind.WATER, "",
-                170, 80, 330, 80, 338, 136, 318, 170, 190, 170, 172, 136);
-        d.addPath(2, "c_B2_B3", Kind.CORRIDOR, 8, 173, 120, 139, 120);
-        d.add(2, "B3", Kind.ROOM, 24, 70, 116, 90, "");
-        d.addPath(2, "c_B3_B4", Kind.CORRIDOR, 8, 80, 159, 80, 184, 250, 184);
-        d.add(2, "B4", Kind.ROOM, 250, 176, 56, 44, "npc");
-        d.addPath(2, "c_B4_B5", Kind.CORRIDOR, 8, 252, 212, 216, 222);
-        d.addCircle(2, "B5", Kind.ARENA, 200, 222, 20, "boss");
-        d.add(2, "totem_1", Kind.MARK, 186, 210, 1, 1, "totem");
-        d.add(2, "totem_2", Kind.MARK, 214, 210, 1, 1, "totem");
-        d.add(2, "totem_3", Kind.MARK, 186, 234, 1, 1, "totem");
-        d.add(2, "totem_4", Kind.MARK, 214, 234, 1, 1, "totem");
-        d.add(2, "pack_1", Kind.MARK, 285, 20, 1, 1, "pack");
-        d.add(2, "pack_2", Kind.MARK, 210, 100, 1, 1, "pack");
-        d.add(2, "pack_3", Kind.MARK, 300, 110, 1, 1, "pack");
-        d.add(2, "pack_4", Kind.MARK, 45, 140, 1, 1, "pack");
-        d.add(2, "pack_5", Kind.MARK, 115, 90, 1, 1, "pack");
-        d.add(2, "pack_6", Kind.MARK, 278, 205, 1, 1, "pack");
-        d.add(2, "elite_1", Kind.MARK, 250, 150, 1, 1, "elite");
-        d.add(2, "elite_2", Kind.MARK, 60, 100, 1, 1, "elite");
-        d.add(2, "elite_3", Kind.MARK, 100, 135, 1, 1, "elite");
-        d.add(2, "elite_4", Kind.MARK, 120, 184, 1, 1, "elite");
-        d.add(2, "elite_5", Kind.MARK, 200, 184, 1, 1, "elite");
-        d.add(2, "elite_6", Kind.MARK, 80, 118, 1, 1, "elite");
-        d.shaft(2, 3, "B5_down", 190, 230);
+                545, 80, 385, 80, 377, 136, 397, 170, 525, 170, 543, 136);
+        d.addPath(2, "c_B2_B3", Kind.CORRIDOR, 8, 542, 120, 576, 120);
+        d.add(2, "B3", Kind.ROOM, 576, 70, 116, 90, "");
+        d.addPath(2, "c_B3_B4", Kind.CORRIDOR, 8, 635, 159, 635, 184, 465, 184);
+        d.add(2, "B4", Kind.ROOM, 410, 176, 56, 44, "npc");
+        d.addPath(2, "c_B4_B5", Kind.CORRIDOR, 8, 463, 212, 499, 222);
+        d.addCircle(2, "B5", Kind.ARENA, 515, 222, 20, "boss");
+        d.add(2, "totem_1", Kind.MARK, 529, 210, 1, 1, "totem");
+        d.add(2, "totem_2", Kind.MARK, 501, 210, 1, 1, "totem");
+        d.add(2, "totem_3", Kind.MARK, 529, 234, 1, 1, "totem");
+        d.add(2, "totem_4", Kind.MARK, 501, 234, 1, 1, "totem");
+        d.add(2, "pack_1", Kind.MARK, 430, 20, 1, 1, "pack");
+        d.add(2, "pack_2", Kind.MARK, 505, 100, 1, 1, "pack");
+        d.add(2, "pack_3", Kind.MARK, 415, 110, 1, 1, "pack");
+        d.add(2, "pack_4", Kind.MARK, 670, 140, 1, 1, "pack");
+        d.add(2, "pack_5", Kind.MARK, 600, 90, 1, 1, "pack");
+        d.add(2, "pack_6", Kind.MARK, 437, 205, 1, 1, "pack");
+        d.add(2, "elite_1", Kind.MARK, 465, 150, 1, 1, "elite");
+        d.add(2, "elite_2", Kind.MARK, 655, 100, 1, 1, "elite");
+        d.add(2, "elite_3", Kind.MARK, 615, 135, 1, 1, "elite");
+        d.add(2, "elite_4", Kind.MARK, 595, 184, 1, 1, "elite");
+        d.add(2, "elite_5", Kind.MARK, 515, 184, 1, 1, "elite");
+        d.add(2, "elite_6", Kind.MARK, 635, 118, 1, 1, "elite");
+        d.ramp(2, 3, "B5_down", 523, 230, 523, 397);
     }
 
     private static void level3(final DungeonDefinition d) {
-        d.add(3, "C1", Kind.ROOM, 170, 206, 50, 38, "");
-        d.addPath(3, "c_C1_C2", Kind.CORRIDOR, 8, 171, 224, 129, 224);
-        d.add(3, "C2", Kind.ROOM, 20, 150, 110, 90, "");
-        d.addPath(3, "c_C2_C3", Kind.CORRIDOR, 8, 75, 151, 75, 128);
+        d.add(3, "C1", Kind.ROOM, 496, 386, 50, 38, "");
+        d.addPath(3, "c_C1_C2", Kind.CORRIDOR, 8, 544, 405, 586, 405);
+        d.add(3, "C2", Kind.ROOM, 586, 390, 110, 90, "");
+        d.addPath(3, "c_C2_C3", Kind.CORRIDOR, 8, 640, 478, 640, 501);
         d.addPoly(3, "C3", Kind.WARP, "",
-                20, 20, 200, 20, 215, 80, 190, 130, 40, 130, 20, 90);
-        d.addPath(3, "c_C3_C3a", Kind.CORRIDOR, 6, 208, 75, 226, 75);
-        d.add(3, "C3a", Kind.ROOM, 225, 58, 40, 32, "");
-        d.addPath(3, "c_C3a_C5", Kind.CORRIDOR, 8, 255, 89, 290, 140);
-        d.addCircle(3, "C5", Kind.ARENA, 300, 152, 21, "boss");
-        d.add(3, "C4", Kind.SECRET, 268, 8, 72, 40, "boss");
-        d.addPath(3, "c_C3_C4", Kind.CORRIDOR, 3, 200, 36, 200, 56, 290, 56, 290, 40);
-        d.add(3, "menhir_1", Kind.MARK, 284, 18, 1, 1, "menhir");
-        d.add(3, "menhir_2", Kind.MARK, 324, 18, 1, 1, "menhir");
-        d.add(3, "menhir_3", Kind.MARK, 284, 38, 1, 1, "menhir");
-        d.add(3, "menhir_4", Kind.MARK, 324, 38, 1, 1, "menhir");
-        d.add(3, "herb_1", Kind.MARK, 50, 40, 1, 1, "herb");
-        d.add(3, "herb_2", Kind.MARK, 110, 30, 1, 1, "herb");
-        d.add(3, "herb_3", Kind.MARK, 180, 60, 1, 1, "herb");
-        d.add(3, "herb_4", Kind.MARK, 140, 115, 1, 1, "herb");
-        d.add(3, "fog", Kind.MARK, 110, 70, 1, 1, "fog");
-        d.add(3, "pack_1", Kind.MARK, 200, 215, 1, 1, "pack");
-        d.add(3, "pack_2", Kind.MARK, 40, 170, 1, 1, "pack");
-        d.add(3, "pack_3", Kind.MARK, 105, 220, 1, 1, "pack");
-        d.add(3, "pack_4", Kind.MARK, 45, 225, 1, 1, "pack");
-        d.add(3, "pack_5", Kind.MARK, 120, 100, 1, 1, "pack");
-        d.add(3, "elite_1", Kind.MARK, 75, 195, 1, 1, "elite");
-        d.add(3, "elite_2", Kind.MARK, 70, 60, 1, 1, "elite");
-        d.add(3, "elite_3", Kind.MARK, 150, 50, 1, 1, "elite");
-        d.add(3, "elite_4", Kind.MARK, 245, 73, 1, 1, "elite");
-        d.shaft(3, 4, "C5_down", 300, 162);
+                695, 609, 515, 609, 500, 549, 525, 499, 675, 499, 695, 539);
+        d.addPath(3, "c_C3_C3a", Kind.CORRIDOR, 6, 507, 554, 489, 554);
+        d.add(3, "C3a", Kind.ROOM, 451, 540, 40, 32, "");
+        d.addPath(3, "c_C3a_C5", Kind.CORRIDOR, 8, 460, 540, 425, 489);
+        d.addCircle(3, "C5", Kind.ARENA, 415, 477, 21, "boss");
+        d.add(3, "C4", Kind.SECRET, 376, 582, 72, 40, "boss");
+        d.addPath(3, "c_C3_C4", Kind.CORRIDOR, 3, 515, 593, 515, 573, 425, 573, 425, 589);
+        d.add(3, "menhir_1", Kind.MARK, 431, 611, 1, 1, "menhir");
+        d.add(3, "menhir_2", Kind.MARK, 391, 611, 1, 1, "menhir");
+        d.add(3, "menhir_3", Kind.MARK, 431, 591, 1, 1, "menhir");
+        d.add(3, "menhir_4", Kind.MARK, 391, 591, 1, 1, "menhir");
+        d.add(3, "herb_1", Kind.MARK, 665, 589, 1, 1, "herb");
+        d.add(3, "herb_2", Kind.MARK, 605, 599, 1, 1, "herb");
+        d.add(3, "herb_3", Kind.MARK, 535, 569, 1, 1, "herb");
+        d.add(3, "herb_4", Kind.MARK, 575, 514, 1, 1, "herb");
+        d.add(3, "fog", Kind.MARK, 605, 559, 1, 1, "fog");
+        d.add(3, "pack_1", Kind.MARK, 515, 414, 1, 1, "pack");
+        d.add(3, "pack_2", Kind.MARK, 675, 459, 1, 1, "pack");
+        d.add(3, "pack_3", Kind.MARK, 610, 409, 1, 1, "pack");
+        d.add(3, "pack_4", Kind.MARK, 670, 404, 1, 1, "pack");
+        d.add(3, "pack_5", Kind.MARK, 595, 529, 1, 1, "pack");
+        d.add(3, "elite_1", Kind.MARK, 640, 434, 1, 1, "elite");
+        d.add(3, "elite_2", Kind.MARK, 645, 569, 1, 1, "elite");
+        d.add(3, "elite_3", Kind.MARK, 565, 579, 1, 1, "elite");
+        d.add(3, "elite_4", Kind.MARK, 470, 556, 1, 1, "elite");
+        d.ramp(3, 4, "C5_down", 413, 465, 300, 465);
     }
 
     private static void level4(final DungeonDefinition d) {
-        d.add(4, "D0", Kind.ROOM, 286, 146, 30, 30, "");
-        d.addPath(4, "c_D0_D1", Kind.CORRIDOR, 8, 287, 170, 268, 170);
-        d.add(4, "D1", Kind.ROOM, 150, 136, 120, 82, "");
-        d.add(4, "D1_table", Kind.ROOM, 180, 165, 60, 20, "").floor("minecraft:spruce_planks").noWalls();
-        d.addPath(4, "c_D1_D2", Kind.CORRIDOR, 8, 151, 160, 104, 132);
-        d.addCircle(4, "D2", Kind.ROOM, 80, 118, 30, "");
-        d.addPath(4, "c_D2_D3", Kind.CORRIDOR, 8, 100, 100, 150, 70, 200, 49, 218, 41);
-        d.addCircle(4, "D3", Kind.ARENA, 230, 27, 26, "boss").air();
-        d.addPath(4, "chan_n", Kind.PATH, 3, 230, 27, 230, 5).floor("minecraft:red_nether_bricks");
-        d.addPath(4, "chan_sw", Kind.PATH, 3, 230, 27, 211, 40).floor("minecraft:red_nether_bricks");
-        d.addPath(4, "chan_se", Kind.PATH, 3, 230, 27, 249, 40).floor("minecraft:red_nether_bricks");
-        d.add(4, "heart_1", Kind.MARK, 230, 5, 1, 1, "heart");
-        d.add(4, "heart_2", Kind.MARK, 211, 40, 1, 1, "heart");
-        d.add(4, "heart_3", Kind.MARK, 249, 40, 1, 1, "heart");
-        d.add(4, "crystal_1", Kind.MARK, 220, 17, 1, 1, "crystal");
-        d.add(4, "crystal_2", Kind.MARK, 240, 17, 1, 1, "crystal");
-        d.add(4, "crystal_3", Kind.MARK, 220, 37, 1, 1, "crystal");
-        d.add(4, "crystal_4", Kind.MARK, 240, 37, 1, 1, "crystal");
-        d.add(4, "D4", Kind.ROOM, 164, 3, 40, 28, "item");
-        d.addPath(4, "c_D3_D4", Kind.CORRIDOR, 6, 208, 23, 198, 17);
-        d.add(4, "exit_up", Kind.MARK, 198, 17, 1, 1, "gate");
-        d.add(4, "pack_1", Kind.MARK, 292, 150, 1, 1, "pack");
-        d.add(4, "pack_2", Kind.MARK, 210, 200, 1, 1, "pack");
-        d.add(4, "pack_3", Kind.MARK, 60, 100, 1, 1, "pack");
-        d.add(4, "elite_1", Kind.MARK, 175, 150, 1, 1, "elite");
-        d.add(4, "elite_2", Kind.MARK, 250, 150, 1, 1, "elite");
-        d.add(4, "elite_3", Kind.MARK, 175, 205, 1, 1, "elite");
-        d.add(4, "elite_4", Kind.MARK, 250, 205, 1, 1, "elite");
-        d.add(4, "elite_5", Kind.MARK, 80, 118, 1, 1, "elite");
+        d.add(4, "D0", Kind.ROOM, 286, 454, 30, 30, "");
+        d.addPath(4, "c_D0_D1", Kind.CORRIDOR, 8, 287, 459, 268, 459);
+        d.add(4, "D1", Kind.ROOM, 150, 412, 120, 82, "");
+        d.add(4, "D1_table", Kind.ROOM, 180, 445, 60, 20, "").floor("minecraft:spruce_planks").noWalls();
+        d.addPath(4, "c_D1_D2", Kind.CORRIDOR, 8, 151, 469, 104, 497);
+        d.addCircle(4, "D2", Kind.ROOM, 80, 511, 30, "");
+        d.addPath(4, "c_D2_D3", Kind.CORRIDOR, 8, 100, 529, 150, 559, 200, 580, 218, 588);
+        d.addCircle(4, "D3", Kind.ARENA, 230, 602, 26, "boss").air();
+        d.addPath(4, "chan_n", Kind.PATH, 3, 230, 602, 230, 624).floor("minecraft:red_nether_bricks");
+        d.addPath(4, "chan_sw", Kind.PATH, 3, 230, 602, 211, 589).floor("minecraft:red_nether_bricks");
+        d.addPath(4, "chan_se", Kind.PATH, 3, 230, 602, 249, 589).floor("minecraft:red_nether_bricks");
+        d.add(4, "heart_1", Kind.MARK, 230, 624, 1, 1, "heart");
+        d.add(4, "heart_2", Kind.MARK, 211, 589, 1, 1, "heart");
+        d.add(4, "heart_3", Kind.MARK, 249, 589, 1, 1, "heart");
+        d.add(4, "crystal_1", Kind.MARK, 220, 612, 1, 1, "crystal");
+        d.add(4, "crystal_2", Kind.MARK, 240, 612, 1, 1, "crystal");
+        d.add(4, "crystal_3", Kind.MARK, 220, 592, 1, 1, "crystal");
+        d.add(4, "crystal_4", Kind.MARK, 240, 592, 1, 1, "crystal");
+        d.add(4, "D4", Kind.ROOM, 164, 599, 40, 28, "item");
+        d.addPath(4, "c_D3_D4", Kind.CORRIDOR, 6, 208, 606, 198, 612);
+        d.add(4, "exit_up", Kind.MARK, 198, 612, 1, 1, "gate");
+        d.add(4, "pack_1", Kind.MARK, 292, 479, 1, 1, "pack");
+        d.add(4, "pack_2", Kind.MARK, 210, 429, 1, 1, "pack");
+        d.add(4, "pack_3", Kind.MARK, 60, 529, 1, 1, "pack");
+        d.add(4, "elite_1", Kind.MARK, 175, 479, 1, 1, "elite");
+        d.add(4, "elite_2", Kind.MARK, 250, 479, 1, 1, "elite");
+        d.add(4, "elite_3", Kind.MARK, 175, 424, 1, 1, "elite");
+        d.add(4, "elite_4", Kind.MARK, 250, 424, 1, 1, "elite");
+        d.add(4, "elite_5", Kind.MARK, 80, 511, 1, 1, "elite");
     }
 }

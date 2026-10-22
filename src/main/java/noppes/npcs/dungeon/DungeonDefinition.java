@@ -59,6 +59,9 @@ public final class DungeonDefinition {
         public boolean openAir;
         public int wallHeight;
         public String floorBlock;
+        /** Нижний конец спуска. MIN_VALUE — вертикальная шахта в (x, z). */
+        public int endX = Integer.MIN_VALUE;
+        public int endZ = Integer.MIN_VALUE;
 
         public Piece(final int level, final String id, final Kind kind, final int x, final int z,
                      final int w, final int d, final String marker, final int toLevel) {
@@ -175,6 +178,15 @@ public final class DungeonDefinition {
 
     public DungeonDefinition shaft(final int fromLv, final int toLv, final String id, final int x, final int z) {
         return push(new Piece(fromLv, id, Kind.SHAFT, x, z, 3, 3, "gate", toLv));
+    }
+
+    /** Спуск между этажами спирали: 3×3 на верхнем этаже и 3×3 на нижнем, пол идёт ступеньками. */
+    public DungeonDefinition ramp(final int fromLv, final int toLv, final String id, final int x1, final int z1,
+                                  final int x2, final int z2) {
+        push(new Piece(fromLv, id, Kind.SHAFT, x1, z1, 3, 3, "gate", toLv));
+        this.last.endX = x2;
+        this.last.endZ = z2;
+        return this;
     }
 
     public DungeonDefinition air() {

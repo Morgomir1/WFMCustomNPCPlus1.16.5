@@ -129,12 +129,10 @@ L1 = [
          label="A4 Загон · арена Б1", sub=("44×38 бл. · 4 кола",), at=(200, 9)),
     path(1, "path_A5_A4", "PATH", 6, [262, 90, 270, 70, 278, 55], air=True,
          label="Загонная тропа", sub=("отряд",), at=(281, 76)),
-    circle(1, "sinkhole", "SAFE", 230, 27, 26, air=True, java=False, cls="rm sink",
-           label="Провал к Б4", sub=("открытый колодец · ночное небо",), at=(168, 62)),
     rect(1, "entrance", "ROOM", 90, 242, 24, 9, "gate", air=True, walls=5, cls="ink", tag="ВХОД"),
     rect(1, "exit_gate", "ROOM", 168, 242, 27, 9, "gate", air=True, walls=5, cls="ink", tag="ВЫХОД"),
     circle(1, "gallows", "SAFE", 181, 223, 10, "gate", air=True,
-           label="Подъём Висельника", sub=("↑ из арены Б4",), at=(160, 206)),
+           label="Поляна у виселицы", sub=("выход с просеки на юг",), at=(160, 206)),
     path(1, "path_exit", "PATH", 4, [181, 251, 150, 284], air=True, floor="minecraft:coarse_dirt", cls="out"),
     tower(1, "ungor_1", 66, 152),
     tower(1, "ungor_2", 84, 113),
@@ -234,10 +232,14 @@ ELITE_CAP = {
     4: "Элиты: М — минотавр, Ч — Чемпион Круга",
 }
 CAPTIONS = {
-    1: "Сетка 10 / 50 блоков · рамка данжа 350×247 · арена Б1 44×38 · переходы A1 → A2 → A3 → Тропа черепов → A5 → A4",
-    2: "Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20)",
-    3: "Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · пунктир — потайной лаз в C4 в обход колодца Б4",
-    4: "Порядок: D0 → D1 → D2 → арена D3 (r 26, открытый колодец западнее A4) · красные линии — жёлобы",
+    1: "Сетка 10 / 50 блоков · рамка данжа 350×247 · арена Б1 44×38 · переходы A1 → A2 → A3 → Тропа черепов → A5 → A4"
+       "<br>В мире это северо-запад спирали: план совпадает с постройкой",
+    2: "Порядок: B1 → B2 → B3 → Галерея костей → B4 → арена B5 (r 20)"
+       "<br>В мире этаж отзеркален по X и стоит к востоку от просеки",
+    3: "Порядок: C1 → C2 → C3 → C3а → арена C5 (r 21) · пунктир — потайной лаз в C4"
+       "<br>В мире этаж отзеркален по X и по Z: юго-восток спирали",
+    4: "Порядок: D0 → D1 → D2 → арена D3 (r 26, колодец до неба) · красные линии — жёлобы"
+       "<br>В мире этаж отзеркален по Z и стоит к югу от просеки. Винт колодца выходит на поверхность",
 }
 
 
@@ -259,6 +261,77 @@ def bbox(p: P):
     if p.shape == "shaft":
         return g[0], g[1], g[0] + 3, g[1] + 3
     return g[0], g[1], g[0] + 1, g[1] + 1
+
+
+# Локальные планы не трогаем. В мире этажи спирали: L2/L3 на восток, L3/L4 на юг.
+# Между пятнами GAP блоков пустоты, чтобы спуск не резал чужие комнаты.
+GAP = 16
+
+
+def bbox_ex(p: P):
+    x1, z1, x2, z2 = bbox(p)
+    if p.shape in ("poly", "path"):
+        return x1, z1, x2 + 1, z2 + 1
+    return x1, z1, x2, z2
+
+
+def exclusive_bounds(lv: int):
+    x1 = z1 = 10 ** 9
+    x2 = z2 = -10 ** 9
+    for p in PIECES:
+        if p.lv != lv or not p.java:
+            continue
+        a, b, c, d = bbox_ex(p)
+        x1, z1, x2, z2 = min(x1, a), min(z1, b), max(x2, c), max(z2, d)
+    return x1, z1, x2, z2
+
+
+def spiral_edges():
+    _, _, l1x, l1z = exclusive_bounds(1)
+    _, _, _, l2z = exclusive_bounds(2)
+    return max(l1x, FRAME_W), max(l1z, l2z)
+
+
+def reflect_block(v: int, edge: int, gap: int = GAP) -> int:
+    return 2 * edge + gap - 1 - v
+
+
+def xf_block(lv: int, x: int, z: int, edges=None):
+    if edges is None:
+        edges = spiral_edges()
+    ex, ez = edges
+    if lv in (2, 3):
+        x = reflect_block(x, ex)
+    if lv in (3, 4):
+        z = reflect_block(z, ez)
+    return x, z
+
+
+def xf_box(lv: int, x: int, z: int, w: int, d: int):
+    xa, za = xf_block(lv, x, z)
+    xb, zb = xf_block(lv, x + w - 1, z + d - 1)
+    return min(xa, xb), min(za, zb), abs(xb - xa) + 1, abs(zb - za) + 1
+
+
+def world_flat(lv: int, flat):
+    out = []
+    for i in range(0, len(flat), 2):
+        x, z = xf_block(lv, flat[i], flat[i + 1])
+        out.extend((x, z))
+    return out
+
+
+def world_aabb(p: P):
+    x1, z1, x2, z2 = bbox_ex(p)
+    if x2 <= x1 or z2 <= z1:
+        return x1, z1, x2, z2
+    xs, zs = [], []
+    for x in (x1, x2 - 1):
+        for z in (z1, z2 - 1):
+            wx, wz = xf_block(p.lv, x, z)
+            xs.append(wx)
+            zs.append(wz)
+    return min(xs), min(zs), max(xs) + 1, max(zs) + 1
 
 
 def contains(p: P, x: float, z: float) -> bool:
@@ -323,9 +396,11 @@ def check() -> list[str]:
     for p in PIECES:
         if p.lv != 4 or p.id != "D3" or p.shape != "circle":
             continue
-        blocked = sky_well_hits(p.geom)
+        blocked = sky_well_hits(p)
         if blocked:
             errors.append("D3 колодец неба пересекает: " + ", ".join(blocked))
+    errors.extend(spiral_overlap())
+    errors.extend(ramp_clearance())
     return errors
 
 
@@ -364,30 +439,78 @@ def upper_block(p: P, x: int, z: int) -> bool:
     return contains(p, x, z)
 
 
-def sky_well_hits(geom) -> list[str]:
-    cx, cz, r = geom
+def sky_well_hits(arena: P) -> list[str]:
+    cx, cz, r = arena.geom
+    wx, wz = xf_block(arena.lv, cx, cz)
     rx = r + 0.5
-    x0, x1 = math.floor(cx - rx), math.ceil(cx + rx)
-    z0, z1 = math.floor(cz - rx), math.ceil(cz + rx)
     found = []
     seen = set()
-    upper = [p for p in PIECES if p.lv in (1, 2, 3)]
-    for z in range(z0, z1 + 1):
-        for x in range(x0, x1 + 1):
-            if not ellipse_block(cx, cz, r, x, z):
+    upper = [p for p in PIECES if p.lv != arena.lv and p.java]
+    for dz in range(-r - 1, r + 2):
+        for dx in range(-r - 1, r + 2):
+            x, z = wx + dx, wz + dz
+            if not ellipse_block(wx, wz, r, x, z):
                 continue
-            if x <= 0 or z <= 0 or x >= FRAME_W - 1 or z >= FRAME_D - 1:
-                key = "рамка"
-                if key not in seen:
-                    seen.add(key)
-                    found.append(f"{key} ({x}, {z})")
             for p in upper:
-                if not upper_block(p, x, z):
+                lx, lz = xf_block(p.lv, x, z)
+                if not upper_block(p, lx, lz):
                     continue
                 key = f"L{p.lv}:{p.id}"
                 if key not in seen:
                     seen.add(key)
                     found.append(f"{key} ({x}, {z})")
+    return found
+
+
+def aabb_hit(a, b) -> bool:
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def spiral_overlap() -> list[str]:
+    boxes = []
+    for p in PIECES:
+        if not p.java or p.shape == "shaft":
+            continue
+        if p.kind in ("MARK", "TOWER"):
+            continue
+        boxes.append((p, world_aabb(p)))
+    found = []
+    for i, (a, aa) in enumerate(boxes):
+        for b, bb in boxes[i + 1:]:
+            if a.lv == b.lv or not aabb_hit(aa, bb):
+                continue
+            found.append(f"L{a.lv}:{a.id} ∩ L{b.lv}:{b.id}")
+            if len(found) > 12:
+                return found
+    return found
+
+
+def ramp_clearance() -> list[str]:
+    found = []
+    solids = [p for p in PIECES if p.java and p.kind not in ("BORDER", "MARK", "TOWER") and p.shape != "shaft"]
+    for p in PIECES:
+        if p.shape != "shaft":
+            continue
+        x1, z1, _, _ = xf_box(p.lv, p.geom[0], p.geom[1], 3, 3)
+        x2, z2, _, _ = xf_box(p.to_lv, p.geom[0], p.geom[1], 3, 3)
+        c0 = (x1 + 1, z1 + 1)
+        c1 = (x2 + 1, z2 + 1)
+        steps = max(abs(c1[0] - c0[0]), abs(c1[1] - c0[1]), 1)
+        sx, sz = p.geom
+        seen = set()
+        for i in range(0, steps + 1):
+            x = c0[0] + (c1[0] - c0[0]) * i // steps
+            z = c0[1] + (c1[1] - c0[1]) * i // steps
+            for q in solids:
+                lx, lz = xf_block(q.lv, x, z)
+                if not upper_block(q, lx, lz):
+                    continue
+                if q.lv in (p.lv, p.to_lv) and upper_block(q, sx + 1, sz + 1):
+                    continue
+                key = f"{p.id}→L{q.lv}:{q.id}"
+                if key not in seen:
+                    seen.add(key)
+                    found.append(f"спуск {key} ({x}, {z})")
     return found
 
 
@@ -420,27 +543,36 @@ def jnums(nums, indent=16, per_line=16):
 
 def java_piece(p: P) -> str:
     g = p.geom
+    lv = p.lv
     k = f"Kind.{p.kind}"
     if p.shape == "rect":
-        s = f'd.add({p.lv}, "{p.id}", {k}, {g[0]}, {g[1]}, {g[2]}, {g[3]}, "{p.marker}")'
+        x, z, w, d = xf_box(lv, g[0], g[1], g[2], g[3])
+        s = f'd.add({lv}, "{p.id}", {k}, {x}, {z}, {w}, {d}, "{p.marker}")'
     elif p.shape == "ellipse":
-        s = f'd.addEllipse({p.lv}, "{p.id}", {k}, {g[0]}, {g[1]}, {g[2]}, {g[3]}, "{p.marker}")'
+        x, z, w, d = xf_box(lv, g[0], g[1], g[2], g[3])
+        s = f'd.addEllipse({lv}, "{p.id}", {k}, {x}, {z}, {w}, {d}, "{p.marker}")'
     elif p.shape == "circle":
-        s = f'd.addCircle({p.lv}, "{p.id}", {k}, {g[0]}, {g[1]}, {g[2]}, "{p.marker}")'
+        cx, cz = xf_block(lv, g[0], g[1])
+        s = f'd.addCircle({lv}, "{p.id}", {k}, {cx}, {cz}, {g[2]}, "{p.marker}")'
     elif p.shape == "poly":
-        s = f'd.addPoly({p.lv}, "{p.id}", {k}, "{p.marker}",\n                {jnums(g)})'
+        s = f'd.addPoly({lv}, "{p.id}", {k}, "{p.marker}",\n                {jnums(world_flat(lv, g))})'
     elif p.shape == "path":
         w, pts = g
-        if len(pts) > 8:
-            s = f'd.addPath({p.lv}, "{p.id}", {k}, {w},\n                {jnums(pts)})'
+        flat = world_flat(lv, pts)
+        if len(flat) > 8:
+            s = f'd.addPath({lv}, "{p.id}", {k}, {w},\n                {jnums(flat)})'
         else:
-            s = f'd.addPath({p.lv}, "{p.id}", {k}, {w}, {jnums(pts)})'
+            s = f'd.addPath({lv}, "{p.id}", {k}, {w}, {jnums(flat)})'
     elif p.shape == "mark":
-        s = f'd.add({p.lv}, "{p.id}", Kind.MARK, {g[0]}, {g[1]}, 1, 1, "{p.marker}")'
+        x, z, _, _ = xf_box(lv, g[0], g[1], 1, 1)
+        s = f'd.add({lv}, "{p.id}", Kind.MARK, {x}, {z}, 1, 1, "{p.marker}")'
     elif p.shape == "tower":
-        s = f'd.add({p.lv}, "{p.id}", Kind.TOWER, {g[0]}, {g[1]}, 3, 3, "{p.marker}")'
+        x, z, _, _ = xf_box(lv, g[0], g[1], 3, 3)
+        s = f'd.add({lv}, "{p.id}", Kind.TOWER, {x}, {z}, 3, 3, "{p.marker}")'
     elif p.shape == "shaft":
-        s = f'd.shaft({p.lv}, {p.to_lv}, "{p.id}", {g[0]}, {g[1]})'
+        x1, z1, _, _ = xf_box(lv, g[0], g[1], 3, 3)
+        x2, z2, _, _ = xf_box(p.to_lv, g[0], g[1], 3, 3)
+        s = f'd.ramp({lv}, {p.to_lv}, "{p.id}", {x1}, {z1}, {x2}, {z2})'
     else:
         raise ValueError(p.shape)
     if p.air:
@@ -462,7 +594,8 @@ def java_source() -> str:
         "",
         "/**",
         " * Сгенерировано tools/herdstone/herdstone_layout.py — правь раскладку там, а не здесь.",
-        " * 1 единица = 1 блок; на картах herdstone_dungeon.html 1 блок = 1.8 единицы SVG.",
+        " * 1 единица = 1 блок; на картах локаций 1 блок = 1.8 единицы SVG (координаты локальные).",
+        " * В мире этажи не столб: L1 как на плане, L2 и L3 отзеркалены на восток, L3 и L4 — на юг.",
         " */",
         "public final class HerdstoneDungeon {",
         "    private HerdstoneDungeon() {",
@@ -803,6 +936,73 @@ def svg_level(lv) -> str:
     return "\n".join(o) + "\n" + cap + "\n" + legend_html(lv)
 
 
+def svg_spiral() -> str:
+    spots = []
+    for lv in LEVELS:
+        x1, z1, x2, z2 = exclusive_bounds(lv)
+        corners = [xf_block(lv, x1, z1), xf_block(lv, x2 - 1, z1),
+                   xf_block(lv, x1, z2 - 1), xf_block(lv, x2 - 1, z2 - 1)]
+        xs = [c[0] for c in corners]
+        zs = [c[1] for c in corners]
+        spots.append((lv, min(xs), min(zs), max(xs) + 1, max(zs) + 1))
+    d3 = next(p for p in PIECES if p.lv == 4 and p.id == "D3")
+    well = xf_block(4, d3.geom[0], d3.geom[1])
+    shafts = []
+    for p in PIECES:
+        if p.shape != "shaft":
+            continue
+        a = xf_box(p.lv, p.geom[0], p.geom[1], 3, 3)
+        b = xf_box(p.to_lv, p.geom[0], p.geom[1], 3, 3)
+        shafts.append((p.lv, p.to_lv, a[0] + 1, a[1] + 1, b[0] + 1, b[1] + 1))
+    minx = min(s[1] for s in spots) - 30
+    minz = min(s[2] for s in spots) - 36
+    maxx = max(max(s[3] for s in spots), well[0] + 40) + 30
+    maxz = max(max(s[4] for s in spots), well[1] + 40) + 24
+    vw, vh = 920, 640
+    sx = (vw - 40) / (maxx - minx)
+    sy = (vh - 36) / (maxz - minz)
+    sc = min(sx, sy)
+
+    def X(x):
+        return f1(20 + (x - minx) * sc)
+
+    def Z(z):
+        return f1(28 + (z - minz) * sc)
+
+    bands = {1: "band", 2: "band b2", 3: "band b3", 4: "band b4"}
+    o = [f'<svg viewBox="0 0 {vw} {vh}" role="img" aria-label="Спираль локаций">',
+         f'  <rect class="bg" width="{vw}" height="{vh}"/>']
+    for lv, x1, z1, x2, z2 in spots:
+        o.append(
+            f'  <rect class="{bands[lv]}" x="{X(x1)}" y="{Z(z1)}" '
+            f'width="{f1((x2 - x1) * sc)}" height="{f1((z2 - z1) * sc)}"/>')
+        o.append(text("l", float(X(x1)) + 8, float(Z(z1)) + 18,
+                      f'{lv} · {LEVELS[lv]["name"]}'))
+        o.append(text("s", float(X(x1)) + 8, float(Z(z1)) + 34,
+                      f'пол на {LEVELS[lv]["y"]} от блока входа'))
+    for lv, to, x1, z1, x2, z2 in shafts:
+        o.append(f'  <line class="route" x1="{X(x1)}" y1="{Z(z1)}" x2="{X(x2)}" y2="{Z(z2)}"/>')
+        o.append(text("s", (float(X(x1)) + float(X(x2))) / 2, (float(Z(z1)) + float(Z(z2))) / 2 - 4,
+                      f'спуск {lv}→{to}'))
+    o.append(
+        f'  <circle class="rm sink" cx="{X(well[0])}" cy="{Z(well[1])}" r="{f1(26 * sc)}"/>')
+    o.append(text("s", float(X(well[0])) + 8, float(Z(well[1])) - 8, "колодец Б4 · винт на поверхность"))
+    o.append(text("s", 20, 16, "Север сверху · 1 клетка схемы ≈ 1 блок · пятна не стоят друг под другом"))
+    o.append("</svg>")
+    cap = ("<div class=\"cap\">Часовая спираль: просека → восток в крипту → юг в корни → запад в провал. "
+           "Планы ниже — локальные, до отражения. Колодец Б4 открывается над ареной, а не под загоном A4. "
+           f"Угол постройки (0, 0) — северо-запад рамки просеки.</div>")
+    return "\n".join(o) + "\n" + cap
+
+
+def inject_spiral(html: str) -> str:
+    start, end = "<!-- MAP:SPIRAL -->", "<!-- /MAP:SPIRAL -->"
+    block = f"{start}\n{svg_spiral()}\n{end}"
+    if start not in html:
+        raise SystemExit("нет <!-- MAP:SPIRAL --> в HTML")
+    return re.sub(re.escape(start) + r".*?" + re.escape(end), lambda _: block, html, count=1, flags=re.S)
+
+
 def inject_maps(html: str) -> str:
     for lv in LEVELS:
         start, end = f"<!-- MAP:L{lv} -->", f"<!-- /MAP:L{lv} -->"
@@ -822,6 +1022,48 @@ def inject_maps(html: str) -> str:
     return html
 
 
+def rel_of(lv, x, z, cx, cz):
+    wx, wz = xf_block(lv, x, z)
+    bx, bz = xf_block(lv, cx, cz)
+    return wx - bx, wz - bz
+
+
+def script_origins() -> str:
+    """Абсолютные ORIGIN, если игрок стоит в блоке (0, 64, 0) — северо-запад рамки."""
+    lines = ["ORIGIN при входе (0, 64, 0):"]
+    points = [
+        ("A4", 1, 280, 37, 64),
+        ("B5", 2, 200, 222, 40),
+        ("C5", 3, 300, 152, 16),
+        ("C4", 3, 304, 28, 16),
+        ("D3", 4, 230, 27, -8),
+    ]
+    for name, lv, x, z, y in points:
+        wx, wz = xf_block(lv, x, z)
+        lines.append(f"  {name} = [{wx}, {y}, {wz}]")
+    lines.append("ворота от центра (dx, dz, w, d):")
+    gates = [
+        ("B5_down", 2, 200, 222, 190, 230, 3, 3),
+        ("C5_down", 3, 300, 152, 300, 162, 3, 3),
+        ("exit_up", 4, 230, 27, 198, 17, 1, 1),
+    ]
+    for name, lv, cx, cz, x, z, w, d in gates:
+        sx, sz, sw, sd = xf_box(lv, x, z, w, d)
+        bx, bz = xf_block(lv, cx, cz)
+        lines.append(f"  {name} hsBox({sx - bx}, 0, {sz - bz}, {sw}, 2, {sd})")
+    lines.append("сердца и кристаллы D3 (dx, dz):")
+    for label, pts in (
+        ("heart", [(230, 5), (211, 40), (249, 40)]),
+        ("crystal", [(220, 17), (240, 17), (220, 37), (240, 37)]),
+    ):
+        rels = [rel_of(4, x, z, 230, 27) for x, z in pts]
+        lines.append(f"  {label} {rels}")
+    lines.append("тотемы B5:")
+    rels = [rel_of(2, x, z, 200, 222) for x, z in ((186, 210), (214, 210), (186, 234), (214, 234))]
+    lines.append(f"  {rels}")
+    return "\n".join(lines)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="только проверить раскладку")
@@ -835,8 +1077,9 @@ def main() -> int:
         print("раскладка в порядке")
         return 0
     JAVA_OUT.write_text(java_source(), encoding="utf-8")
-    HTML.write_text(inject_maps(HTML.read_text(encoding="utf-8")), encoding="utf-8")
+    HTML.write_text(inject_spiral(inject_maps(HTML.read_text(encoding="utf-8"))), encoding="utf-8")
     print(f"записано: {JAVA_OUT.relative_to(ROOT)}, {HTML.relative_to(ROOT)}")
+    print(script_origins())
     return 0
 
 

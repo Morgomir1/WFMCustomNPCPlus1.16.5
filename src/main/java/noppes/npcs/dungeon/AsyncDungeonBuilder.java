@@ -117,6 +117,7 @@ public final class AsyncDungeonBuilder {
             }
             compilePiece(jobs, def, rec, ox, oy, oz, openings, rooms);
         }
+        carveSkyWells(jobs, def, pieces, ox, oy, oz, levels);
         return jobs;
     }
 
@@ -279,30 +280,44 @@ public final class AsyncDungeonBuilder {
         if (!rec.marker.isEmpty()) {
             addSet(jobs, ox + rec.x + rec.w / 2, y0 + 1, oz + rec.z + rec.d / 2, marker(rec.marker));
         }
-        if (openAir && rec.kind == Kind.ARENA && rec.level > 1) {
+    }
+
+    /** Открытые арены ниже поверхности: колодец после всех комнат, иначе поздний кусок кладёт крышу обратно. */
+    private static void carveSkyWells(final List<FillJob> jobs, final DungeonDefinition def, final List<Piece> pieces,
+                                      final int ox, final int oy, final int oz, final Set<Integer> levels) {
+        for (int i = 0, n = pieces.size(); i < n; i++) {
+            final Piece rec = pieces.get(i);
+            if (!levels.contains(rec.level) || !rec.openAir || rec.kind != Kind.ARENA || rec.level <= 1) {
+                continue;
+            }
+            final int y0 = floorY(def, rec.level, oy);
+            final int h = rec.wallHeight > 0 ? rec.wallHeight : 4;
             carveSkyWell(jobs, def, rec, ox, oy, oz, y0, h);
         }
     }
 
-    /** Воздух от верха стен арены до headroom поверхности и парапет вокруг провала на L1. */
+    /**
+     * Воздух от верха стен арены до границы постройки (y 255) и парапет на полу L1.
+     * clearHeadroom сюда не годится: выше него остаются холмы и кроны, и из арены не видно неба.
+     */
     private static void carveSkyWell(final List<FillJob> jobs, final DungeonDefinition def, final Piece rec,
                                      final int ox, final int oy, final int oz, final int y0, final int h) {
-        final int yTop = floorY(def, 1, oy) + def.clearHeadroom;
-        final int yFrom = y0 + h;
-        if (yTop < yFrom) {
+        final int yTop = 255;
+        int yFrom = y0 + h;
+        if (yFrom < 0) {
+            yFrom = 0;
+        }
+        if (yFrom > yTop) {
             return;
         }
         final int xMin = rec.x;
         final int zMin = rec.z;
         final int xMax = rec.x + rec.w - 1;
         final int zMax = rec.z + rec.d - 1;
-        final int y1 = floorY(def, 1, oy);
         for (int z = zMin; z <= zMax; z++) {
             int airRun = Integer.MIN_VALUE;
-            int rimRun = Integer.MIN_VALUE;
             for (int x = xMin; x <= xMax + 1; x++) {
                 final boolean inside = x <= xMax && DungeonGeometry.contains(rec, x, z);
-                final boolean rim = inside && DungeonGeometry.perimeter(rec, x, z);
                 if (inside) {
                     if (airRun == Integer.MIN_VALUE) {
                         airRun = x;
@@ -311,6 +326,17 @@ public final class AsyncDungeonBuilder {
                     addClear(jobs, ox + airRun, yFrom, oz + z, ox + x - 1, yTop, oz + z);
                     airRun = Integer.MIN_VALUE;
                 }
+            }
+        }
+        final int y1 = floorY(def, 1, oy);
+        if (y1 < 0 || y1 > yTop - 3) {
+            return;
+        }
+        for (int z = zMin; z <= zMax; z++) {
+            int rimRun = Integer.MIN_VALUE;
+            for (int x = xMin; x <= xMax + 1; x++) {
+                final boolean inside = x <= xMax && DungeonGeometry.contains(rec, x, z);
+                final boolean rim = inside && DungeonGeometry.perimeter(rec, x, z);
                 if (rim) {
                     if (rimRun == Integer.MIN_VALUE) {
                         rimRun = x;
@@ -585,6 +611,10 @@ public final class AsyncDungeonBuilder {
                 final int rem = this.cursor / this.dx;
                 final int y = this.y1 + rem % this.dy;
                 final int z = this.z1 + rem / this.dy;
+                if (y < 0 || y > 255) {
+                    this.cursor++;
+                    continue;
+                }
                 final int cx = x >> 4;
                 final int cz = z >> 4;
                 if (cx != lastCx || cz != lastCz) {

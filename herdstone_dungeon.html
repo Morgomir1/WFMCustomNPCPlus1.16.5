@@ -741,7 +741,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <!-- ================= CNPC ================= -->
 <section id="cnpc">
 <h2>Как собрать это в CustomNPC+</h2>
-<p class="note">Ниже только то, что ставится руками в GUI и скриптах этой сборки. Скрипты — Nashorn: <code>var</code> и <code>function</code>, storeddata только строками. У каждого NPC в контейнере скриптов <b>два файла</b>: первый — <code>hs_core.js</code> (общий), второй — файл босса или моба. Глобальные <code>function init</code>/<code>tick</code>/<code>timer</code> из второго файла перекрывают одноимённые из первого, поэтому в ядре нет событий, только функции <code>hs*</code>. Командные блоки, <code>/fill</code> и <code>/effect</code> не нужны. Раскладка комнат и маркеров — <code>tools/herdstone/herdstone_layout.py</code>.</p>
+<p class="note">Ниже только то, что ставится руками в GUI и скриптах этой сборки. Пошаговый порядок внедрения — <code>herdstone_deploy.md</code>. Скрипты — Nashorn: <code>var</code> и <code>function</code>, storeddata только строками. В контейнере скриптов ядро первое, файл босса или пресет моба ниже. Глобальные <code>function init</code>/<code>tick</code>/<code>timer</code> из нижнего файла перекрывают одноимённые, поэтому в ядре нет событий, только функции <code>hs*</code>. Командные блоки, <code>/fill</code> и <code>/effect</code> не нужны. Раскладка комнат и маркеров — <code>tools/herdstone/herdstone_layout.py</code>.</p>
 
 <h3>1. Фракции (Global → Factions)</h3>
 <ol>
@@ -859,15 +859,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 
 
 <h3>Порядок работ</h3>
-<ol>
-  <li>Четыре фракции. Лагеря: квестодатели, Trader, <code>setSpawnpoint</code> в interact.</li>
-  <li>Пять Area Kill-квестов, по два диалога (Отто / Гурхак) на каждый, Completion Instant.</li>
-  <li>Построить каркас: <code>/cnpcdungeon herdstone</code> (раскладка из <code>HerdstoneDungeon</code>). Ворота арен и выход — завалы в <code>GATE</code> файлов боссов, центр — <code>ORIGIN</code> этого босса.</li>
-  <li>Клоны из таблицы: расставленные — Respawn 3600, «(призыв)», копии, сердца, кристаллы, тотемы Мургрота — Respawn = Нет. Tab 2.</li>
-  <li>Скрипты: ядро + файл босса/моба. У мобов — свой пресет CASTS. У Горгона Return to start = да.</li>
-  <li>Scripted Block: <code>block_fog.js</code> и <code>block_herb.js</code>. По желанию — <code>block_dmg_scale.js</code> у входа.</li>
-  <li>Проход за Порядок и за Разрушение. Час ожидания у ворот: босс возродился, ворота закрылись.</li>
-</ol>
+<p>Полный план внедрения — <code>herdstone_deploy.md</code>: копирование в сейв, фракции, <code>ORIGIN</code> под свою точку входа, клонер, порядок файлов в GUI, квесты, Scripted Block и проход.</p>
 </section>
 
 <footer>Камень Расколотого Рога · инструкция по сборке в CustomNPC+ 1.16.5 · фанатский проект по Warhammer Fantasy</footer>

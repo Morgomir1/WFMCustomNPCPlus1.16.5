@@ -1,6 +1,7 @@
 # Herdstone: план реализации скриптов
 
 Источник требований — [herdstone_dungeon.html](herdstone_dungeon.html) (раздел «Как собрать это в CustomNPC+»).
+Как ставить это в мир — [herdstone_deploy.md](herdstone_deploy.md).
 В HTML уже есть черновики почти всех скриптов. API мода сверено: `AbilityAPI`, `TelegraphAPI`,
 `ZoneAPI`, `AbilityCombatHelper`, все 8 абилок и глобальные `PotionEffectType_*` существуют
 с подходящими сигнатурами. Работа — вынести код в файлы, исправить баги и дописать недостающее.

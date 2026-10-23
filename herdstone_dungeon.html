@@ -763,7 +763,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td>Барабанщик</td><td><code>hs_core</code> + барабанщик</td><td>Элита C2</td></tr>
 <tr><td>Минотавр</td><td><code>hs_core</code> + <code>hs_mob</code> (пресет минотавра) + безумие</td><td>C3а, D1</td></tr>
 <tr><td>Гор (призыв), Унгор-рейдер (призыв)</td><td>как у расставленных</td><td>Адды. Respawn = Нет</td></tr>
-<tr><td>Кровохряк, Грул Кабанья Рука</td><td><code>hs_core</code> + свой файл</td><td>Б1 (имена = цели квеста)</td></tr>
+<tr><td>Кровохряк, Грул Кабанья Рука</td><td><code>hs_core</code> + <code>boss_bloodtusk.js</code> / <code>boss_grul.js</code></td><td>Б1 (имена = цели квеста)</td></tr>
 <tr><td>Мургрот Туманный Глас, Тотем Мургрота, Мургрот-копия</td><td>Мургрот / без скрипта / копия</td><td>Б2 (копия и тотемы — Respawn = Нет)</td></tr>
 <tr><td>Великая Утроба</td><td><code>hs_core</code> + Горгон</td><td>Б3</td></tr>
 <tr><td>Гарракс Расколотый Рог, Сердце жёлоба, Варп-кристалл</td><td>Гарракс / сердце / кристалл</td><td>Б4 (сердца и кристаллы — Respawn = Нет)</td></tr>
@@ -776,13 +776,13 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <p>Отдельного NPC, который держит весь данж, нет. Каждая часть сбрасывает себя сама и только тогда, когда рядом есть игроки:</p>
 <ul>
   <li><b>Мобы и боссы</b> — встроенный Respawn 3600. Бой на арене: 15 с без игроков — <code>npc.reset()</code> (ядро).</li>
-  <li><b>Ворота арен и выход</b> — <code>died</code> босса снимает завал, <code>init</code> босса ставит обратно. CNPC вызывает <code>init</code> из <code>reset()</code> при каждом возрождении. В файле босса одна мировая точка <code>ORIGIN</code> (центр арены); завал — оффсеты <code>GATE</code> от неё.</li>
+  <li><b>Ворота арен и выход</b> — <code>died</code> босса снимает завал, <code>init</code> босса ставит обратно. CNPC вызывает <code>init</code> из <code>reset()</code> при каждом возрождении. Центр арены — локальный <code>CENTER</code> и этаж <code>FLOOR</code>; мировую точку считает <code>hsOrigin()</code> из <code>hs_origin</code>. Завал — оффсеты <code>GATE</code> от неё. У пары Б1 завал один и тот же в обоих файлах: закрывает тот, кто возродился первым.</li>
 </ul>
 <p>Время везде — <code>world.getTotalTime()</code> (тики, 72000 = час). Оно стоит, пока сервер выключен. На игру это не влияет.</p>
 <p>Маркеры строителя: pack — белая шерсть, elite — оранжевая, stake — бревно тёмного дуба, totem/menhir — блок кости, heart — редстоун, crystal — изумруд, herb — лаймовая шерсть, fog — зелёная, boss — красная. Колодец Б4 режется после всех комнат: воздух от верха стен D3 до y 255, винт из брёвен по кромке, кольцо барьера вокруг устья на высоте входа.</p>
 
 <h3>4. Скрипты</h3>
-<p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. В файле босса после постройки подставь <b>одну</b> мировую точку <code>ORIGIN</code> — центр арены (или оставь пустым: тогда берётся точка спауна NPC). Колья, тотемы, сердца, кристаллы, менгиры и завал — оффсеты <code>[dx, dy, dz]</code> от ORIGIN, их не пересчитывай. Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
+<p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. В файле босса центр арены — локальный <code>CENTER</code> <code>[x, dy, z]</code> и этаж <code>FLOOR</code>. Мировую точку считает <code>hsOrigin()</code> из world storeddata <code>hs_origin</code> (её пишет строитель). Ручной <code>ORIGIN</code> — только запас, если <code>hs_origin</code> нет; пустой массив значит «взять точку спауна NPC». Колья, тотемы, сердца, кристаллы, менгиры и завал — оффсеты <code>[dx, dy, dz]</code> от этого центра, их не пересчитывай. Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
 <p>Сложность крутится <b>в одном месте</b>: поле <code>HS.DMG</code> в первом файле (<code>hs_core.js</code>) или ключ world storeddata <code>hs_dmg</code> (перекрывает файл, пока сервер не перезапустят и ключ не сотрут). Он множит и исходящий урон (<code>hsStrike</code> / <code>hsStart</code>), и HP боссов на пуле. Автоатака и HP мобов переходов — из вкладки Stats, их множитель не трогает.</p>
 
 <details open><summary>hs_core.js — общая библиотека (первый файл у боссов и мобов)</summary>
@@ -1278,180 +1278,12 @@ function died(e) {
 }</pre></details>
 
 <details><summary>Кровохряк (Б1)</summary>
-<pre>// Кровохряк (Б1): hs_core.js + этот файл.
-HS.BASE_HP = 300;
-HS.ARENA_R = 20;
-HS.ENRAGE_SEC = 360;
-HS.DISPEL_SEC = 99999;   // рассеивает Грул
-ORIGIN = [280, 80, 37];  // центр A4, если вход на Y 80. Иначе прибавь разницу к Y
-GATE = hsBox(12, 0, -11, 3, 2, 3);   // завал шахты A4_down (292, 26), 3×3
-var PARTNER = "Грул Кабанья Рука";
-var STAKES = [ [-16, 1, -13], [16, 1, -13], [-16, 1, 13], [16, 1, 13] ];  // нижний блок кола
-var STAKE_BLOCK = "minecraft:dark_oak_log";
-var RAM_LEN = 14;
-var RAM_EVERY = 180;     // 9 с
-var STUN_TICKS = 120;    // 6 с
-var T_RAM = 1, T_STUN = 2;
-
-function init(e) {
-    var npc = e.npc;
-    if (!hsInit(npc)) return;
-    var w = npc.getWorld();
-    for (var i = 0; i &lt; STAKES.length; i++) {
-        var p = hsXYZ(npc, STAKES[i]);
-        w.setBlock(NpcAPI.getIPos(p[0], p[1], p[2]), STAKE_BLOCK);
-        w.setBlock(NpcAPI.getIPos(p[0], p[1] + 1, p[2]), STAKE_BLOCK);
-    }
-    if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
-    npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
-    npc.getAi().setRetaliateType(0);
-    hsPut(npc, "stun", 0);
-    hsPut(npc, "ram_at", 0);
-    hsPut(npc, "mark_until", 0);
-    hsPut(npc, "widowed", 0);
-}
-
-function tick(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
-    var ps = hsFight(npc);
-    if (ps == null) return;
-    var now = hsNow(npc);
-    if (hsGet(npc, "widowed", "0") == "0" &amp;&amp; hsCount(npc, PARTNER) == 0) {
-        hsPut(npc, "widowed", 1);
-        npc.addPotionEffect(PotionEffectType_STRENGTH, 99999, 0, true);
-        npc.say("§4Кровохряк визжит над телом хозяина!");
-    }
-    if (hsGet(npc, "stun", "0") == "1" || AbilityAPI.isBusy(npc) || npc.getTimers().has(T_RAM)) return;
-    if (now &lt; hsNum(npc, "ram_at")) return;
-    var t = markedTarget(npc, now) || npc.getAttackTarget();
-    if (t == null || !t.isAlive()) return;
-    var yaw = hsYawTo(npc, t);
-    hsPut(npc, "ram_x", npc.getX());
-    hsPut(npc, "ram_z", npc.getZ());
-    hsPut(npc, "ram_yaw", yaw);
-    TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, RAM_LEN, 3.0, 40, HS.RED);
-    hsStart(npc, "dash", t, AbilityAPI.params("chargeTicks", 30, "activeTicks", 8,
-        "distance", RAM_LEN * 1.0, "damage", 4.0, "hitRadius", 1.8));
-    npc.getTimers().forceStart(T_RAM, 40, false);
-    hsPut(npc, "ram_at", now + (hsGet(npc, "widowed", "0") == "1" ? 120 : RAM_EVERY));
-}
-
-// Грул пишет кабану UUID отмеченного игрока: следующий таран идёт в него.
-function markedTarget(npc, now) {
-    if (now &gt; hsNum(npc, "mark_until")) return null;
-    var p = npc.getWorld().getEntity(hsGet(npc, "mark_uuid", ""));
-    return (p != null &amp;&amp; p.isAlive()) ? p : null;
-}
-
-function timer(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) return;
-    if (e.id == T_STUN) {
-        hsPut(npc, "stun", 0);
-        npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
-        npc.getAi().setRetaliateType(0);
-        return;
-    }
-    if (e.id != T_RAM) return;
-    var sx = hsNum(npc, "ram_x"), sz = hsNum(npc, "ram_z"), yaw = hsNum(npc, "ram_yaw");
-    var ps = hsPlayersAt(npc, sx, npc.getY(), sz, RAM_LEN + 1);
-    for (var i = 0; i &lt; ps.length; i++) {
-        if (hsOnLine(ps[i], sx, sz, yaw, RAM_LEN, 1.8)) hsStrike(ps[i], 0.30);
-    }
-    var w = npc.getWorld();
-    for (var j = 0; j &lt; STAKES.length; j++) {
-        var s = hsXYZ(npc, STAKES[j]);
-        if (String(w.getBlock(s[0], s[1], s[2]).getName()) != STAKE_BLOCK) continue;
-        if (hsFlat(npc, s[0] + 0.5, s[2] + 0.5) &gt; 2.5) continue;
-        w.removeBlock(NpcAPI.getIPos(s[0], s[1], s[2]));
-        w.removeBlock(NpcAPI.getIPos(s[0], s[1] + 1, s[2]));
-        hsPut(npc, "stun", 1);
-        npc.getAi().setWalkingSpeed(0);
-        npc.getAi().setRetaliateType(3);
-        npc.getTimers().forceStart(T_STUN, STUN_TICKS, false);
-        w.playSoundAt(npc.getPos(), "minecraft:block.wood.break", 3.0, 0.5);
-        npc.say("§eКровохряк насадился на кол и оглушён!");
-        return;
-    }
-}
-
-function damaged(e) {
-    hsCap(e, hsGet(e.npc, "stun", "0") == "1" ? 1 : HS.WEAK);
-}
-
-function died(e) {
-    AbilityAPI.cancel(e.npc);
-    if (hsCount(e.npc, PARTNER) &gt; 0) return;
-    hsSetGate(e.npc, false);
-    e.npc.say("§7Путь вниз открыт.");
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/boss_bloodtusk.js</code> (в GUI вторым после <code>hs_core.js</code>). Прямоугольник арены 22×19, колья, таран в метку Грула, оглушение на коле на 6 с, урон ×0,25 вне оглушения. Завал снимает, только если Грул уже мёртв; <code>init</code> при возрождении ставит тот же завал обратно.</p>
+</details>
 
 <details><summary>Грул Кабанья Рука (Б1)</summary>
-<pre>// Грул Кабанья Рука (Б1): hs_core.js + этот файл.
-HS.BASE_HP = 220;
-HS.ARENA_R = 20;
-HS.ENRAGE_SEC = 360;
-HS.DISPEL_SEC = 45;
-ORIGIN = [280, 80, 37];  // тот же центр A4, что у кабана
-GATE = hsBox(12, 0, -11, 3, 2, 3);   // тот же завал A4_down, что у кабана
-var BOAR = "Кровохряк";
-var MARK_EVERY = 300;    // 15 с
-var CALL_EVERY = 900;    // 45 с
-
-function init(e) {
-    var npc = e.npc;
-    if (!hsInit(npc)) return;
-    hsPut(npc, "mark_at", 0);
-    hsPut(npc, "call_at", 0);
-    hsPut(npc, "widowed", 0);
-}
-
-function tick(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) return;
-    var ps = hsFight(npc);
-    if (ps == null) return;
-    var now = hsNow(npc);
-    var boar = hsFind(npc, BOAR);
-    if (boar.length == 0 &amp;&amp; hsGet(npc, "widowed", "0") == "0") {
-        hsPut(npc, "widowed", 1);
-        npc.addPotionEffect(PotionEffectType_STRENGTH, 99999, 1, true);
-        npc.getAi().setWalkingSpeed(Math.min(10, npc.getAi().getWalkingSpeed() + 2));
-        npc.say("§4Ты убил моего кабана! Я сам тебя растопчу!");
-    }
-    if (boar.length &gt; 0 &amp;&amp; now &gt;= hsNum(npc, "mark_at")) {
-        hsPut(npc, "mark_at", now + MARK_EVERY);
-        var p = hsRandom(ps);
-        p.addPotionEffect(PotionEffectType_GLOWING, 6, 0, false);
-        boar[0].getStoreddata().put("mark_uuid", String(p.getUUID()));
-        boar[0].getStoreddata().put("mark_until", String(now + 120));
-        for (var i = 0; i &lt; ps.length; i++) ps[i].message("§6Грул метит §f" + p.getName() + "§6 — кабан пойдёт на него!");
-        p.message("§eВстань перед целым колом!");
-    }
-    if (now &gt;= hsNum(npc, "call_at")) {
-        hsPut(npc, "call_at", now + CALL_EVERY);
-        if (hsCount(npc, "Унгор-рейдер (призыв)") &lt; 4) {
-            var h = hsHome(npc);
-            npc.getWorld().spawnClone(h[0] + 6, h[1], h[2], HS.TAB, "Унгор-рейдер (призыв)");
-            npc.getWorld().spawnClone(h[0] - 6, h[1], h[2], HS.TAB, "Унгор-рейдер (призыв)");
-        }
-    }
-}
-
-function meleeAttack(e) {
-    if (e.target != null &amp;&amp; e.target.typeOf(1)) e.target.addPotionEffect(PotionEffectType_SLOWNESS, 3, 1, false);
-}
-
-function damaged(e) {
-    hsCap(e, 1);
-}
-
-function died(e) {
-    if (hsCount(e.npc, BOAR) &gt; 0) return;
-    hsSetGate(e.npc, false);
-    e.npc.say("§7Путь вниз открыт.");
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/boss_grul.js</code> (в GUI вторым после <code>hs_core.js</code>). Метка раз в 15 с, пока кабан жив. Рёв Стада раз в 45 с с начала боя: рассеивание и до двух «Унгор-рейдер (призыв)», не больше четырёх. Рейдеры в <code>SUMMONS</code> — сброс и возрождение их убирают. Тот же завал, что у кабана: закрывает тот, кто возродился первым. Смерть кабана — Сила II и +2 к скорости ходьбы.</p>
+</details>
 
 <details><summary>Мургрот Туманный Глас (Б2)</summary>
 <pre>// Мургрот Туманный Глас (Б2): hs_core.js + этот файл. Скорость 0, On Attack = Мстить, рендж в GUI.

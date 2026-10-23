@@ -359,6 +359,28 @@ function hsFight(npc) {
     return ps;
 }
 
+var HS_FACTION_IDS = {};
+
+function hsFactionId(name) {
+    if (HS_FACTION_IDS[name] != null) return HS_FACTION_IDS[name];
+    try {
+        var list = NpcAPI.getFactions().list();
+        var n = list.length;
+        if (n == null) n = list.size();
+        for (var i = 0; i < n; i++) {
+            var f = list[i];
+            if (f == null && list.get) f = list.get(i);
+            if (f != null && String(f.getName()) == name) {
+                HS_FACTION_IDS[name] = f.getId();
+                return f.getId();
+            }
+        }
+    } catch (err) {
+        log("herdstone faction: " + err);
+    }
+    return -1;
+}
+
 // Кто вышел за край (до 8 блоков) или поднялся выше пола на 4+ — в центр и −25% HP.
 function hsLeash(npc) {
     var c = hsArenaCenter(npc);

@@ -181,7 +181,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <!-- ================= BESTIARY ================= -->
 <section id="bestiary">
 <h2>Бестиарий переходов</h2>
-<p>Мобы стоят отрядами по 3–4 (белые точки на картах) и поодиночке как элиты (кружок с буквой). Все абилки — штатные из <code>AbilityAPI</code>, настройка — пресеты <code>CASTS</code> в <code>hs_mob.js</code>. Процентный удар снимается только с тех, кто остался в телеграфе. Цифры в таблице — при множителе ×1 (<code>HS.DMG</code> / <code>hs_dmg</code>).</p>
+<p>Мобы стоят отрядами по 3–4 (белые точки на картах) и поодиночке как элиты (кружок с буквой). Все абилки — штатные из <code>AbilityAPI</code>. Цепочка скрипта: <code>hs_core.js</code>, <code>hs_mob.js</code>, файл пресета <code>mob_*.js</code>. Процентный удар снимается только с тех, кто остался в телеграфе. Цифры в таблице — при множителе ×1 (<code>HS.DMG</code> / <code>hs_dmg</code>).</p>
 <div class="tbl"><table>
 <thead><tr><th>Моб</th><th>Где</th><th>HP</th><th>Что делает</th><th>Как не умереть</th></tr></thead>
 <tbody>
@@ -208,13 +208,13 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <div>
   <span class="tag t-o">ПОРЯДОК</span>
   <h3>Застава Волчьего Брода</h3>
-  <p>Юго-западная опушка. Квестодатель — <b>Отто Рейнхардт</b> (Dialog + Quest). Рядом NPC с ролью <b>Trader</b> (магазин). Кузнец — обычный NPC без роли, только декор и реплика. Респаун: в <code>interact</code> Отто вызывает <code>player.setSpawnpoint(x, y, z)</code> на кровать заставы.</p>
+  <p>Юго-западная опушка. Квестодатель — <b>Отто Рейнхардт</b> (Dialog + Quest). Рядом NPC с ролью <b>Trader</b> (магазин). Кузнец — обычный NPC без роли, только декор и реплика. Респаун: <code>camp_spawnpoint.js</code> на Отто, <code>interact</code> вызывает <code>player.setSpawnpoint</code> на койку заставы (локально −52, 1, 287 от <code>hs_origin</code>).</p>
   <p><i>«Если Камень наестся, к весне эта чаща дойдёт до стен Мидденхейма».</i></p>
 </div>
 <div>
   <span class="tag t-d">РАЗРУШЕНИЕ</span>
   <h3>Чёрный круг</h3>
-  <p>Юго-восточная опушка. Квестодатель — <b>Гурхак</b> (тот же квест, другой диалог). Рядом Trader своей фракции. Респаун: <code>setSpawnpoint</code> в <code>interact</code> Гурхака.</p>
+  <p>Юго-восточная опушка. Квестодатель — <b>Гурхак</b> (тот же квест, другой диалог). Рядом Trader своей фракции. Респаун: тот же <code>camp_spawnpoint.js</code>, койка локально 253, 1, 287.</p>
   <p><i>«Гарракс забыл, кому служит. Принеси его рога — и Камень снова будет служить сильным».</i></p>
 </div>
 </div>
@@ -671,7 +671,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td><b>D4</b></td><td>Добыча и выход наверх после Б4.</td><td>—</td></tr>
 </tbody></table></div>
 <h3>D2 Круг Вызова</h3>
-<p>Бестигоры во фракции «Нейтралы данжа»: NPC враждебной фракции диалог не откроет. Чемпион — отдельный клон «Чемпион Круга» с Dialog «Право Вызова». Опция «принять» (<code>dialogOption</code>): поставить кольцо <code>minecraft:barrier</code> по списку координат, чемпиону <code>setFaction(id Стада)</code> и On Attack = Мстить. <code>died</code> чемпиона снимает кольцо. Опция «отказаться» или удар по любому бестигору (<code>damaged</code>): всем <code>setFaction</code> Стада, кольцо не ставится — группа дерётся со всеми сразу. <code>init</code> каждого бестигора возвращает фракцию «Нейтралы данжа». В <code>tick</code> бестигора без цели и без игроков в радиусе 32 — вернуть нейтральную фракцию; чемпион заодно снимает кольцо. После круга коридор ведёт на арену Б4.</p>
+<p>Бестигоры во фракции «Нейтралы данжа»: NPC враждебной фракции диалог не откроет. Чемпион — клон «Чемпион Круга»: <code>hs_core.js</code> + <code>hs_mob.js</code> + <code>mob_executioner.js</code> + <code>champion.js</code>. Бестигор: <code>hs_core.js</code> + <code>beastigor_neutral.js</code>. Оба вешают метку <code>hs_challenge</code>. Диалог «Право Вызова»: опции с словами «принять» и «отказаться». <code>dialogOption</code> здесь событие NPC. «Принять» ставит кольцо барьера радиусом 8 вокруг дома чемпиона (3 блока вверх), фракцию Стада и On Attack = Мстить. «Отказаться» или удар по бестигору переводит всю метку в Стадо, кольцо не ставится. <code>died</code> чемпиона снимает кольцо. Без цели и без игроков в 32 блоках оба возвращают «Нейтралов данжа», чемпион снимает кольцо. После круга коридор ведёт на арену Б4.</p>
 </section>
 
 <!-- ================= BOSSES ================= -->
@@ -757,18 +757,18 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <div class="tbl"><table>
 <thead><tr><th>Имя в клонере</th><th>Скрипт</th><th>Зачем</th></tr></thead>
 <tbody>
-<tr><td>Гор-рубака, Гор-щитоносец, Унгор-лучник, Унгор-рейдер, Бестигор-палач, Центигор, Отродье Хаоса</td><td><code>hs_core</code> + <code>hs_mob</code> с нужным пресетом CASTS</td><td>Отряды и элиты переходов, Respawn 3600</td></tr>
-<tr><td>Бра-шаман</td><td><code>hs_core</code> + шаман</td><td>Элита B2/B3</td></tr>
-<tr><td>Тотем Стада</td><td>только тотем</td><td>Элита B3, скорость 0, On Attack = Ничего</td></tr>
-<tr><td>Барабанщик</td><td><code>hs_core</code> + барабанщик</td><td>Элита C2</td></tr>
-<tr><td>Минотавр</td><td><code>hs_core</code> + <code>hs_mob</code> (пресет минотавра) + безумие</td><td>C3а, D1</td></tr>
+<tr><td>Гор-рубака, Гор-щитоносец, Унгор-лучник, Унгор-рейдер, Бестигор-палач, Центигор, Отродье Хаоса</td><td><code>hs_core</code> + <code>hs_mob</code> + <code>mob_gor</code> / <code>mob_shield</code> / <code>mob_archer</code> / <code>mob_raider</code> / <code>mob_executioner</code> / <code>mob_centigor</code> / <code>mob_spawn</code></td><td>Отряды и элиты переходов, Respawn 3600</td></tr>
+<tr><td>Бра-шаман</td><td><code>hs_core</code> + <code>shaman.js</code></td><td>Элита B2/B3</td></tr>
+<tr><td>Тотем Стада</td><td><code>herd_totem.js</code> без ядра</td><td>Элита B3, скорость 0, On Attack = Ничего</td></tr>
+<tr><td>Барабанщик</td><td><code>hs_core</code> + <code>drummer.js</code></td><td>Элита C2</td></tr>
+<tr><td>Минотавр</td><td><code>hs_core</code> + <code>hs_mob</code> + <code>mob_minotaur.js</code></td><td>C3а, D1: общий агр и кровавое безумие</td></tr>
 <tr><td>Гор (призыв), Унгор-рейдер (призыв)</td><td>как у расставленных</td><td>Адды. Respawn = Нет</td></tr>
 <tr><td>Кровохряк, Грул Кабанья Рука</td><td><code>hs_core</code> + <code>boss_bloodtusk.js</code> / <code>boss_grul.js</code></td><td>Б1 (имена = цели квеста)</td></tr>
 <tr><td>Мургрот Туманный Глас, Тотем Мургрота, Мургрот-копия</td><td><code>hs_core</code> + <code>boss_murgrot.js</code> / тотем без скрипта / <code>murgrot_copy.js</code></td><td>Б2 (копия и тотемы — Respawn = Нет)</td></tr>
 <tr><td>Великая Утроба</td><td><code>hs_core</code> + <code>boss_gorgon.js</code></td><td>Б3</td></tr>
 <tr><td>Гарракс Расколотый Рог, Сердце жёлоба, Варп-кристалл</td><td><code>hs_core</code> + <code>boss_garrax.js</code> / <code>heart.js</code> без ядра / <code>hs_core</code> + <code>crystal.js</code></td><td>Б4 (сердца и кристаллы — Respawn = Нет)</td></tr>
 <tr><td>Бормочущий</td><td><code>hs_core</code> + <code>boss_jabberslythe.js</code></td><td>Секрет C4</td></tr>
-<tr><td>Шкрик, Чемпион Круга</td><td>диалог; чемпион — пресет палача</td><td>B4 и D2, фракция «Нейтралы данжа»</td></tr>
+<tr><td>Шкрик, Чемпион Круга, бестигор Круга</td><td>Шкрик — диалог; чемпион — <code>hs_core</code> + <code>hs_mob</code> + <code>mob_executioner</code> + <code>champion.js</code>; бестигор — <code>hs_core</code> + <code>beastigor_neutral.js</code></td><td>B4 и D2, до вызова фракция «Нейтралы данжа»</td></tr>
 </tbody></table></div>
 <p>Расставленным мобам и боссам: Stats → Respawn = Да, 3600 секунд. Это реальные секунды: время смерти пишется в NBT NPC, и если чанк выгружен, NPC возродится при следующей загрузке чанка. <code>/forceload</code> не нужен. Return to start = да у боссов (после <code>setPosition</code> и <code>reset()</code> возвращаются в арену).</p>
 
@@ -786,496 +786,32 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <p>Сложность крутится <b>в одном месте</b>: поле <code>HS.DMG</code> в первом файле (<code>hs_core.js</code>) или ключ world storeddata <code>hs_dmg</code> (перекрывает файл, пока сервер не перезапустят и ключ не сотрут). Он множит и исходящий урон (<code>hsStrike</code> / <code>hsStart</code>), и HP боссов на пуле. Автоатака и HP мобов переходов — из вкладки Stats, их множитель не трогает.</p>
 
 <details open><summary>hs_core.js — общая библиотека (первый файл у боссов и мобов)</summary>
-<pre>// hs_core.js — общая библиотека Herdstone. В контейнере скрипта NPC это ПЕРВЫЙ файл,
-// файл конкретного босса/моба — второй и переопределяет поля HS.
-var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
-var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
-var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
-var ZoneAPI = Java.type("noppes.npcs.zone.ZoneAPI");
-var Combat = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
-
-var HS = {
-    TAB: 2,            // вкладка клонера
-    ARENA_R: 20,       // радиус арены от точки спауна (home) босса
-    CAP: 12,           // потолок урона по боссу за один удар
-    WEAK: 0.25,        // множитель урона вне окна уязвимости
-    BASE_HP: 300,      // HP на одного игрока; на пуле × (0.7 + 0.3·N)
-    DMG: 1,            // множитель урона данжа и HP боссов (0.75 легче, 1.25 жёстче)
-    ENRAGE_SEC: 360,   // через сколько секунд боя — смертельный удар раз в 10 с
-    DISPEL_SEC: 50,    // рассеивание эффектов игроков
-    EMPTY_SEC: 15,     // столько секунд без игроков на арене — полный сброс
-    RED: 0xC0FF3030,
-    GOLD: 0xC0FFC030,
-    PURPLE: 0xC0B040FF
-};
-var ORIGIN = [];                                 // [x, y, z] — единственная мировая точка (центр арены). Пусто = спаун NPC
-var GATE = [];                                   // оффсеты завала от ORIGIN: [dx, dy, dz]
-var GATE_BLOCK = "minecraft:polished_blackstone_bricks";
-
-function hsOrigin(npc) {
-    if (ORIGIN != null &amp;&amp; ORIGIN.length &gt;= 3) return ORIGIN;
-    return [npc.getHomeX(), npc.getHomeY(), npc.getHomeZ()];
-}
-function hsXYZ(npc, off) {
-    var o = hsOrigin(npc);
-    return [o[0] + off[0], o[1] + off[1], o[2] + off[2]];
-}
-function hsIPosOff(npc, off) {
-    var a = hsXYZ(npc, off);
-    return NpcAPI.getIPos(a[0], a[1], a[2]);
-}
-function hsSpawnAt(npc, off, name) {
-    var a = hsXYZ(npc, off);
-    return npc.getWorld().spawnClone(a[0] + 0.5, a[1], a[2] + 0.5, HS.TAB, name);
-}
-function hsBox(dx, dy, dz, w, h, d) {
-    var out = [], x, y, z;
-    for (y = 0; y &lt; h; y++) {
-        for (z = 0; z &lt; d; z++) {
-            for (x = 0; x &lt; w; x++) out.push([dx + x, dy + y, dz + z]);
-        }
-    }
-    return out;
-}
-
-function hsNow(npc) { return Number(npc.getWorld().getTotalTime()); }
-function hsGet(npc, k, def) { var d = npc.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
-function hsNum(npc, k) { return Number(hsGet(npc, k, "0")); }
-function hsPut(npc, k, v) { npc.getStoreddata().put(k, String(v)); }
-function hsHome(npc) { return [npc.getHomeX() + 0.5, npc.getHomeY(), npc.getHomeZ() + 0.5]; }
-function hsFlat(e, x, z) { var dx = e.getX() - x, dz = e.getZ() - z; return Math.sqrt(dx * dx + dz * dz); }
-function hsRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function hsYawTo(npc, t) { return Combat.computeYaw(t.getX() - npc.getX(), t.getZ() - npc.getZ()); }
-
-// Игроки (не креатив и не наблюдатель) в круге радиуса r. getNearbyEntities ищет по кубу.
-function hsPlayersAt(npc, x, y, z, r) {
-    var list = npc.getWorld().getNearbyEntities(NpcAPI.getIPos(x, y, z), Math.ceil(r) + 1, 1);
-    var out = [];
-    for (var i = 0; i &lt; list.length; i++) {
-        var p = list[i];
-        if (!p.isAlive() || p.getGamemode() == 1 || p.getGamemode() == 3) continue;
-        if (hsFlat(p, x, z) &lt;= r) out.push(p);
-    }
-    return out;
-}
-function hsPlayers(npc, r) {
-    var h = hsHome(npc);
-    return hsPlayersAt(npc, h[0], h[1], h[2], r || HS.ARENA_R);
-}
-
-// Живые NPC с точным именем в пределах арены.
-function hsFind(npc, name) {
-    var h = hsHome(npc);
-    var list = npc.getWorld().getNearbyEntities(NpcAPI.getIPos(h[0], h[1], h[2]), HS.ARENA_R + 10, 2);
-    var out = [];
-    for (var i = 0; i &lt; list.length; i++) {
-        if (String(list[i].getName()) == name &amp;&amp; list[i].isAlive()) out.push(list[i]);
-    }
-    return out;
-}
-function hsCount(npc, name) { return hsFind(npc, name).length; }
-function hsDespawnAll(npc, name) {
-    var l = hsFind(npc, name);
-    for (var i = 0; i &lt; l.length; i++) l[i].despawn();
-}
-
-// Общий множитель. Сначала world storeddata "hs_dmg" (живёт до рестарта/ручной смены),
-// иначе HS.DMG из этого файла. Умножает исходящий урон и max HP боссов.
-// hsKill / ярость / GUI-мили / потолок урона по боссу не трогает.
-function hsScale(world) {
-    var v = HS.DMG;
-    if (world != null) {
-        var d = world.getStoreddata();
-        if (d.has("hs_dmg")) {
-            var n = Number(String(d.get("hs_dmg")));
-            if (n &gt; 0) v = n;
-        }
-    }
-    return v;
-}
-
-function hsStart(npc, id, target, params) {
-    if (params != null) {
-        var s = hsScale(npc.getWorld());
-        var keys = ["damage", "damagePerTick"];
-        var i;
-        for (i = 0; i &lt; keys.length; i++) {
-            var k = keys[i];
-            if (params.containsKey(k)) params.put(k, Number(params.get(k)) * s);
-        }
-        return AbilityAPI.start(npc, id, target, params);
-    }
-    return AbilityAPI.start(npc, id, target);
-}
-
-function hsBossHp(npc, nPlayers) {
-    var n = nPlayers &lt; 1 ? 1 : nPlayers;
-    return Math.max(1, Math.round(HS.BASE_HP * (0.7 + 0.3 * n) * hsScale(npc.getWorld())));
-}
-
-// Удар в долях максимального HP. setHealth не режется бронёй, «Защитой», Сопротивлением и поглощением.
-function hsStrike(p, pct) {
-    pct = pct * hsScale(p.getWorld());
-    var dmg = p.getMaxHealth() * pct;
-    if (p.getHealth() - dmg &lt; 1) { hsKill(p); return; }
-    p.setHealth(p.getHealth() - dmg);
-    p.getWorld().playSoundAt(p.getPos(), "minecraft:entity.player.hurt", 1.0, 0.7);
-}
-// Смерть: снять эффекты (Сопротивление, поглощение), 1 HP, MAGIC-урон мимо брони.
-// Тотем бессмертия спасает один раз — так и задумано. player.kill() нельзя: это remove().
-function hsKill(p) {
-    p.clearPotionEffects();
-    p.setHealth(1);
-    Combat.dealPureDamage(p, 100, true);
-}
-function hsDispel(npc, ps) {
-    for (var i = 0; i &lt; ps.length; i++) {
-        ps[i].clearPotionEffects();
-        ps[i].message("§5Рёв Стада срывает с тебя все чары.");
-    }
-    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", 3.0, 0.6);
-}
-
-// Потолок урона за удар. mul = 1 в окне уязвимости, HS.WEAK вне его, 0 — неуязвим.
-function hsCap(e, mul) {
-    if (mul &lt;= 0) { e.setCanceled(true); return; }
-    e.damage = Math.min(e.damage, HS.CAP) * mul;
-}
-
-// Линия от NPC по yaw: попадает ли игрок в полосу длиной len и полушириной half.
-function hsOnLine(p, sx, sz, yaw, len, half) {
-    var r = (yaw + 90) * Math.PI / 180;
-    var fx = Math.cos(r), fz = Math.sin(r);
-    var dx = p.getX() - sx, dz = p.getZ() - sz;
-    var t = dx * fx + dz * fz;
-    if (t &lt; -1 || t &gt; len) return false;
-    return Math.abs(dx * fz - dz * fx) &lt;= half;
-}
-
-function hsSetGate(npc, closed) {
-    var w = npc.getWorld();
-    for (var i = 0; i &lt; GATE.length; i++) {
-        var pos = hsIPosOff(npc, GATE[i]);
-        if (closed) w.setBlock(pos, GATE_BLOCK);
-        else w.removeBlock(pos);
-    }
-}
-
-// Вызывать в начале init. false — NPC мёртв (init пришёл на трупе), дальше не идти.
-function hsInit(npc) {
-    if (!npc.isAlive()) return false;
-    npc.getTimers().clear();
-    AbilityAPI.cancel(npc);
-    hsPut(npc, "fight_at", 0);
-    hsPut(npc, "empty_at", 0);
-    hsPut(npc, "enrage_at", 0);
-    var hp0 = hsBossHp(npc, 1);
-    npc.getStats().setMaxHealth(hp0);
-    npc.setHealth(hp0);
-    if (GATE.length &gt; 0) hsSetGate(npc, true);
-    return true;
-}
-
-// Вызывать первым в tick (раз в 10 тиков). Возвращает игроков на арене, если идёт бой, иначе null.
-function hsFight(npc) {
-    var now = hsNow(npc);
-    var ps = hsPlayers(npc);
-    var fightAt = hsNum(npc, "fight_at");
-    if (fightAt == 0) {
-        if (ps.length == 0 || npc.getAttackTarget() == null) return null;
-        var hp = hsBossHp(npc, ps.length);
-        npc.getStats().setMaxHealth(hp);
-        npc.setHealth(hp);
-        hsPut(npc, "fight_at", now);
-        hsPut(npc, "dispel_at", now + HS.DISPEL_SEC * 20);
-        return ps;
-    }
-    if (ps.length == 0) {
-        var ea = hsNum(npc, "empty_at");
-        if (ea == 0) hsPut(npc, "empty_at", now);
-        else if (now - ea &gt; HS.EMPTY_SEC * 20) npc.reset();
-        return null;
-    }
-    hsPut(npc, "empty_at", 0);
-    hsLeash(npc);
-    if (now &gt;= hsNum(npc, "dispel_at")) {
-        hsDispel(npc, ps);
-        hsPut(npc, "dispel_at", now + HS.DISPEL_SEC * 20);
-    }
-    if (now - fightAt &gt; HS.ENRAGE_SEC * 20 &amp;&amp; now &gt;= hsNum(npc, "enrage_at")) {
-        hsPut(npc, "enrage_at", now + 200);
-        npc.say("§4Стадо не ждёт!");
-        hsKill(hsRandom(ps));
-    }
-    return ps;
-}
-
-// Поводок: кто у выхода (до 8 блоков за краем) или забрался выше пола на 4+ — в центр и −25% HP.
-function hsLeash(npc) {
-    var h = hsHome(npc);
-    var ps = hsPlayers(npc, HS.ARENA_R + 8);
-    for (var i = 0; i &lt; ps.length; i++) {
-        var p = ps[i];
-        if (hsFlat(p, h[0], h[2]) &gt; HS.ARENA_R || p.getY() &gt; h[1] + 4) {
-            p.setPosition(h[0], h[1], h[2]);
-            hsStrike(p, 0.25);
-            p.message("§cСтадо швыряет тебя обратно в круг.");
-        }
-    }
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/hs_core.js</code>. Первый файл у боссов и мобов. Центр арены — <code>CENTER</code> и <code>FLOOR</code>, мировая точка из <code>hs_origin</code>. Прямоугольный поводок, снятие <code>SUMMONS</code>, зоны и поиск фракции по имени (<code>hsFactionId</code>).</p>
+</details>
 
 <details><summary>hs_mob.js — универсальный моб перехода (второй файл; CASTS — пресет)</summary>
-<pre>// hs_mob.js — второй файл после hs_core.js у мобов переходов. Меняется только блок настроек.
-// Каждая запись CASTS: абилка мода + зона, в которой через hitAt тиков снимается pct от макс. HP.
-// shape: "line" — полоса от моба к цели (рывок), "target" — круг на месте цели (прыжок),
-//        "self" — круг вокруг моба в момент удара (вращение), "" — только урон самой абилки.
-var CASTS = [
-    { ability: "dash", cd: 120, min: 3, max: 10, shape: "line", len: 8, size: 1.5, hitAt: 30, pct: 0.15,
-      params: function () { return AbilityAPI.params("chargeTicks", 24, "distance", 8.0, "damage", 6.0); } }
-];
-var SLOW_ON_HIT = 0;     // &gt; 0: мили-удар вешает Slowness II на столько секунд (унгор-рейдер)
-var POISON_ON_HIT = 0;   // &gt; 0: мили-удар вешает Poison I на столько секунд
-
-var T_HIT = 1;
-
-function init(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) return;
-    npc.getTimers().clear();
-    for (var i = 0; i &lt; CASTS.length; i++) hsPut(npc, "cd_" + i, 0);
-}
-
-function tick(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
-    if (AbilityAPI.isBusy(npc) || npc.getTimers().has(T_HIT)) return;
-    var t = npc.getAttackTarget();
-    if (t == null || !t.isAlive()) return;
-    var dist = hsFlat(t, npc.getX(), npc.getZ());
-    var now = hsNow(npc);
-    for (var i = 0; i &lt; CASTS.length; i++) {
-        var c = CASTS[i];
-        if (now &lt; hsNum(npc, "cd_" + i) || dist &lt; c.min || dist &gt; c.max) continue;
-        var yaw = hsYawTo(npc, t);
-        if (!hsStart(npc, c.ability, t, c.params())) continue;
-        hsPut(npc, "cd_" + i, now + c.cd);
-        if (c.pct &lt;= 0) return;
-        hsPut(npc, "hit_i", i);
-        hsPut(npc, "hit_yaw", yaw);
-        hsPut(npc, "hit_x", c.shape == "target" ? t.getX() : npc.getX());
-        hsPut(npc, "hit_z", c.shape == "target" ? t.getZ() : npc.getZ());
-        if (c.shape == "line") TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, c.len, c.size * 2, c.hitAt, HS.RED);
-        if (c.shape == "target") TelegraphAPI.circle(npc, t.getX(), t.getY(), t.getZ(), c.size, c.hitAt, HS.RED);
-        npc.getTimers().forceStart(T_HIT, c.hitAt, false);
-        return;
-    }
-}
-
-function timer(e) {
-    if (e.id != T_HIT) return;
-    var npc = e.npc;
-    if (!npc.isAlive()) return;
-    var c = CASTS[hsNum(npc, "hit_i")];
-    var x = hsNum(npc, "hit_x"), z = hsNum(npc, "hit_z"), yaw = hsNum(npc, "hit_yaw");
-    if (c.shape == "self") { x = npc.getX(); z = npc.getZ(); }
-    var ps = hsPlayersAt(npc, x, npc.getY(), z, c.shape == "line" ? c.len + 1 : c.size);
-    for (var i = 0; i &lt; ps.length; i++) {
-        if (c.shape == "line" &amp;&amp; !hsOnLine(ps[i], x, z, yaw, c.len, c.size)) continue;
-        hsStrike(ps[i], c.pct);
-    }
-}
-
-function meleeAttack(e) {
-    if (e.target == null || !e.target.typeOf(1)) return;
-    if (SLOW_ON_HIT &gt; 0) e.target.addPotionEffect(PotionEffectType_SLOWNESS, SLOW_ON_HIT, 1, false);
-    if (POISON_ON_HIT &gt; 0) e.target.addPotionEffect(PotionEffectType_POISON, POISON_ON_HIT, 0, false);
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/hs_mob.js</code>. Логика кастов. Пресет третьим файлом задаёт <code>CASTS</code>. Круг <code>weapon_spin</code> рисует сама абилка.</p>
+</details>
 
 <details><summary>Пресеты CASTS: рубака, щитоносец, лучник, палач, центигор, отродье, минотавр</summary>
-<pre>// Пресеты CASTS для hs_mob.js — скопировать нужный блок вместо CASTS по умолчанию.
-
-// Гор-рубака: короткий рывок. Телеграф-полоса 1,2 с, задетым −15% HP.
-var CASTS_GOR = [
-    { ability: "dash", cd: 120, min: 3, max: 10, shape: "line", len: 8, size: 1.5, hitAt: 30, pct: 0.15,
-      params: function () { return AbilityAPI.params("chargeTicks", 24, "distance", 8.0, "damage", 6.0); } }
-];
-// Гор-щитоносец: щит 3 с, спереди (120°) урон не проходит. Бить сбоку и со спины.
-var CASTS_SHIELD = [
-    { ability: "shield_block", cd: 140, min: 0, max: 6, shape: "", pct: 0,
-      params: function () { return AbilityAPI.params("activeTicks", 60, "blockAngle", 120.0); } }
-];
-// Унгор-лучник: ядовитый плевок — лужа r 2.5 на 8 с (стрелы — обычный рендж в GUI).
-var CASTS_ARCHER = [
-    { ability: "crimson_blob", cd: 200, min: 5, max: 20, shape: "", pct: 0,
-      params: function () {
-          return AbilityAPI.params("chargeTicks", 20, "landRadius", 2.5, "zoneTicks", 160, "damage", 2.0,
-              "effectId", "minecraft:poison", "effectDuration", 60, "zoneColor", 0x8040C040);
-      } }
-];
-// Бестигор-палач: конус с добиванием (по цели &lt; 35% HP) и вращение — из вращения выходить.
-var CASTS_EXECUTIONER = [
-    { ability: "barrow_sentinel", cd: 100, min: 0, max: 4, shape: "", pct: 0,
-      params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 3.5, "damage", 9.0, "executeHpThreshold", 0.35, "executeBonusDamage", 14.0); } },
-    { ability: "weapon_spin", cd: 240, min: 0, max: 5, shape: "self", size: 4, hitAt: 56, pct: 0.25,
-      params: function () { return AbilityAPI.params("chargeTicks", 20, "activeTicks", 36, "radius", 4.0, "damagePerTick", 2.0); } }
-];
-// Центигор: длинный таран по галерее. Уходить в ниши.
-var CASTS_CENTIGOR = [
-    { ability: "dash", cd: 160, min: 6, max: 20, shape: "line", len: 18, size: 1.8, hitAt: 40, pct: 0.30,
-      params: function () { return AbilityAPI.params("chargeTicks", 30, "distance", 18.0, "damage", 8.0); } }
-];
-// Отродье Хаоса: хватка мертвецов под целью (держит на месте) + вращение.
-var CASTS_SPAWN = [
-    { ability: "grasping_dead", cd: 160, min: 2, max: 14, shape: "target", size: 2, hitAt: 40, pct: 0.20,
-      params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 2.0, "effectAmplifier", 3); } },
-    { ability: "weapon_spin", cd: 200, min: 0, max: 5, shape: "self", size: 4, hitAt: 56, pct: 0.25,
-      params: function () { return AbilityAPI.params("chargeTicks", 20, "activeTicks", 36, "radius", 4.0, "damagePerTick", 2.5); } }
-];
-// Минотавр: прыжок на дальнюю цель + рывок.
-var CASTS_MINOTAUR = [
-    { ability: "jump_slam", cd: 180, min: 5, max: 16, shape: "target", size: 4, hitAt: 40, pct: 0.30,
-      params: function () { return AbilityAPI.params("chargeTicks", 24, "landRadius", 4.0, "damage", 8.0); } },
-    { ability: "dash", cd: 140, min: 3, max: 12, shape: "line", len: 12, size: 1.8, hitAt: 36, pct: 0.25,
-      params: function () { return AbilityAPI.params("chargeTicks", 28, "distance", 12.0, "damage", 8.0); } }
-];</pre></details>
+<p>Файлы: <code>mob_gor.js</code>, <code>mob_shield.js</code>, <code>mob_archer.js</code>, <code>mob_raider.js</code> (Замедление II на 2 с), <code>mob_executioner.js</code>, <code>mob_centigor.js</code>, <code>mob_spawn.js</code>, <code>mob_minotaur.js</code>. У лучника <code>effectId</code> — <code>minecraft:poison</code>, у отродья <code>effectType</code> — <code>slowness</code>.</p>
+</details>
 
 <details><summary>Бра-шаман: лечение стада и Проклятая песнь</summary>
-<pre>// Бра-шаман: hs_core.js + этот файл. Лечит стадо и поёт «Проклятую песнь», которую надо сбить уроном.
-var HEAL_EVERY = 120;     // 6 с
-var SONG_EVERY = 400;     // 20 с
-var SONG_TICKS = 80;      // 4 с на срыв
-var SONG_BREAK = 20;      // столько урона за песнь её срывает
-var SONG_R = 12;
-var T_SONG = 1;
-
-function init(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) return;
-    npc.getTimers().clear();
-    hsPut(npc, "heal_at", 0);
-    hsPut(npc, "song_at", hsNow(npc) + 200);
-    hsPut(npc, "song", 0);
-}
-
-function tick(e) {
-    var npc = e.npc;
-    if (!npc.isAlive() || npc.getAttackTarget() == null) return;
-    var now = hsNow(npc);
-    if (now &gt;= hsNum(npc, "heal_at")) {
-        hsPut(npc, "heal_at", now + HEAL_EVERY);
-        var list = npc.getWorld().getNearbyEntities(npc.getPos(), 8, 2);
-        for (var i = 0; i &lt; list.length; i++) {
-            var a = list[i];
-            if (!a.isAlive() || a.getFaction().getId() != npc.getFaction().getId()) continue;
-            a.setHealth(Math.min(a.getMaxHealth(), a.getHealth() + a.getMaxHealth() * 0.15));
-            a.addPotionEffect(PotionEffectType_RESISTANCE, 5, 0, false);
-        }
-        npc.getWorld().spawnParticle("happy_villager", npc.getX(), npc.getY() + 1, npc.getZ(), 4, 1, 4, 0.1, 30);
-    }
-    if (now &gt;= hsNum(npc, "song_at") &amp;&amp; !npc.getTimers().has(T_SONG)) {
-        hsPut(npc, "song_at", now + SONG_EVERY);
-        hsPut(npc, "song", 1);
-        hsPut(npc, "song_dmg", 0);
-        hsPut(npc, "song_tg", TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), SONG_R, SONG_TICKS, HS.PURPLE));
-        npc.say("§5Шаман заводит Проклятую песнь! Бейте его!");
-        npc.getTimers().forceStart(T_SONG, SONG_TICKS, false);
-    }
-}
-
-function damaged(e) {
-    var npc = e.npc;
-    if (hsGet(npc, "song", "0") != "1") return;
-    var dmg = hsNum(npc, "song_dmg") + e.damage;
-    hsPut(npc, "song_dmg", dmg);
-    if (dmg &lt; SONG_BREAK) return;
-    hsPut(npc, "song", 0);
-    npc.getTimers().stop(T_SONG);
-    TelegraphAPI.remove(hsGet(npc, "song_tg", ""));
-    npc.say("§7Песнь сорвана.");
-}
-
-function timer(e) {
-    var npc = e.npc;
-    if (e.id != T_SONG || !npc.isAlive() || hsGet(npc, "song", "0") != "1") return;
-    hsPut(npc, "song", 0);
-    var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), SONG_R);
-    for (var i = 0; i &lt; ps.length; i++) {
-        hsStrike(ps[i], 0.35);
-        ps[i].addPotionEffect(PotionEffectType_NAUSEA, 6, 0, false);
-    }
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/shaman.js</code> после <code>hs_core.js</code>.</p>
+</details>
 
 <details><summary>Тотем Стада (один файл, без ядра)</summary>
-<pre>// Тотем Стада (NPC: скорость 0, On Attack = Ничего). Только этот файл, без ядра.
-function tick(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) return;
-    var list = npc.getWorld().getNearbyEntities(npc.getPos(), 8, 2);
-    for (var i = 0; i &lt; list.length; i++) {
-        var a = list[i];
-        if (a == npc || !a.isAlive() || a.getFaction().getId() != npc.getFaction().getId()) continue;
-        a.addPotionEffect(PotionEffectType_RESISTANCE, 2, 1, true);   // Resistance II: −40% урона
-    }
-    npc.getWorld().spawnParticle("crimson_spore", npc.getX(), npc.getY() + 1, npc.getZ(), 4, 0.5, 4, 0, 20);
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/herd_totem.js</code>, без ядра.</p>
+</details>
 
 <details><summary>Барабанщик C2</summary>
-<pre>// Барабанщик C2: hs_core.js + этот файл. Пока жив — разгоняет стадо. Прячется за отрядами.
-var DRUM_EVERY = 160;   // 8 с
-var DRUM_R = 20;
-
-function init(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) return;
-    hsPut(npc, "drum_at", 0);
-    hsPut(npc, "flee_at", 0);
-    hsPut(npc, "called", 0);
-}
-
-function tick(e) {
-    var npc = e.npc;
-    if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
-    var t = npc.getAttackTarget();
-    if (t == null) return;
-    var w = npc.getWorld();
-    var now = hsNow(npc);
-    if (now &gt;= hsNum(npc, "drum_at")) {
-        hsPut(npc, "drum_at", now + DRUM_EVERY);
-        var list = w.getNearbyEntities(npc.getPos(), DRUM_R, 2);
-        for (var i = 0; i &lt; list.length; i++) {
-            var a = list[i];
-            if (!a.isAlive() || a.getFaction().getId() != npc.getFaction().getId()) continue;
-            a.addPotionEffect(PotionEffectType_SPEED, 8, 0, false);
-            a.addPotionEffect(PotionEffectType_STRENGTH, 8, 0, false);
-        }
-        w.playSoundAt(npc.getPos(), "minecraft:block.note_block.basedrum", 4.0, 0.5);
-    }
-    if (hsGet(npc, "called", "0") == "0" &amp;&amp; npc.getHealth() &lt;= npc.getMaxHealth() * 0.5) {
-        hsPut(npc, "called", 1);
-        w.spawnClone(npc.getX() + 2, npc.getY(), npc.getZ(), HS.TAB, "Гор (призыв)");
-        w.spawnClone(npc.getX() - 2, npc.getY(), npc.getZ(), HS.TAB, "Гор (призыв)");
-        npc.say("§6БУМ-БУМ! Ко мне, стадо!");
-    }
-    if (now &gt;= hsNum(npc, "flee_at") &amp;&amp; hsFlat(t, npc.getX(), npc.getZ()) &lt; 4 &amp;&amp; !AbilityAPI.isBusy(npc)) {
-        hsPut(npc, "flee_at", now + 200);
-        hsStart(npc, "retreat_dash", t, AbilityAPI.params("distance", 8.0));
-    }
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/drummer.js</code>. Призыв «Гор (призыв)» снимается в <code>init</code>.</p>
+</details>
 
 <details><summary>Минотавр: Кровавое безумие (третий файл после hs_mob)</summary>
-<pre>// Минотавр: hs_core.js + hs_mob.js (CASTS = пресет минотавра) + этот файл.
-// «Кровавое безумие»: смерть минотавра лечит и усиливает всех живых минотавров рядом.
-function died(e) {
-    var npc = e.npc;
-    var list = npc.getWorld().getNearbyEntities(npc.getPos(), 24, 2);
-    for (var i = 0; i &lt; list.length; i++) {
-        var m = list[i];
-        if (m == npc || !m.isAlive() || String(m.getName()) != "Минотавр") continue;
-        m.setHealth(Math.min(m.getMaxHealth(), m.getHealth() + m.getMaxHealth() * 0.2));
-        m.addPotionEffect(PotionEffectType_STRENGTH, 30, 0, false);
-        m.say("§4Минотавр впадает в кровавое безумие!");
-    }
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/mob_minotaur.js</code> третьим файлом. Смерть лечит соседних минотавров. Удар будит всех «Минотавров» в 24 блоках.</p>
+</details>
 
 <details><summary>Кровохряк (Б1)</summary>
 <p>Код: <code>src/main/resources/scripts/herdstone/boss_bloodtusk.js</code> (в GUI вторым после <code>hs_core.js</code>). Прямоугольник арены 22×19, колья, таран в метку Грула, оглушение на коле на 6 с, урон ×0,25 вне оглушения. Завал снимает, только если Грул уже мёртв; <code>init</code> при возрождении ставит тот же завал обратно.</p>

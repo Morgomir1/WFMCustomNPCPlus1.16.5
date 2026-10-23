@@ -73,14 +73,14 @@ herdstone/
 
 ## 4. Мобы переходов
 
-- [ ] `hs_mob.js` — только логика. Пресеты — отдельные файлы с одной строкой `CASTS = [...]`
-      (плюс `SLOW_ON_HIT` / `POISON_ON_HIT`). Цепочка у NPC: `hs_core` → `hs_mob` → `mob_<тип>`.
-      Работает, потому что `CASTS` читается только во время событий.
-- [ ] `effectType` / `effectId` — строки (`"slowness"`, `"minecraft:poison"`), не int.
-- [ ] `weapon_spin` в пресетах без красного круга: проверить, рисует ли абилка его сама
-      (параметр `telegraph`), иначе добавить `TelegraphAPI.circle` для `shape: "self"`.
-- [ ] `mob_minotaur.js`: кроме «Кровавого безумия» (`died`) — групповой агр D1:
-      в `damaged` всем «Минотаврам» в радиусе 24 `setAttackTarget(source)`.
+- [x] `hs_mob.js` — только логика. Пресеты — `mob_gor.js`, `mob_shield.js`, `mob_archer.js`,
+      `mob_raider.js`, `mob_executioner.js`, `mob_centigor.js`, `mob_spawn.js`, `mob_minotaur.js`.
+      Цепочка: `hs_core` → `hs_mob` → `mob_<тип>`.
+- [x] `effectType` / `effectId` — строки (`"slowness"`, `"minecraft:poison"`).
+      Длительность эффекта зоны — тики (`160` = 8 с).
+- [x] `weapon_spin` сам рисует красный круг: `telegraph` по умолчанию 1, `circleFollow` на `radius`.
+      Второй `TelegraphAPI.circle` для `shape: "self"` не добавлялся.
+- [x] `mob_minotaur.js`: «Кровавое безумие» и групповой агр в `damaged` (радиус 24).
 
 ## 5. Боссы
 
@@ -98,10 +98,10 @@ herdstone/
 
 | Файл | Доделать |
 |---|---|
-| `shaman.js`, `herd_totem.js` | Без изменений |
-| `drummer.js` | Призыв убирать при сбросе |
-| `champion.js` + `beastigor_neutral.js` | **Черновика нет.** Диалог «Право Вызова»: «принять» — кольцо барьера по оффсетам, `setFaction(Стадо)`, On Attack = Мстить; «отказаться» или удар по бестигору — вся группа во фракцию Стада. `died` чемпиона снимает кольцо; `init` и `tick` без игроков в 32 блоках возвращают «Нейтралов данжа». Сначала проверить событие: `dialogOption` в CNPC — событие скрипта игрока, не NPC. Возможная замена — NPC-событие `dialogClose` или флаг в storeddata |
-| `camp_spawnpoint.js` | `interact` → `player.setSpawnpoint(...)` для Отто и Гурхака; координаты кровати от `hs_origin` |
+| `shaman.js`, `herd_totem.js` | [x] Вынесены как в черновике. Тотем без ядра |
+| `drummer.js` | [x] «Гор (призыв)» в `SUMMONS`, `init` их снимает |
+| `champion.js` + `beastigor_neutral.js` | [x] `dialogOption` — событие NPC (`onNPCDialogOption`). «принять» — кольцо барьера r 8 и фракция Стада; «отказаться» или удар по бестигору — вся группа с меткой `hs_challenge`. Пустая арена 32 блока возвращает «Нейтралов данжа» |
+| `camp_spawnpoint.js` | [x] `interact` Отто и Гурхака ставит койку от `hs_origin` |
 
 ## 7. Scripted Blocks
 

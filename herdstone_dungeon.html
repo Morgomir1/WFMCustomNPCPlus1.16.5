@@ -236,7 +236,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <section id="cut">
 <h2>Спираль локаций</h2>
 <p>Этажи не стоят друг под другом. Просека остаётся на месте входа. Крипта отзеркалена на восток, корневые глубины — ещё и на юг, провал Камня — на юг от просеки. Между пятнами пустая полоса, по ней идёт ступенчатый спуск. Колодец арены Б4 пробит до неба над самой ареной: из рощи видно небо, устье на поверхности закрыто кольцом барьера, вниз ведёт винт по кромке.</p>
-<p class="note">Планы локаций ниже нарисованы в <b>локальных</b> координатах (рамка 350×247, сетка 10 / 50). Постройка отражает локации 2–4, как на этой схеме. Высоты от блока, в котором стоит строитель: 0, −24, −48, −72. Скрипты боссов посчитаны для входа на <b>Y 80</b> (пол провала на Y 8). Встал на другой высоте — прибавь разницу ко всем Y в <code>ORIGIN</code>.</p>
+<p class="note">Планы локаций ниже нарисованы в <b>локальных</b> координатах (рамка 350×247, сетка 10 / 50). Постройка отражает локации 2–4, как на этой схеме. Высоты от блока, в котором стоит строитель: 0, −24, −48, −72. В файле каждого босса <code>ORIGIN</code> — мировой блок пола в центре его арены. Числа записаны для входа <b>0, 80, 0</b> (пол провала на Y 8). Построил в другом месте — впиши в <code>ORIGIN</code> этого босса свои x, y, z.</p>
 <div class="mapbox">
 <!-- MAP:SPIRAL -->
 <svg viewBox="0 0 920 640" role="img" aria-label="Спираль локаций">
@@ -741,7 +741,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <!-- ================= CNPC ================= -->
 <section id="cnpc">
 <h2>Как собрать это в CustomNPC+</h2>
-<p class="note">Ниже только то, что ставится руками в GUI и скриптах этой сборки. Скрипты — Nashorn: <code>var</code> и <code>function</code>, storeddata только строками. У каждого NPC в контейнере скриптов <b>два файла</b>: первый — <code>hs_core.js</code> (общий), второй — файл босса или моба. Глобальные <code>function init</code>/<code>tick</code>/<code>timer</code> из второго файла перекрывают одноимённые из первого, поэтому в ядре нет событий, только функции <code>hs*</code>. Командные блоки, <code>/fill</code> и <code>/effect</code> не нужны. Раскладка комнат и маркеров — <code>tools/herdstone/herdstone_layout.py</code>.</p>
+<p class="note">Ниже только то, что ставится руками в GUI и скриптах этой сборки. Пошаговый порядок внедрения — <code>herdstone_deploy.md</code>. Скрипты — Nashorn: <code>var</code> и <code>function</code>, storeddata только строками. В контейнере скриптов ядро первое, файл босса или пресет моба ниже. Глобальные <code>function init</code>/<code>tick</code>/<code>timer</code> из нижнего файла перекрывают одноимённые, поэтому в ядре нет событий, только функции <code>hs*</code>. Командные блоки, <code>/fill</code> и <code>/effect</code> не нужны. Раскладка комнат и маркеров — <code>tools/herdstone/herdstone_layout.py</code>.</p>
 
 <h3>1. Фракции (Global → Factions)</h3>
 <ol>
@@ -776,17 +776,17 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <p>Отдельного NPC, который держит весь данж, нет. Каждая часть сбрасывает себя сама и только тогда, когда рядом есть игроки:</p>
 <ul>
   <li><b>Мобы и боссы</b> — встроенный Respawn 3600. Бой на арене: 15 с без игроков — <code>npc.reset()</code> (ядро).</li>
-  <li><b>Ворота арен и выход</b> — <code>died</code> босса снимает завал, <code>init</code> босса ставит обратно. CNPC вызывает <code>init</code> из <code>reset()</code> при каждом возрождении. Центр арены — локальный <code>CENTER</code> и этаж <code>FLOOR</code>; мировую точку считает <code>hsOrigin()</code> из <code>hs_origin</code>. Завал — оффсеты <code>GATE</code> от неё. У пары Б1 завал один и тот же в обоих файлах: закрывает тот, кто возродился первым.</li>
+  <li><b>Ворота арен и выход</b> — <code>died</code> босса снимает завал, <code>init</code> босса ставит обратно. CNPC вызывает <code>init</code> из <code>reset()</code> при каждом возрождении. Центр арены — <code>ORIGIN</code> в файле этого босса, мировые координаты блока пола. Завал — оффсеты <code>GATE</code> от неё. У пары Б1 завал один и тот же в обоих файлах: закрывает тот, кто возродился первым.</li>
 </ul>
 <p>Время везде — <code>world.getTotalTime()</code> (тики, 72000 = час). Оно стоит, пока сервер выключен. На игру это не влияет.</p>
 <p>Маркеры строителя: pack — белая шерсть, elite — оранжевая, stake — бревно тёмного дуба, totem/menhir — блок кости, heart — редстоун, crystal — изумруд, herb — лаймовая шерсть, fog — зелёная, boss — красная. Колодец Б4 режется после всех комнат: воздух от верха стен D3 до y 255, винт из брёвен по кромке, кольцо барьера вокруг устья на высоте входа.</p>
 
 <h3>4. Скрипты</h3>
-<p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. В файле босса центр арены — локальный <code>CENTER</code> <code>[x, dy, z]</code> и этаж <code>FLOOR</code>. Мировую точку считает <code>hsOrigin()</code> из world storeddata <code>hs_origin</code> (её пишет строитель). Ручной <code>ORIGIN</code> — только запас, если <code>hs_origin</code> нет; пустой массив значит «взять точку спауна NPC». Колья, тотемы, сердца, кристаллы, менгиры и завал — оффсеты <code>[dx, dy, dz]</code> от этого центра, их не пересчитывай. Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
+<p>У каждого NPC в GUI Scripts добавь файлы в указанном порядке. В файле босса центр арены — его <code>ORIGIN</code> <code>[x, y, z]</code>, блок пола в мире. Общая <code>hs_origin</code> к этому не прибавляется. Пустой массив значит «взять точку спауна NPC». Колья, тотемы, сердца, кристаллы, менгиры и завал — оффсеты <code>[dx, dy, dz]</code> от этого центра, их не пересчитывай. Задержки ударов — <code>npc.getTimers().forceStart(id, тики, false)</code> и событие <code>timer</code>: <code>tick</code> NPC идёт раз в 10 тиков.</p>
 <p>Сложность крутится <b>в одном месте</b>: поле <code>HS.DMG</code> в первом файле (<code>hs_core.js</code>) или ключ world storeddata <code>hs_dmg</code> (перекрывает файл, пока сервер не перезапустят и ключ не сотрут). Он множит и исходящий урон (<code>hsStrike</code> / <code>hsStart</code>), и HP боссов на пуле. Автоатака и HP мобов переходов — из вкладки Stats, их множитель не трогает.</p>
 
 <details open><summary>hs_core.js — общая библиотека (первый файл у боссов и мобов)</summary>
-<p>Код: <code>src/main/resources/scripts/herdstone/hs_core.js</code>. Первый файл у боссов и мобов. Центр арены — <code>CENTER</code> и <code>FLOOR</code>, мировая точка из <code>hs_origin</code>. Прямоугольный поводок, снятие <code>SUMMONS</code>, зоны и поиск фракции по имени (<code>hsFactionId</code>).</p>
+<p>Код: <code>src/main/resources/scripts/herdstone/hs_core.js</code>. Первый файл у боссов и мобов. Центр арены босса — его <code>ORIGIN</code>. Прямоугольный поводок, снятие <code>SUMMONS</code>, зоны и поиск фракции по имени (<code>hsFactionId</code>).</p>
 </details>
 
 <details><summary>hs_mob.js — универсальный моб перехода (второй файл; CASTS — пресет)</summary>
@@ -822,7 +822,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 </details>
 
 <details><summary>Мургрот Туманный Глас (Б2)</summary>
-<p>Код: <code>src/main/resources/scripts/herdstone/boss_murgrot.js</code>. Круг B5 r 20, центр <code>[515, 0, 222]</code>, этаж 2. <code>init</code> снимает тотемы и копии, иначе после сброса он сразу неуязвим. Копии после смены имени ищутся по метке <code>hs_murgrot_copy</code>.</p>
+<p>Код: <code>src/main/resources/scripts/herdstone/boss_murgrot.js</code>. Круг B5 r 20, <code>ORIGIN</code> <code>[515, 56, 222]</code>. <code>init</code> снимает тотемы и копии, иначе после сброса он сразу неуязвим. Копии после смены имени ищутся по метке <code>hs_murgrot_copy</code>.</p>
 </details>
 
 <details><summary>Мургрот-копия</summary>
@@ -859,15 +859,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 
 
 <h3>Порядок работ</h3>
-<ol>
-  <li>Четыре фракции. Лагеря: квестодатели, Trader, <code>setSpawnpoint</code> в interact.</li>
-  <li>Пять Area Kill-квестов, по два диалога (Отто / Гурхак) на каждый, Completion Instant.</li>
-  <li>Построить каркас: <code>/cnpcdungeon herdstone</code> (раскладка из <code>HerdstoneDungeon</code>). Ворота арен и выход — завалы в <code>GATE</code> файлов боссов, центр считается от <code>hs_origin</code>.</li>
-  <li>Клоны из таблицы: расставленные — Respawn 3600, «(призыв)», копии, сердца, кристаллы, тотемы Мургрота — Respawn = Нет. Tab 2.</li>
-  <li>Скрипты: ядро + файл босса/моба. У мобов — свой пресет CASTS. У Горгона Return to start = да.</li>
-  <li>Scripted Block: <code>block_fog.js</code> и <code>block_herb.js</code>. По желанию — <code>block_dmg_scale.js</code> у входа.</li>
-  <li>Проход за Порядок и за Разрушение. Час ожидания у ворот: босс возродился, ворота закрылись.</li>
-</ol>
+<p>Полный план внедрения — <code>herdstone_deploy.md</code>: копирование в сейв, фракции, <code>ORIGIN</code> под свою точку входа, клонер, порядок файлов в GUI, квесты, Scripted Block и проход.</p>
 </section>
 
 <footer>Камень Расколотого Рога · инструкция по сборке в CustomNPC+ 1.16.5 · фанатский проект по Warhammer Fantasy</footer>

@@ -1,5 +1,5 @@
 // hs_core.js — общая библиотека Herdstone. В контейнере скрипта NPC это ПЕРВЫЙ файл.
-// Файл босса или моба ниже переопределяет поля HS, CENTER, FLOOR, ORIGIN, GATE, SUMMONS
+// Файл босса или моба ниже переопределяет поля HS, ORIGIN, GATE, SUMMONS
 // и функции init/tick/timer/damaged/died. В ядре событий нет, только функции hs*.
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
@@ -23,25 +23,15 @@ var HS = {
     PURPLE: 0xC0B040FF | 0
 };
 
-// Запасная мировая точка [x, y, z], если строитель не записал hs_origin. Пусто = спаун NPC.
+// Мировой центр арены этого NPC: [x, y, z], блок пола. Пусто = home NPC.
+// Босс задаёт свою тройку. hs_origin к центру арены не прибавляется.
 var ORIGIN = [];
-// Локальный центр арены от точки постройки: [x, dy, z]. dy обычно 0, этаж задаёт FLOOR.
-var CENTER = [];
-var FLOOR = 1;          // 1..4 → смещение пола 0, -24, -48, -72
 var GATE = [];
 var GATE_BLOCK = "minecraft:polished_blackstone_bricks";
 // Имена клонов, которых init/сброс убирает. Своё имя босса сюда не писать.
 var SUMMONS = [];
 
 var HS_ZONE = "hs_zone";
-
-function hsFloorDy(floor) {
-    var f = Number(floor);
-    if (f == 2) return -24;
-    if (f == 3) return -48;
-    if (f == 4) return -72;
-    return 0;
-}
 
 function hsWorldOrigin(world) {
     if (world == null) return null;
@@ -57,21 +47,22 @@ function hsWorldOrigin(world) {
 }
 
 function hsLayoutCenter(npc) {
-    if (CENTER != null && CENTER.length >= 3 && hsWorldOrigin(npc.getWorld()) != null) return true;
-    return ORIGIN != null && ORIGIN.length >= 3;
+    return hsOriginPoint() != null;
 }
 
-// Мировой центр арены. Сначала точка постройки + CENTER + этаж, иначе ручной ORIGIN, иначе home.
+// Мировой центр арены: ORIGIN из файла этого босса. Иначе home NPC.
+function hsOriginPoint() {
+    if (ORIGIN == null || ORIGIN.length < 3) return null;
+    var x = Number(ORIGIN[0]);
+    var y = Number(ORIGIN[1]);
+    var z = Number(ORIGIN[2]);
+    if (isNaN(x) || isNaN(y) || isNaN(z)) return null;
+    return [x, y, z];
+}
+
 function hsOrigin(npc) {
-    if (CENTER != null && CENTER.length >= 3) {
-        var base = hsWorldOrigin(npc.getWorld());
-        if (base != null) {
-            var dy = CENTER[1];
-            if (isNaN(dy)) dy = 0;
-            return [base[0] + CENTER[0], base[1] + hsFloorDy(FLOOR) + dy, base[2] + CENTER[2]];
-        }
-    }
-    if (ORIGIN != null && ORIGIN.length >= 3) return ORIGIN;
+    var point = hsOriginPoint();
+    if (point != null) return point;
     return [npc.getHomeX(), npc.getHomeY(), npc.getHomeZ()];
 }
 
@@ -309,8 +300,8 @@ function hsZoneClear(npc) {
 // false — NPC мёртв (init пришёл на трупе), дальше не идти.
 function hsInit(npc) {
     if (!npc.isAlive()) return false;
-    if (CENTER != null && CENTER.length >= 3 && hsWorldOrigin(npc.getWorld()) == null && (ORIGIN == null || ORIGIN.length < 3)) {
-        log("herdstone: нет hs_origin, центр арены = home NPC");
+    if (hsOriginPoint() == null && (GATE.length > 0 || HS.ARENA != null)) {
+        log("herdstone: задай ORIGIN [x, y, z], центр арены сейчас = home NPC");
     }
     npc.getTimers().clear();
     AbilityAPI.cancel(npc);

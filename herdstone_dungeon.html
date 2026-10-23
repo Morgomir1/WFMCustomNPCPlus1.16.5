@@ -671,13 +671,13 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td><b>D4</b></td><td>Добыча и выход наверх после Б4.</td><td>—</td></tr>
 </tbody></table></div>
 <h3>D2 Круг Вызова</h3>
-<p>Бестигоры во фракции «Нейтралы данжа»: NPC враждебной фракции диалог не откроет. Чемпион — клон «Чемпион Круга»: <code>hs_core.js</code> + <code>hs_mob.js</code> + <code>mob_executioner.js</code> + <code>champion.js</code>. Бестигор: <code>hs_core.js</code> + <code>beastigor_neutral.js</code>. Оба вешают метку <code>hs_challenge</code>. Диалог «Право Вызова»: опции с словами «принять» и «отказаться». <code>dialogOption</code> здесь событие NPC. «Принять» ставит кольцо барьера радиусом 8 вокруг дома чемпиона (3 блока вверх), фракцию Стада и On Attack = Мстить. «Отказаться» или удар по бестигору переводит всю метку в Стадо, кольцо не ставится. <code>died</code> чемпиона снимает кольцо. Без цели и без игроков в 32 блоках оба возвращают «Нейтралов данжа», чемпион снимает кольцо. После круга коридор ведёт на арену Б4.</p>
+<p>Бестигоры во фракции «Дружелюбные» (<code>HS.FACTION_NEUTRAL</code>): NPC враждебной фракции диалог не откроет. Чемпион — клон «Чемпион Круга»: <code>hs_core.js</code> + <code>hs_mob.js</code> + <code>mob_executioner.js</code> + <code>champion.js</code>. Бестигор: <code>hs_core.js</code> + <code>beastigor_neutral.js</code>. Оба вешают метку <code>hs_challenge</code>. Диалог «Право Вызова»: опции с словами «принять» и «отказаться». <code>dialogOption</code> здесь событие NPC. «Принять» ставит кольцо барьера радиусом 8 вокруг дома чемпиона (3 блока вверх), фракцию <code>HS.FACTION_HERD</code> и On Attack = Мстить. «Отказаться» или удар по бестигору переводит всю метку во враждебных, кольцо не ставится. <code>died</code> чемпиона снимает кольцо. Без цели и без игроков в 32 блоках оба возвращают дружелюбную фракцию, чемпион снимает кольцо. После круга коридор ведёт на арену Б4.</p>
 </section>
 
 <!-- ================= BOSSES ================= -->
 <section id="bosses">
 <h2>Боссы</h2>
-<p class="note">Каждый босс — NPC в клонере, Stats → Respawn 3600, AI → Return to start = да, фракция «Стадо Расколотого Рога». Модель — Display этой сборки (GeckoLib Custom Model). Скрипт: <code>hs_core.js</code> + файл босса, события <code>init</code>/<code>tick</code>/<code>timer</code>/<code>damaged</code>/<code>meleeAttack</code>/<code>died</code>. Все правила «Закона Стада» (потолок урона, рассеивание, поводок, сброс, ярость, масштаб HP, множитель <code>HS.DMG</code>) действуют у всех. Проценты и BASE HP ниже — при ×1. Ниже — только то, что у каждого своё.</p>
+<p class="note">Каждый босс — NPC в клонере, Stats → Respawn 3600, AI → Return to start = да, фракция «Враждебные» (<code>HS.FACTION_HERD</code>). Модель — Display этой сборки (GeckoLib Custom Model). Скрипт: <code>hs_core.js</code> + файл босса, события <code>init</code>/<code>tick</code>/<code>timer</code>/<code>damaged</code>/<code>meleeAttack</code>/<code>died</code>. Все правила «Закона Стада» (потолок урона, рассеивание, поводок, сброс, ярость, масштаб HP, множитель <code>HS.DMG</code>) действуют у всех. Проценты и BASE HP ниже — при ×1. Ниже — только то, что у каждого своё.</p>
 <div class="cols">
 <article class="boss">
   <div class="eyebrow">Б1 · A4 Загон 44×38 · ворота в локацию 2</div>
@@ -745,10 +745,10 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 
 <h3>1. Фракции (Global → Factions)</h3>
 <ol>
-  <li><b>Порядок</b> — дружественна игрокам Порядка, враждебна Разрушению и Стаду.</li>
+  <li><b>Порядок</b> — дружественна игрокам Порядка, враждебна Разрушению и враждебным.</li>
   <li><b>Разрушение</b> — наоборот.</li>
-  <li><b>Стадо Расколотого Рога</b> — враждебна обеим. Все мобы и боссы данжа.</li>
-  <li><b>Нейтралы данжа</b> — Шкрик и бестигоры Круга Вызова. Neutral к игрокам и к Стаду. NPC враждебной игроку фракции не открывает диалог, поэтому все, с кем говорят, сидят здесь.</li>
+  <li><b>Враждебные</b> (<code>HS.FACTION_HERD</code>) — обычная враждебная фракция. Все мобы и боссы данжа.</li>
+  <li><b>Дружелюбные</b> (<code>HS.FACTION_NEUTRAL</code>) — обычная дружелюбная фракция. Шкрик, чемпион и бестигоры Круга до вызова, и все, с кем говорят: враждебная игроку фракция диалог не открывает.</li>
 </ol>
 <p>У лагерных NPC: Faction = своя, галочка Attack hostile factions, Stats aggro 16. Очки фракции игроку даёт диалог «доклад» после квеста (Faction options в диалоге).</p>
 
@@ -768,7 +768,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td>Великая Утроба</td><td><code>hs_core</code> + <code>boss_gorgon.js</code></td><td>Б3</td></tr>
 <tr><td>Гарракс Расколотый Рог, Сердце жёлоба, Варп-кристалл</td><td><code>hs_core</code> + <code>boss_garrax.js</code> / <code>heart.js</code> без ядра / <code>hs_core</code> + <code>crystal.js</code></td><td>Б4 (сердца и кристаллы — Respawn = Нет)</td></tr>
 <tr><td>Бормочущий</td><td><code>hs_core</code> + <code>boss_jabberslythe.js</code></td><td>Секрет C4</td></tr>
-<tr><td>Шкрик, Чемпион Круга, бестигор Круга</td><td>Шкрик — диалог; чемпион — <code>hs_core</code> + <code>hs_mob</code> + <code>mob_executioner</code> + <code>champion.js</code>; бестигор — <code>hs_core</code> + <code>beastigor_neutral.js</code></td><td>B4 и D2, до вызова фракция «Нейтралы данжа»</td></tr>
+<tr><td>Шкрик, Чемпион Круга, бестигор Круга</td><td>Шкрик — диалог; чемпион — <code>hs_core</code> + <code>hs_mob</code> + <code>mob_executioner</code> + <code>champion.js</code>; бестигор — <code>hs_core</code> + <code>beastigor_neutral.js</code></td><td>B4 и D2, до вызова фракция «Дружелюбные»</td></tr>
 </tbody></table></div>
 <p>Расставленным мобам и боссам: Stats → Respawn = Да, 3600 секунд. Это реальные секунды: время смерти пишется в NBT NPC, и если чанк выгружен, NPC возродится при следующей загрузке чанка. <code>/forceload</code> не нужен. Return to start = да у боссов (после <code>setPosition</code> и <code>reset()</code> возвращаются в арену).</p>
 

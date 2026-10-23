@@ -99,7 +99,7 @@ herdstone/
 |---|---|
 | `shaman.js`, `herd_totem.js` | [x] Вынесены как в черновике. Тотем без ядра |
 | `drummer.js` | [x] «Гор (призыв)» в `SUMMONS`, `init` их снимает |
-| `champion.js` + `beastigor_neutral.js` | [x] `dialogOption` — событие NPC (`onNPCDialogOption`). «принять» — кольцо барьера r 8 и фракция Стада; «отказаться» или удар по бестигору — вся группа с меткой `hs_challenge`. Пустая арена 32 блока возвращает «Нейтралов данжа» |
+| `champion.js` + `beastigor_neutral.js` | [x] `dialogOption` — событие NPC (`onNPCDialogOption`). «принять» — кольцо барьера r 8 и `HS.FACTION_HERD`; «отказаться» или удар по бестигору — вся группа с меткой `hs_challenge`. Пустая арена 32 блока возвращает `HS.FACTION_NEUTRAL` |
 | `camp_spawnpoint.js` | [x] `interact` Отто и Гурхака ставит койку по мировым `BED_ORDER` / `BED_DESTR` |
 
 ## 7. Scripted Blocks

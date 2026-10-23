@@ -1,8 +1,6 @@
 // Бестигор Круга Вызова. Второй файл после hs_core.js.
-// Фракция «Нейтралы данжа», пока игрок не ударит бестигора или чемпион не откажется от дуэли.
+// Пока игрок не ударит бестигора и чемпион не откажется от дуэли — фракция HS.FACTION_NEUTRAL.
 // Display name любой: группа ищется по метке hs_challenge. Её же ставит чемпион.
-var HERD_FACTION = "Стадо Расколотого Рога";
-var NEUTRAL_FACTION = "Нейтралы данжа";
 var CIRCLE_TAG = "hs_challenge";
 
 function init(e) {
@@ -25,7 +23,7 @@ function damaged(e) {
 }
 
 function circleNeutral(npc) {
-    var id = hsFactionId(NEUTRAL_FACTION);
+    var id = hsFactionId(HS.FACTION_NEUTRAL);
     if (id < 0) return;
     npc.setFaction(id);
     npc.getAi().setRetaliateType(3);
@@ -43,7 +41,7 @@ function circleEmpty(npc) {
 }
 
 function aggroCircle(npc) {
-    var id = hsFactionId(HERD_FACTION);
+    var id = hsFactionId(HS.FACTION_HERD);
     if (id < 0) return;
     var list = npc.getWorld().getNearbyEntities(npc.getPos(), 40, 2);
     for (var i = 0; i < list.length; i++) {

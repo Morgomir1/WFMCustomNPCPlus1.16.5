@@ -2,8 +2,6 @@
 // init чемпиона перекрывает init моба и сам зовёт hsMobInit.
 // dialogOption в этой сборке — событие NPC (EventHooks.onNPCDialogOption), не игрока.
 // В диалоге «Право Вызова» подписи опций должны содержать «принять» и «отказаться».
-var HERD_FACTION = "Стадо Расколотого Рога";
-var NEUTRAL_FACTION = "Нейтралы данжа";
 var CIRCLE_TAG = "hs_challenge";
 var RING_R = 8;
 
@@ -37,14 +35,14 @@ function died(e) {
 }
 
 function acceptDuel(npc) {
-    if (!setFactionNamed(npc, HERD_FACTION)) return;
+    if (!setFactionNamed(npc, HS.FACTION_HERD)) return;
     npc.getAi().setRetaliateType(0);
     circleRing(npc, true);
     npc.say("§4Кольцо закрыто. Бейся один.");
 }
 
 function circleNeutral(npc) {
-    if (!setFactionNamed(npc, NEUTRAL_FACTION)) return;
+    if (!setFactionNamed(npc, HS.FACTION_NEUTRAL)) return;
     npc.getAi().setRetaliateType(3);
 }
 
@@ -69,7 +67,7 @@ function circleMembers(npc) {
 }
 
 function aggroCircle(npc) {
-    var id = hsFactionId(HERD_FACTION);
+    var id = hsFactionId(HS.FACTION_HERD);
     if (id < 0) return;
     var list = circleMembers(npc);
     for (var i = 0; i < list.length; i++) {

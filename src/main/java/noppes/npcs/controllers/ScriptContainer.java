@@ -86,25 +86,68 @@ public class ScriptContainer
     
     private String getFullCode() {
         if (!this.init) {
-            this.fullscript = this.script;
-            if (!this.fullscript.isEmpty()) {
-                this.fullscript += "\n";
-            }
+            final StringBuilder full = new StringBuilder();
+            final List<String> early = new ArrayList<String>();
+            final List<String> late = new ArrayList<String>();
             for (final String loc : this.orderedScripts()) {
-                final String code = ScriptController.Instance.scripts.get(loc);
-                if (code != null && !code.isEmpty()) {
-                    this.fullscript = this.fullscript + code + "\n";
+                if (herdRank(loc) < 3) {
+                    early.add(loc);
+                }
+                else {
+                    late.add(loc);
                 }
             }
+            // Ядро и пресеты моба раньше текста в поле и раньше boss_*: алфавит GUI ставит boss_grul выше hs_core.
+            this.appendScriptFiles(full, early);
+            if (this.script != null && !this.script.isEmpty()) {
+                full.append(this.script).append('\n');
+            }
+            this.appendScriptFiles(full, late);
+            this.fullscript = full.toString();
             this.unknownFunctions = new HashSet<String>();
         }
         return this.fullscript;
     }
 
+    private void appendScriptFiles(final StringBuilder full, final List<String> locs) {
+        for (final String loc : locs) {
+            final String code = this.scriptCode(loc);
+            if (code != null && !code.isEmpty()) {
+                full.append(code).append('\n');
+            }
+        }
+    }
+
+    private String scriptCode(final String loc) {
+        if (loc == null) {
+            return null;
+        }
+        final Map<String, String> scripts = ScriptController.Instance.scripts;
+        String code = scripts.get(loc);
+        if (code != null) {
+            return code;
+        }
+        final String slash = loc.replace('\\', '/');
+        code = scripts.get(slash);
+        if (code != null) {
+            return code;
+        }
+        code = scripts.get(slash.toLowerCase(Locale.ROOT));
+        if (code != null) {
+            return code;
+        }
+        final String name = scriptFileName(loc);
+        for (final Map.Entry<String, String> entry : scripts.entrySet()) {
+            if (scriptFileName(entry.getKey()).equals(name)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
     /**
      * GUI хранит список по алфавиту, поэтому boss_* оказывается раньше hs_core.
-     * Для Herdstone порядок исполнения фиксированный: ядро, логика моба, пресет, остальное.
-     * Остальные скрипты сохраняют порядок списка.
+     * Порядок исполнения: ядро, логика моба, пресет, затем всё остальное в прежнем порядке.
      */
     private List<String> orderedScripts() {
         final List<String> ordered = new ArrayList<String>(this.scripts);
@@ -122,22 +165,29 @@ public class ScriptContainer
     }
 
     private static int herdRank(final String loc) {
-        final String norm = loc.replace('\\', '/');
-        if (!norm.contains("herdstone/")) {
-            return 100;
-        }
-        final int slash = norm.lastIndexOf('/');
-        final String name = slash >= 0 ? norm.substring(slash + 1) : norm;
-        if (name.equals("hs_core.js")) {
+        final String name = scriptFileName(loc);
+        if (name.equals("hs_core.js") || name.equals("hs_core")) {
             return 0;
         }
-        if (name.equals("hs_mob.js")) {
+        if (name.equals("hs_mob.js") || name.equals("hs_mob")) {
             return 1;
         }
         if (name.startsWith("mob_")) {
             return 2;
         }
         return 3;
+    }
+
+    private static String scriptFileName(final String loc) {
+        if (loc == null) {
+            return "";
+        }
+        String norm = loc.replace('\\', '/').trim().toLowerCase(Locale.ROOT);
+        final int slash = norm.lastIndexOf('/');
+        if (slash >= 0) {
+            norm = norm.substring(slash + 1);
+        }
+        return norm;
     }
     
     public void run(final EnumScriptType type, final Event event) {

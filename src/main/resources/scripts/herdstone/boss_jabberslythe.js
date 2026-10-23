@@ -4,9 +4,7 @@
 HS.BASE_HP = 380;
 HS.ARENA = { shape: "rect", hw: 36, hd: 20 };
 HS.ENRAGE_SEC = 480;
-CENTER = [412, 0, 602];
-FLOOR = 3;
-ORIGIN = [];
+ORIGIN = [412, 32, 602];   // этаж 3: пол на 48 ниже входа 0,80,0
 var MENHIRS = [ [19, 0, 9], [-21, 0, 9], [19, 0, -11], [-21, 0, -11] ];
 var COVER = 2.5;
 var GAZE_EVERY = 240;

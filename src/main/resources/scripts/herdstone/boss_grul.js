@@ -7,9 +7,7 @@ HS.BASE_HP = 220;
 HS.ARENA = { shape: "rect", hw: 22, hd: 19 };
 HS.ENRAGE_SEC = 360;
 HS.DISPEL_SEC = 99999;
-CENTER = [280, 0, 37];
-FLOOR = 1;
-ORIGIN = [];
+ORIGIN = [280, 80, 37];   // тот же центр, что у Кровохряка
 GATE = hsBox(12, 0, -11, 3, 2, 3);
 SUMMONS = ["Унгор-рейдер (призыв)"];
 

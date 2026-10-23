@@ -24,7 +24,7 @@ var HS = {
 };
 
 // Мировой центр арены этого NPC: [x, y, z], блок пола. Пусто = home NPC.
-// Босс задаёт свою тройку. hs_origin к центру арены не прибавляется.
+// Тройку пишет файл босса. К точке входа данжа она не прибавляется.
 var ORIGIN = [];
 var GATE = [];
 var GATE_BLOCK = "minecraft:polished_blackstone_bricks";
@@ -32,19 +32,6 @@ var GATE_BLOCK = "minecraft:polished_blackstone_bricks";
 var SUMMONS = [];
 
 var HS_ZONE = "hs_zone";
-
-function hsWorldOrigin(world) {
-    if (world == null) return null;
-    var data = world.getStoreddata();
-    if (data == null || !data.has("hs_origin")) return null;
-    var parts = String(data.get("hs_origin")).split(",");
-    if (parts.length < 3) return null;
-    var x = Number(parts[0]);
-    var y = Number(parts[1]);
-    var z = Number(parts[2]);
-    if (isNaN(x) || isNaN(y) || isNaN(z)) return null;
-    return [x, y, z];
-}
 
 function hsLayoutCenter(npc) {
     return hsOriginPoint() != null;

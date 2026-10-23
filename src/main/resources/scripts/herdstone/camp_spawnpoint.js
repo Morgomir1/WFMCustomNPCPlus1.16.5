@@ -1,21 +1,17 @@
 // Отто Рейнхардт и Гурхак. Второй файл после hs_core.js.
-// interact ставит респаун на койку лагеря. Координаты — локальные от hs_origin.
+// interact ставит респаун на койку лагеря. Это мировые координаты блока койки.
 // Лагерь Порядка: -72,267 размер 117×40. Лагерь Разрушения: 233,267 размер 117×40.
 // Койка на 20 блоков внутрь от северо-западного угла, на блок выше пола.
-var BED_ORDER = [-52, 1, 287];
-var BED_DESTR = [253, 1, 287];
+// Числа ниже — для каркаса, построенного от входа 0, 80, 0. Сдвинул данж — впиши блок койки.
+var BED_ORDER = [-52, 81, 287];
+var BED_DESTR = [253, 81, 287];
 
 function interact(e) {
     var npc = e.npc;
     var player = e.player;
     var bed = bedFor(String(npc.getName()));
     if (bed == null) return;
-    var origin = hsWorldOrigin(npc.getWorld());
-    if (origin == null) {
-        player.message("§7Застава ещё не построена.");
-        return;
-    }
-    player.setSpawnpoint(origin[0] + bed[0], origin[1] + bed[1], origin[2] + bed[2]);
+    player.setSpawnpoint(bed[0], bed[1], bed[2]);
     player.message("§aТы запомнил эту койку.");
 }
 

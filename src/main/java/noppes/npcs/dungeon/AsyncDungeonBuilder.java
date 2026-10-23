@@ -21,7 +21,6 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
-import noppes.npcs.controllers.ScriptController;
 import noppes.npcs.dungeon.DungeonDefinition.Kind;
 import noppes.npcs.dungeon.DungeonDefinition.Level;
 import noppes.npcs.dungeon.DungeonDefinition.Piece;
@@ -66,7 +65,6 @@ public final class AsyncDungeonBuilder {
             return "§e[dry] §f" + jobs.size() + " шагов, origin " + ox + " " + oy + " " + oz
                     + " §7" + def.displayName;
         }
-        rememberOrigin(def, ox, oy, oz);
         final ServerWorld world = (ServerWorld) player.level;
         session = new Session(world, player.getUUID(), def.displayName, jobs);
         if (def.forceload) {
@@ -74,19 +72,6 @@ public final class AsyncDungeonBuilder {
         }
         return "§2Каркас «" + def.displayName + "»: §f" + jobs.size() + " шагов §7с "
                 + ox + " " + oy + " " + oz + " §8(чанки грузятся без подвисания тика)";
-    }
-
-    /** Точка, где стоял игрок в момент постройки. Скрипты Herdstone читают world storeddata hs_origin. */
-    private static void rememberOrigin(final DungeonDefinition def, final int ox, final int oy, final int oz) {
-        if (!"herdstone".equals(def.id)) {
-            return;
-        }
-        final ScriptController scripts = ScriptController.Instance;
-        if (scripts == null || scripts.compound == null) {
-            return;
-        }
-        scripts.compound.putString("hs_origin", ox + "," + oy + "," + oz);
-        scripts.shouldSave = true;
     }
 
     public static String cancel() {

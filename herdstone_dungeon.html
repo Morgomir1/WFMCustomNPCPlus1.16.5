@@ -581,7 +581,7 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 <tr><td><b>C5 Яма</b></td><td>Б3: Горгон.</td><td>Босс</td></tr>
 </tbody></table></div>
 <h3>C3 Варп-топь</h3>
-<p>Скрытый Scripted Block «Туман» под полом топи. В <code>tick</code> (раз в 10 тиков): игроки в кубе ±16 блоков. Если у игрока storeddata <code>hs_clean_until</code> ещё не истёк — пропуск. Иначе тошнота 3 с и иссушение 2 с. Четыре Scripted Block «святая трава»: ПКМ пишет игроку <code>hs_clean_until = now + 300</code> тиков (15 с чистоты). Бой с отродьями идёт от травы к траве.</p>
+<p>Скрытый Scripted Block «Туман» (<code>block_fog.js</code>) под полом топи. В <code>tick</code> (раз в 10 тиков): игроки в кубе ±16 блоков. Креатив и наблюдатель не травятся. Если у игрока storeddata <code>hs_clean_until</code> ещё не истёк — пропуск. Иначе тошнота 3 с и иссушение 2 с. Четыре Scripted Block «святая трава» (<code>block_herb.js</code>): ПКМ пишет <code>hs_clean_until = now + 300</code> тиков (15 с чистоты). Бой с отродьями идёт от травы к траве.</p>
 <h3>C4 Секрет: Топь Бормочущего</h3>
 <p>Тупик, дальше данжа нет. Четыре менгира — обычные столбы из камня. Раз в 12 с Бормочущий поднимает взгляд: у менгиров на 2 с загораются золотые круги r 2,5. Кто в этот момент не стоит в круге, теряет 70% HP и получает тошноту. Укрытие проверяется дистанцией, не линией взгляда.</p>
 </section>
@@ -850,60 +850,22 @@ footer{margin-top:52px;font:12px var(--mono);color:var(--muted);border-top:1px s
 </details>
 
 <details><summary>Шкала урона данжа (опциональный Scripted Block у входа, ПКМ в креативе)</summary>
-<pre>// Пишет world storeddata "hs_dmg". Все NPC с hs_core читают его в hsScale:
-// исходящий урон и HP боссов. Цикл: 0.75 → 1 → 1.25 → 1.5 → 2 → 0.75.
-// Без блока достаточно поменять HS.DMG в ядре.
-var STEPS = [0.75, 1, 1.25, 1.5, 2];
-
-function interact(e) {
-    if (e.player.getGamemode() != 1) {
-        e.player.message("§7Шкалу крутит только креатив.");
-        return;
-    }
-    var d = e.block.getWorld().getStoreddata();
-    var cur = d.has("hs_dmg") ? Number(String(d.get("hs_dmg"))) : 1;
-    var i, next = STEPS[0];
-    for (i = 0; i &lt; STEPS.length; i++) {
-        if (Math.abs(STEPS[i] - cur) &lt; 0.001) {
-            next = STEPS[(i + 1) % STEPS.length];
-            break;
-        }
-    }
-    d.put("hs_dmg", String(next));
-    e.player.message("§eУрон и HP боссов ×" + next);
-}</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/block_dmg_scale.js</code>. ПКМ в креативе крутит world storeddata <code>hs_dmg</code>: 0.75 → 1 → 1.25 → 1.5 → 2.</p>
+</details>
 
 <details><summary>Туман C3 (скрытый Scripted Block)</summary>
-<pre>// Туман C3: скрытый Scripted Block под полом топи.
-var EntitiesType = Java.type("noppes.npcs.api.constants.EntitiesType");
-
-function tick(e) {
-    var w = e.block.getWorld();
-    var now = w.getTotalTime();
-    var list = w.getNearbyEntities(e.block.getPos(), 16, EntitiesType.PLAYER);
-    var i;
-    for (i = 0; i &lt; list.length; i++) {
-        var p = list[i];
-        var d = p.getStoreddata();
-        if (d.has("hs_clean_until") &amp;&amp; now &lt; Number(String(d.get("hs_clean_until")))) continue;
-        p.addPotionEffect(PotionEffectType_NAUSEA, 3, 0, true);
-        p.addPotionEffect(PotionEffectType_WITHER, 2, 0, true);
-    }
-}
-// Святая трава — отдельный Scripted Block:
-// function interact(e) {
-//   e.player.getStoreddata().put("hs_clean_until", String(e.block.getWorld().getTotalTime() + 300));
-// }</pre></details>
+<p>Код: <code>src/main/resources/scripts/herdstone/block_fog.js</code> и <code>block_herb.js</code>. Туман не трогает креатив и наблюдателя. Трава по ПКМ ставит <code>hs_clean_until</code> на 300 тиков.</p>
+</details>
 
 
 <h3>Порядок работ</h3>
 <ol>
   <li>Четыре фракции. Лагеря: квестодатели, Trader, <code>setSpawnpoint</code> в interact.</li>
   <li>Пять Area Kill-квестов, по два диалога (Отто / Гурхак) на каждый, Completion Instant.</li>
-  <li>Построить каркас: <code>/dungeon herdstone</code> (раскладка из <code>HerdstoneDungeon</code>). Ворота арен и выход — завалы; координаты скопировать в <code>GATE</code> боссов.</li>
+  <li>Построить каркас: <code>/cnpcdungeon herdstone</code> (раскладка из <code>HerdstoneDungeon</code>). Ворота арен и выход — завалы в <code>GATE</code> файлов боссов, центр считается от <code>hs_origin</code>.</li>
   <li>Клоны из таблицы: расставленные — Respawn 3600, «(призыв)», копии, сердца, кристаллы, тотемы Мургрота — Respawn = Нет. Tab 2.</li>
   <li>Скрипты: ядро + файл босса/моба. У мобов — свой пресет CASTS. У Горгона Return to start = да.</li>
-  <li>Scripted Block: туман и святые травы. По желанию — блок шкалы <code>hs_dmg</code> у входа.</li>
+  <li>Scripted Block: <code>block_fog.js</code> и <code>block_herb.js</code>. По желанию — <code>block_dmg_scale.js</code> у входа.</li>
   <li>Проход за Порядок и за Разрушение. Час ожидания у ворот: босс возродился, ворота закрылись.</li>
 </ol>
 </section>

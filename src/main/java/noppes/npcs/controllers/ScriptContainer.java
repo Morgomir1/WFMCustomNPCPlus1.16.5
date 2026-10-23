@@ -90,7 +90,7 @@ public class ScriptContainer
             if (!this.fullscript.isEmpty()) {
                 this.fullscript += "\n";
             }
-            for (final String loc : this.scripts) {
+            for (final String loc : this.orderedScripts()) {
                 final String code = ScriptController.Instance.scripts.get(loc);
                 if (code != null && !code.isEmpty()) {
                     this.fullscript = this.fullscript + code + "\n";
@@ -99,6 +99,45 @@ public class ScriptContainer
             this.unknownFunctions = new HashSet<String>();
         }
         return this.fullscript;
+    }
+
+    /**
+     * GUI хранит список по алфавиту, поэтому boss_* оказывается раньше hs_core.
+     * Для Herdstone порядок исполнения фиксированный: ядро, логика моба, пресет, остальное.
+     * Остальные скрипты сохраняют порядок списка.
+     */
+    private List<String> orderedScripts() {
+        final List<String> ordered = new ArrayList<String>(this.scripts);
+        Collections.sort(ordered, new Comparator<String>() {
+            @Override
+            public int compare(final String a, final String b) {
+                final int rank = Integer.compare(herdRank(a), herdRank(b));
+                if (rank != 0) {
+                    return rank;
+                }
+                return Integer.compare(ScriptContainer.this.scripts.indexOf(a), ScriptContainer.this.scripts.indexOf(b));
+            }
+        });
+        return ordered;
+    }
+
+    private static int herdRank(final String loc) {
+        final String norm = loc.replace('\\', '/');
+        if (!norm.contains("herdstone/")) {
+            return 100;
+        }
+        final int slash = norm.lastIndexOf('/');
+        final String name = slash >= 0 ? norm.substring(slash + 1) : norm;
+        if (name.equals("hs_core.js")) {
+            return 0;
+        }
+        if (name.equals("hs_mob.js")) {
+            return 1;
+        }
+        if (name.startsWith("mob_")) {
+            return 2;
+        }
+        return 3;
     }
     
     public void run(final EnumScriptType type, final Event event) {

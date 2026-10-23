@@ -58,7 +58,7 @@ public class ScriptContainer
         this.script = "";
         this.console = new TreeMap<Long, String>();
         this.errored = false;
-        this.scripts = new ArrayList<String>();
+        this.scripts = new ScriptFileList();
         this.unknownFunctions = new HashSet<String>();
         this.lastCreated = 0L;
         this.currentScriptLanguage = null;
@@ -72,7 +72,7 @@ public class ScriptContainer
         // Reassemble ScriptChunks when present (scripts larger than writeUTF 65KB).
         this.script = NbtLongString.get(compound, "Script");
         this.console = NbtLongString.loadConsoleMap(compound.getList("Console", 10));
-        this.scripts = NBTTags.getStringList(compound.getList("ScriptList", 10));
+        this.scripts = new ScriptFileList(NBTTags.getStringList(compound.getList("ScriptList", 10)));
         this.lastCreated = 0L;
     }
     
@@ -90,7 +90,7 @@ public class ScriptContainer
             if (!this.fullscript.isEmpty()) {
                 this.fullscript += "\n";
             }
-            // Порядок — правый список GUI, сверху вниз. Его не пересортировать.
+            // Порядок — список файлов на вкладке скрипта, сверху вниз.
             for (final String loc : this.scripts) {
                 final String code = ScriptController.Instance.scripts.get(loc);
                 if (code != null && !code.isEmpty()) {
@@ -262,6 +262,24 @@ public class ScriptContainer
             ScriptContainer.this.appandConsole(o + "");
             LogWriter.info(o + "");
             return null;
+        }
+    }
+
+    /**
+     * Правый список вкладки скрипта рисуется через GuiCustomScroll.setList,
+     * а тот сортирует переданный список на месте. sort здесь пустой, чтобы
+     * порядок ^ / v из окна файлов не затирался при возврате в GUI.
+     */
+    public static final class ScriptFileList extends ArrayList<String> {
+        public ScriptFileList() {
+        }
+
+        public ScriptFileList(final Collection<? extends String> items) {
+            super(items);
+        }
+
+        @Override
+        public void sort(final Comparator<? super String> ignored) {
         }
     }
 }

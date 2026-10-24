@@ -28,6 +28,10 @@ var B1_T_STAKE = 12;
 var B1_T_LASSO = 13;
 var B1_T_TRIP = 14;
 var B1_T_SLAM = 17;
+var B1_T_AIM = 18;
+var B1_T_LEAP = 19;
+var B1_T_AXE = 20;
+var B1_T_FEED = 21;
 var B1_ROAR_R = 18;
 var HerdstoneMount = Java.type("noppes.npcs.abilities.HerdstoneMount");
 
@@ -337,7 +341,72 @@ function b1Stun(npc, ticks) {
     hsPut(npc, "stun_until", hsNow(npc) + ticks);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
+    npc.getTimers().stop(B1_T_AIM);
+    b1ClearLine(npc);
+    if (hsNum(npc, "ram_at") > hsNow(npc) + 10000) hsPut(npc, "ram_at", hsNow(npc) + ticks);
     npc.getTimers().forceStart(B1_T_STUN, ticks, false);
+}
+
+function b1DropLine(npc) {
+    var old = hsGet(npc, "b1_line", "");
+    if (old.length > 2) {
+        try { TelegraphAPI.remove(old); } catch (err) {}
+    }
+    hsPut(npc, "b1_line", "");
+}
+
+function b1ClearLine(npc) {
+    b1DropLine(npc);
+    hsPut(npc, "b1_aim", 0);
+}
+
+function b1Feed(npc, player) {
+    if (player == null || !player.isAlive()) return;
+    var boar = String(npc.getName()) == B1_BOAR ? npc : b1Other(npc);
+    if (boar == null) return;
+    hsPut(boar, "b1_feed", String(player.getUUID()));
+    if (hsNum(boar, "ram_at") > hsNow(boar) + 25) hsPut(boar, "ram_at", hsNow(boar) + 15);
+}
+
+function b1NearIntactStake(player, npc) {
+    var mask = b1Mask(npc);
+    for (var i = 0; i < B1_NESTS.length; i++) {
+        if (mask.charAt(i) != "1") continue;
+        var cols = b1StakeColumns(npc, i);
+        for (var c = 0; c < cols.length; c++) {
+            if (hsFlat(player, cols[c][0] + 0.5, cols[c][2] + 0.5) <= 3) return true;
+        }
+    }
+    return false;
+}
+
+function b1MarkPulse(npc) {
+    if (String(npc.getName()) != B1_BOAR) return;
+    var p = b1Marked(npc);
+    if (p == null) return;
+    if (b1NearIntactStake(p, npc)) return;
+    p.addPotionEffect(PotionEffectType_SLOWNESS, 2, 0, false);
+}
+
+function b1OnEdge(npc, player) {
+    var c = hsArenaCenter(npc);
+    var a = hsArena();
+    var dx = player.getX() - c[0];
+    var dz = player.getZ() - c[2];
+    if (dx < 0) dx = -dx;
+    if (dz < 0) dz = -dz;
+    return dx >= a.hw - 3 || dz >= a.hd - 3;
+}
+
+function b1EdgeTick(npc, ps) {
+    if (ps == null || ps.length == 0) return;
+    var now = hsNow(npc);
+    if (now < Number(b1WGet(npc, "hs_b1_edge_at", "0"))) return;
+    b1WPut(npc, "hs_b1_edge_at", now + 20);
+    for (var i = 0; i < ps.length; i++) {
+        if (!b1OnEdge(npc, ps[i])) continue;
+        hsStrike(ps[i], 0.03);
+    }
 }
 
 // Таймер, запущенный с другого NPC, может не сработать. Срок стана считает сам моб.
@@ -369,6 +438,8 @@ function b1DropRider(boar) {
     if (grul == null) return;
     hsPut(grul, "b1_mounted", 0);
     hsPut(grul, "b1_mounting", 0);
+    hsPut(grul, "b1_mount_go", 0);
+    hsPut(grul, "b1_mount_wait", 0);
     HerdstoneMount.dismount(grul);
     hsPut(grul, "b1_recover", hsNow(boar) + 300);
     AbilityAPI.cancel(grul);
@@ -700,7 +771,7 @@ function b1HornTick(npc) {
             }
         }
         if (done == "0" && age >= 400) {
-            b1AddFury(npc, 1);
+            b1AddFury(npc, 2);
             if (String(npc.getName()) == B1_GRUL) b1Say(npc, "Рейдер трубит в рог!");
             done = "1";
             dirty = true;
@@ -789,8 +860,28 @@ function b1MountTick(grul) {
     if (hsGet(grul, "b1_haul", "0") == "1") return;
     if (hsNum(grul, "b1_recover") > hsNow(grul)) return;
     if (b1Phase(grul) != 2) return;
+    if (hsGet(grul, "b1_mount_wait", "0") == "1") {
+        var boar = b1Other(grul);
+        if (boar == null) {
+            hsPut(grul, "b1_mount_wait", 0);
+        } else if (hsGet(boar, "stun", "0") == "1" || hsGet(boar, "b1_call", "0") == "1"
+                || AbilityAPI.isBusy(boar) || boar.getTimers().has(B1_T_RAM)
+                || boar.getTimers().has(B1_T_SLIDE)) {
+            return;
+        } else {
+            b1AskRemount(grul);
+        }
+    }
     if (hsGet(grul, "b1_mount_done", "0") == "1" && hsGet(grul, "b1_mount_go", "0") != "1") return;
     b1StartMount(grul);
+}
+
+function b1AskRemount(grul) {
+    if (grul == null || !grul.isAlive()) return;
+    if (hsGet(grul, "b1_mounted", "0") == "1" || hsGet(grul, "stun", "0") == "1") return;
+    if (hsNum(grul, "b1_recover") > hsNow(grul)) return;
+    hsPut(grul, "b1_mount_wait", 0);
+    hsPut(grul, "b1_mount_go", 1);
 }
 
 function b1RecoverTick(grul) {
@@ -804,8 +895,12 @@ function b1RecoverTick(grul) {
     if (hsGet(grul, "stun", "0") == "1") return;
     if (hsNow(grul) < until) return;
     hsPut(grul, "b1_recover", 0);
-    if (hsFlat(grul, boar.getX(), boar.getZ()) > 8) hsPut(boar, "b1_call", 1);
-    else hsPut(grul, "b1_mount_go", 1);
+    if (hsFlat(grul, boar.getX(), boar.getZ()) > 8) {
+        hsPut(boar, "b1_call", 1);
+        hsPut(grul, "b1_mount_wait", 1);
+    } else {
+        hsPut(grul, "b1_mount_go", 1);
+    }
     b1Release(grul);
 }
 
@@ -848,7 +943,7 @@ function b1PlaceRing(npc, inner) {
 function hsEnrage(npc, ps, now) {
     var start = Number(b1WGet(npc, "hs_b1_enrage_from", "0"));
     if (!(start > 0)) start = hsNum(npc, "fight_at");
-    if (now < start + 360 * 20) return;
+    if (now < start + 240 * 20) return;
     if (b1WGet(npc, "hs_b1_ring_at", "") == "") {
         b1WPut(npc, "hs_b1_ring_at", now + 100);
         b1WPut(npc, "hs_b1_ring_i", 0);

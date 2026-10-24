@@ -2,7 +2,7 @@
 // Таран, ярость, серия фазы «Наездник», рикошет и кровавый след фазы «Одиночка».
 HS.BASE_HP = 300;
 HS.ARENA = { shape: "rect", hw: 22, hd: 19 };
-HS.ENRAGE_SEC = 360;
+HS.ENRAGE_SEC = 240;
 HS.DISPEL_SEC = 99999;
 ORIGIN = [-373224, 101, -13530];
 GATE = hsBox(12, 0, -11, 3, 2, 3);
@@ -55,6 +55,8 @@ function tick(e) {
     b1MudTick(npc, ps);
     b1HornTick(npc);
     b1Face(npc);
+    b1MarkPulse(npc);
+    b1EdgeTick(npc, ps);
     if (b1WidowTick(npc)) return;
     if (hsGet(npc, "b1_feed", "").length >= 32 && hsNum(npc, "ram_at") > hsNow(npc) + 25) {
         hsPut(npc, "ram_at", hsNow(npc) + 15);
@@ -104,7 +106,7 @@ function b1RamCd(npc) {
     var phase = b1Phase(npc);
     if (phase == 3) return 50;
     if (phase == 2) return 80;
-    return 70;
+    return 60;
 }
 
 function b1ChargeTicks(npc) {
@@ -148,20 +150,42 @@ function b1Marked(npc) {
     return b1FindPlayer(npc, hsGet(npc, "mark_uuid", ""));
 }
 
+function b1RamLen(npc, target, kind) {
+    if (kind == "chase") return 8;
+    var dist = hsFlat(npc, target.getX(), target.getZ());
+    var len = dist + 4;
+    if (len < 14) len = 14;
+    var yaw = hsYawTo(npc, target);
+    if (b1LineHitsMud(npc, npc.getX(), npc.getZ(), yaw, len)) len = len + 4;
+    if (len > 24) len = 24;
+    return len;
+}
+
+function b1DrawLine(npc, x, y, z, yaw, len, ticks) {
+    b1DropLine(npc);
+    var id = TelegraphAPI.line(npc, x, y, z, yaw, len, 3.0, ticks, HS.RED);
+    hsPut(npc, "b1_line", id == null ? "" : String(id));
+}
+
 function b1BeginDash(npc, target, charge, kind) {
+    return b1FireDash(npc, target, charge, kind);
+}
+
+function b1FireDash(npc, target, charge, kind) {
     if (target == null || !target.isAlive()) return false;
     var yaw = hsYawTo(npc, target);
-    var len = 14;
-    if (b1LineHitsMud(npc, npc.getX(), npc.getZ(), yaw, 14)) len = 18;
+    var len = b1RamLen(npc, target, kind);
     hsPut(npc, "b1_face", yaw);
     hsPut(npc, "ram_x", npc.getX());
     hsPut(npc, "ram_z", npc.getZ());
     hsPut(npc, "ram_yaw", yaw);
     hsPut(npc, "ram_len", len);
     hsPut(npc, "ram_kind", kind);
+    hsPut(npc, "ram_target", String(target.getUUID()));
     hsPut(npc, "b1_bounce", 0);
     hsPut(npc, "b1_last", String(target.getUUID()));
-    TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, len, 3.0, charge, HS.RED);
+    hsPut(npc, "b1_aim", 0);
+    b1DrawLine(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, len, charge);
     var started = hsStart(npc, "dash", target, AbilityAPI.params(
         "chargeTicks", charge,
         "activeTicks", 8,
@@ -171,7 +195,10 @@ function b1BeginDash(npc, target, charge, kind) {
         "knockback", 0.6,
         "knockbackY", 0.15
     ));
-    if (!started) return false;
+    if (!started) {
+        b1ClearLine(npc);
+        return false;
+    }
     npc.getTimers().forceStart(B1_T_RAM, charge + 10, false);
     return true;
 }
@@ -183,15 +210,17 @@ function b1ResolveRam(npc) {
     var yaw = hsNum(npc, "ram_yaw");
     var len = hsNum(npc, "ram_len");
     if (!(len > 0)) len = 14;
-    var pct = 0.30 + 0.05 * hsNum(npc, "b1_fury");
+    var pct = 0.35 + 0.05 * hsNum(npc, "b1_fury");
     var mark = "";
     if (hsNow(npc) <= hsNum(npc, "mark_until")) mark = hsGet(npc, "mark_uuid", "");
     var ps = hsPlayersAt(npc, sx, npc.getY(), sz, len + 2);
     for (var i = 0; i < ps.length; i++) {
         if (!hsOnLine(ps[i], sx, sz, yaw, len, 1.8)) continue;
         hsStrike(ps[i], pct);
-        if (mark.length >= 32 && String(ps[i].getUUID()) == mark) b1AddFury(npc, 1);
-        else b1AddFury(npc, 2);
+        if (mark.length >= 32 && String(ps[i].getUUID()) == mark) {
+            b1AddFury(npc, 1);
+            if (!b1NearIntactStake(ps[i], npc)) b1AddFury(npc, 1);
+        } else b1AddFury(npc, 2);
     }
     if (hsGet(npc, "b1_mounted", "0") == "1") {
         for (var j = 0; j < ps.length; j++) {
@@ -245,16 +274,40 @@ function b1StartBounce(npc) {
     npc.getTimers().forceStart(B1_T_RAM, 20, false);
 }
 
+function b1MaybeChase(npc) {
+    if (hsGet(npc, "stun", "0") == "1") return false;
+    if (b1Phase(npc) != 1) return false;
+    if (hsGet(npc, "b1_mounted", "0") == "1") return false;
+    var target = b1FindPlayer(npc, hsGet(npc, "ram_target", ""));
+    if (target == null) {
+        var ps = hsPlayers(npc);
+        if (ps == null || ps.length == 0) return false;
+        target = ps[0];
+        var best = hsFlat(npc, target.getX(), target.getZ());
+        for (var i = 1; i < ps.length; i++) {
+            var dist = hsFlat(npc, ps[i].getX(), ps[i].getZ());
+            if (dist < best) {
+                best = dist;
+                target = ps[i];
+            }
+        }
+    }
+    if (hsFlat(npc, target.getX(), target.getZ()) <= 6) return false;
+    return b1BeginDash(npc, target, 15, "chase");
+}
+
 function b1FinishSeries(npc) {
     if (hsGet(npc, "stun", "0") == "1") return;
     var step = hsNum(npc, "b1_step");
+    var kind = hsGet(npc, "ram_kind", "");
     if (hsGet(npc, "b1_mounted", "0") == "1" && step >= 0 && step < 2) {
         hsPut(npc, "b1_step", step + 1);
         var ps = hsPlayers(npc);
         var target = b1Pick(npc, ps);
         if (target != null && b1BeginDash(npc, target, b1ChargeTicks(npc), "series")) return;
     }
-    if (step >= 0) {
+    if (kind != "chase" && kind != "call" && b1MaybeChase(npc)) return;
+    if (step >= 0 || kind == "chase") {
         hsPut(npc, "b1_step", -1);
         hsPut(npc, "ram_at", hsNow(npc) + b1RamCd(npc));
     }

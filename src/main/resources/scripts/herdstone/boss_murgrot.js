@@ -1,6 +1,7 @@
 // Мургрот Туманный Глас (Б2). В контейнере вторым после hs_core.js.
 // Круг B5, r 20. Скорость 0 и On Attack = Ничего ставит init: обычной атаки нет, снаряд в GUI не нужен.
-// Вместо неё навес: раз в 3,5 с сгусток дугой в случайного игрока и лужа на 10 с (crimson_blob).
+// Вместо неё навес: раз в 3,5 с сгусток дугой в случайного игрока (crimson_blob), при падении удар
+// 30% в 3,5 блоках, затем лужа на 10 с со «Страхом» — из неё бегут прочь.
 // Сам по себе неуязвим и не сходит с места: стоит на якоре, двигается только шагом на место тотема.
 // Тотемы — его инструмент: стоят весь бой, у каждого своя нота (hs_core.js → murgrot_totem.js).
 // Перекличка: Мургрот поёт 3 ноты (после 66% — 4, после 33% — 5), игроки бьют тотемы в том же
@@ -45,10 +46,16 @@ var WAVE_FIRST = 30, WAVE_EVERY = 80, WAVE_WINDUP = 20, WAVE_STEP_TICKS = 2, WAV
 // Цвет кольца — тот же, что «предупреждение» библиотеки подсказок (0xC0FF0000): в последнюю четверть
 // жизни она перекрашивает подсказку в него, и короткие кольца другого цвета мигали бы.
 var WAVE_START = 1.5, WAVE_STRIKE = 0.25, WAVE_JUMP = 0.5, WAVE_COLOR = 0xC0FF0000 | 0, WAVE_RING_TICKS = 4;
-// Навес вместо обычной атаки — crimson_blob, как у вампиров: сгусток дугой в случайного игрока,
-// на месте падения 10 с лежит лужа (урон раз в полсекунды и Замедление II).
-var LOB_FIRST = 60, LOB_EVERY = 70, LOB_RANGE = 40;
-var T_NOTE = 1, T_ROT = 2, T_WAVE = 3, T_WAVE_STEP = 4;
+// Навес вместо обычной атаки — crimson_blob, как у вампиров: сгусток дугой в случайного игрока.
+// Только у Мургрота (способность общая, её не трогаем): при падении удар 30% всем в LOB_R,
+// на месте 10 с лужа r 3,5 — урон раз в полсекунды и «Страх» WFM, от которого бегут прочь из лужи.
+var LOB_FIRST = 60, LOB_EVERY = 70, LOB_RANGE = 40, LOB_R = 3.5, LOB_HIT = 0.3;
+var LOB_FLIGHT = 31;   // chargeTicks + activeTicks: столько тиков от старта до падения
+var LOB_ZONE_TICKS = 200, FEAR_TICKS = 40;
+// Страх без источника в WFM — только прибавка к скорости; бег прочь включает пакет источника.
+// Его id — существо, которого у клиента нет: тогда клиент бежит прочь от координат пакета (центра лужи).
+var FEAR_NO_ENTITY = 2147483647;
+var T_NOTE = 1, T_ROT = 2, T_WAVE = 3, T_WAVE_STEP = 4, T_LOB = 5;
 
 function init(e) {
     var npc = e.npc;
@@ -72,6 +79,7 @@ function init(e) {
     hsPut(npc, "wave_at", 0);
     hsPut(npc, "wave_told", 0);
     hsPut(npc, "lob_at", 0);
+    hsPut(npc, "fear_zones", "");
 }
 
 // Нет клона во вкладке — строка в консоль, бой идёт дальше. Исключение выключило бы весь скрипт.
@@ -210,6 +218,7 @@ function startWindow(npc, now) {
     // Граница — на момент открытия: волна сменится посреди окна, как только здоровье её перейдёт.
     hsPut(npc, "win_floor", windowFloor(npc));
     AbilityAPI.cancel(npc);
+    npc.getTimers().stop(T_LOB);   // сгусток отменён вместе со способностью — удара при падении нет
     TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), 2.5, WINDOW_TICKS, NOTES[1].color);
     arenaSound(npc, "minecraft:entity.ravager.stunned", 1.0, 0.8);
     npc.say("§aПеснь подхвачена! Мургрот захлёбывается — бейте!");
@@ -354,14 +363,70 @@ function waveStep(npc) {
 function lobTick(npc, ps, now) {
     if (hsGet(npc, "song", "") == "stun" || now < hsNum(npc, "lob_at") || AbilityAPI.isBusy(npc)) return;
     hsPut(npc, "lob_at", now + LOB_EVERY);
-    hsStart(npc, "crimson_blob", hsRandom(ps), AbilityAPI.params(
-        "chargeTicks", 15, "activeTicks", 16, "arcHeight", 6.0, "landRadius", 2.5, "maxRange", LOB_RANGE,
-        "zoneTicks", 200, "damage", 2.0, "damageInterval", 10,
-        "effectId", "minecraft:slowness", "effectDuration", 30, "effectAmplifier", 1,
+    var target = hsRandom(ps);
+    var started = hsStart(npc, "crimson_blob", target, AbilityAPI.params(
+        "chargeTicks", 15, "activeTicks", 16, "arcHeight", 6.0, "landRadius", LOB_R, "maxRange", LOB_RANGE,
+        "zoneTicks", LOB_ZONE_TICKS, "damage", 2.0, "damageInterval", 10,
+        "effectId", "wfm:fear", "effectDuration", FEAR_TICKS, "effectAmplifier", 0,
         "zoneColor", 0xC0400070 | 0, "telegraphColor", 0xC0B040FF | 0,
         "blobParticles", "minecraft:portal,minecraft:dragon_breath,minecraft:smoke",
         "landParticles", "minecraft:dragon_breath,minecraft:large_smoke,minecraft:portal",
         "particleCount", 10));
+    if (!started) return;
+    // Точка падения — где цель стоит сейчас: её же запоминает crimson_blob в onStart.
+    hsPut(npc, "lob_x", target.getX());
+    hsPut(npc, "lob_y", target.getY());
+    hsPut(npc, "lob_z", target.getZ());
+    npc.getTimers().forceStart(T_LOB, LOB_FLIGHT, false);
+}
+
+function lobLand(npc, now) {
+    var x = hsNum(npc, "lob_x"), y = hsNum(npc, "lob_y"), z = hsNum(npc, "lob_z");
+    var ps = hsPlayersAt(npc, x, y, z, LOB_R);
+    for (var i = 0; i < ps.length; i++) {
+        var p = ps[i];
+        hsStrike(p, LOB_HIT);
+        p.message("§5Сгусток Мургрота накрывает тебя!");
+        if (p.isAlive()) Combat.dealPureDamage(p, 0.01, true);   // вздрагивание экрана, как у фальши
+    }
+    var kept = [];
+    var old = hsGet(npc, "fear_zones", "").split(";");
+    for (var j = 0; j < old.length; j++) {
+        var f = old[j].split(":");
+        if (f.length == 3 && Number(f[2]) > now) kept.push(old[j]);
+    }
+    kept.push(x + ":" + z + ":" + (now + LOB_ZONE_TICKS));
+    hsPut(npc, "fear_zones", kept.join(";"));
+}
+
+var FearPacket = null, WfmNet = null, fearBroken = false;
+
+function sendFear(p, x, z) {
+    if (fearBroken) return;
+    try {
+        if (FearPacket == null) {
+            FearPacket = Java.type("wfm.common.network.SPacketFearSource");
+            WfmNet = Java.type("wfm.common.network.LOTRPacketHandler");
+        }
+        WfmNet.sendTo(new FearPacket(FEAR_NO_ENTITY, x, z, FEAR_TICKS), p.getMCEntity());
+    } catch (err) {
+        fearBroken = true;
+        log("herdstone: страх из лужи Мургрота без бегства: " + err);
+    }
+}
+
+// Кто стоит в луже, тот под «Страхом» (его вешает сама зона) и бежит прочь от её центра.
+function fearTick(npc, now) {
+    var zones = hsGet(npc, "fear_zones", "");
+    if (zones.length == 0) return;
+    var list = zones.split(";");
+    for (var i = 0; i < list.length; i++) {
+        var f = list[i].split(":");
+        if (f.length != 3 || Number(f[2]) <= now) continue;
+        var x = Number(f[0]), z = Number(f[1]);
+        var ps = hsPlayersAt(npc, x, hsArenaCenter(npc)[1], z, LOB_R);
+        for (var j = 0; j < ps.length; j++) sendFear(ps[j], x, z);
+    }
 }
 
 function fogTick(npc, now) {
@@ -395,6 +460,7 @@ function tick(e) {
     }
     songTick(npc, now);
     waveTick(npc, now);
+    fearTick(npc, now);
     fogTick(npc, now);
 
     if (hsGet(npc, "copies", "0") == "0" && hp <= 0.5) {
@@ -438,6 +504,10 @@ function timer(e) {
     }
     if (e.id == T_WAVE) {
         waveRelease(npc);
+        return;
+    }
+    if (e.id == T_LOB) {
+        lobLand(npc, hsNow(npc));
         return;
     }
     if (e.id == T_WAVE_STEP) {

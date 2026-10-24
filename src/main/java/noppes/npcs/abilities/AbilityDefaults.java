@@ -756,4 +756,20 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF3030);
         return map;
     }
+
+    public static Map<String, Object> b1Slide() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 10.0);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 8);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        return map;
+    }
+
+    public static Map<String, Object> b1Pull() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.DISTANCE, 0.15);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 40);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        return map;
+    }
 }

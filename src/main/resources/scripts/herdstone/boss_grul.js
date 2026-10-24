@@ -198,37 +198,6 @@ function gLasso(npc, ps) {
     npc.getTimers().forceStart(B1_T_LASSO, 20, false);
 }
 
-function gLassoPull(npc) {
-    if (hsGet(npc, "b1_lasso", "") != "pull") {
-        npc.getTimers().stop(B1_T_LASSO);
-        return;
-    }
-    if (hsGet(npc, "b1_lasso_cut", "0") == "1" || hsGet(npc, "stun", "0") == "1") {
-        npc.getTimers().stop(B1_T_LASSO);
-        hsPut(npc, "b1_lasso", "");
-        return;
-    }
-    var p = b1FindPlayer(npc, hsGet(npc, "b1_lasso_id", ""));
-    if (p == null) {
-        npc.getTimers().stop(B1_T_LASSO);
-        hsPut(npc, "b1_lasso", "");
-        return;
-    }
-    var dx = npc.getX() - p.getX();
-    var dz = npc.getZ() - p.getZ();
-    var len = Math.sqrt(dx * dx + dz * dz);
-    var step = hsNum(npc, "b1_lasso_step") + 1;
-    hsPut(npc, "b1_lasso_step", step);
-    if (len < 1.5 || step >= 20) {
-        npc.getTimers().stop(B1_T_LASSO);
-        hsPut(npc, "b1_lasso", "");
-        return;
-    }
-    var move = 0.3;
-    if (move > len) move = len;
-    p.setPosition(p.getX() + dx / len * move, p.getY(), p.getZ() + dz / len * move);
-}
-
 function gExtraLasso(npc, ps) {
     if (b1Phase(npc) != 3) return;
     if (hsGet(npc, "b1_mounted", "0") == "1") return;
@@ -365,18 +334,19 @@ function timer(e) {
         b1SlamLand(npc);
         return;
     }
-    if (e.id == B1_T_MOUNT) {
-        b1HoldMount(npc);
-        return;
-    }
     if (e.id != B1_T_LASSO) return;
-    if (hsGet(npc, "b1_lasso", "") == "windup") {
-        hsPut(npc, "b1_lasso", "pull");
-        hsPut(npc, "b1_lasso_step", 0);
-        npc.getTimers().forceStart(B1_T_LASSO, 2, true);
+    if (hsGet(npc, "b1_lasso", "") != "windup") return;
+    var pulled = b1FindPlayer(npc, hsGet(npc, "b1_lasso_id", ""));
+    if (pulled == null) {
+        hsPut(npc, "b1_lasso", "");
         return;
     }
-    gLassoPull(npc);
+    hsPut(npc, "b1_lasso", "pull");
+    hsPut(npc, "b1_lasso_cut", 0);
+    if (!hsStart(npc, "b1_pull", pulled, AbilityAPI.params(
+            "activeTicks", 40, "distance", 0.15, "telegraph", 0))) {
+        hsPut(npc, "b1_lasso", "");
+    }
 }
 
 function meleeAttack(e) {

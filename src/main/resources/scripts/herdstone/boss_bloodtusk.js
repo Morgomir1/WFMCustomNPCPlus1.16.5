@@ -45,6 +45,11 @@ function tick(e) {
     var ps = hsFight(npc);
     if (ps == null) return;
     b1Boot(npc, ps);
+    if (hsGet(npc, "ram_kind", "") == "slide" && !AbilityAPI.isBusy(npc)) {
+        hsPut(npc, "ram_kind", "dash");
+        b1ResolveRam(npc);
+        return;
+    }
     b1RefreshLink(npc);
     b1MudTick(npc, ps);
     b1HornTick(npc);
@@ -228,29 +233,10 @@ function b1StartBounce(npc) {
     hsPut(npc, "b1_slide", 0);
     hsPut(npc, "ram_kind", "windup");
     TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 10, 3.0, 20, HS.RED);
+    npc.setRotation(yaw);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
     npc.getTimers().forceStart(B1_T_RAM, 20, false);
-}
-
-function b1Slide(npc) {
-    if (hsGet(npc, "ram_kind", "") != "slide") {
-        npc.getTimers().stop(B1_T_SLIDE);
-        return;
-    }
-    var step = hsNum(npc, "b1_slide") + 1;
-    hsPut(npc, "b1_slide", step);
-    var f = b1Forward(hsNum(npc, "ram_yaw"));
-    var len = hsNum(npc, "ram_len");
-    if (!(len > 0)) len = 10;
-    var t = step / 8;
-    if (t > 1) t = 1;
-    npc.setPosition(hsNum(npc, "ram_x") + f[0] * len * t, npc.getY(), hsNum(npc, "ram_z") + f[1] * len * t);
-    npc.setRotation(hsNum(npc, "ram_yaw"));
-    if (step < 8) return;
-    hsPut(npc, "ram_kind", "dash");
-    npc.getTimers().stop(B1_T_SLIDE);
-    b1ResolveRam(npc);
 }
 
 function b1FinishSeries(npc) {
@@ -281,15 +267,15 @@ function timer(e) {
         b1RitualFire(npc);
         return;
     }
-    if (e.id == B1_T_SLIDE) {
-        b1Slide(npc);
-        return;
-    }
     if (e.id != B1_T_RAM) return;
     if (hsGet(npc, "ram_kind", "") == "windup") {
+        npc.setRotation(hsNum(npc, "ram_yaw"));
         hsPut(npc, "ram_kind", "slide");
-        hsPut(npc, "b1_slide", 0);
-        npc.getTimers().forceStart(B1_T_SLIDE, 1, true);
+        if (!hsStart(npc, "b1_slide", npc, AbilityAPI.params(
+                "activeTicks", 8, "distance", 10, "telegraph", 0))) {
+            hsPut(npc, "ram_kind", "dash");
+            b1ResolveRam(npc);
+        }
         return;
     }
     b1ResolveRam(npc);

@@ -59,6 +59,8 @@ public final class AbilityRegistry {
         register(new NecromancerVolleyAbility());
         register(new NecromancerRingsAbility());
         register(new WeaponSpinAbility());
+        register(new B1SlideAbility());
+        register(new B1PullAbility());
     }
 
     private AbilityRegistry() {

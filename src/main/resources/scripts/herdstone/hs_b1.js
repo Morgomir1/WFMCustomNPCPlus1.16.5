@@ -4,7 +4,7 @@
 
 var B1_BOAR = "Кровохряк";
 var B1_GRUL = "Грул Кабанья Рука";
-var B1_RAIDER = "Унгор-рейдер (призыв)";
+var B1_RAIDER = "Унгор-рейдер";
 var B1_STAKE = "minecraft:dark_oak_log";
 var B1_MUD_BLOCK = "minecraft:soul_soil";
 var B1_NESTS = [
@@ -21,8 +21,8 @@ var B1_T_ROAR = 11;
 var B1_T_STAKE = 12;
 var B1_T_LASSO = 13;
 var B1_T_TRIP = 14;
-var B1_T_MOUNT = 16;
 var B1_T_SLAM = 17;
+var HerdstoneMount = Java.type("noppes.npcs.abilities.HerdstoneMount");
 
 function b1W(npc) { return npc.getWorld().getStoreddata(); }
 function b1WGet(npc, key, def) {
@@ -277,6 +277,7 @@ function b1Release(npc) {
 }
 
 function b1Stun(npc, ticks) {
+    AbilityAPI.cancel(npc);
     hsPut(npc, "stun", 1);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
@@ -297,11 +298,9 @@ function b1DropRider(boar) {
     hsPut(boar, "b1_mounted", 0);
     var grul = b1Other(boar);
     if (grul == null) return;
-    grul.getTimers().stop(B1_T_MOUNT);
     hsPut(grul, "b1_mounted", 0);
     hsPut(grul, "b1_mounting", 0);
-    var f = b1Forward(hsNum(boar, "b1_face"));
-    grul.setPosition(boar.getX() - f[1] * 1.6, boar.getY(), boar.getZ() + f[0] * 1.6);
+    HerdstoneMount.dismount(grul);
     hsPut(grul, "b1_recover", hsNow(boar) + 300);
     AbilityAPI.cancel(grul);
     grul.say("§eГрул слетает с кабана!");
@@ -649,23 +648,6 @@ function b1WalkTo(npc, target) {
     } catch (err) {}
 }
 
-function b1HoldMount(grul) {
-    var boar = b1Other(grul);
-    if (boar == null || hsGet(grul, "b1_mounted", "0") != "1") {
-        grul.getTimers().stop(B1_T_MOUNT);
-        hsPut(grul, "b1_mounted", 0);
-        return;
-    }
-    grul.setPosition(boar.getX(), boar.getY() + 1.6, boar.getZ());
-    grul.setRotation(hsNum(boar, "b1_face"));
-    grul.getAi().setWalkingSpeed(0);
-    grul.getAi().setRetaliateType(3);
-    try {
-        var mc = grul.getMCEntity();
-        if (mc != null && mc.getNavigation() != null) mc.getNavigation().stop();
-    } catch (err2) {}
-}
-
 function b1StartMount(grul) {
     var boar = b1Other(grul);
     if (boar == null) return;
@@ -695,12 +677,16 @@ function b1SlamLand(grul) {
     if (boar == null || !boar.isAlive()) return;
     var ps = hsPlayersAt(grul, boar.getX(), boar.getY(), boar.getZ(), 3.2);
     for (var i = 0; i < ps.length; i++) hsStrike(ps[i], 0.20);
+    if (!HerdstoneMount.mount(grul, boar, 1.6)) {
+        hsPut(grul, "b1_mount_done", 0);
+        hsPut(grul, "b1_mount_go", 1);
+        return;
+    }
     hsPut(grul, "b1_mounted", 1);
     hsPut(boar, "b1_mounted", 1);
     hsPut(boar, "b1_step", -1);
     grul.getAi().setWalkingSpeed(0);
     grul.getAi().setRetaliateType(3);
-    grul.getTimers().forceStart(B1_T_MOUNT, 1, true);
 }
 
 function b1MountTick(grul) {
@@ -826,3 +812,6 @@ function b1OnDied(npc) {
     hsSetGate(npc, false);
     npc.say("§7Путь вниз открыт.");
 }
+
+// Поводок ядра (телепорт в центр и 25% здоровья) на этой паре выключен.
+function hsLeash(npc) {}

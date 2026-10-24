@@ -333,12 +333,16 @@ function hsFight(npc) {
         hsDispel(npc, ps);
         hsPut(npc, "dispel_at", now + HS.DISPEL_SEC * 20);
     }
-    if (now - fightAt > HS.ENRAGE_SEC * 20 && now >= hsNum(npc, "enrage_at")) {
-        hsPut(npc, "enrage_at", now + 200);
-        npc.say("§4Стадо не ждёт!");
-        hsKill(hsRandom(ps));
-    }
+    if (now - fightAt > HS.ENRAGE_SEC * 20) hsEnrage(npc, ps, now);
     return ps;
+}
+
+// Босс может подменить эту функцию в своём файле. По умолчанию — убийство случайного игрока раз в 10 с.
+function hsEnrage(npc, ps, now) {
+    if (now < hsNum(npc, "enrage_at")) return;
+    hsPut(npc, "enrage_at", now + 200);
+    npc.say("§4Стадо не ждёт!");
+    if (ps != null && ps.length > 0) hsKill(hsRandom(ps));
 }
 
 var HS_FACTION_IDS = {};

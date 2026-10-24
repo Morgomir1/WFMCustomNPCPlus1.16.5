@@ -767,9 +767,30 @@ public final class AbilityDefaults {
 
     public static Map<String, Object> b1Pull() {
         final Map<String, Object> map = new HashMap<>();
-        map.put(AbilityParamKeys.DISTANCE, 0.15);
+        map.put(AbilityParamKeys.DISTANCE, 0.55);
         map.put(AbilityParamKeys.ACTIVE_TICKS, 40);
         map.put(AbilityParamKeys.TELEGRAPH, 0);
+        return map;
+    }
+
+    public static Map<String, Object> axeThrow() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 8);
+        map.put(AbilityParamKeys.MAX_RANGE, 16.0);
+        // AbilityTelegraph.line: distance + radius (полная ширина).
+        map.put(AbilityParamKeys.DISTANCE, 16.0);
+        map.put(AbilityParamKeys.RADIUS, 2.4);
+        map.put(AbilityParamKeys.OUTBOUND_TICKS, 16);
+        map.put(AbilityParamKeys.HOLD_TICKS, 4);
+        map.put(AbilityParamKeys.RETURN_TICKS, 10);
+        map.put(AbilityParamKeys.HIT_RADIUS, 1.2);
+        map.put(AbilityParamKeys.DAMAGE, 0.0);
+        map.put(AbilityParamKeys.DAMAGE_PERCENT, 0.15);
+        map.put(AbilityParamKeys.EFFECT_DURATION, 60);
+        map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 1);
+        map.put(AbilityParamKeys.PROJECTILE_ITEM, "wfm:beastmen_gor_battleaxe");
+        map.put(AbilityParamKeys.TELEGRAPH, 1);
+        map.put(AbilityParamKeys.TELEGRAPH_COLOR, 0xC0FF0000);
         return map;
     }
 

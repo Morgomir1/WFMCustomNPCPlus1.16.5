@@ -97,6 +97,14 @@ public final class AbilityParamKeys {
     public static final String RING1_RADIUS = "ring1Radius";
     public static final String RING2_RADIUS = "ring2Radius";
     public static final String RING3_RADIUS = "ring3Radius";
+    /** Доля max HP цели (0.15 = 15%). Если &gt; 0 — вместо плоского DAMAGE. */
+    public static final String DAMAGE_PERCENT = "damagePercent";
+    /** Тики полёта топора «туда» (axe_throw). */
+    public static final String OUTBOUND_TICKS = "outboundTicks";
+    /** Пауза на максимальной дистанции (axe_throw). */
+    public static final String HOLD_TICKS = "holdTicks";
+    /** Тики возврата топора (axe_throw). */
+    public static final String RETURN_TICKS = "returnTicks";
 
     private AbilityParamKeys() {
     }

@@ -13,6 +13,9 @@ public final class WfmIntegration {
     private static final String GUN_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcGunHelper";
     private static final String LEADBELCHER_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcLeadbelcherHelper";
     private static final String MINE_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcMineHelper";
+    private static final String AXE_THROW_HELPER_CLASS = "wfm.common.integration.customnpc.CustomNpcAxeThrowHelper";
+    private static final String START_AXE_THROW_METHOD = "startAxeThrowVisual";
+    private static final String STOP_AXE_THROW_METHOD = "stopAxeThrowVisual";
     private static final String THROW_NET_METHOD = "throwDwarfRangerNet";
     private static final String THROW_NET_TOWARD_POINT_METHOD = "throwNetTowardPoint";
     private static final String ENSNARE_AROUND_POINT_METHOD = "ensnareAroundPoint";
@@ -57,6 +60,10 @@ public final class WfmIntegration {
     private static Method removeVisualMineMethod;
     private static Method throwMineTowardPointMethod;
 
+    private static Boolean axeThrowAvailable;
+    private static Method startAxeThrowMethod;
+    private static Method stopAxeThrowMethod;
+
     private WfmIntegration() {
     }
 
@@ -78,6 +85,65 @@ public final class WfmIntegration {
     public static boolean isWfmMineAvailable() {
         ensureMineInitialized();
         return Boolean.TRUE.equals(mineAvailable);
+    }
+
+    public static boolean isWfmAxeThrowAvailable() {
+        ensureAxeThrowInitialized();
+        return Boolean.TRUE.equals(axeThrowAvailable);
+    }
+
+    /**
+     * Клиентский пролёт топора как у зачарования Axe Throw (текстура из itemId).
+     */
+    public static boolean startAxeThrowVisual(
+            final ICustomNpc npc,
+            final String itemId,
+            final double dirX,
+            final double dirY,
+            final double dirZ,
+            final float rangeBlocks,
+            final int outboundTicks,
+            final int holdTicks,
+            final int returnTicks) {
+        ensureAxeThrowInitialized();
+        if (!isWfmAxeThrowAvailable() || npc == null || startAxeThrowMethod == null) {
+            return false;
+        }
+        try {
+            final LivingEntity thrower = toLivingEntity(npc);
+            if (thrower == null) {
+                return false;
+            }
+            final Object result = startAxeThrowMethod.invoke(
+                    null,
+                    thrower,
+                    itemId == null ? "" : itemId,
+                    dirX,
+                    dirY,
+                    dirZ,
+                    rangeBlocks,
+                    outboundTicks,
+                    holdTicks,
+                    returnTicks);
+            return result instanceof Boolean && (Boolean) result;
+        } catch (final Exception ignored) {
+            return false;
+        }
+    }
+
+    public static void stopAxeThrowVisual(final ICustomNpc npc) {
+        ensureAxeThrowInitialized();
+        if (!isWfmAxeThrowAvailable() || npc == null || stopAxeThrowMethod == null) {
+            return;
+        }
+        try {
+            final LivingEntity thrower = toLivingEntity(npc);
+            if (thrower == null) {
+                return;
+            }
+            stopAxeThrowMethod.invoke(null, thrower);
+        } catch (final Exception ignored) {
+        }
     }
 
     /**
@@ -713,6 +779,34 @@ public final class WfmIntegration {
             moveVisualMineMethod = null;
             removeVisualMineMethod = null;
             throwMineTowardPointMethod = null;
+        }
+    }
+
+    private static void ensureAxeThrowInitialized() {
+        if (axeThrowAvailable != null) {
+            return;
+        }
+        try {
+            final Class<?> helper = Class.forName(AXE_THROW_HELPER_CLASS);
+            startAxeThrowMethod = helper.getMethod(
+                    START_AXE_THROW_METHOD,
+                    LivingEntity.class,
+                    String.class,
+                    double.class,
+                    double.class,
+                    double.class,
+                    float.class,
+                    int.class,
+                    int.class,
+                    int.class);
+            stopAxeThrowMethod = helper.getMethod(
+                    STOP_AXE_THROW_METHOD,
+                    LivingEntity.class);
+            axeThrowAvailable = true;
+        } catch (final Exception e) {
+            axeThrowAvailable = false;
+            startAxeThrowMethod = null;
+            stopAxeThrowMethod = null;
         }
     }
 }

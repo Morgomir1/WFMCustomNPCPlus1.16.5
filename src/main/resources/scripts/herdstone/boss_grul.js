@@ -48,7 +48,7 @@ function tick(e) {
     if (ps == null) return;
     b1Boot(npc, ps);
     b1ClearStun(npc);
-    gTripHold(npc);
+    gLassoHold(npc);
     b1RefreshLink(npc);
     b1MudTick(npc, ps);
     b1HornTick(npc);
@@ -70,7 +70,6 @@ function tick(e) {
     }
     gCycle(npc, ps);
     if (!gFarWatch(npc, ps)) gPress(npc, ps);
-    gTrip(npc, ps);
     gExtraLasso(npc, ps);
     gSqueal(npc, ps);
 }
@@ -271,6 +270,7 @@ function gStakePlace(npc) {
 function gLasso(npc, ps) {
     if (hsGet(npc, "b1_mounted", "0") == "1") return;
     if (npc.getTimers().has(B1_T_LASSO)) return;
+    if (AbilityAPI.isBusy(npc)) return;
     if (hsNow(npc) < hsNum(npc, "b1_lasso_cd")) return;
     if (ps == null || ps.length == 0) return;
     var far = null;
@@ -289,7 +289,19 @@ function gLasso(npc, ps) {
     hsPut(npc, "b1_lasso", "windup");
     hsPut(npc, "b1_lasso_cut", 0);
     hsPut(npc, "b1_lasso_cd", hsNow(npc) + 240);
+    npc.getAi().setWalkingSpeed(0);
+    npc.getAi().setRetaliateType(3);
+    Combat.stopNavigation(npc);
     npc.getTimers().forceStart(B1_T_LASSO, 20, false);
+    b1Say(npc, "Грул кидает аркан!");
+}
+
+function gLassoHold(npc) {
+    var phase = hsGet(npc, "b1_lasso", "");
+    if (phase != "windup" && phase != "pull") return;
+    npc.getAi().setWalkingSpeed(0);
+    npc.getAi().setRetaliateType(3);
+    Combat.stopNavigation(npc);
 }
 
 function gExtraLasso(npc, ps) {
@@ -306,8 +318,8 @@ function gExtraLasso(npc, ps) {
 
 function gBusy(npc) {
     if (AbilityAPI.isBusy(npc) || b1RoarBlocks(npc)) return true;
-    if (npc.getTimers().has(B1_T_LASSO) || npc.getTimers().has(B1_T_AXE) || npc.getTimers().has(B1_T_ROAR)) return true;
-    if (npc.getTimers().has(B1_T_TRIP) || hsGet(npc, "b1_leap", "") != "") return true;
+    if (npc.getTimers().has(B1_T_LASSO) || npc.getTimers().has(B1_T_ROAR)) return true;
+    if (hsGet(npc, "b1_leap", "") != "" || hsGet(npc, "b1_lasso", "") != "") return true;
     return false;
 }
 
@@ -393,32 +405,24 @@ function gAxe(npc, ps) {
     var target = npc.getAttackTarget();
     if (target == null || !target.isAlive()) target = gFarthest(npc, ps);
     if (target == null) return false;
-    var yaw = hsYawTo(npc, target);
-    hsPut(npc, "b1_axe_x", npc.getX());
-    hsPut(npc, "b1_axe_z", npc.getZ());
-    hsPut(npc, "b1_axe_yaw", yaw);
-    TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 16, 2.4, 20, 0xC0FF0000);
-    npc.getAi().setWalkingSpeed(0);
-    npc.getAi().setRetaliateType(3);
-    Combat.stopNavigation(npc);
-    npc.getTimers().forceStart(B1_T_AXE, 20, false);
+    if (!hsStart(npc, "axe_throw", target, AbilityAPI.params(
+            "chargeTicks", 8,
+            "maxRange", 16,
+            "distance", 16,
+            "radius", 2.4,
+            "outboundTicks", 16,
+            "holdTicks", 4,
+            "returnTicks", 10,
+            "hitRadius", 1.2,
+            "damagePercent", 0.15,
+            "effectDuration", 60,
+            "effectAmplifier", 1,
+            "projectileItem", "wfm:beastmen_gor_battleaxe",
+            "telegraph", 1,
+            "telegraphColor", 0xC0FF0000))) return false;
     hsPut(npc, "b1_melee_at", now);
     b1Say(npc, "Грул бросает топор!");
     return true;
-}
-
-function gAxeHit(npc) {
-    if (!npc.isAlive()) return;
-    var x = hsNum(npc, "b1_axe_x");
-    var z = hsNum(npc, "b1_axe_z");
-    var yaw = hsNum(npc, "b1_axe_yaw");
-    var ps = hsPlayersAt(npc, x, npc.getY(), z, 18);
-    for (var i = 0; i < ps.length; i++) {
-        if (!hsOnLine(ps[i], x, z, yaw, 16, 1.2)) continue;
-        hsStrike(ps[i], 0.15);
-        ps[i].addPotionEffect(PotionEffectType_SLOWNESS, 3, 1, false);
-    }
-    b1Release(npc);
 }
 
 function gStartLeap(npc, x, z, mode) {
@@ -489,85 +493,6 @@ function gLeapEnd(npc, landed) {
     }
 }
 
-function gTrip(npc, ps) {
-    if (hsGet(npc, "b1_mounted", "0") == "1" || hsGet(npc, "b1_haul", "0") == "1") return;
-    if (hsGet(npc, "b1_mounting", "0") == "1") return;
-    if (AbilityAPI.isBusy(npc)) return;
-    if (npc.getTimers().has(B1_T_TRIP) || npc.getTimers().has(B1_T_ROAR)) return;
-    if (npc.getTimers().has(B1_T_LASSO) || npc.getTimers().has(B1_T_AXE)) return;
-    if (hsGet(npc, "b1_leap", "") != "") return;
-    if (ps == null || ps.length == 0) return;
-    var now = hsNow(npc);
-    var phase = b1Phase(npc);
-    var cd = phase == 3 ? 200 : 240;
-    if (now < hsNum(npc, "b1_trip_at")) return;
-    var victim = null;
-    var best = 8.1;
-    for (var i = 0; i < ps.length; i++) {
-        var dist = hsFlat(npc, ps[i].getX(), ps[i].getZ());
-        if (dist <= 8 && dist < best) {
-            best = dist;
-            victim = ps[i];
-        }
-    }
-    if (victim == null) return;
-    var reach = best;
-    if (reach < 7) reach = 7;
-    if (reach > 8) reach = 8;
-    hsPut(npc, "b1_trip_at", now + cd);
-    var face = hsYawTo(npc, victim);
-    hsPut(npc, "b1_trip_yaw", face);
-    hsPut(npc, "b1_trip_x", npc.getX());
-    hsPut(npc, "b1_trip_z", npc.getZ());
-    hsPut(npc, "b1_trip_len", reach);
-    hsPut(npc, "b1_trip_live", 1);
-    hsPut(npc, "b1_trip_until", now + 25);
-    TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), face, reach, 45, 25, HS.RED);
-    if (hsGet(npc, "b1_mounted", "0") != "1") {
-        npc.getAi().setWalkingSpeed(0);
-        npc.getAi().setRetaliateType(3);
-        Combat.stopNavigation(npc);
-    }
-    npc.getTimers().forceStart(B1_T_TRIP, 25, false);
-}
-
-function gTripHold(npc) {
-    if (hsGet(npc, "b1_trip_live", "0") != "1") return;
-    if (hsNow(npc) < hsNum(npc, "b1_trip_until")) {
-        if (hsGet(npc, "b1_mounted", "0") != "1") {
-            npc.getAi().setWalkingSpeed(0);
-            npc.getAi().setRetaliateType(3);
-            Combat.stopNavigation(npc);
-        }
-        return;
-    }
-    gTripHit(npc);
-}
-
-function gTripHit(npc) {
-    if (!npc.isAlive()) return;
-    if (hsGet(npc, "b1_trip_live", "0") != "1") return;
-    hsPut(npc, "b1_trip_live", 0);
-    if (hsGet(npc, "b1_mounted", "0") == "1" || hsGet(npc, "b1_haul", "0") == "1") {
-        b1Release(npc);
-        return;
-    }
-    var yaw = hsNum(npc, "b1_trip_yaw");
-    var x = hsNum(npc, "b1_trip_x");
-    var z = hsNum(npc, "b1_trip_z");
-    var reach = hsNum(npc, "b1_trip_len");
-    if (!(reach > 0)) reach = 7;
-    var ps = hsPlayersAt(npc, x, npc.getY(), z, reach + 1.5);
-    for (var i = 0; i < ps.length; i++) {
-        var p = ps[i];
-        if (hsFlat(p, x, z) > reach + 0.6) continue;
-        if (!Combat.isInFrontCone(x, z, yaw, p, 45)) continue;
-        hsStrike(p, 0.10);
-        p.addPotionEffect(PotionEffectType_SLOWNESS, 1, 3, false);
-    }
-    b1Release(npc);
-}
-
 function gSqueal(npc, ps) {
     if (b1Phase(npc) != 3) return;
     var now = hsNow(npc);
@@ -622,10 +547,6 @@ function timer(e) {
         gStakePlace(npc);
         return;
     }
-    if (e.id == B1_T_TRIP) {
-        gTripHit(npc);
-        return;
-    }
     if (e.id == B1_T_SLAM) {
         b1SlamLand(npc);
         return;
@@ -635,15 +556,10 @@ function timer(e) {
         else gLeapStep(npc);
         return;
     }
-    if (e.id == B1_T_AXE) {
-        gAxeHit(npc);
-        return;
-    }
     if (e.id == B1_T_FEED) {
-        if (hsGet(npc, "b1_lasso_cut", "0") != "1") {
-            b1Feed(npc, b1FindPlayer(npc, hsGet(npc, "b1_lasso_id", "")));
-        }
+        b1Feed(npc, b1FindPlayer(npc, hsGet(npc, "b1_lasso_id", "")));
         hsPut(npc, "b1_lasso", "");
+        b1Release(npc);
         return;
     }
     if (e.id != B1_T_LASSO) return;
@@ -651,13 +567,15 @@ function timer(e) {
     var pulled = b1FindPlayer(npc, hsGet(npc, "b1_lasso_id", ""));
     if (pulled == null) {
         hsPut(npc, "b1_lasso", "");
+        b1Release(npc);
         return;
     }
     hsPut(npc, "b1_lasso", "pull");
     hsPut(npc, "b1_lasso_cut", 0);
     if (!hsStart(npc, "b1_pull", pulled, AbilityAPI.params(
-            "activeTicks", 40, "distance", 0.15, "telegraph", 0))) {
+            "activeTicks", 40, "distance", 0.55, "telegraph", 0))) {
         hsPut(npc, "b1_lasso", "");
+        b1Release(npc);
         return;
     }
     npc.getTimers().forceStart(B1_T_FEED, 40, false);
@@ -679,7 +597,6 @@ function damaged(e) {
     b1Cap(e, 1);
     if (hsNow(npc) < hsNum(npc, "immune_until")) return;
     b1RitualHurt(e);
-    if (hsGet(npc, "b1_lasso", "") == "pull") hsPut(npc, "b1_lasso_cut", 1);
     if (hsGet(npc, "b1_arm", "0") == "1" && b1FightN(npc) >= 2) {
         var sum = hsNum(npc, "b1_arm_dmg") + Number(e.damage);
         hsPut(npc, "b1_arm_dmg", sum);
@@ -689,5 +606,6 @@ function damaged(e) {
 }
 
 function died(e) {
+    AbilityAPI.cancel(e.npc);
     b1Died(e);
 }

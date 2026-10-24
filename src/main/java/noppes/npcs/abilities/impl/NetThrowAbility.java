@@ -46,7 +46,9 @@ public final class NetThrowAbility implements CnpcAbility {
                 AbilityParamKeys.EFFECT_DURATION,
                 AbilityParamKeys.EFFECT_AMPLIFIER,
                 AbilityParamKeys.PROJECTILE_ITEM,
-                AbilityParamKeys.ACCURACY);
+                AbilityParamKeys.ACCURACY,
+                AbilityParamKeys.TELEGRAPH,
+                AbilityParamKeys.TELEGRAPH_COLOR);
     }
 
     @Override

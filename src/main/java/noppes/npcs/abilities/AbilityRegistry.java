@@ -62,6 +62,7 @@ public final class AbilityRegistry {
         register(new B1SlideAbility());
         register(new B1PullAbility());
         register(new B1NetAbility());
+        register(new AxeThrowAbility());
     }
 
     private AbilityRegistry() {

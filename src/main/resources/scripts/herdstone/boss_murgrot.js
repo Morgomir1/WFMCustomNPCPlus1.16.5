@@ -4,28 +4,28 @@
 // 30% в 3,5 блоках, затем лужа на 10 с со «Страхом» — из неё бегут прочь.
 // Сам по себе неуязвим и не сходит с места: стоит на якоре, двигается только шагом на место тотема.
 // Тотемы — его инструмент: стоят весь бой, у каждого своя нота (hs_core.js → murgrot_totem.js).
-// Перекличка: Мургрот поёт 3 ноты (после 66% — 4, после 33% — 5), игроки бьют тотемы в том же
+// Перекличка: Мургрот поёт 3 ноты (со 170 здоровья — 4, со 100 — 5), игроки бьют тотемы в том же
 // порядке. Неверный тотем сразу обрывает песнь и взрывается: 50% всем в 8 блоках (murgrot_totem.js).
 // Повторили — 8 с он захлёбывается: не бросает навес и получает урон, но за одно окно не ниже
-// следующей трети (66%, 33%, смерть), и эта треть открывается по восьмой части в секунду, так что
+// следующего порога (170, 100, смерть), и этот кусок открывается по восьмой части в секунду, так что
 // бить можно все 8 с. Не успели — все теряют 40%, он лечится на 10%.
 // Шаг сквозь туман: раз в 22 с или если к нему жмутся 6 с — меняется местами с тотемом,
-// на старом месте туман с тошнотой. На 50% встают копии, он шагает к тотему; копии поют
-// фальшивые ноты на других тотемах.
+// на старом месте туман с тошнотой.
 // Волна гласа: пока он слушает, раз в 4 с от него по земле катится кольцо до края арены.
 // Кто стоит на полу, когда оно проходит, теряет 25% и отлетает прочь; прыжок или постамент спасают.
-// Копии после init носят имя оригинала, поэтому ищутся по метке, не по имени.
 HS.BASE_HP = 260;
 HS.ARENA_R = 20;
 HS.ENRAGE_SEC = 420;
 ORIGIN = [-372989, 78, -13346];   // центр арены на сервере (Антон, 24 октября). Сдвинул данж — впиши свой
 GATE = hsBox(8, 0, 8, 3, 2, 3);   // завал B5_down (523, 230) от центра 515,222
-SUMMONS = ["Тотем Мургрота", "Мургрот-копия"];
+SUMMONS = ["Тотем Мургрота"];
 
 var TOTEM = "Тотем Мургрота";
-var COPY = "Мургрот-копия";
 var BOSS_TAG = "hs_murgrot";
-var COPY_TAG = "hs_murgrot_copy";
+// Пороги нот — здоровье из базовых HS.BASE_HP. Здоровье растёт с числом игроков и hs_dmg, пороги
+// растут вместе с ним: в одиночку при hs_dmg 1 это ровно 170 и 100.
+var NOTES4_AT = 170, NOTES5_AT = 100;
+var F4 = NOTES4_AT / HS.BASE_HP, F5 = NOTES5_AT / HS.BASE_HP;
 // dy 2: строитель кладёт на эти точки блок кости (y пола + 1), тотем встаёт на него, а не в пол.
 var TOTEMS = [ [-14, 2, -12], [14, 2, -12], [-14, 2, 12], [14, 2, 12] ];
 var NOTES = [
@@ -35,10 +35,9 @@ var NOTES = [
     { pitch: 1.25, color: 0xC0FFFFFF | 0, particle: "end_rod" }
 ];
 var NOTE_SOUND = "minecraft:block.note_block.bell";
-var FALSE_PITCH = 0.94;
 var SONG_FIRST = 200, SONG_EVERY = 300, NOTE_GAP = 20, LISTEN_BASE = 60, LISTEN_PER = 100;
 var SONG_STRIKE = 0.4, WINDOW_TICKS = 160;
-var WINDOW_FLOOR = [0.66, 0.66, 0.33, 0];   // по волне: окно не опускает здоровье ниже этой доли
+var WINDOW_FLOOR = [F4, F4, F5, 0];   // по волне: окно не опускает здоровье ниже этой доли
 var STEP_FIRST = 300, STEP_EVERY = 440, STEP_GAP = 160, HUG_R = 3, HUG_TICKS = 12;
 var FOG_R = 3.5, FOG_TICKS = 200, FOG_COLOR = 0x90A080C0 | 0;
 var ROT_FIRST = 100, ROT_EVERY = 300, ROT_TICKS = 80, ROT_R = 6;
@@ -61,7 +60,6 @@ function init(e) {
     var npc = e.npc;
     npc.addTag(BOSS_TAG);
     if (!hsInit(npc)) return;
-    despawnTagged(npc, COPY_TAG);
     npc.getAi().setRetaliateType(3);   // обычной атаки нет: вместо неё навес (lobTick)
     npc.getAi().setWalkingSpeed(0);
     npc.getStats().setResistance(3, 2.0);   // отбрасывание: 2 = совсем не сдвигается
@@ -69,7 +67,6 @@ function init(e) {
     setAnchor(npc, home[0], home[1], home[2]);
     hsPut(npc, "wave", 0);
     hsPut(npc, "song", "");
-    hsPut(npc, "copies", 0);
     hsPut(npc, "song_at", 0);
     hsPut(npc, "rot_at", 0);
     hsPut(npc, "step_at", 0);
@@ -143,12 +140,11 @@ function arenaSound(npc, sound, volume, pitch) {
     for (var i = 0; i < list.length; i++) list[i].playSound(sound, volume, pitch);
 }
 
-function playNote(npc, totem, note, real) {
+function playNote(npc, totem, note) {
     if (totem == null) return;
-    var w = npc.getWorld();
     TelegraphAPI.circle(npc, totem.getX(), totem.getY(), totem.getZ(), 2.0, NOTE_GAP, NOTES[note].color);
-    arenaSound(npc, NOTE_SOUND, 1.0, real ? NOTES[note].pitch : NOTES[note].pitch * FALSE_PITCH);
-    if (real) w.spawnParticle(NOTES[note].particle, totem.getX(), totem.getY() + 1.5, totem.getZ(), 0.4, 0.6, 0.4, 0.02, 20);
+    arenaSound(npc, NOTE_SOUND, 1.0, NOTES[note].pitch);
+    npc.getWorld().spawnParticle(NOTES[note].particle, totem.getX(), totem.getY() + 1.5, totem.getZ(), 0.4, 0.6, 0.4, 0.02, 20);
 }
 
 function startSong(npc, now) {
@@ -173,16 +169,7 @@ function singNext(npc) {
     var i = hsNum(npc, "note_i");
     var have = totemsByNote(npc);
     var note = Number(seq[i]);
-    playNote(npc, have[note], note, true);
-    var copies = countTagged(npc, COPY_TAG) + hsCount(npc, COPY);
-    for (var c = 0; c < copies; c++) {
-        var other = [];
-        for (var j = 0; j < have.length; j++) if (j != note && have[j] != null) other.push(j);
-        if (other.length > 0) {
-            var fake = hsRandom(other);
-            playNote(npc, have[fake], fake, false);
-        }
-    }
+    playNote(npc, have[note], note);
     i++;
     hsPut(npc, "note_i", i);
     if (i < seq.length) {
@@ -443,7 +430,8 @@ function tick(e) {
     pin(npc);
     var now = hsNow(npc);
     var hp = npc.getHealth() / npc.getMaxHealth();
-    var want = hp > 0.66 ? 1 : (hp > 0.33 ? 2 : 3);
+    // Окно останавливает здоровье ровно на пороге; запас 1e-9 — чтобы деление не оставило его «выше».
+    var want = hp > F4 + 1e-9 ? 1 : (hp > F5 + 1e-9 ? 2 : 3);
     var wave = hsNum(npc, "wave");
     if (want > wave) {
         hsPut(npc, "wave", want);
@@ -463,23 +451,6 @@ function tick(e) {
     fearTick(npc, now);
     fogTick(npc, now);
 
-    if (hsGet(npc, "copies", "0") == "0" && hp <= 0.5) {
-        hsPut(npc, "copies", 1);
-        var w = npc.getWorld();
-        var h = hsHome(npc);
-        for (var c = 0; c < 3; c++) {
-            var a = Math.random() * Math.PI * 2;
-            var cx = h[0] + Math.cos(a) * 10, cz = h[2] + Math.sin(a) * 10;
-            var copy = spawnSafe(npc, COPY, function () { return w.spawnClone(cx, h[1], cz, HS.TAB, COPY); });
-            if (copy == null) break;
-            hsNoRespawn(copy);
-        }
-        stepTo(npc, now);
-        for (var b = 0; b < ps.length; b++) ps[b].addPotionEffect(PotionEffectType_BLINDNESS, 3, 0, false);
-    }
-    if (countTagged(npc, COPY_TAG) > 0 || hsCount(npc, COPY) > 0) {
-        npc.getWorld().spawnParticle("witch", npc.getX(), npc.getY() + 2.6, npc.getZ(), 0.3, 0.3, 0.3, 0, 12);
-    }
     stepTick(npc, ps, now);
     lobTick(npc, ps, now);
     // Пока он поёт ноты, порча не начинается: их надо слышать и видеть.
@@ -543,38 +514,9 @@ function died(e) {
     var npc = e.npc;
     AbilityAPI.cancel(npc);
     hsZoneClear(npc);
-    despawnTagged(npc, COPY_TAG);
-    hsDespawnAll(npc, COPY);
     hsDespawnAll(npc, TOTEM);
     hsSetGate(npc, false);
     npc.say("§7Туман рассеивается. Корни расступаются.");
-}
-
-function arenaNpcs(npc) {
-    var c = hsArenaCenter(npc);
-    return npc.getWorld().getNearbyEntities(NpcAPI.getIPos(c[0], c[1], c[2]), hsScanRange(), 2);
-}
-
-function despawnTagged(npc, tag) {
-    var list = arenaNpcs(npc);
-    var selfId = String(npc.getUUID());
-    for (var i = 0; i < list.length; i++) {
-        var n = list[i];
-        if (!n.isAlive() || String(n.getUUID()) == selfId) continue;
-        if (n.hasTag(tag)) n.despawn();
-    }
-}
-
-function countTagged(npc, tag) {
-    var list = arenaNpcs(npc);
-    var selfId = String(npc.getUUID());
-    var n = 0;
-    for (var i = 0; i < list.length; i++) {
-        var e = list[i];
-        if (!e.isAlive() || String(e.getUUID()) == selfId) continue;
-        if (e.hasTag(tag)) n++;
-    }
-    return n;
 }
 
 function aliveById(npc, key) {

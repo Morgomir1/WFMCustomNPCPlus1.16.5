@@ -9,11 +9,13 @@
 // Шаг сквозь туман: раз в 22 с или если к нему жмутся 6 с — меняется местами с тотемом,
 // на старом месте туман с тошнотой. На 50% встают копии, он шагает к тотему; копии поют
 // фальшивые ноты на других тотемах.
+// Волна гласа: пока он слушает, раз в 4 с от него по земле катится кольцо до края арены.
+// Кто стоит на полу, когда оно проходит, теряет 25% и отлетает прочь; прыжок или постамент спасают.
 // Копии после init носят имя оригинала, поэтому ищутся по метке, не по имени.
 HS.BASE_HP = 260;
 HS.ARENA_R = 20;
 HS.ENRAGE_SEC = 420;
-ORIGIN = [515, 56, 222];   // мировой блок пола. Сдвинул данж — впиши центр этой арены
+ORIGIN = [-372989, 78, -13346];   // центр арены на сервере (Антон, 24 октября). Сдвинул данж — впиши свой
 GATE = hsBox(8, 0, 8, 3, 2, 3);   // завал B5_down (523, 230) от центра 515,222
 SUMMONS = ["Тотем Мургрота", "Мургрот-копия"];
 
@@ -37,7 +39,9 @@ var WINDOW_FLOOR = [0.66, 0.66, 0.33, 0];   // по волне: окно не о
 var STEP_FIRST = 300, STEP_EVERY = 440, STEP_GAP = 160, HUG_R = 3, HUG_TICKS = 12;
 var FOG_R = 3.5, FOG_TICKS = 200, FOG_COLOR = 0x90A080C0 | 0;
 var ROT_FIRST = 100, ROT_EVERY = 300, ROT_TICKS = 80, ROT_R = 6;
-var T_NOTE = 1, T_ROT = 2;
+var WAVE_FIRST = 30, WAVE_EVERY = 80, WAVE_WINDUP = 20, WAVE_STEP_TICKS = 2, WAVE_STEP = 1.0;
+var WAVE_START = 1.5, WAVE_STRIKE = 0.25, WAVE_JUMP = 0.5, WAVE_COLOR = 0xC0B040FF | 0;
+var T_NOTE = 1, T_ROT = 2, T_WAVE = 3, T_WAVE_STEP = 4;
 
 function init(e) {
     var npc = e.npc;
@@ -59,6 +63,8 @@ function init(e) {
     hsPut(npc, "step_last", 0);
     hsPut(npc, "hug", 0);
     hsPut(npc, "fog_until", 0);
+    hsPut(npc, "wave_at", 0);
+    hsPut(npc, "wave_told", 0);
 }
 
 // Нет клона во вкладке — строка в консоль, бой идёт дальше. Исключение выключило бы весь скрипт.
@@ -165,6 +171,7 @@ function singNext(npc) {
     hsPut(npc, "last_note", -1);
     hsPut(npc, "last_at", 0);
     hsPut(npc, "listen_until", hsNow(npc) + LISTEN_BASE + LISTEN_PER * seq.length);
+    hsPut(npc, "wave_at", hsNow(npc) + WAVE_FIRST);
     npc.say("§5Повторите песнь: бейте тотемы в том же порядке!");
 }
 
@@ -266,6 +273,58 @@ function stepTo(npc, now) {
     npc.say("§8Мургрот растворяется в тумане…");
 }
 
+function waveTick(npc, now) {
+    if (hsGet(npc, "song", "") != "listen" || now < hsNum(npc, "wave_at")) return;
+    var timers = npc.getTimers();
+    if (timers.has(T_WAVE) || timers.has(T_WAVE_STEP)) return;
+    hsPut(npc, "wave_at", now + WAVE_EVERY);
+    var floorY = hsArenaCenter(npc)[1];
+    TelegraphAPI.circle(npc, npc.getX(), floorY, npc.getZ(), 2.5, WAVE_WINDUP, WAVE_COLOR);
+    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", 3.0, 1.4);
+    if (hsGet(npc, "wave_told", "0") == "0") {
+        hsPut(npc, "wave_told", 1);
+        npc.say("§5Глас Мургрота катится по земле — прыгайте!");
+    }
+    timers.forceStart(T_WAVE, WAVE_WINDUP, false);
+}
+
+function waveRelease(npc) {
+    var c = hsArenaCenter(npc);
+    hsPut(npc, "wave_x", npc.getX());
+    hsPut(npc, "wave_z", npc.getZ());
+    hsPut(npc, "wave_r", WAVE_START);
+    hsPut(npc, "wave_max", hsFlat(npc, c[0], c[2]) + HS.ARENA_R + 1);
+    hsPut(npc, "wave_hit", "");
+    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:block.bell.resonate", 3.0, 0.6);
+    npc.getTimers().forceStart(T_WAVE_STEP, WAVE_STEP_TICKS, false);
+}
+
+// Кольцо шириной в блок; каждого игрока проверяем один раз — в шаг, когда кольцо его пересекло.
+// Высота — от ног на полу арены (дом Мургрота): кто в прыжке или на постаменте, тот выше WAVE_JUMP.
+function waveStep(npc) {
+    var ox = hsNum(npc, "wave_x"), oz = hsNum(npc, "wave_z");
+    var floorY = hsArenaCenter(npc)[1];
+    var r0 = hsNum(npc, "wave_r"), r1 = r0 + WAVE_STEP;
+    TelegraphAPI.ring(npc, ox, floorY, oz, r1 + 0.5, r1 - 0.5, WAVE_STEP_TICKS + 1, WAVE_COLOR);
+    var hit = hsGet(npc, "wave_hit", "");
+    var ps = hsPlayersAt(npc, ox, floorY, oz, r1 + 1);
+    for (var i = 0; i < ps.length; i++) {
+        var p = ps[i];
+        var d = hsFlat(p, ox, oz);
+        if (d < r0 || d > r1) continue;
+        var id = String(p.getUUID());
+        if (hit.indexOf(id) >= 0) continue;
+        hit += id + ";";
+        if (p.getY() - floorY >= WAVE_JUMP) continue;
+        hsStrike(p, WAVE_STRIKE);
+        p.knockback(1, Combat.computeYaw(p.getX() - ox, p.getZ() - oz));
+        p.message("§5Волна гласа сбивает тебя с ног!");
+    }
+    hsPut(npc, "wave_hit", hit);
+    hsPut(npc, "wave_r", r1);
+    if (r1 < hsNum(npc, "wave_max")) npc.getTimers().forceStart(T_WAVE_STEP, WAVE_STEP_TICKS, false);
+}
+
 function fogTick(npc, now) {
     if (now >= hsNum(npc, "fog_until")) return;
     var ps = hsPlayersAt(npc, hsNum(npc, "fog_x"), hsNum(npc, "fog_y"), hsNum(npc, "fog_z"), FOG_R);
@@ -295,6 +354,7 @@ function tick(e) {
         }
     }
     songTick(npc, now);
+    waveTick(npc, now);
     fogTick(npc, now);
 
     if (hsGet(npc, "copies", "0") == "0" && hp <= 0.5) {
@@ -333,6 +393,14 @@ function timer(e) {
     if (!npc.isAlive()) return;
     if (e.id == T_NOTE && hsGet(npc, "song", "") == "sing") {
         singNext(npc);
+        return;
+    }
+    if (e.id == T_WAVE) {
+        waveRelease(npc);
+        return;
+    }
+    if (e.id == T_WAVE_STEP) {
+        waveStep(npc);
         return;
     }
     if (e.id == T_ROT) {

@@ -4,7 +4,7 @@
 // Сам по себе неуязвим и не сходит с места: стоит на якоре, двигается только шагом на место тотема.
 // Тотемы — его инструмент: стоят весь бой, у каждого своя нота (hs_core.js → murgrot_totem.js).
 // Перекличка: Мургрот поёт 3 ноты (после 66% — 4, после 33% — 5), игроки бьют тотемы в том же
-// порядке. Неверный тотем бьёт всех рядом с собой (murgrot_totem.js), песнь идёт дальше.
+// порядке. Неверный тотем сразу обрывает песнь и взрывается: 50% всем в 8 блоках (murgrot_totem.js).
 // Повторили — 8 с он захлёбывается: не бросает навес и получает урон, но за одно окно не ниже
 // следующей трети (66%, 33%, смерть). Не успели — все теряют 40%, он лечится на 10%.
 // Шаг сквозь туман: раз в 22 с или если к нему жмутся 6 с — меняется местами с тотемом,
@@ -237,9 +237,17 @@ function pin(npc) {
     if (dx * dx + dz * dz > 0.09 || dy > 0.6 || dy < -0.6) npc.setPosition(ax, ay, az);
 }
 
+// Неверный тотем: взрыв уже был у тотема (murgrot_totem.js), здесь только конец песни.
+function songBroken(npc, now) {
+    hsPut(npc, "song", "");
+    hsPut(npc, "song_at", now + SONG_EVERY);
+    npc.say("§4Фальшь! Песнь оборвана.");
+}
+
 function songTick(npc, now) {
     var st = hsGet(npc, "song", "");
     if (st == "done") startWindow(npc, now);
+    else if (st == "wrong") songBroken(npc, now);
     else if (st == "fail" || (st == "listen" && now > hsNum(npc, "listen_until"))) songFails(npc, now);
     else if (st == "stun" && now >= hsNum(npc, "stun_until")) endWindow(npc, now);
     else if (st == "" && now >= hsNum(npc, "song_at")) startSong(npc, now);

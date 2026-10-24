@@ -1,13 +1,14 @@
 // Тотем Мургрота. В контейнере вторым после hs_core.js. Скорость 0, On Attack = Ничего, Respawn = нет.
 // Тотем не ломается: каждый удар игрока звучит его нотой. Ноту, высоту и частицы пишет Мургрот
 // при призыве (hs_note, hs_pitch, hs_particle). Пока Мургрот слушает (song = listen), удар —
-// следующая нота песни: верная двигает seq_pos, последняя пишет song = done (итог разбирает tick
-// Мургрота). Неверная бьёт всех в WRONG_R вокруг этого тотема, песнь идёт дальше с того же места.
+// следующая нота песни: верная двигает seq_pos, последняя пишет song = done. Неверная сразу
+// ломает песнь (song = wrong) и взрывается: все в WRONG_R вокруг этого тотема теряют WRONG_STRIKE.
+// Итог разбирает tick Мургрота.
 var BOSS_TAG = "hs_murgrot";
 var COPY_TAG = "hs_murgrot_copy";
 var NOTE_SOUND = "minecraft:block.note_block.bell";
 var SAME_SWING = 15;   // тиков: второй удар по той же ноте — тот же взмах
-var WRONG_R = 4, WRONG_STRIKE = 0.3;
+var WRONG_R = 8, WRONG_STRIKE = 0.5;
 
 function damaged(e) {
     e.setCanceled(true);
@@ -29,7 +30,8 @@ function damaged(e) {
     var seq = text(b, "seq").split(",");
     var pos = Number(text(b, "seq_pos"));
     if (note != Number(seq[pos])) {
-        wrongNote(totem, now);
+        b.put("song", "wrong");
+        wrongNote(totem);
         return;
     }
     soundAround(totem, NOTE_SOUND, 1.0, Number(String(d.get("hs_pitch"))));
@@ -41,18 +43,18 @@ function damaged(e) {
     if (pos >= seq.length) b.put("song", "done");
 }
 
-function wrongNote(totem, now) {
-    var d = totem.getStoreddata();
-    if (now - Number(text(d, "wrong_at")) < SAME_SWING) return;
-    d.put("wrong_at", String(now));
+// Песнь уже не listen, так что второй удар того же взмаха сюда не попадёт.
+function wrongNote(totem) {
     var w = totem.getWorld();
     soundAround(totem, "minecraft:block.note_block.didgeridoo", 1.0, 0.5);
-    w.playSoundAt(totem.getPos(), "minecraft:entity.generic.explode", 2.0, 1.2);
-    w.spawnParticle("explosion", totem.getX(), totem.getY() + 1, totem.getZ(), 1.5, 0.5, 1.5, 0, 6);
+    soundAround(totem, "minecraft:entity.generic.explode", 1.0, 0.8);
+    TelegraphAPI.circle(totem, totem.getX(), totem.getY(), totem.getZ(), WRONG_R, 10, 0xC0FF0000 | 0);
+    w.spawnParticle("explosion_emitter", totem.getX(), totem.getY() + 1, totem.getZ(), 0, 0, 0, 0, 1);
+    w.spawnParticle("explosion", totem.getX(), totem.getY() + 1, totem.getZ(), WRONG_R * 0.6, 0.8, WRONG_R * 0.6, 0, 24);
     var ps = hsPlayersAt(totem, totem.getX(), totem.getY(), totem.getZ(), WRONG_R);
     for (var i = 0; i < ps.length; i++) {
         hsStrike(ps[i], WRONG_STRIKE);
-        ps[i].message("§cФальшивая нота! Тотем бьёт всех рядом.");
+        ps[i].message("§cФальшивая нота! Тотем взрывается.");
     }
 }
 

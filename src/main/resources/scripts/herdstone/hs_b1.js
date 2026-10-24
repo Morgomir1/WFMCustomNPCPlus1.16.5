@@ -1,6 +1,6 @@
 // hs_b1.js — общая логика пары Кровохряк + Грул.
 // В GUI между ядром и файлом босса: hs_core → hs_b1 → boss_bloodtusk / boss_grul.
-// Подменяет hsEnrage только у этих двоих. Остальные боссы файл не грузят.
+// Подменяет hsEnrage (пусто — сжимающегося кольца больше нет).
 
 var B1_BOAR = "Кровохряк";
 var B1_GRUL = "Грул Кабанья Рука";
@@ -94,9 +94,9 @@ function b1FightN(npc) {
 function b1LinkRange(npc) { return b1FightN(npc) <= 1 ? 4 : 8; }
 
 function b1NestLimit(npc) {
-    var lim = 2 + Math.floor(b1FightN(npc) / 2);
+    var lim = 3 + Math.floor(b1FightN(npc) / 2);
     if (lim > 4) lim = 4;
-    if (lim < 2) lim = 2;
+    if (lim < 3) lim = 3;
     return lim;
 }
 
@@ -688,12 +688,13 @@ function b1Boot(npc, ps) {
     b1WPut(npc, "hs_b1_fight_n", n);
     b1WPut(npc, "hs_b1_locked", "0");
     b1WPut(npc, "hs_b1_mask", "00000000");
-    b1WPut(npc, "hs_b1_enrage_from", hsNum(npc, "fight_at"));
     b1WPut(npc, "hs_b1_next_roar", hsNow(npc) + 1);
-    var first = b1FreeIndex(npc);
-    if (first >= 0) b1PutStake(npc, first);
-    var second = b1FreeIndex(npc);
-    if (second >= 0) b1PutStake(npc, second);
+    var i;
+    for (i = 0; i < 3; i++) {
+        var slot = b1FreeIndex(npc);
+        if (slot < 0) break;
+        b1PutStake(npc, slot);
+    }
 }
 
 function b1ResetWorld(npc) {
@@ -948,65 +949,11 @@ function b1ClearRing(npc) {
     b1WDel(npc, "hs_b1_ring_dmg");
     b1WDel(npc, "hs_b1_ring_warn");
     b1WDel(npc, "hs_b1_enrage_from");
+    hsZoneClear(npc);
 }
 
-function b1RingInner(step) {
-    var inner = 24 - step * (16 / 12);
-    if (inner < 8) inner = 8;
-    return inner;
-}
-
-function b1RingDamage(npc, ps, inner) {
-    if (ps == null) return;
-    var now = hsNow(npc);
-    if (now < Number(b1WGet(npc, "hs_b1_ring_dmg", "0"))) return;
-    b1WPut(npc, "hs_b1_ring_dmg", now + 20);
-    var c = hsArenaCenter(npc);
-    for (var i = 0; i < ps.length; i++) {
-        if (hsFlat(ps[i], c[0], c[2]) > inner) hsStrike(ps[i], 0.15);
-    }
-}
-
-function b1PlaceRing(npc, inner) {
-    var c = hsArenaCenter(npc);
-    var zone = ZoneAPI.hazardRing(npc, c[0], c[1], c[2], 30, inner, 140, 0, 20);
-    if (zone != null) {
-        try { zone.setFireSeconds(1); } catch (err) {}
-        try { zone.setColor(HS.RED); } catch (err2) {}
-        hsZonePut(npc, zone);
-    }
-}
-
+/** Сжимающегося enrage-кольца больше нет. */
 function hsEnrage(npc, ps, now) {
-    var start = Number(b1WGet(npc, "hs_b1_enrage_from", "0"));
-    if (!(start > 0)) start = hsNum(npc, "fight_at");
-    if (now < start + 240 * 20) return;
-    if (b1WGet(npc, "hs_b1_ring_at", "") == "") {
-        b1WPut(npc, "hs_b1_ring_at", now + 100);
-        b1WPut(npc, "hs_b1_ring_i", 0);
-        b1WPut(npc, "hs_b1_ring_inner", 24);
-        b1WPut(npc, "hs_b1_ring_warn", 0);
-        b1PlaceRing(npc, 24);
-        b1Say(npc, "Стадо не ждёт! Круг сжимается!");
-    }
-    var inner = Number(b1WGet(npc, "hs_b1_ring_inner", "24"));
-    var step = Number(b1WGet(npc, "hs_b1_ring_i", "0"));
-    var nextAt = Number(b1WGet(npc, "hs_b1_ring_at", "0"));
-    if (step < 12 && b1WGet(npc, "hs_b1_ring_warn", "0") == "0" && now >= nextAt - 40) {
-        var c = hsArenaCenter(npc);
-        TelegraphAPI.circleAt(npc, c[0], c[1], c[2], b1RingInner(step + 1), 40, HS.RED);
-        b1WPut(npc, "hs_b1_ring_warn", 1);
-    }
-    if (now >= nextAt) {
-        if (step < 12) step += 1;
-        inner = b1RingInner(step);
-        b1WPut(npc, "hs_b1_ring_i", step);
-        b1WPut(npc, "hs_b1_ring_inner", inner);
-        b1WPut(npc, "hs_b1_ring_at", now + 100);
-        b1WPut(npc, "hs_b1_ring_warn", 0);
-        b1PlaceRing(npc, inner);
-    }
-    b1RingDamage(npc, ps, inner);
 }
 
 function b1Died(e) {

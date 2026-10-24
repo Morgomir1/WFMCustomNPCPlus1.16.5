@@ -2,6 +2,9 @@
 // Скорость 0, On Attack = Мстить, рендж в GUI. Круг B5, r 20.
 // Тотемы в SUMMONS: init их снимает, иначе после сброса он сразу неуязвим.
 // Копии после init носят имя оригинала, поэтому ищутся по метке, не по имени.
+// Пока стоят тотемы, урон по нему не проходит, но песнь и порча идут дальше.
+// Песнь под тотемами срывает только сломанный тотем, без тотемов — урон: 30 + 30 на игрока.
+// Новая волна тотемов обрывает идущую песнь.
 HS.BASE_HP = 260;
 HS.ARENA_R = 20;
 HS.ENRAGE_SEC = 420;
@@ -13,9 +16,11 @@ var TOTEM = "Тотем Мургрота";
 var COPY = "Мургрот-копия";
 var BOSS_TAG = "hs_murgrot";
 var COPY_TAG = "hs_murgrot_copy";
-var TOTEMS = [ [-14, 0, -12], [14, 0, -12], [-14, 0, 12], [14, 0, 12] ];
-var SONG_EVERY = 500, SONG_TICKS = 100, SONG_BREAK = 60;
-var ROT_EVERY = 400, ROT_TICKS = 80, ROT_R = 6;
+// dy 2: строитель кладёт на эти точки блок кости (y пола + 1), тотем встаёт на него, а не в пол.
+var TOTEMS = [ [-14, 2, -12], [14, 2, -12], [-14, 2, 12], [14, 2, 12] ];
+var SONG_FIRST = 240, SONG_EVERY = 400, SONG_TICKS = 100;
+var SONG_BREAK_BASE = 30, SONG_BREAK_PER = 30;
+var ROT_FIRST = 100, ROT_EVERY = 300, ROT_TICKS = 80, ROT_R = 6;
 var T_SONG = 1, T_ROT = 2;
 
 function init(e) {
@@ -31,6 +36,16 @@ function init(e) {
     hsPut(npc, "rot_at", 0);
 }
 
+// Нет клона во вкладке — строка в консоль, бой идёт дальше. Исключение выключило бы весь скрипт.
+function spawnSafe(npc, name, spawn) {
+    try {
+        return spawn();
+    } catch (err) {
+        log("herdstone: нет клона «" + name + "» во вкладке " + HS.TAB + ": " + err);
+        return null;
+    }
+}
+
 function raiseTotems(npc) {
     var w = npc.getWorld();
     for (var i = 0; i < TOTEMS.length; i++) {
@@ -38,8 +53,22 @@ function raiseTotems(npc) {
         var near = w.getNearbyEntities(NpcAPI.getIPos(p[0], p[1], p[2]), 2, 2);
         var alive = false;
         for (var j = 0; j < near.length; j++) if (String(near[j].getName()) == TOTEM && near[j].isAlive()) alive = true;
-        if (!alive) hsSpawnAt(npc, TOTEMS[i], TOTEM);
+        if (alive) continue;
+        var off = TOTEMS[i];
+        if (spawnSafe(npc, TOTEM, function () { return hsSpawnAt(npc, off, TOTEM); }) == null) return;
     }
+}
+
+function songNeed(npc, players) {
+    var n = players < 1 ? 1 : players;
+    return Math.round((SONG_BREAK_BASE + SONG_BREAK_PER * n) * hsScale(npc.getWorld()));
+}
+
+function breakSong(npc, text) {
+    hsPut(npc, "song", 0);
+    npc.getTimers().stop(T_SONG);
+    TelegraphAPI.remove(hsGet(npc, "song_tg", ""));
+    npc.say(text);
 }
 
 function tick(e) {
@@ -50,22 +79,34 @@ function tick(e) {
     var now = hsNow(npc);
     var hp = npc.getHealth() / npc.getMaxHealth();
     var want = hp > 0.66 ? 1 : (hp > 0.33 ? 2 : 3);
-    if (want > hsNum(npc, "wave")) {
+    var wave = hsNum(npc, "wave");
+    if (want > wave) {
+        if (wave == 0) {
+            hsPut(npc, "rot_at", now + ROT_FIRST);
+            hsPut(npc, "song_at", now + SONG_FIRST);
+        }
         hsPut(npc, "wave", want);
+        if (hsGet(npc, "song", "0") == "1") breakSong(npc, "§7Мургрот обрывает песнь и зовёт тотемы!");
         raiseTotems(npc);
         npc.say("§5Тотемы, встаньте! Мургрот не падёт!");
     }
-    var immune = hsCount(npc, TOTEM) > 0;
+    var totems = hsCount(npc, TOTEM);
+    var immune = totems > 0;
     hsPut(npc, "immune", immune ? 1 : 0);
-    if (immune) return;
+    if (hsGet(npc, "song", "0") == "1" && totems < hsNum(npc, "song_totems")) {
+        breakSong(npc, "§7Тотем пал — песнь сорвана!");
+    }
 
-    if (hsGet(npc, "copies", "0") == "0" && hp <= 0.5) {
+    if (!immune && hsGet(npc, "copies", "0") == "0" && hp <= 0.5) {
         hsPut(npc, "copies", 1);
         var w = npc.getWorld();
         var h = hsHome(npc);
         for (var c = 0; c < 3; c++) {
             var a = Math.random() * Math.PI * 2;
-            hsNoRespawn(w.spawnClone(h[0] + Math.cos(a) * 10, h[1], h[2] + Math.sin(a) * 10, HS.TAB, COPY));
+            var cx = h[0] + Math.cos(a) * 10, cz = h[2] + Math.sin(a) * 10;
+            var copy = spawnSafe(npc, COPY, function () { return w.spawnClone(cx, h[1], cz, HS.TAB, COPY); });
+            if (copy == null) break;
+            hsNoRespawn(copy);
         }
         var a2 = Math.random() * Math.PI * 2;
         npc.setPosition(h[0] + Math.cos(a2) * 10, h[1], h[2] + Math.sin(a2) * 10);
@@ -79,9 +120,13 @@ function tick(e) {
         hsPut(npc, "song_at", now + SONG_EVERY);
         hsPut(npc, "song", 1);
         hsPut(npc, "song_dmg", 0);
+        hsPut(npc, "song_totems", totems);
+        var need = songNeed(npc, ps.length);
+        hsPut(npc, "song_need", need);
         var h2 = hsHome(npc);
         hsPut(npc, "song_tg", TelegraphAPI.circle(npc, h2[0], h2[1], h2[2], HS.ARENA_R, SONG_TICKS, HS.PURPLE));
-        npc.say("§5Песнь безумия! (сбейте §f" + SONG_BREAK + "§5 урона за 5 с)");
+        if (immune) npc.say("§5Песнь безумия! Сломайте тотем за 5 с!");
+        else npc.say("§5Песнь безумия! Сбейте §f" + need + "§5 урона за 5 с!");
         npc.getTimers().forceStart(T_SONG, SONG_TICKS, false);
         return;
     }
@@ -124,11 +169,8 @@ function damaged(e) {
     if (hsGet(npc, "song", "0") != "1") return;
     var dmg = hsNum(npc, "song_dmg") + e.damage;
     hsPut(npc, "song_dmg", dmg);
-    if (dmg < SONG_BREAK) return;
-    hsPut(npc, "song", 0);
-    npc.getTimers().stop(T_SONG);
-    TelegraphAPI.remove(hsGet(npc, "song_tg", ""));
-    npc.say("§7Песнь сорвана!");
+    if (dmg < hsNum(npc, "song_need")) return;
+    breakSong(npc, "§7Песнь сорвана!");
 }
 
 function died(e) {

@@ -61,6 +61,7 @@ public final class AxeThrowAbility implements CnpcAbility {
                 AbilityParamKeys.OUTBOUND_TICKS,
                 AbilityParamKeys.HOLD_TICKS,
                 AbilityParamKeys.RETURN_TICKS,
+                AbilityParamKeys.ARC_HEIGHT,
                 AbilityParamKeys.HIT_RADIUS,
                 AbilityParamKeys.DAMAGE,
                 AbilityParamKeys.DAMAGE_PERCENT,
@@ -117,8 +118,9 @@ public final class AxeThrowAbility implements CnpcAbility {
         final int ret = Math.max(4, ctx.params.getInt(AbilityParamKeys.RETURN_TICKS, 10));
         final String itemId = ctx.params.getString(
                 AbilityParamKeys.PROJECTILE_ITEM, "wfm:beastmen_gor_battleaxe");
+        final float arc = (float) Math.max(0.0, ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 3.5));
         WfmIntegration.startAxeThrowVisual(
-                ctx.npc, itemId, dirX, 0.05, dirZ, (float) range, outbound, hold, ret);
+                ctx.npc, itemId, dirX, 0.05, dirZ, (float) range, outbound, hold, ret, arc);
         active.phase = ActiveAbility.PHASE_ACTIVE;
         active.ticksLeft = outbound + hold + ret;
         return TickResult.CONTINUE;
@@ -151,12 +153,17 @@ public final class AxeThrowAbility implements CnpcAbility {
             return;
         }
         final double range = Math.max(4.0, ctx.params.getDouble(AbilityParamKeys.MAX_RANGE, 16.0));
-        final double progress = outbound <= 0 ? 1.0 : elapsed / (double) outbound;
+        final double t = outbound <= 0 ? 1.0 : elapsed / (double) outbound;
         final double rad = Math.toRadians(active.yaw + 90.0);
         final double dirX = Math.cos(rad);
         final double dirZ = Math.sin(rad);
+        final double arc = Math.max(0.0, ctx.params.getDouble(AbilityParamKeys.ARC_HEIGHT, 3.5));
         final Vector3d start = new Vector3d(active.sx, active.sy, active.sz);
-        final Vector3d pos = start.add(dirX * range * progress, 0.0, dirZ * range * progress);
+        // Та же парабола, что у AxeThrowRenderer: y += arc * 4 * t * (1-t)
+        final Vector3d pos = start.add(
+                dirX * range * t,
+                arc * 4.0 * t * (1.0 - t),
+                dirZ * range * t);
         final double hitR = Math.max(0.6, ctx.params.getDouble(AbilityParamKeys.HIT_RADIUS, 1.2));
         final AxisAlignedBB box = new AxisAlignedBB(
                 pos.x - hitR, pos.y - hitR, pos.z - hitR,

@@ -783,6 +783,7 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.OUTBOUND_TICKS, 16);
         map.put(AbilityParamKeys.HOLD_TICKS, 4);
         map.put(AbilityParamKeys.RETURN_TICKS, 10);
+        map.put(AbilityParamKeys.ARC_HEIGHT, 3.5);
         map.put(AbilityParamKeys.HIT_RADIUS, 1.2);
         map.put(AbilityParamKeys.DAMAGE, 0.0);
         map.put(AbilityParamKeys.DAMAGE_PERCENT, 0.15);

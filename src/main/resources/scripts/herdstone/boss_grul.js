@@ -413,6 +413,7 @@ function gAxe(npc, ps) {
             "outboundTicks", 16,
             "holdTicks", 4,
             "returnTicks", 10,
+            "arcHeight", 3.5,
             "hitRadius", 1.2,
             "damagePercent", 0.15,
             "effectDuration", 60,

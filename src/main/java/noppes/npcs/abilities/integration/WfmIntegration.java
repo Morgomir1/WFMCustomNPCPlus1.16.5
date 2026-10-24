@@ -104,7 +104,8 @@ public final class WfmIntegration {
             final float rangeBlocks,
             final int outboundTicks,
             final int holdTicks,
-            final int returnTicks) {
+            final int returnTicks,
+            final float arcHeight) {
         ensureAxeThrowInitialized();
         if (!isWfmAxeThrowAvailable() || npc == null || startAxeThrowMethod == null) {
             return false;
@@ -124,7 +125,8 @@ public final class WfmIntegration {
                     rangeBlocks,
                     outboundTicks,
                     holdTicks,
-                    returnTicks);
+                    returnTicks,
+                    arcHeight);
             return result instanceof Boolean && (Boolean) result;
         } catch (final Exception ignored) {
             return false;
@@ -798,7 +800,8 @@ public final class WfmIntegration {
                     float.class,
                     int.class,
                     int.class,
-                    int.class);
+                    int.class,
+                    float.class);
             stopAxeThrowMethod = helper.getMethod(
                     STOP_AXE_THROW_METHOD,
                     LivingEntity.class);

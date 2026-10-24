@@ -326,9 +326,14 @@ function b1BreakFury(boar) {
 function b1Release(npc) {
     if (!npc.isAlive()) return;
     if (hsGet(npc, "stun", "0") == "1") return;
-    if (hsGet(npc, "b1_mounted", "0") == "1") return;
     if (hsGet(npc, "b1_ritual", "0") == "1") return;
     if (hsGet(npc, "b1_mounting", "0") == "1") return;
+    // Только наездник заморожен. Кабан тоже с b1_mounted=1 — ему скорость нужна.
+    if (hsGet(npc, "b1_mounted", "0") == "1") {
+        var riding = false;
+        try { riding = HerdstoneMount.isRiding(npc); } catch (err) { riding = String(npc.getName()) == B1_GRUL; }
+        if (riding) return;
+    }
     var speed = hsNum(npc, "base_speed");
     if (!(speed > 0)) speed = 4;
     npc.getAi().setWalkingSpeed(speed);
@@ -366,26 +371,6 @@ function b1Feed(npc, player) {
     if (boar == null) return;
     hsPut(boar, "b1_feed", String(player.getUUID()));
     if (hsNum(boar, "ram_at") > hsNow(boar) + 25) hsPut(boar, "ram_at", hsNow(boar) + 15);
-}
-
-function b1NearIntactStake(player, npc) {
-    var mask = b1Mask(npc);
-    for (var i = 0; i < B1_NESTS.length; i++) {
-        if (mask.charAt(i) != "1") continue;
-        var cols = b1StakeColumns(npc, i);
-        for (var c = 0; c < cols.length; c++) {
-            if (hsFlat(player, cols[c][0] + 0.5, cols[c][2] + 0.5) <= 3) return true;
-        }
-    }
-    return false;
-}
-
-function b1MarkPulse(npc) {
-    if (String(npc.getName()) != B1_BOAR) return;
-    var p = b1Marked(npc);
-    if (p == null) return;
-    if (b1NearIntactStake(p, npc)) return;
-    p.addPotionEffect(PotionEffectType_SLOWNESS, 2, 0, false);
 }
 
 function b1OnEdge(npc, player) {
@@ -649,7 +634,11 @@ function b1ApplyRevive(npc, maxHp) {
     hsZoneClear(npc);
     npc.getStats().setMaxHealth(maxHp);
     npc.setHealth(Math.max(1, Math.round(maxHp * 0.3)));
-    if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
+    var name = String(npc.getName());
+    if (name == B1_GRUL) hsPut(npc, "base_speed", 6);
+    else if (name == B1_BOAR) hsPut(npc, "base_speed", 7);
+    else if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
+    npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
     npc.clearPotionEffects();
     hsPut(npc, "stun", 0);
     hsPut(npc, "b1_mounted", 0);
@@ -788,6 +777,28 @@ function b1RoarBlocks(npc) {
     return next > now && next - now <= 60;
 }
 
+/** Срывает рывок/слайд кабана — при рёве Грула с седла. */
+function b1InterruptDash(boar) {
+    if (boar == null || !boar.isAlive()) return;
+    AbilityAPI.cancel(boar);
+    try {
+        boar.getTimers().stop(B1_T_RAM);
+        boar.getTimers().stop(B1_T_SLIDE);
+        boar.getTimers().stop(B1_T_AIM);
+    } catch (err) {}
+    hsPut(boar, "ram_kind", "");
+    hsPut(boar, "b1_aim", 0);
+    b1ClearLine(boar);
+    // Серия ставит ram_at ≈ now+100000; без сброса кабан навсегда молчит.
+    var now = hsNow(boar);
+    if (hsNum(boar, "b1_step") >= 0 || hsNum(boar, "ram_at") > now + 5000) {
+        hsPut(boar, "b1_step", -1);
+        var cd = 80;
+        try { cd = b1RamCd(boar); } catch (err2) {}
+        hsPut(boar, "ram_at", now + cd);
+    }
+}
+
 function b1FindPlayer(npc, id) {
     if (id == null || String(id).length < 32) return null;
     try {
@@ -815,6 +826,7 @@ function b1StartMount(grul) {
     if (boar == null) return;
     var now = hsNow(grul);
     hsPut(grul, "b1_mounting", 1);
+    hsPut(grul, "b1_mounting_at", now);
     hsPut(grul, "b1_mount_done", 1);
     hsPut(grul, "b1_mount_go", 0);
     hsPut(grul, "immune_until", now + 40);
@@ -834,6 +846,7 @@ function b1StartMount(grul) {
 
 function b1SlamLand(grul) {
     hsPut(grul, "b1_mounting", 0);
+    hsPut(grul, "b1_mounting_at", 0);
     if (!grul.isAlive() || hsGet(grul, "stun", "0") == "1") return;
     var boar = b1Other(grul);
     if (boar == null || !boar.isAlive()) return;
@@ -847,8 +860,23 @@ function b1SlamLand(grul) {
     hsPut(grul, "b1_mounted", 1);
     hsPut(boar, "b1_mounted", 1);
     hsPut(boar, "b1_step", -1);
+    b1MountSilence(grul);
     grul.getAi().setWalkingSpeed(0);
     grul.getAi().setRetaliateType(3);
+    b1Release(boar);
+}
+
+/** Сброс кастов Грула при посадке. Колья на седле остаются доступны. */
+function b1MountSilence(grul) {
+    if (grul == null || !grul.isAlive()) return;
+    AbilityAPI.cancel(grul);
+    try {
+        grul.getTimers().stop(B1_T_ROAR);
+        grul.getTimers().stop(B1_T_LEAP);
+    } catch (err) {}
+    hsPut(grul, "b1_leap", "");
+    hsPut(grul, "b1_haul", 0);
+    b1WPut(grul, "hs_b1_roar_until", 0);
 }
 
 function b1MountTick(grul) {

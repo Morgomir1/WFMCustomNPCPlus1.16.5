@@ -50,7 +50,7 @@ public final class DashAbility implements CnpcAbility {
         active.phase = ActiveAbility.PHASE_CHARGE;
         active.ticksLeft = ctx.params.getInt(AbilityParamKeys.CHARGE_TICKS, 10);
         active.hitUuids.clear();
-        AbilityCombatHelper.stopNavigation(ctx.npc);
+        AbilityCombatHelper.holdInPlace(ctx.npc, active.sx, active.sy, active.sz);
         ctx.npc.setRotation(active.yaw);
         ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:block.beacon.power_select", 0.9F, 1.1F);
         return true;
@@ -68,14 +68,15 @@ public final class DashAbility implements CnpcAbility {
     }
 
     private TickResult tickCharge(final ActiveAbility active, final AbilityContext ctx) {
-        AbilityCombatHelper.stopNavigation(ctx.npc);
+        // Без pin AI продолжает идти — потом active телепортирует назад на sx.
+        AbilityCombatHelper.holdInPlace(ctx.npc, active.sx, active.sy, active.sz);
         ctx.npc.setRotation(active.yaw);
         if (active.ticksLeft % 4 == 0) {
             AbilityVfx.spawnChargeParticles(
                     ctx.world,
-                    ctx.npc.getX(),
-                    ctx.npc.getY(),
-                    ctx.npc.getZ(),
+                    active.sx,
+                    active.sy,
+                    active.sz,
                     false);
         }
         active.ticksLeft--;
@@ -85,7 +86,7 @@ public final class DashAbility implements CnpcAbility {
         active.phase = ActiveAbility.PHASE_ACTIVE;
         active.ticksLeft = ctx.params.getInt(AbilityParamKeys.ACTIVE_TICKS, 7);
         active.hitUuids.clear();
-        AbilityVfx.spawnStartBurst(ctx.world, ctx.npc.getX(), ctx.npc.getY(), ctx.npc.getZ(), false);
+        AbilityVfx.spawnStartBurst(ctx.world, active.sx, active.sy, active.sz, false);
         ctx.world.playSoundAt(ctx.npc.getPos(), "minecraft:entity.ravager.roar", 0.7F, 1.3F);
         return TickResult.CONTINUE;
     }

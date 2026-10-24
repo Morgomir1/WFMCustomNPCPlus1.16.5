@@ -1,6 +1,6 @@
 // Грул Кабанья Рука (Б1). В контейнере третьим файлом: hs_core.js, hs_b1.js, этот файл.
-// Цикл 45 с: рёв, метка, колья, аркан. Фаза 2 — прыжок на кабана. Фаза 3 — клич и ритуал.
-// Сети кидают унгоры-рейдеры (mob_raider.js), не Грул.
+// Цикл 45 с: рёв и колья. Фаза 2 — прыжок на кабана. Фаза 3 — клич и ритуал.
+// Сети кидают унгоры-рейдеры (mob_raider.js). Аркана и метательного топора нет.
 HS.BASE_HP = 220;
 HS.ARENA = { shape: "rect", hw: 22, hd: 19 };
 HS.ENRAGE_SEC = 240;
@@ -9,7 +9,7 @@ ORIGIN = [-373224, 101, -13530];
 GATE = hsBox(12, 0, -11, 3, 2, 3);
 SUMMONS = ["Унгор-рейдер"];
 
-var B1_MARKS = [0, 140, 300, 440, 600, 740];
+var B1_BEATS = [0, 300, 740];
 
 function init(e) {
     var npc = e.npc;
@@ -24,7 +24,8 @@ function init(e) {
         return;
     }
     if (!hsInit(npc)) return;
-    if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
+    hsPut(npc, "base_speed", 6);
+    npc.getAi().setWalkingSpeed(6);
     b1Release(npc);
     npc.clearPotionEffects();
     hsPut(npc, "stun", 0);
@@ -37,7 +38,6 @@ function init(e) {
     hsPut(npc, "b1_cycle_i", 0);
     hsPut(npc, "b1_cycle_loop", 0);
     hsPut(npc, "b1_squeal", 0);
-    hsPut(npc, "b1_lasso_cd", 0);
     b1ResetWorld(npc);
 }
 
@@ -48,7 +48,7 @@ function tick(e) {
     if (ps == null) return;
     b1Boot(npc, ps);
     b1ClearStun(npc);
-    gLassoHold(npc);
+    gSanity(npc);
     b1RefreshLink(npc);
     b1MudTick(npc, ps);
     b1HornTick(npc);
@@ -68,10 +68,75 @@ function tick(e) {
         if (!AbilityAPI.isBusy(npc) && hsNow(npc) >= hsNum(npc, "b1_leap_from") + 12) gGapLand(npc);
         return;
     }
+    // На кабане — только колья; рёв/клич/прыжки выключены.
+    if (hsGet(npc, "b1_mounted", "0") == "1") {
+        gCycle(npc, ps);
+        return;
+    }
     gCycle(npc, ps);
-    if (!gFarWatch(npc, ps)) gPress(npc, ps);
-    gExtraLasso(npc, ps);
+    gPress(npc, ps);
     gSqueal(npc, ps);
+}
+
+/** Сброс залипших флагов: mounting/leap/haul/arm и рассинхрон седла. */
+function gSanity(npc) {
+    var now = hsNow(npc);
+    if (hsGet(npc, "b1_mounting", "0") == "1") {
+        var mountedAt = hsNum(npc, "b1_mounting_at");
+        if (!(mountedAt > 0)) hsPut(npc, "b1_mounting_at", now);
+        else if (now - mountedAt > 80) {
+            hsPut(npc, "b1_mounting", 0);
+            hsPut(npc, "b1_mounting_at", 0);
+            AbilityAPI.cancel(npc);
+            hsPut(npc, "b1_mount_go", 1);
+        }
+    } else {
+        hsPut(npc, "b1_mounting_at", 0);
+    }
+    var leap = hsGet(npc, "b1_leap", "");
+    if (leap != "" && now - hsNum(npc, "b1_leap_from") > 40) {
+        hsPut(npc, "b1_leap", "");
+        AbilityAPI.cancel(npc);
+        b1Release(npc);
+    }
+    if (hsGet(npc, "b1_haul", "0") == "1") {
+        var haulAt = hsNum(npc, "b1_haul_at");
+        if (!(haulAt > 0)) hsPut(npc, "b1_haul_at", now);
+        else if (!AbilityAPI.isBusy(npc) || now - haulAt > 80) {
+            hsPut(npc, "b1_haul", 0);
+            hsPut(npc, "b1_haul_at", 0);
+            AbilityAPI.cancel(npc);
+        }
+    } else {
+        hsPut(npc, "b1_haul_at", 0);
+    }
+    if (hsGet(npc, "b1_arm", "0") == "1" && !npc.getTimers().has(B1_T_STAKE)) {
+        hsPut(npc, "b1_arm", 0);
+    }
+    if (hsGet(npc, "b1_mounted", "0") == "1" && AbilityAPI.isBusy(npc)) {
+        var busyAt = hsNum(npc, "b1_busy_at");
+        if (!(busyAt > 0)) hsPut(npc, "b1_busy_at", now);
+        else if (now - busyAt > 50) {
+            AbilityAPI.cancel(npc);
+            hsPut(npc, "b1_busy_at", 0);
+        }
+    } else {
+        hsPut(npc, "b1_busy_at", 0);
+    }
+    var riding = false;
+    try { riding = HerdstoneMount.isRiding(npc); } catch (err) { riding = false; }
+    if (hsGet(npc, "b1_mounted", "0") == "1" && !riding) {
+        var boar = b1Other(npc);
+        if (boar != null && boar.isAlive() && HerdstoneMount.mount(npc, boar, 1.6)) {
+            hsPut(boar, "b1_mounted", 1);
+        } else {
+            hsPut(npc, "b1_mounted", 0);
+            if (boar != null) hsPut(boar, "b1_mounted", 0);
+            b1Release(npc);
+        }
+    } else if (hsGet(npc, "b1_mounted", "0") != "1" && riding) {
+        try { HerdstoneMount.dismount(npc); } catch (err2) {}
+    }
 }
 
 function gCycle(npc, ps) {
@@ -86,16 +151,14 @@ function gCycle(npc, ps) {
         hsPut(npc, "b1_cycle_i", 0);
     }
     var idx = hsNum(npc, "b1_cycle_i");
-    if (idx >= B1_MARKS.length) return;
+    if (idx >= B1_BEATS.length) return;
     var elapsed = now - from - loop * 900;
-    if (elapsed < B1_MARKS[idx]) return;
+    if (elapsed < B1_BEATS[idx]) return;
     hsPut(npc, "b1_cycle_i", idx + 1);
-    if (idx == 0) gRoar(npc);
-    else if (idx == 1 || idx == 3) gMark(npc, ps);
-    else if (idx == 2) gStake(npc);
-    else if (idx == 4) gLasso(npc, ps);
-    else if (idx == 5) {
-        gMark(npc, ps);
+    var mounted = hsGet(npc, "b1_mounted", "0") == "1";
+    if (idx == 0) {
+        if (!mounted) gRoar(npc);
+    } else {
         gStake(npc);
     }
 }
@@ -114,7 +177,9 @@ function gRoarNow(npc) {
     var from = hsNum(npc, "b1_cycle_from");
     var loop = hsNum(npc, "b1_cycle_loop");
     b1WPut(npc, "hs_b1_next_roar", from + (loop + 1) * 900);
-    if (hsGet(npc, "b1_mounted", "0") != "1") {
+    if (hsGet(npc, "b1_mounted", "0") == "1") {
+        b1InterruptDash(b1Other(npc));
+    } else {
         npc.getAi().setWalkingSpeed(0);
         npc.getAi().setRetaliateType(3);
     }
@@ -144,7 +209,6 @@ function gSummon(npc) {
     var room = 4 - hsCount(npc, B1_RAIDER);
     if (room > want) room = want;
     if (room <= 0) return;
-    var h = hsHome(npc);
     var w = npc.getWorld();
     var living = hsFind(npc, B1_RAIDER);
     var anchor = gFarthest(npc, hsPlayers(npc));
@@ -167,20 +231,71 @@ function gSummon(npc) {
     var back = 5;
     var x = ox + dx / len * back;
     var z = oz + dz / len * back;
-    var spot = gClampArena(npc, x, z);
+    var spot = gFindRaiderSpawn(npc, x, z, living);
     var spawned = 0;
-    if (!gRaiderNear(living, spot[0], spot[1])) {
-        hsNoRespawn(w.spawnClone(spot[0], h[1], spot[1], HS.TAB, B1_RAIDER));
+    if (spot != null) {
+        hsNoRespawn(w.spawnClone(spot[0], spot[1], spot[2], HS.TAB, B1_RAIDER));
         spawned = 1;
+        living = hsFind(npc, B1_RAIDER);
     }
     if (room >= 2) {
-        var side = gClampArena(npc, spot[0] + (-dz / len) * 3, spot[1] + (dx / len) * 3);
-        if (!gRaiderNear(living, side[0], side[1])) {
-            hsNoRespawn(w.spawnClone(side[0], h[1], side[1], HS.TAB, B1_RAIDER));
+        var side = gFindRaiderSpawn(npc, x + (-dz / len) * 3, z + (dx / len) * 3, living);
+        if (side != null) {
+            hsNoRespawn(w.spawnClone(side[0], side[1], side[2], HS.TAB, B1_RAIDER));
             spawned = spawned + 1;
         }
     }
     if (spawned > 0) b1NoteRaiders(npc);
+}
+
+/** Свободная клетка: пол solid, ноги и голова — воздух. Не рядом с живым рейдером. */
+function gFindRaiderSpawn(npc, x, z, living) {
+    var h = hsHome(npc);
+    var y = h[1];
+    var w = npc.getWorld();
+    var offsets = [
+        [0, 0], [2, 0], [-2, 0], [0, 2], [0, -2],
+        [3, 2], [-3, 2], [3, -2], [-3, -2], [4, 0], [-4, 0], [0, 4], [0, -4]
+    ];
+    var i;
+    for (i = 0; i < offsets.length; i++) {
+        var clamped = gClampArena(npc, x + offsets[i][0], z + offsets[i][1]);
+        if (gRaiderNear(living, clamped[0], clamped[1])) continue;
+        if (!gCanStand(w, clamped[0], y, clamped[1])) continue;
+        return [clamped[0], y, clamped[1]];
+    }
+    return null;
+}
+
+function gCanStand(world, x, y, z) {
+    try {
+        var bx = Math.floor(x);
+        var by = Math.floor(y);
+        var bz = Math.floor(z);
+        if (!gBlockSolid(world.getBlock(bx, by - 1, bz))) return false;
+        if (gBlockSolid(world.getBlock(bx, by, bz))) return false;
+        if (gBlockSolid(world.getBlock(bx, by + 1, bz))) return false;
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
+
+function gBlockSolid(block) {
+    if (block == null) return false;
+    var name = "";
+    try { name = String(block.getName()); } catch (err) { return true; }
+    if (name == "minecraft:air" || name == "minecraft:cave_air" || name == "minecraft:void_air") return false;
+    if (name.indexOf("tall_grass") >= 0 || name.indexOf("fern") >= 0
+            || name.indexOf("flower") >= 0 || name.indexOf("torch") >= 0
+            || name.indexOf("carpet") >= 0 || name == "minecraft:snow"
+            || name.indexOf("button") >= 0 || name.indexOf("pressure_plate") >= 0
+            || name.indexOf("sign") >= 0 || name.indexOf("banner") >= 0
+            || name.indexOf("rail") >= 0 || name.indexOf("sapling") >= 0
+            || name.indexOf("mushroom") >= 0 || name.indexOf("vine") >= 0
+            || name.indexOf("ladder") >= 0 || name.indexOf("web") >= 0
+            || name.indexOf("fire") >= 0) return false;
+    return true;
 }
 
 function gFarthest(npc, ps) {
@@ -221,21 +336,6 @@ function gRaiderNear(living, x, z) {
     return false;
 }
 
-function gMark(npc, ps) {
-    var boar = b1Other(npc);
-    if (boar == null || ps == null || ps.length == 0) return;
-    var p = hsRandom(ps);
-    p.addPotionEffect(PotionEffectType_GLOWING, 6, 0, false);
-    var id = TelegraphAPI.circleAt(npc, p.getX(), p.getY(), p.getZ(), 1.2, 120, HS.RED);
-    try { TelegraphAPI.follow(id, p); } catch (err) {}
-    hsPut(boar, "mark_uuid", String(p.getUUID()));
-    hsPut(boar, "mark_until", hsNow(npc) + 120);
-    for (var i = 0; i < ps.length; i++) {
-        b1Tell(ps[i], "Грул метит " + p.getName() + " — кабан пойдёт на него!");
-    }
-    b1Tell(p, "Встань у целого кола — иначе ноги не слушаются!");
-}
-
 function gStake(npc) {
     if (b1WGet(npc, "hs_b1_locked", "0") == "1") return;
     if (b1StakeCount(npc) >= b1NestLimit(npc)) return;
@@ -267,97 +367,17 @@ function gStakePlace(npc) {
     b1PutStake(npc, index);
 }
 
-function gLasso(npc, ps) {
-    if (hsGet(npc, "b1_mounted", "0") == "1") return;
-    if (npc.getTimers().has(B1_T_LASSO)) return;
-    if (AbilityAPI.isBusy(npc)) return;
-    if (hsNow(npc) < hsNum(npc, "b1_lasso_cd")) return;
-    if (ps == null || ps.length == 0) return;
-    var far = null;
-    var best = 12;
-    for (var i = 0; i < ps.length; i++) {
-        var dist = hsFlat(npc, ps[i].getX(), ps[i].getZ());
-        if (dist > best) {
-            best = dist;
-            far = ps[i];
-        }
-    }
-    if (far == null) return;
-    var yaw = hsYawTo(npc, far);
-    TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, best, 1.2, 20, HS.GOLD);
-    hsPut(npc, "b1_lasso_id", String(far.getUUID()));
-    hsPut(npc, "b1_lasso", "windup");
-    hsPut(npc, "b1_lasso_cut", 0);
-    hsPut(npc, "b1_lasso_cd", hsNow(npc) + 240);
-    npc.getAi().setWalkingSpeed(0);
-    npc.getAi().setRetaliateType(3);
-    Combat.stopNavigation(npc);
-    npc.getTimers().forceStart(B1_T_LASSO, 20, false);
-    b1Say(npc, "Грул кидает аркан!");
-}
-
-function gLassoHold(npc) {
-    var phase = hsGet(npc, "b1_lasso", "");
-    if (phase != "windup" && phase != "pull") return;
-    npc.getAi().setWalkingSpeed(0);
-    npc.getAi().setRetaliateType(3);
-    Combat.stopNavigation(npc);
-}
-
-function gExtraLasso(npc, ps) {
-    if (b1Phase(npc) != 3) return;
-    if (hsGet(npc, "b1_mounted", "0") == "1") return;
-    var now = hsNow(npc);
-    if (hsNum(npc, "b1_lasso_cd") <= 0) {
-        hsPut(npc, "b1_lasso_cd", now + 240);
-        return;
-    }
-    if (now < hsNum(npc, "b1_lasso_cd")) return;
-    gLasso(npc, ps);
-}
-
 function gBusy(npc) {
     if (AbilityAPI.isBusy(npc) || b1RoarBlocks(npc)) return true;
-    if (npc.getTimers().has(B1_T_LASSO) || npc.getTimers().has(B1_T_ROAR)) return true;
-    if (hsGet(npc, "b1_leap", "") != "" || hsGet(npc, "b1_lasso", "") != "") return true;
+    if (npc.getTimers().has(B1_T_ROAR)) return true;
+    if (hsGet(npc, "b1_leap", "") != "") return true;
     return false;
-}
-
-function gFarWatch(npc, ps) {
-    if (hsGet(npc, "b1_mounted", "0") == "1" || hsGet(npc, "b1_haul", "0") == "1") return false;
-    if (ps == null || ps.length == 0) return false;
-    var far = null;
-    var best = 12;
-    var i;
-    for (i = 0; i < ps.length; i++) {
-        var dist = hsFlat(npc, ps[i].getX(), ps[i].getZ());
-        if (dist > best) {
-            best = dist;
-            far = ps[i];
-        }
-    }
-    if (far == null) {
-        hsPut(npc, "b1_far_since", 0);
-        return false;
-    }
-    var id = String(far.getUUID());
-    var now = hsNow(npc);
-    if (hsGet(npc, "b1_far_id", "") != id) {
-        hsPut(npc, "b1_far_id", id);
-        hsPut(npc, "b1_far_since", now);
-        return false;
-    }
-    if (now - hsNum(npc, "b1_far_since") < 60) return false;
-    if (gBusy(npc) || now < hsNum(npc, "b1_lasso_cd")) return false;
-    gLasso(npc, ps);
-    return hsGet(npc, "b1_lasso", "") == "windup";
 }
 
 function gPress(npc, ps) {
     if (gBusy(npc)) return;
     if (hsGet(npc, "b1_mounted", "0") == "1") return;
-    if (gGapLeap(npc, ps)) return;
-    gAxe(npc, ps);
+    gGapLeap(npc, ps);
 }
 
 function gGapLeap(npc, ps) {
@@ -391,38 +411,6 @@ function gGapLeap(npc, ps) {
     hsPut(npc, "b1_leap_from", now);
     hsPut(npc, "b1_gap_at", now + 200);
     npc.getTimers().forceStart(B1_T_LEAP, 24, false);
-    return true;
-}
-
-function gAxe(npc, ps) {
-    var now = hsNow(npc);
-    var since = hsNum(npc, "b1_melee_at");
-    if (!(since > 0)) {
-        hsPut(npc, "b1_melee_at", now);
-        return false;
-    }
-    if (now - since < 80) return false;
-    var target = npc.getAttackTarget();
-    if (target == null || !target.isAlive()) target = gFarthest(npc, ps);
-    if (target == null) return false;
-    if (!hsStart(npc, "axe_throw", target, AbilityAPI.params(
-            "chargeTicks", 8,
-            "maxRange", 16,
-            "distance", 16,
-            "radius", 2.4,
-            "outboundTicks", 16,
-            "holdTicks", 4,
-            "returnTicks", 10,
-            "arcHeight", 3.5,
-            "hitRadius", 1.2,
-            "damagePercent", 0.15,
-            "effectDuration", 60,
-            "effectAmplifier", 1,
-            "projectileItem", "wfm:beastmen_gor_battleaxe",
-            "telegraph", 1,
-            "telegraphColor", 0xC0FF0000))) return false;
-    hsPut(npc, "b1_melee_at", now);
-    b1Say(npc, "Грул бросает топор!");
     return true;
 }
 
@@ -540,46 +528,29 @@ function timer(e) {
         b1RitualFire(npc);
         return;
     }
-    if (e.id == B1_T_ROAR) {
-        gRoarHit(npc);
+    if (e.id == B1_T_SLAM) {
+        b1SlamLand(npc);
         return;
     }
     if (e.id == B1_T_STAKE) {
         gStakePlace(npc);
         return;
     }
-    if (e.id == B1_T_SLAM) {
-        b1SlamLand(npc);
+    // На седле рёв/прыжок не резолвим; колья — можно.
+    if (hsGet(npc, "b1_mounted", "0") == "1") {
+        if (e.id == B1_T_ROAR || e.id == B1_T_LEAP) {
+            hsPut(npc, "b1_leap", "");
+        }
+        return;
+    }
+    if (e.id == B1_T_ROAR) {
+        gRoarHit(npc);
         return;
     }
     if (e.id == B1_T_LEAP) {
         if (hsGet(npc, "b1_leap", "") == "gap") gGapLand(npc);
         else gLeapStep(npc);
-        return;
     }
-    if (e.id == B1_T_FEED) {
-        b1Feed(npc, b1FindPlayer(npc, hsGet(npc, "b1_lasso_id", "")));
-        hsPut(npc, "b1_lasso", "");
-        b1Release(npc);
-        return;
-    }
-    if (e.id != B1_T_LASSO) return;
-    if (hsGet(npc, "b1_lasso", "") != "windup") return;
-    var pulled = b1FindPlayer(npc, hsGet(npc, "b1_lasso_id", ""));
-    if (pulled == null) {
-        hsPut(npc, "b1_lasso", "");
-        b1Release(npc);
-        return;
-    }
-    hsPut(npc, "b1_lasso", "pull");
-    hsPut(npc, "b1_lasso_cut", 0);
-    if (!hsStart(npc, "b1_pull", pulled, AbilityAPI.params(
-            "activeTicks", 40, "distance", 0.55, "telegraph", 0))) {
-        hsPut(npc, "b1_lasso", "");
-        b1Release(npc);
-        return;
-    }
-    npc.getTimers().forceStart(B1_T_FEED, 40, false);
 }
 
 function meleeAttack(e) {

@@ -21,12 +21,12 @@ function init(e) {
         return;
     }
     if (!hsInit(npc)) return;
-    if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
+    hsPut(npc, "base_speed", 7);
+    npc.getAi().setWalkingSpeed(7);
     b1Release(npc);
     npc.clearPotionEffects();
     hsPut(npc, "stun", 0);
     hsPut(npc, "ram_at", 0);
-    hsPut(npc, "mark_until", 0);
     hsPut(npc, "widowed", 0);
     hsPut(npc, "b1_fury", 0);
     hsPut(npc, "b1_step", -1);
@@ -55,9 +55,23 @@ function tick(e) {
     b1MudTick(npc, ps);
     b1HornTick(npc);
     b1Face(npc);
-    b1MarkPulse(npc);
     b1EdgeTick(npc, ps);
     if (b1WidowTick(npc)) return;
+    // Рёв Грула с седла: срываем уже идущий рывок/заряд.
+    if (b1RoarBlocks(npc) && (AbilityAPI.isBusy(npc) || npc.getTimers().has(B1_T_RAM)
+            || hsGet(npc, "ram_kind", "") != "")) {
+        b1InterruptDash(npc);
+    }
+    // Серия оборвалась без finish — не держим ram_at на +100000.
+    if (hsNum(npc, "b1_step") >= 0
+            && !AbilityAPI.isBusy(npc)
+            && !npc.getTimers().has(B1_T_RAM)
+            && !npc.getTimers().has(B1_T_SLIDE)
+            && hsGet(npc, "ram_kind", "") == ""
+            && hsNum(npc, "ram_at") > hsNow(npc) + 5000) {
+        hsPut(npc, "b1_step", -1);
+        hsPut(npc, "ram_at", hsNow(npc) + b1RamCd(npc));
+    }
     if (hsGet(npc, "b1_feed", "").length >= 32 && hsNum(npc, "ram_at") > hsNow(npc) + 25) {
         hsPut(npc, "ram_at", hsNow(npc) + 15);
     }
@@ -95,6 +109,7 @@ function b1CanAct(npc) {
     if (hsGet(npc, "stun", "0") == "1") return false;
     if (hsNow(npc) < hsNum(npc, "immune_until")) return false;
     if (hsGet(npc, "b1_ritual", "0") == "1") return false;
+    if (b1RoarBlocks(npc)) return false;
     if (AbilityAPI.isBusy(npc)) return false;
     if (npc.getTimers().has(B1_T_RAM) || npc.getTimers().has(B1_T_SLIDE)) return false;
     var grul = b1Other(npc);
@@ -138,16 +153,9 @@ function b1Pick(npc, ps) {
         if (pool.length == 0) pool = ps;
         return pool[Math.floor(Math.random() * pool.length)];
     }
-    var marked = b1Marked(npc);
-    if (marked != null) return marked;
     var target = npc.getAttackTarget();
     if (target != null && target.isAlive()) return target;
     return ps[0];
-}
-
-function b1Marked(npc) {
-    if (hsNow(npc) > hsNum(npc, "mark_until")) return null;
-    return b1FindPlayer(npc, hsGet(npc, "mark_uuid", ""));
 }
 
 function b1RamLen(npc, target, kind) {
@@ -173,6 +181,7 @@ function b1BeginDash(npc, target, charge, kind) {
 
 function b1FireDash(npc, target, charge, kind) {
     if (target == null || !target.isAlive()) return false;
+    if (b1RoarBlocks(npc)) return false;
     var yaw = hsYawTo(npc, target);
     var len = b1RamLen(npc, target, kind);
     hsPut(npc, "b1_face", yaw);
@@ -186,6 +195,9 @@ function b1FireDash(npc, target, charge, kind) {
     hsPut(npc, "b1_last", String(target.getUUID()));
     hsPut(npc, "b1_aim", 0);
     b1DrawLine(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, len, charge);
+    npc.getAi().setWalkingSpeed(0);
+    npc.getAi().setRetaliateType(3);
+    Combat.stopNavigation(npc);
     var started = hsStart(npc, "dash", target, AbilityAPI.params(
         "chargeTicks", charge,
         "activeTicks", 8,
@@ -197,6 +209,7 @@ function b1FireDash(npc, target, charge, kind) {
     ));
     if (!started) {
         b1ClearLine(npc);
+        b1Release(npc);
         return false;
     }
     npc.getTimers().forceStart(B1_T_RAM, charge + 10, false);
@@ -211,16 +224,11 @@ function b1ResolveRam(npc) {
     var len = hsNum(npc, "ram_len");
     if (!(len > 0)) len = 14;
     var pct = 0.35 + 0.05 * hsNum(npc, "b1_fury");
-    var mark = "";
-    if (hsNow(npc) <= hsNum(npc, "mark_until")) mark = hsGet(npc, "mark_uuid", "");
     var ps = hsPlayersAt(npc, sx, npc.getY(), sz, len + 2);
     for (var i = 0; i < ps.length; i++) {
         if (!hsOnLine(ps[i], sx, sz, yaw, len, 1.8)) continue;
         hsStrike(ps[i], pct);
-        if (mark.length >= 32 && String(ps[i].getUUID()) == mark) {
-            b1AddFury(npc, 1);
-            if (!b1NearIntactStake(ps[i], npc)) b1AddFury(npc, 1);
-        } else b1AddFury(npc, 2);
+        b1AddFury(npc, 2);
     }
     if (hsGet(npc, "b1_mounted", "0") == "1") {
         for (var j = 0; j < ps.length; j++) {
@@ -298,6 +306,12 @@ function b1MaybeChase(npc) {
 
 function b1FinishSeries(npc) {
     if (hsGet(npc, "stun", "0") == "1") return;
+    if (b1RoarBlocks(npc)) {
+        hsPut(npc, "b1_step", -1);
+        hsPut(npc, "ram_at", hsNow(npc) + b1RamCd(npc));
+        b1Release(npc);
+        return;
+    }
     var step = hsNum(npc, "b1_step");
     var kind = hsGet(npc, "ram_kind", "");
     if (hsGet(npc, "b1_mounted", "0") == "1" && step >= 0 && step < 2) {

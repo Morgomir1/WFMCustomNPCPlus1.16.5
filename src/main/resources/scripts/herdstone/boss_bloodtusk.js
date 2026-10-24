@@ -45,6 +45,7 @@ function tick(e) {
     var ps = hsFight(npc);
     if (ps == null) return;
     b1Boot(npc, ps);
+    b1ClearStun(npc);
     if (hsGet(npc, "ram_kind", "") == "slide" && !AbilityAPI.isBusy(npc)) {
         hsPut(npc, "ram_kind", "dash");
         b1ResolveRam(npc);
@@ -60,7 +61,7 @@ function tick(e) {
         hsPut(npc, "b1_call", 0);
         var grul = b1Other(npc);
         if (grul != null && !b1RoarBlocks(npc) && b1BeginDash(npc, grul, 30, "call")) {
-            npc.say("§4Кабаний зов!");
+            b1Say(npc, "Кабаний зов!");
             hsPut(npc, "ram_at", hsNow(npc) + b1RamCd(npc));
         }
         return;

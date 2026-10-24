@@ -90,8 +90,11 @@ public final class HerdstoneMount {
             final Entity rider = find(server, entry.getKey());
             final Entity mount = find(server, entry.getValue().mountId);
             if (!(rider instanceof LivingEntity) || !(mount instanceof LivingEntity)
-                    || !rider.isAlive() || !mount.isAlive()) {
+                    || !rider.isAlive() || !mount.isAlive() || !stillMounted(rider)) {
                 drop.add(entry.getKey());
+                if (rider != null) {
+                    rider.stopRiding();
+                }
                 forget(rider, mount);
                 continue;
             }
@@ -147,6 +150,20 @@ public final class HerdstoneMount {
         rider.setPos(mount.getX() - fz * 1.6, mount.getY(), mount.getZ() + fx * 1.6);
         rider.setDeltaMovement(0.0, 0.0, 0.0);
         rider.hasImpulse = true;
+    }
+
+    /** Скрипт ставит b1_mounted в 0 до dismount. Пока флаг не "1", седло больше не держим. */
+    private static boolean stillMounted(final Entity rider) {
+        try {
+            final IEntity wrapped = NpcAPI.Instance().getIEntity(rider);
+            if (!(wrapped instanceof IEntityLiving)) {
+                return false;
+            }
+            final noppes.npcs.api.entity.data.IData data = ((IEntityLiving) wrapped).getStoreddata();
+            return data.has(MOUNTED_KEY) && "1".equals(String.valueOf(data.get(MOUNTED_KEY)));
+        } catch (final Exception ignored) {
+            return false;
+        }
     }
 
     private static void putMounted(final Entity entity, final String value) {

@@ -7,7 +7,13 @@ var B1_GRUL = "Грул Кабанья Рука";
 var B1_RAIDER = "Унгор-рейдер";
 var B1_STAKE = "minecraft:dark_oak_log";
 var B1_MUD_BLOCK = "minecraft:soul_soil";
+// [x, y, z, alongZ]. alongZ=1 — вторая колонка по Z, иначе по X. Кол 2×3.
+// Ближе к центру, чем прежние ±16/±18: таран в 14 блоков с середины до них достаёт.
 var B1_NESTS = [
+    [-8, 1, -6, 0], [7, 1, -6, 0], [-8, 1, 5, 0], [7, 1, 5, 0],
+    [-1, 1, -9, 0], [-1, 1, 8, 0], [-11, 1, -1, 1], [10, 1, -1, 1]
+];
+var B1_OLD_NESTS = [
     [-16, 1, -13], [16, 1, -13], [-16, 1, 13], [16, 1, 13],
     [0, 1, -15], [0, 1, 15], [-18, 1, 0], [18, 1, 0]
 ];
@@ -22,7 +28,16 @@ var B1_T_STAKE = 12;
 var B1_T_LASSO = 13;
 var B1_T_TRIP = 14;
 var B1_T_SLAM = 17;
+var B1_ROAR_R = 18;
 var HerdstoneMount = Java.type("noppes.npcs.abilities.HerdstoneMount");
+
+function b1Say(npc, text) {
+    npc.say("§4[Стадо] §f" + text);
+}
+
+function b1Tell(player, text) {
+    player.message("§4[Стадо] §f" + text);
+}
 
 function b1W(npc) { return npc.getWorld().getStoreddata(); }
 function b1WGet(npc, key, def) {
@@ -124,26 +139,61 @@ function b1IsMud(block) {
     return name == B1_MUD_BLOCK || name == "soul_soil";
 }
 
-function b1PutStake(npc, index) {
+function b1StakeAlongZ(index) {
     var off = B1_NESTS[index];
-    var p = hsXYZ(npc, off);
+    return off.length > 3 && off[3] == 1;
+}
+
+function b1StakeColumns(npc, index) {
+    var p = hsXYZ(npc, B1_NESTS[index]);
+    if (b1StakeAlongZ(index)) return [[p[0], p[1], p[2]], [p[0], p[1], p[2] + 1]];
+    return [[p[0], p[1], p[2]], [p[0] + 1, p[1], p[2]]];
+}
+
+function b1StakeCenter(npc, index) {
+    var cols = b1StakeColumns(npc, index);
+    return [(cols[0][0] + cols[1][0]) / 2 + 0.5, cols[0][1], (cols[0][2] + cols[1][2]) / 2 + 0.5];
+}
+
+function b1PutStake(npc, index) {
+    var cols = b1StakeColumns(npc, index);
     var w = npc.getWorld();
-    w.setBlock(NpcAPI.getIPos(p[0], p[1], p[2]), B1_STAKE);
-    w.setBlock(NpcAPI.getIPos(p[0], p[1] + 1, p[2]), B1_STAKE);
+    var c, y;
+    for (c = 0; c < cols.length; c++) {
+        for (y = 0; y < 3; y++) {
+            w.setBlock(NpcAPI.getIPos(cols[c][0], cols[c][1] + y, cols[c][2]), B1_STAKE);
+        }
+    }
     b1SetBit(npc, index, true);
 }
 
 function b1RemoveStake(npc, index) {
-    var off = B1_NESTS[index];
-    var p = hsXYZ(npc, off);
+    var cols = b1StakeColumns(npc, index);
     var w = npc.getWorld();
-    w.removeBlock(NpcAPI.getIPos(p[0], p[1], p[2]));
-    w.removeBlock(NpcAPI.getIPos(p[0], p[1] + 1, p[2]));
+    var c, y;
+    for (c = 0; c < cols.length; c++) {
+        for (y = 0; y < 3; y++) {
+            w.removeBlock(NpcAPI.getIPos(cols[c][0], cols[c][1] + y, cols[c][2]));
+        }
+    }
     b1SetBit(npc, index, false);
+}
+
+function b1ClearLegacyStakes(npc) {
+    var w = npc.getWorld();
+    var i, y;
+    for (i = 0; i < B1_OLD_NESTS.length; i++) {
+        var p = hsXYZ(npc, B1_OLD_NESTS[i]);
+        for (y = 0; y < 3; y++) {
+            var pos = NpcAPI.getIPos(p[0], p[1] + y, p[2]);
+            if (b1IsStake(w.getBlock(p[0], p[1] + y, p[2]))) w.removeBlock(pos);
+        }
+    }
 }
 
 function b1ClearNests(npc) {
     for (var i = 0; i < B1_NESTS.length; i++) b1RemoveStake(npc, i);
+    b1ClearLegacyStakes(npc);
     b1WPut(npc, "hs_b1_mask", "00000000");
 }
 
@@ -197,10 +247,16 @@ function b1InStakeShadow(player, grul) {
     if (gl < 0.2) return false;
     for (var i = 0; i < B1_NESTS.length; i++) {
         if (mask.charAt(i) != "1") continue;
-        var s = hsXYZ(grul, B1_NESTS[i]);
-        var sx = s[0] + 0.5;
-        var sz = s[2] + 0.5;
-        if (hsFlat(player, sx, sz) > 2.5) continue;
+        var center = b1StakeCenter(grul, i);
+        var cols = b1StakeColumns(grul, i);
+        var near = false;
+        var c;
+        for (c = 0; c < cols.length; c++) {
+            if (hsFlat(player, cols[c][0] + 0.5, cols[c][2] + 0.5) <= 3.0) near = true;
+        }
+        if (!near) continue;
+        var sx = center[0];
+        var sz = center[2];
         var vx = sx - grul.getX();
         var vz = sz - grul.getZ();
         var sl = Math.sqrt(vx * vx + vz * vz);
@@ -269,9 +325,8 @@ function b1Release(npc) {
     if (hsGet(npc, "b1_mounted", "0") == "1") return;
     if (hsGet(npc, "b1_ritual", "0") == "1") return;
     if (hsGet(npc, "b1_mounting", "0") == "1") return;
-    if (hsNum(npc, "b1_recover") > hsNow(npc)) return;
     var speed = hsNum(npc, "base_speed");
-    if (!(speed > 0)) speed = npc.getAi().getWalkingSpeed();
+    if (!(speed > 0)) speed = 4;
     npc.getAi().setWalkingSpeed(speed);
     npc.getAi().setRetaliateType(0);
 }
@@ -279,9 +334,23 @@ function b1Release(npc) {
 function b1Stun(npc, ticks) {
     AbilityAPI.cancel(npc);
     hsPut(npc, "stun", 1);
+    hsPut(npc, "stun_until", hsNow(npc) + ticks);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
     npc.getTimers().forceStart(B1_T_STUN, ticks, false);
+}
+
+// Таймер, запущенный с другого NPC, может не сработать. Срок стана считает сам моб.
+function b1ClearStun(npc) {
+    if (hsGet(npc, "stun", "0") != "1") return false;
+    if (hsNum(npc, "stun_until") > hsNow(npc)) {
+        npc.getAi().setWalkingSpeed(0);
+        npc.getAi().setRetaliateType(3);
+        return true;
+    }
+    hsPut(npc, "stun", 0);
+    b1Release(npc);
+    return false;
 }
 
 function b1Cap(e, mul) {
@@ -303,7 +372,7 @@ function b1DropRider(boar) {
     HerdstoneMount.dismount(grul);
     hsPut(grul, "b1_recover", hsNow(boar) + 300);
     AbilityAPI.cancel(grul);
-    grul.say("§eГрул слетает с кабана!");
+    b1Say(grul, "Грул слетает с кабана!");
 }
 
 function b1Impale(boar) {
@@ -325,7 +394,7 @@ function b1Impale(boar) {
     AbilityAPI.cancel(boar);
     b1Stun(boar, ticks);
     if (mounted && grul != null) b1Stun(grul, ticks);
-    boar.say("§eКровохряк насадился на кол и оглушён!");
+    b1Say(boar, "Кровохряк насадился на кол и оглушён!");
 }
 
 function b1StakeHit(boar) {
@@ -333,12 +402,19 @@ function b1StakeHit(boar) {
     var mask = b1Mask(boar);
     for (var i = 0; i < B1_NESTS.length; i++) {
         if (mask.charAt(i) != "1") continue;
-        var s = hsXYZ(boar, B1_NESTS[i]);
-        if (!b1IsStake(w.getBlock(s[0], s[1], s[2]))) {
+        var cols = b1StakeColumns(boar, i);
+        var standing = false;
+        var hit = false;
+        var c;
+        for (c = 0; c < cols.length; c++) {
+            if (b1IsStake(w.getBlock(cols[c][0], cols[c][1], cols[c][2]))) standing = true;
+            if (hsFlat(boar, cols[c][0] + 0.5, cols[c][2] + 0.5) <= 2.4) hit = true;
+        }
+        if (!standing) {
             b1SetBit(boar, i, false);
             continue;
         }
-        if (hsFlat(boar, s[0] + 0.5, s[2] + 0.5) > 2.5) continue;
+        if (!hit) continue;
         b1RemoveStake(boar, i);
         w.playSoundAt(boar.getPos(), "minecraft:block.wood.break", 3.0, 0.5);
         b1Impale(boar);
@@ -385,14 +461,14 @@ function b1RefreshLink(npc) {
 function b1ApplyWidow(npc) {
     if (String(npc.getName()) == B1_BOAR) {
         npc.addPotionEffect(PotionEffectType_STRENGTH, 99999, 0, true);
-        npc.say("§4Кровохряк визжит над телом хозяина!");
+        b1Say(npc, "Кровохряк визжит над телом хозяина!");
         return;
     }
     npc.addPotionEffect(PotionEffectType_STRENGTH, 99999, 1, true);
     var base = hsNum(npc, "base_speed");
     if (!(base > 0)) base = 4;
     npc.getAi().setWalkingSpeed(Math.min(10, base + 2));
-    npc.say("§4Ты убил моего кабана! Я сам тебя растопчу!");
+    b1Say(npc, "Ты убил моего кабана! Я сам тебя растопчу!");
 }
 
 function b1ClearWidow(npc) {
@@ -412,7 +488,7 @@ function b1StartRitual(npc) {
     npc.getAi().setRetaliateType(3);
     TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), 4.0, 160, HS.PURPLE);
     npc.getTimers().forceStart(B1_T_RITUAL, 160, false);
-    npc.say("§5Начинается кровавый ритуал!");
+    b1Say(npc, "Начинается кровавый ритуал!");
 }
 
 function b1ReviveSpawn(npc, partnerName) {
@@ -442,7 +518,7 @@ function b1RitualFire(npc) {
     var partner = String(npc.getName()) == B1_BOAR ? B1_GRUL : B1_BOAR;
     b1ReviveSpawn(npc, partner);
     b1Release(npc);
-    npc.say("§4Стадо возвращает павшего!");
+    b1Say(npc, "Стадо возвращает павшего!");
 }
 
 function b1RitualHurt(e) {
@@ -456,7 +532,7 @@ function b1RitualHurt(e) {
     npc.getTimers().stop(B1_T_RITUAL);
     hsPut(npc, "b1_ritual_cd", hsNow(npc) + 600);
     b1Stun(npc, 60);
-    npc.say("§eРитуал сорван!");
+    b1Say(npc, "Ритуал сорван!");
 }
 
 function b1WidowTick(npc) {
@@ -515,7 +591,7 @@ function b1ApplyRevive(npc, maxHp) {
     b1WPut(npc, "hs_b1_locked", "0");
     if (other != null) b1ClearWidow(other);
     b1Release(npc);
-    npc.say("§4Павший поднимается на ноги!");
+    b1Say(npc, "Павший поднимается на ноги!");
 }
 
 function b1Remember(npc) {
@@ -577,6 +653,7 @@ function b1NoteRaiders(npc) {
     var now = hsNow(npc);
     var changed = false;
     for (var i = 0; i < list.length; i++) {
+        hsNoRespawn(list[i]);
         var id = String(list[i].getUUID());
         if (book.indexOf(id) >= 0) continue;
         book += id + "," + now + ",0;";
@@ -610,7 +687,7 @@ function b1HornTick(npc) {
         }
         if (done == "0" && age >= 400) {
             b1AddFury(npc, 1);
-            if (String(npc.getName()) == B1_GRUL) npc.say("§6Рейдер трубит в рог!");
+            if (String(npc.getName()) == B1_GRUL) b1Say(npc, "Рейдер трубит в рог!");
             done = "1";
             dirty = true;
         }
@@ -657,7 +734,7 @@ function b1StartMount(grul) {
     hsPut(grul, "b1_mount_go", 0);
     hsPut(grul, "immune_until", now + 40);
     hsPut(boar, "immune_until", now + 40);
-    grul.say("§4Грул запрыгивает на кабана!");
+    b1Say(grul, "Грул запрыгивает на кабана!");
     hsStart(grul, "jump_slam", boar, AbilityAPI.params(
         "chargeTicks", 20,
         "activeTicks", 12,
@@ -710,14 +787,11 @@ function b1RecoverTick(grul) {
         return;
     }
     if (hsGet(grul, "stun", "0") == "1") return;
-    var now = hsNow(grul);
-    if (now < until) {
-        b1WalkTo(grul, boar);
-        return;
-    }
+    if (hsNow(grul) < until) return;
     hsPut(grul, "b1_recover", 0);
     if (hsFlat(grul, boar.getX(), boar.getZ()) > 8) hsPut(boar, "b1_call", 1);
     else hsPut(grul, "b1_mount_go", 1);
+    b1Release(grul);
 }
 
 function b1ClearRing(npc) {
@@ -766,7 +840,7 @@ function hsEnrage(npc, ps, now) {
         b1WPut(npc, "hs_b1_ring_inner", 24);
         b1WPut(npc, "hs_b1_ring_warn", 0);
         b1PlaceRing(npc, 24);
-        npc.say("§4Стадо не ждёт! Круг сжимается!");
+        b1Say(npc, "Стадо не ждёт! Круг сжимается!");
     }
     var inner = Number(b1WGet(npc, "hs_b1_ring_inner", "24"));
     var step = Number(b1WGet(npc, "hs_b1_ring_i", "0"));
@@ -810,7 +884,61 @@ function b1OnDied(npc) {
     }
     b1ClearRing(npc);
     hsSetGate(npc, false);
-    npc.say("§7Путь вниз открыт.");
+    b1Say(npc, "Путь вниз открыт.");
+}
+
+function b1ClearRide(npc) {
+    if (npc == null) return;
+    hsPut(npc, "b1_mounted", 0);
+    hsPut(npc, "b1_mounting", 0);
+    hsPut(npc, "b1_mount_done", 0);
+    hsPut(npc, "b1_mount_go", 0);
+    hsPut(npc, "b1_recover", 0);
+    hsPut(npc, "b1_step", -1);
+    hsPut(npc, "b1_ritual", 0);
+    hsPut(npc, "widowed", 0);
+    hsPut(npc, "widow_at", 0);
+    hsPut(npc, "stun", 0);
+    hsPut(npc, "stun_until", 0);
+    AbilityAPI.cancel(npc);
+    npc.getTimers().clear();
+}
+
+function b1DismountPair(npc) {
+    var grul = null;
+    var boar = null;
+    var name = String(npc.getName());
+    if (name == B1_GRUL) grul = npc;
+    else if (name == B1_BOAR) boar = npc;
+    var other = b1Other(npc);
+    if (other != null) {
+        var otherName = String(other.getName());
+        if (otherName == B1_GRUL) grul = other;
+        else if (otherName == B1_BOAR) boar = other;
+    }
+    if (grul != null) b1ClearRide(grul);
+    if (boar != null) b1ClearRide(boar);
+    if (grul != null) {
+        try { HerdstoneMount.dismount(grul); } catch (err) {}
+        b1Release(grul);
+    }
+    if (boar != null) b1Release(boar);
+}
+
+// Грул-наездник может не получить свой тик. Сбрасываем обоих, иначе он остаётся ниже 60% и фаза 2 не кончается.
+function hsOnEmptyReset(npc) {
+    var other = b1Other(npc);
+    b1DismountPair(npc);
+    hsPut(npc, "fight_at", 0);
+    hsPut(npc, "empty_at", 0);
+    if (other != null) {
+        hsPut(other, "fight_at", 0);
+        hsPut(other, "empty_at", 0);
+    }
+    b1WPut(npc, "hs_b1_seeded", "0");
+    b1WPut(npc, "hs_b1_noremount", "0");
+    npc.reset();
+    if (other != null && other.isAlive()) other.reset();
 }
 
 // Поводок ядра (телепорт в центр и 25% здоровья) на этой паре выключен.

@@ -35,8 +35,8 @@ function tick(e) {
     }
     if (hsGet(npc, "called", "0") == "0" && npc.getHealth() <= npc.getMaxHealth() * 0.5) {
         hsPut(npc, "called", 1);
-        w.spawnClone(npc.getX() + 2, npc.getY(), npc.getZ(), HS.TAB, ADD);
-        w.spawnClone(npc.getX() - 2, npc.getY(), npc.getZ(), HS.TAB, ADD);
+        hsNoRespawn(w.spawnClone(npc.getX() + 2, npc.getY(), npc.getZ(), HS.TAB, ADD));
+        hsNoRespawn(w.spawnClone(npc.getX() - 2, npc.getY(), npc.getZ(), HS.TAB, ADD));
         npc.say("§6БУМ-БУМ! Ко мне, стадо!");
     }
     if (now >= hsNum(npc, "flee_at") && hsFlat(t, npc.getX(), npc.getZ()) < 4 && !AbilityAPI.isBusy(npc)) {

@@ -67,9 +67,22 @@ function hsIPosOff(npc, off) {
     return NpcAPI.getIPos(a[0], a[1], a[2]);
 }
 
+// spawnCycle 3 = No: клон не встаёт на точке после смерти.
+function hsNoRespawn(entity) {
+    if (entity == null) return entity;
+    try {
+        var mc = entity.getMCEntity();
+        mc.stats.spawnCycle = 3;
+        mc.stats.respawnTime = 0;
+        mc.killedtime = 0;
+        mc.updateClient = true;
+    } catch (err) {}
+    return entity;
+}
+
 function hsSpawnAt(npc, off, name) {
     var a = hsXYZ(npc, off);
-    return npc.getWorld().spawnClone(a[0] + 0.5, a[1], a[2] + 0.5, HS.TAB, name);
+    return hsNoRespawn(npc.getWorld().spawnClone(a[0] + 0.5, a[1], a[2] + 0.5, HS.TAB, name));
 }
 
 function hsBox(dx, dy, dz, w, h, d) {
@@ -324,7 +337,7 @@ function hsFight(npc) {
     if (ps.length == 0) {
         var emptyAt = hsNum(npc, "empty_at");
         if (emptyAt == 0) hsPut(npc, "empty_at", now);
-        else if (now - emptyAt > HS.EMPTY_SEC * 20) npc.reset();
+        else if (now - emptyAt > HS.EMPTY_SEC * 20) hsOnEmptyReset(npc);
         return null;
     }
     hsPut(npc, "empty_at", 0);
@@ -335,6 +348,11 @@ function hsFight(npc) {
     }
     if (now - fightAt > HS.ENRAGE_SEC * 20) hsEnrage(npc, ps, now);
     return ps;
+}
+
+// Босс может подменить этот сброс. Пара Б1 спешивает Грула и поднимает обоих.
+function hsOnEmptyReset(npc) {
+    npc.reset();
 }
 
 // Босс может подменить эту функцию в своём файле. По умолчанию — убийство случайного игрока раз в 10 с.

@@ -46,6 +46,7 @@ function tick(e) {
     var ps = hsFight(npc);
     if (ps == null) return;
     b1Boot(npc, ps);
+    b1ClearStun(npc);
     b1RefreshLink(npc);
     b1MudTick(npc, ps);
     b1HornTick(npc);
@@ -96,22 +97,22 @@ function gRoar(npc) {
         npc.getAi().setWalkingSpeed(0);
         npc.getAi().setRetaliateType(3);
     }
-    TelegraphAPI.ring(npc, npc.getX(), npc.getY(), npc.getZ(), 18, 1.5, 60, HS.PURPLE);
+    TelegraphAPI.ring(npc, npc.getX(), npc.getY(), npc.getZ(), B1_ROAR_R, 1.5, 60, HS.PURPLE);
     npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", 3.0, 0.6);
     npc.getTimers().forceStart(B1_T_ROAR, 60, false);
-    npc.say("§5Грул набирает рёв Стада!");
+    b1Say(npc, "Грул набирает рёв Стада!");
 }
 
 function gRoarHit(npc) {
     if (!npc.isAlive()) return;
-    var ps = hsPlayers(npc);
+    var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), B1_ROAR_R);
     for (var i = 0; i < ps.length; i++) {
         var p = ps[i];
         if (b1InStakeShadow(p, npc)) continue;
         p.clearPotionEffects();
         p.addPotionEffect(PotionEffectType_SLOWNESS, 2, 3, false);
         hsStrike(p, 0.10);
-        p.message("§5Рёв Стада срывает с тебя все чары.");
+        b1Tell(p, "Рёв Стада срывает с тебя все чары.");
     }
     gSummon(npc);
     b1Release(npc);
@@ -124,8 +125,8 @@ function gSummon(npc) {
     if (room <= 0) return;
     var h = hsHome(npc);
     var w = npc.getWorld();
-    if (room >= 1) w.spawnClone(h[0] + 6, h[1], h[2], HS.TAB, B1_RAIDER);
-    if (room >= 2) w.spawnClone(h[0] - 6, h[1], h[2], HS.TAB, B1_RAIDER);
+    if (room >= 1) hsNoRespawn(w.spawnClone(h[0] + 6, h[1], h[2], HS.TAB, B1_RAIDER));
+    if (room >= 2) hsNoRespawn(w.spawnClone(h[0] - 6, h[1], h[2], HS.TAB, B1_RAIDER));
     b1NoteRaiders(npc);
 }
 
@@ -139,9 +140,9 @@ function gMark(npc, ps) {
     hsPut(boar, "mark_uuid", String(p.getUUID()));
     hsPut(boar, "mark_until", hsNow(npc) + 120);
     for (var i = 0; i < ps.length; i++) {
-        ps[i].message("§6Грул метит §f" + p.getName() + "§6 — кабан пойдёт на него!");
+        b1Tell(ps[i], "Грул метит " + p.getName() + " — кабан пойдёт на него!");
     }
-    p.message("§eВстань перед целым колом!");
+    b1Tell(p, "Встань перед целым колом!");
 }
 
 function gStake(npc) {
@@ -150,21 +151,21 @@ function gStake(npc) {
     if (hsGet(npc, "b1_arm", "0") == "1") return;
     var index = b1FreeIndex(npc);
     if (index < 0) return;
-    var s = hsXYZ(npc, B1_NESTS[index]);
-    TelegraphAPI.circleAt(npc, s[0] + 0.5, s[1], s[2] + 0.5, 1.4, 60, HS.GOLD);
+    var s = b1StakeCenter(npc, index);
+    TelegraphAPI.circleAt(npc, s[0], s[1], s[2], 1.8, 60, HS.GOLD);
     hsPut(npc, "b1_nest", index);
     hsPut(npc, "b1_arm", 1);
     hsPut(npc, "b1_arm_dmg", 0);
     hsPut(npc, "b1_arm_cancel", 0);
     npc.getTimers().forceStart(B1_T_STAKE, 60, false);
-    npc.say("§6Грул вбивает новый кол!");
+    b1Say(npc, "Грул вбивает новый кол!");
 }
 
 function gStakePlace(npc) {
     hsPut(npc, "b1_arm", 0);
     if (!npc.isAlive()) return;
     if (hsGet(npc, "b1_arm_cancel", "0") == "1") {
-        npc.say("§eКол не вбит!");
+        b1Say(npc, "Кол не вбит!");
         return;
     }
     if (b1WGet(npc, "hs_b1_locked", "0") == "1") return;
@@ -283,7 +284,7 @@ function gSqueal(npc, ps) {
     hsPut(npc, "b1_squeal", now + 600);
     var list = hsFind(npc, B1_RAIDER);
     if (list.length == 0 || ps == null || ps.length == 0) return;
-    npc.say("§4Кабаний клич!");
+    b1Say(npc, "Кабаний клич!");
     for (var i = 0; i < list.length; i++) {
         var raider = list[i];
         if (AbilityAPI.isBusy(raider)) continue;

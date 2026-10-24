@@ -65,7 +65,7 @@ function tick(e) {
         var h = hsHome(npc);
         for (var c = 0; c < 3; c++) {
             var a = Math.random() * Math.PI * 2;
-            w.spawnClone(h[0] + Math.cos(a) * 10, h[1], h[2] + Math.sin(a) * 10, HS.TAB, COPY);
+            hsNoRespawn(w.spawnClone(h[0] + Math.cos(a) * 10, h[1], h[2] + Math.sin(a) * 10, HS.TAB, COPY));
         }
         var a2 = Math.random() * Math.PI * 2;
         npc.setPosition(h[0] + Math.cos(a2) * 10, h[1], h[2] + Math.sin(a2) * 10);

@@ -1,11 +1,14 @@
 // Мургрот Туманный Глас (Б2). В контейнере вторым после hs_core.js.
 // Скорость 0, On Attack = Мстить, рендж в GUI. Круг B5, r 20.
-// Тотемы — его инструмент, не щит: стоят весь бой, у каждого своя нота (murgrot_totem.js).
+// Сам по себе неуязвим и не сходит с места: стоит на якоре, двигается только шагом на место тотема.
+// Тотемы — его инструмент: стоят весь бой, у каждого своя нота (hs_core.js → murgrot_totem.js).
 // Перекличка: Мургрот поёт 3 ноты (после 66% — 4, после 33% — 5), игроки бьют тотемы в том же
-// порядке. Повторили — 8 с он захлёбывается: не стреляет и получает урон ×2. Ошиблись или не
-// успели — все теряют 40%, он лечится на 10%. Вне окна урон по нему ×0,5.
+// порядке. Неверный тотем бьёт всех рядом с собой (murgrot_totem.js), песнь идёт дальше.
+// Повторили — 8 с он захлёбывается: не стреляет и получает урон, но за одно окно не ниже
+// следующей трети (66%, 33%, смерть). Не успели — все теряют 40%, он лечится на 10%.
 // Шаг сквозь туман: раз в 22 с или если к нему жмутся 6 с — меняется местами с тотемом,
-// на старом месте туман с тошнотой. Копии после 50% поют фальшивые ноты на других тотемах.
+// на старом месте туман с тошнотой. На 50% встают копии, он шагает к тотему; копии поют
+// фальшивые ноты на других тотемах.
 // Копии после init носят имя оригинала, поэтому ищутся по метке, не по имени.
 HS.BASE_HP = 260;
 HS.ARENA_R = 20;
@@ -28,8 +31,9 @@ var NOTES = [
 ];
 var NOTE_SOUND = "minecraft:block.note_block.bell";
 var FALSE_PITCH = 0.94;
-var SONG_FIRST = 200, SONG_EVERY = 440, NOTE_GAP = 20, LISTEN_BASE = 60, LISTEN_PER = 100;
-var SONG_STRIKE = 0.4, WINDOW_TICKS = 160, MUL_WINDOW = 2, MUL_NORMAL = 0.5;
+var SONG_FIRST = 200, SONG_EVERY = 300, NOTE_GAP = 20, LISTEN_BASE = 60, LISTEN_PER = 100;
+var SONG_STRIKE = 0.4, WINDOW_TICKS = 160;
+var WINDOW_FLOOR = [0.66, 0.66, 0.33, 0];   // по волне: окно не опускает здоровье ниже этой доли
 var STEP_FIRST = 300, STEP_EVERY = 440, STEP_GAP = 160, HUG_R = 3, HUG_TICKS = 12;
 var FOG_R = 3.5, FOG_TICKS = 200, FOG_COLOR = 0x90A080C0 | 0;
 var ROT_FIRST = 100, ROT_EVERY = 300, ROT_TICKS = 80, ROT_R = 6;
@@ -42,6 +46,10 @@ function init(e) {
     despawnTagged(npc, COPY_TAG);
     if (hsGet(npc, "base_retaliate", "") == "") hsPut(npc, "base_retaliate", npc.getAi().getRetaliateType());
     npc.getAi().setRetaliateType(hsNum(npc, "base_retaliate"));
+    npc.getAi().setWalkingSpeed(0);
+    npc.getStats().setResistance(3, 2.0);   // отбрасывание: 2 = совсем не сдвигается
+    var home = hsHome(npc);
+    setAnchor(npc, home[0], home[1], home[2]);
     hsPut(npc, "wave", 0);
     hsPut(npc, "song", "");
     hsPut(npc, "copies", 0);
@@ -163,7 +171,7 @@ function singNext(npc) {
 function songFails(npc, now) {
     hsPut(npc, "song", "");
     hsPut(npc, "song_at", now + SONG_EVERY);
-    npc.say("§4Фальшь! Песнь безумия рвёт вам головы!");
+    npc.say("§4Песнь не подхвачена! Песнь безумия рвёт вам головы!");
     var ps = hsPlayers(npc);
     for (var i = 0; i < ps.length; i++) {
         hsStrike(ps[i], SONG_STRIKE);
@@ -186,6 +194,28 @@ function endWindow(npc, now) {
     hsPut(npc, "song", "");
     hsPut(npc, "song_at", now + SONG_EVERY);
     npc.getAi().setRetaliateType(hsNum(npc, "base_retaliate"));
+    npc.say("§7Мургрот приходит в себя.");
+}
+
+function windowFloor(npc) {
+    var wave = hsNum(npc, "wave");
+    if (wave < 0) wave = 0;
+    if (wave >= WINDOW_FLOOR.length) wave = WINDOW_FLOOR.length - 1;
+    return npc.getMaxHealth() * WINDOW_FLOOR[wave];
+}
+
+function setAnchor(npc, x, y, z) {
+    hsPut(npc, "anchor_x", x);
+    hsPut(npc, "anchor_y", y);
+    hsPut(npc, "anchor_z", z);
+}
+
+// Толчки игроков и чужие эффекты сдвигают NPC и со скоростью 0 — возвращаем на якорь.
+function pin(npc) {
+    if (hsGet(npc, "anchor_x", "") == "") return;
+    var ax = hsNum(npc, "anchor_x"), ay = hsNum(npc, "anchor_y"), az = hsNum(npc, "anchor_z");
+    var dx = npc.getX() - ax, dy = npc.getY() - ay, dz = npc.getZ() - az;
+    if (dx * dx + dz * dz > 0.09 || dy > 0.6 || dy < -0.6) npc.setPosition(ax, ay, az);
 }
 
 function songTick(npc, now) {
@@ -205,6 +235,10 @@ function stepTick(npc, ps, now) {
     hsPut(npc, "hug", hug);
     if (now - hsNum(npc, "step_last") < STEP_GAP) return;
     if (now < hsNum(npc, "step_at") && hug < HUG_TICKS) return;
+    stepTo(npc, now);
+}
+
+function stepTo(npc, now) {
     var have = totemsByNote(npc);
     var pool = [];
     for (var j = 0; j < have.length; j++) if (have[j] != null) pool.push(have[j]);
@@ -214,6 +248,7 @@ function stepTick(npc, ps, now) {
     var w = npc.getWorld();
     w.playSoundAt(npc.getPos(), "minecraft:entity.illusioner.mirror_move", 2.0, 0.7);
     npc.setPosition(t.getX(), t.getY(), t.getZ());
+    setAnchor(npc, t.getX(), t.getY(), t.getZ());
     t.setPosition(ox, oy, oz);
     w.playSoundAt(npc.getPos(), "minecraft:entity.illusioner.mirror_move", 2.0, 0.7);
     var zone = ZoneAPI.hazardCircle(npc, ox, oy, oz, FOG_R, FOG_TICKS, 0, 20);
@@ -242,6 +277,7 @@ function tick(e) {
     if (!npc.isAlive()) return;
     var ps = hsFight(npc);
     if (ps == null) return;
+    pin(npc);
     var now = hsNow(npc);
     var hp = npc.getHealth() / npc.getMaxHealth();
     var want = hp > 0.66 ? 1 : (hp > 0.33 ? 2 : 3);
@@ -272,8 +308,7 @@ function tick(e) {
             if (copy == null) break;
             hsNoRespawn(copy);
         }
-        var a2 = Math.random() * Math.PI * 2;
-        npc.setPosition(h[0] + Math.cos(a2) * 10, h[1], h[2] + Math.sin(a2) * 10);
+        stepTo(npc, now);
         for (var b = 0; b < ps.length; b++) ps[b].addPotionEffect(PotionEffectType_BLINDNESS, 3, 0, false);
     }
     if (countTagged(npc, COPY_TAG) > 0 || hsCount(npc, COPY) > 0) {
@@ -308,8 +343,17 @@ function timer(e) {
     }
 }
 
+// Урон проходит только в окне и только до следующей трети; дошли до неё — окно кончается.
 function damaged(e) {
-    hsCap(e, hsGet(e.npc, "song", "") == "stun" ? MUL_WINDOW : MUL_NORMAL);
+    var npc = e.npc;
+    if (hsGet(npc, "song", "") != "stun") { e.setCanceled(true); return; }
+    hsCap(e, 1);
+    var room = npc.getHealth() - windowFloor(npc);
+    if (room <= 0.01) { e.setCanceled(true); hsPut(npc, "stun_until", 0); return; }
+    if (e.damage >= room) {
+        e.damage = room;
+        hsPut(npc, "stun_until", 0);
+    }
 }
 
 function died(e) {

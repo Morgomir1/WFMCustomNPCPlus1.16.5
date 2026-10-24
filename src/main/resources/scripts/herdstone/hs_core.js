@@ -233,8 +233,8 @@ function hsStart(npc, id, target, params) {
 }
 
 function hsBossHp(npc, nPlayers) {
-    var n = nPlayers < 1 ? 1 : nPlayers;
-    return Math.max(1, Math.round(HS.BASE_HP * (0.7 + 0.3 * n) * hsScale(npc.getWorld())));
+    // HP не растёт от числа игроков — только шкала hs_dmg / HS.DMG.
+    return Math.max(1, Math.round(HS.BASE_HP * hsScale(npc.getWorld())));
 }
 
 function hsStrike(p, pct) {

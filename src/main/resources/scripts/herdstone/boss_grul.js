@@ -1,6 +1,7 @@
 // Грул Кабанья Рука (Б1). В контейнере третьим файлом: hs_core.js, hs_b1.js, этот файл.
 // Цикл 45 с: рёв и колья. Фаза 2 — прыжок на кабана. Фаза 3 — клич и ритуал.
-// Сети кидают унгоры-рейдеры (mob_raider.js). Аркана и метательного топора нет.
+// Пока кабан жив — кит + удар по земле. Без кабана (ф3) — мили + тот же удар.
+// Сети кидают унгоры-рейдеры (mob_raider.js).
 HS.BASE_HP = 220;
 HS.ARENA = { shape: "rect", hw: 22, hd: 19 };
 HS.ENRAGE_SEC = 240;
@@ -10,6 +11,13 @@ GATE = hsBox(12, 0, -11, 3, 2, 3);
 SUMMONS = ["Унгор-рейдер"];
 
 var B1_BEATS = [0, 300, 740];
+var G_STOMP_R = 4.5;
+var G_STOMP_CHARGE = 30;
+var G_STOMP_CD = 100;
+var G_STOMP_PCT = 0.35;
+var G_STOMP_KB = 1.9;
+var G_STOMP_KB_Y = 0.55;
+var G_FLEE_SPEED = 8;
 
 function init(e) {
     var npc = e.npc;
@@ -38,7 +46,10 @@ function init(e) {
     hsPut(npc, "b1_cycle_i", 0);
     hsPut(npc, "b1_cycle_loop", 0);
     hsPut(npc, "b1_squeal", 0);
+    hsPut(npc, "b1_stomp", 0);
+    hsPut(npc, "b1_stomp_at", 0);
     b1ResetWorld(npc);
+    gApplyAi(npc);
 }
 
 function tick(e) {
@@ -64,18 +75,43 @@ function tick(e) {
         gLeapStep(npc);
         return;
     }
-    if (leap == "gap") {
-        if (!AbilityAPI.isBusy(npc) && hsNow(npc) >= hsNum(npc, "b1_leap_from") + 12) gGapLand(npc);
-        return;
-    }
     // На кабане — только колья; рёв/клич/прыжки выключены.
     if (hsGet(npc, "b1_mounted", "0") == "1") {
         gCycle(npc, ps);
         return;
     }
+    if (hsGet(npc, "b1_stomp", "0") == "1") {
+        Combat.holdInPlace(npc, hsNum(npc, "b1_stomp_x"), hsNum(npc, "b1_stomp_y"), hsNum(npc, "b1_stomp_z"));
+        return;
+    }
     gCycle(npc, ps);
-    gPress(npc, ps);
+    gStompTry(npc);
+    gApplyAi(npc);
     gSqueal(npc, ps);
+}
+
+/** Без кабана (фаза 3) — дерётся. Пока Кровохряк жив — кит. */
+function gShouldFight(npc) {
+    return b1Other(npc) == null;
+}
+
+function gApplyAi(npc) {
+    if (!npc.isAlive()) return;
+    if (hsGet(npc, "stun", "0") == "1") return;
+    if (hsGet(npc, "b1_mounted", "0") == "1") return;
+    if (hsGet(npc, "b1_mounting", "0") == "1") return;
+    if (hsGet(npc, "b1_stomp", "0") == "1") return;
+    if (hsGet(npc, "b1_leap", "") != "") return;
+    if (hsGet(npc, "b1_ritual", "0") == "1") return;
+    if (gShouldFight(npc)) {
+        var speed = hsNum(npc, "base_speed");
+        if (!(speed > 0)) speed = 6;
+        npc.getAi().setWalkingSpeed(speed);
+        npc.getAi().setRetaliateType(0);
+    } else {
+        npc.getAi().setWalkingSpeed(G_FLEE_SPEED);
+        npc.getAi().setRetaliateType(2);
+    }
 }
 
 /** Сброс залипших флагов: mounting/leap/haul/arm и рассинхрон седла. */
@@ -112,6 +148,10 @@ function gSanity(npc) {
     }
     if (hsGet(npc, "b1_arm", "0") == "1" && !npc.getTimers().has(B1_T_STAKE)) {
         hsPut(npc, "b1_arm", 0);
+    }
+    if (hsGet(npc, "b1_stomp", "0") == "1" && !npc.getTimers().has(B1_T_STOMP)) {
+        hsPut(npc, "b1_stomp", 0);
+        gApplyAi(npc);
     }
     if (hsGet(npc, "b1_mounted", "0") == "1" && AbilityAPI.isBusy(npc)) {
         var busyAt = hsNum(npc, "b1_busy_at");
@@ -369,49 +409,73 @@ function gStakePlace(npc) {
 
 function gBusy(npc) {
     if (AbilityAPI.isBusy(npc) || b1RoarBlocks(npc)) return true;
-    if (npc.getTimers().has(B1_T_ROAR)) return true;
+    if (npc.getTimers().has(B1_T_ROAR) || npc.getTimers().has(B1_T_STOMP)) return true;
     if (hsGet(npc, "b1_leap", "") != "") return true;
+    if (hsGet(npc, "b1_stomp", "0") == "1") return true;
     return false;
 }
 
-function gPress(npc, ps) {
+/** Удар по земле у ног: telegraph → большой % HP + радиальное откидывание. */
+function gStompTry(npc) {
     if (gBusy(npc)) return;
     if (hsGet(npc, "b1_mounted", "0") == "1") return;
-    gGapLeap(npc, ps);
+    if (hsGet(npc, "b1_arm", "0") == "1") return;
+    var now = hsNow(npc);
+    if (now < hsNum(npc, "b1_stomp_at")) return;
+    var x = npc.getX();
+    var y = npc.getY();
+    var z = npc.getZ();
+    hsPut(npc, "b1_stomp", 1);
+    hsPut(npc, "b1_stomp_x", x);
+    hsPut(npc, "b1_stomp_y", y);
+    hsPut(npc, "b1_stomp_z", z);
+    hsPut(npc, "b1_stomp_at", now + G_STOMP_CD);
+    TelegraphAPI.circleAt(npc, x, y, z, G_STOMP_R, G_STOMP_CHARGE, HS.RED);
+    npc.getAi().setWalkingSpeed(0);
+    npc.getAi().setRetaliateType(3);
+    Combat.stopNavigation(npc);
+    Combat.holdInPlace(npc, x, y, z);
+    npc.getTimers().forceStart(B1_T_STOMP, G_STOMP_CHARGE, false);
+    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", 1.4, 0.75);
+    b1Say(npc, "Грул бьёт копытом о землю!");
 }
 
-function gGapLeap(npc, ps) {
-    if (ps == null || ps.length == 0) return false;
-    var now = hsNow(npc);
-    if (now < hsNum(npc, "b1_gap_at")) return false;
-    var near = ps[0];
-    var best = hsFlat(npc, near.getX(), near.getZ());
-    var i;
-    for (i = 1; i < ps.length; i++) {
-        var dist = hsFlat(npc, ps[i].getX(), ps[i].getZ());
-        if (dist < best) {
-            best = dist;
-            near = ps[i];
-        }
+function gStompHit(npc) {
+    hsPut(npc, "b1_stomp", 0);
+    if (!npc.isAlive()) return;
+    var x = hsNum(npc, "b1_stomp_x");
+    var y = hsNum(npc, "b1_stomp_y");
+    var z = hsNum(npc, "b1_stomp_z");
+    if (!(x != 0 || z != 0)) {
+        x = npc.getX();
+        y = npc.getY();
+        z = npc.getZ();
     }
-    if (best <= 10) return false;
-    if (AbilityAPI.isBusy(npc)) return false;
-    TelegraphAPI.circleAt(npc, near.getX(), near.getY(), near.getZ(), 3, 24, 0xC0FF0000);
-    if (!hsStart(npc, "jump_slam", near, AbilityAPI.params(
-            "chargeTicks", 8,
-            "activeTicks", 14,
-            "landRadius", 3,
-            "damage", 0,
-            "arcHeight", 3.2,
-            "maxRange", 40,
-            "knockback", 0,
-            "knockbackY", 0,
-            "telegraph", 0))) return false;
-    hsPut(npc, "b1_leap", "gap");
-    hsPut(npc, "b1_leap_from", now);
-    hsPut(npc, "b1_gap_at", now + 200);
-    npc.getTimers().forceStart(B1_T_LEAP, 24, false);
-    return true;
+    var ps = hsPlayersAt(npc, x, y, z, G_STOMP_R);
+    for (var i = 0; i < ps.length; i++) {
+        var p = ps[i];
+        hsStrike(p, G_STOMP_PCT);
+        gKnock(p, x, z, G_STOMP_KB, G_STOMP_KB_Y);
+    }
+    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.generic.explode", 1.6, 0.7);
+    gApplyAi(npc);
+}
+
+function gKnock(p, cx, cz, str, lift) {
+    if (p == null || !p.isAlive()) return;
+    var dx = p.getX() - cx;
+    var dz = p.getZ() - cz;
+    var len = Math.sqrt(dx * dx + dz * dz);
+    if (len < 0.05) {
+        dx = 1;
+        dz = 0;
+        len = 1;
+    }
+    try {
+        p.setMotionX((dx / len) * str);
+        p.setMotionY(lift);
+        p.setMotionZ((dz / len) * str);
+    } catch (err) {}
 }
 
 function gStartLeap(npc, x, z, mode) {
@@ -453,16 +517,6 @@ function gLeapStep(npc) {
     npc.getAi().setRetaliateType(3);
     if (age < dur) return;
     gLeapEnd(npc, true);
-}
-
-function gGapLand(npc) {
-    if (hsGet(npc, "b1_leap", "") != "gap") return;
-    hsPut(npc, "b1_leap", "");
-    npc.getTimers().stop(B1_T_LEAP);
-    if (!npc.isAlive()) return;
-    var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), 3);
-    for (var i = 0; i < ps.length; i++) hsStrike(ps[i], 0.15);
-    b1Release(npc);
 }
 
 function gLeapEnd(npc, landed) {
@@ -536,6 +590,10 @@ function timer(e) {
         gStakePlace(npc);
         return;
     }
+    if (e.id == B1_T_STOMP) {
+        gStompHit(npc);
+        return;
+    }
     // На седле рёв/прыжок не резолвим; колья — можно.
     if (hsGet(npc, "b1_mounted", "0") == "1") {
         if (e.id == B1_T_ROAR || e.id == B1_T_LEAP) {
@@ -548,18 +606,18 @@ function timer(e) {
         return;
     }
     if (e.id == B1_T_LEAP) {
-        if (hsGet(npc, "b1_leap", "") == "gap") gGapLand(npc);
-        else gLeapStep(npc);
+        gLeapStep(npc);
     }
 }
 
 function meleeAttack(e) {
-    if (hsGet(e.npc, "b1_mounted", "0") == "1") {
+    var npc = e.npc;
+    if (hsGet(npc, "b1_mounted", "0") == "1" || !gShouldFight(npc)) {
         e.setCanceled(true);
         return;
     }
     if (e.target != null && e.target.typeOf(1)) {
-        hsPut(e.npc, "b1_melee_at", hsNow(e.npc));
+        hsPut(npc, "b1_melee_at", hsNow(npc));
         e.target.addPotionEffect(PotionEffectType_SLOWNESS, 3, 1, false);
     }
 }

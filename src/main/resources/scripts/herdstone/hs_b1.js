@@ -32,6 +32,7 @@ var B1_T_AIM = 18;
 var B1_T_LEAP = 19;
 var B1_T_AXE = 20;
 var B1_T_FEED = 21;
+var B1_T_STOMP = 22;
 var B1_ROAR_R = 18;
 var HerdstoneMount = Java.type("noppes.npcs.abilities.HerdstoneMount");
 
@@ -336,6 +337,12 @@ function b1Release(npc) {
     }
     var speed = hsNum(npc, "base_speed");
     if (!(speed > 0)) speed = 4;
+    // Грул с живым кабаном — кит, не мили.
+    if (String(npc.getName()) == B1_GRUL && b1Other(npc) != null) {
+        npc.getAi().setWalkingSpeed(Math.min(10, speed + 2));
+        npc.getAi().setRetaliateType(2);
+        return;
+    }
     npc.getAi().setWalkingSpeed(speed);
     npc.getAi().setRetaliateType(0);
 }
@@ -873,8 +880,10 @@ function b1MountSilence(grul) {
     try {
         grul.getTimers().stop(B1_T_ROAR);
         grul.getTimers().stop(B1_T_LEAP);
+        grul.getTimers().stop(B1_T_STOMP);
     } catch (err) {}
     hsPut(grul, "b1_leap", "");
+    hsPut(grul, "b1_stomp", 0);
     hsPut(grul, "b1_haul", 0);
     b1WPut(grul, "hs_b1_roar_until", 0);
 }

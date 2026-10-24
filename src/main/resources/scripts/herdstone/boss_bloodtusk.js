@@ -4,9 +4,9 @@ HS.BASE_HP = 300;
 HS.ARENA = { shape: "rect", hw: 22, hd: 19 };
 HS.ENRAGE_SEC = 360;
 HS.DISPEL_SEC = 99999;
-ORIGIN = [280, 80, 37];
+ORIGIN = [-373224, 101, -13530];
 GATE = hsBox(12, 0, -11, 3, 2, 3);
-SUMMONS = ["Унгор-рейдер (призыв)"];
+SUMMONS = ["Унгор-рейдер"];
 
 function init(e) {
     var npc = e.npc;

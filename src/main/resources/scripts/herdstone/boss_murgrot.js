@@ -6,7 +6,8 @@
 // Перекличка: Мургрот поёт 3 ноты (после 66% — 4, после 33% — 5), игроки бьют тотемы в том же
 // порядке. Неверный тотем сразу обрывает песнь и взрывается: 50% всем в 8 блоках (murgrot_totem.js).
 // Повторили — 8 с он захлёбывается: не бросает навес и получает урон, но за одно окно не ниже
-// следующей трети (66%, 33%, смерть). Не успели — все теряют 40%, он лечится на 10%.
+// следующей трети (66%, 33%, смерть), и эта треть открывается по восьмой части в секунду, так что
+// бить можно все 8 с. Не успели — все теряют 40%, он лечится на 10%.
 // Шаг сквозь туман: раз в 22 с или если к нему жмутся 6 с — меняется местами с тотемом,
 // на старом месте туман с тошнотой. На 50% встают копии, он шагает к тотему; копии поют
 // фальшивые ноты на других тотемах.
@@ -204,6 +205,10 @@ function songFails(npc, now) {
 function startWindow(npc, now) {
     hsPut(npc, "song", "stun");
     hsPut(npc, "stun_until", now + WINDOW_TICKS);
+    hsPut(npc, "win_from", now);
+    hsPut(npc, "win_hp", npc.getHealth());
+    // Граница — на момент открытия: волна сменится посреди окна, как только здоровье её перейдёт.
+    hsPut(npc, "win_floor", windowFloor(npc));
     AbilityAPI.cancel(npc);
     TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), 2.5, WINDOW_TICKS, NOTES[1].color);
     arenaSound(npc, "minecraft:entity.ravager.stunned", 1.0, 0.8);
@@ -447,17 +452,21 @@ function timer(e) {
     }
 }
 
-// Урон проходит только в окне и только до следующей трети; дошли до неё — окно кончается.
+// Урон проходит только в окне и за окно — не ниже следующей трети. Треть растянута на всё окно:
+// к каждой секунде открывается ещё восьмая часть. WFM обнуляет кадры неуязвимости при каждом ударе
+// игрока, и без растяжки быстрые удары съедали треть за мгновение, а дальше урон не проходил.
 function damaged(e) {
     var npc = e.npc;
     if (hsGet(npc, "song", "") != "stun") { e.setCanceled(true); return; }
     hsCap(e, 1);
-    var room = npc.getHealth() - windowFloor(npc);
-    if (room <= 0.01) { e.setCanceled(true); hsPut(npc, "stun_until", 0); return; }
-    if (e.damage >= room) {
-        e.damage = room;
-        hsPut(npc, "stun_until", 0);
-    }
+    var startHp = hsNum(npc, "win_hp");
+    var total = startHp - hsNum(npc, "win_floor");
+    var elapsed = hsNow(npc) - hsNum(npc, "win_from");
+    var share = (elapsed + 20) / WINDOW_TICKS;
+    if (share > 1) share = 1;
+    var allowed = total * share - (startHp - npc.getHealth());
+    if (allowed <= 0.01) { e.setCanceled(true); return; }
+    if (e.damage > allowed) e.damage = allowed;
 }
 
 function died(e) {

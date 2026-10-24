@@ -2,13 +2,14 @@
 // Тотем не ломается: каждый удар игрока звучит его нотой. Ноту, высоту и частицы пишет Мургрот
 // при призыве (hs_note, hs_pitch, hs_particle). Пока Мургрот слушает (song = listen), удар —
 // следующая нота песни: верная двигает seq_pos, последняя пишет song = done. Неверная сразу
-// ломает песнь (song = wrong) и взрывается: все в WRONG_R вокруг этого тотема теряют WRONG_STRIKE.
+// ломает песнь (song = wrong) и взрывается: все в WRONG_R вокруг этого тотема теряют WRONG_STRIKE,
+// вздрагивают и отлетают прочь.
 // Итог разбирает tick Мургрота.
 var BOSS_TAG = "hs_murgrot";
 var COPY_TAG = "hs_murgrot_copy";
 var NOTE_SOUND = "minecraft:block.note_block.bell";
 var SAME_SWING = 15;   // тиков: второй удар по той же ноте — тот же взмах
-var WRONG_R = 8, WRONG_STRIKE = 0.5;
+var WRONG_R = 8, WRONG_STRIKE = 0.5, WRONG_PUSH = 1;   // толчок: knockback(1) — блока на три-четыре
 
 function damaged(e) {
     e.setCanceled(true);
@@ -53,8 +54,14 @@ function wrongNote(totem) {
     w.spawnParticle("explosion", totem.getX(), totem.getY() + 1, totem.getZ(), WRONG_R * 0.6, 0.8, WRONG_R * 0.6, 0, 24);
     var ps = hsPlayersAt(totem, totem.getX(), totem.getY(), totem.getZ(), WRONG_R);
     for (var i = 0; i < ps.length; i++) {
-        hsStrike(ps[i], WRONG_STRIKE);
-        ps[i].message("§cФальшивая нота! Тотем взрывается.");
+        var p = ps[i];
+        hsStrike(p, WRONG_STRIKE);
+        p.message("§cФальшивая нота! Тотем взрывается.");
+        if (!p.isAlive()) continue;
+        // hsStrike снимает здоровье напрямую, а вздрагивание экрана клиент показывает только от урона
+        // через hurt: крошечный магический урон ради него, затем толчок прочь от тотема.
+        Combat.dealPureDamage(p, 0.01, true);
+        p.knockback(WRONG_PUSH, Combat.computeYaw(p.getX() - totem.getX(), p.getZ() - totem.getZ()));
     }
 }
 

@@ -8,6 +8,55 @@ ORIGIN = [-373224, 101, -13530];
 GATE = hsBox(12, 0, -11, 3, 2, 3);
 SUMMONS = ["Унгор-рейдер"];
 
+// --- НАСТРОЙКИ СПОСОБНОСТЕЙ ---
+var BT_BASE_SPEED = 7;
+// Кулдаун тарана по фазам (тики)
+var BT_RAM_CD_P1 = 60;
+var BT_RAM_CD_P2 = 50;
+var BT_RAM_CD_P3 = 40;
+var BT_SERIES_LOCK = 100000;   // ram_at на время серии «Наездник»
+var BT_SERIES_ORPHAN = 5000;   // серия оборвалась без finish
+var BT_FEED_SHORTEN_IF = 25;   // если ram_at далеко — подтянуть после кормёжки
+var BT_FEED_SHORTEN_TO = 15;
+// Зарядка
+var BT_CHARGE_BASE = 30;
+var BT_CHARGE_FURY = 5;        // −тики за стак ярости
+var BT_CHARGE_MIN = 20;
+var BT_SERIES_CHARGE = [30, 25, 20];
+var BT_CALL_CHARGE = 30;
+var BT_CHASE_CHARGE = 15;
+// Длина рывка
+var BT_LEN_CHASE = 8;
+var BT_LEN_OVER = 4;           // запас за цель
+var BT_LEN_MIN = 14;
+var BT_LEN_MUD = 4;            // +если линия через грязь
+var BT_LEN_MAX = 24;
+var BT_LEN_BOUNCE = 10;
+// Telegraph / AbilityAPI dash
+var BT_LINE_W = 3.0;
+var BT_ACTIVE = 8;
+var BT_HIT_R = 1.8;
+var BT_KB = 0.6;
+var BT_KB_Y = 0.15;
+var BT_RAM_TIMER_PAD = 10;     // timer = charge + pad
+// Урон тарана
+var BT_HIT_PCT = 0.35;
+var BT_HIT_FURY = 0.10;        // +% за стак ярости
+var BT_SIDE_PCT = 0.15;        // боковой удар с седла
+var BT_FURY_HIT = 2;
+// Кровавый след (фаза 3)
+var BT_TRAIL_DMG = 4;
+var BT_TRAIL_STEP = 2;
+var BT_TRAIL_R = 1.2;
+var BT_TRAIL_TICKS = 120;
+var BT_TRAIL_PERIOD = 10;
+// Рикошет от края
+var BT_BOUNCE_MAX = 2;
+var BT_BOUNCE_EDGE = 2;
+var BT_BOUNCE_WINDUP = 20;
+// Догон после тарана (фаза 1)
+var BT_CHASE_MIN_DIST = 6;
+
 function init(e) {
     var npc = e.npc;
     if (!npc.isAlive()) return;
@@ -21,8 +70,8 @@ function init(e) {
         return;
     }
     if (!hsInit(npc)) return;
-    hsPut(npc, "base_speed", 7);
-    npc.getAi().setWalkingSpeed(7);
+    hsPut(npc, "base_speed", BT_BASE_SPEED);
+    npc.getAi().setWalkingSpeed(BT_BASE_SPEED);
     b1Release(npc);
     npc.clearPotionEffects();
     hsPut(npc, "stun", 0);
@@ -62,24 +111,24 @@ function tick(e) {
             || hsGet(npc, "ram_kind", "") != "")) {
         b1InterruptDash(npc);
     }
-    // Серия оборвалась без finish — не держим ram_at на +100000.
+    // Серия оборвалась без finish — не держим ram_at на +SERIES_LOCK.
     if (hsNum(npc, "b1_step") >= 0
             && !AbilityAPI.isBusy(npc)
             && !npc.getTimers().has(B1_T_RAM)
             && !npc.getTimers().has(B1_T_SLIDE)
             && hsGet(npc, "ram_kind", "") == ""
-            && hsNum(npc, "ram_at") > hsNow(npc) + 5000) {
+            && hsNum(npc, "ram_at") > hsNow(npc) + BT_SERIES_ORPHAN) {
         hsPut(npc, "b1_step", -1);
         hsPut(npc, "ram_at", hsNow(npc) + b1RamCd(npc));
     }
-    if (hsGet(npc, "b1_feed", "").length >= 32 && hsNum(npc, "ram_at") > hsNow(npc) + 25) {
-        hsPut(npc, "ram_at", hsNow(npc) + 15);
+    if (hsGet(npc, "b1_feed", "").length >= 32 && hsNum(npc, "ram_at") > hsNow(npc) + BT_FEED_SHORTEN_IF) {
+        hsPut(npc, "ram_at", hsNow(npc) + BT_FEED_SHORTEN_TO);
     }
     if (!b1CanAct(npc)) return;
     if (hsGet(npc, "b1_call", "0") == "1") {
         hsPut(npc, "b1_call", 0);
         var grul = b1Other(npc);
-        if (grul != null && !b1RoarBlocks(npc) && b1BeginDash(npc, grul, 30, "call")) {
+        if (grul != null && !b1RoarBlocks(npc) && b1BeginDash(npc, grul, BT_CALL_CHARGE, "call")) {
             b1Say(npc, "Кабаний зов!");
             hsPut(npc, "ram_at", hsNow(npc) + b1RamCd(npc));
         }
@@ -95,7 +144,7 @@ function tick(e) {
     if (target == null) return;
     var charge = b1ChargeTicks(npc);
     if (!b1BeginDash(npc, target, charge, series ? "series" : "ram")) return;
-    if (series) hsPut(npc, "ram_at", hsNow(npc) + 100000);
+    if (series) hsPut(npc, "ram_at", hsNow(npc) + BT_SERIES_LOCK);
     else hsPut(npc, "ram_at", hsNow(npc) + b1RamCd(npc));
 }
 
@@ -119,9 +168,9 @@ function b1CanAct(npc) {
 
 function b1RamCd(npc) {
     var phase = b1Phase(npc);
-    if (phase == 3) return 50;
-    if (phase == 2) return 80;
-    return 60;
+    if (phase == 3) return BT_RAM_CD_P3;
+    if (phase == 2) return BT_RAM_CD_P2;
+    return BT_RAM_CD_P1;
 }
 
 function b1ChargeTicks(npc) {
@@ -129,11 +178,10 @@ function b1ChargeTicks(npc) {
         var step = hsNum(npc, "b1_step");
         if (step < 0) step = 0;
         if (step > 2) step = 2;
-        var table = [30, 25, 20];
-        return table[step];
+        return BT_SERIES_CHARGE[step];
     }
-    var charge = 40 - hsNum(npc, "b1_fury") * 5;
-    if (charge < 20) charge = 20;
+    var charge = BT_CHARGE_BASE - hsNum(npc, "b1_fury") * BT_CHARGE_FURY;
+    if (charge < BT_CHARGE_MIN) charge = BT_CHARGE_MIN;
     return charge;
 }
 
@@ -159,19 +207,19 @@ function b1Pick(npc, ps) {
 }
 
 function b1RamLen(npc, target, kind) {
-    if (kind == "chase") return 8;
+    if (kind == "chase") return BT_LEN_CHASE;
     var dist = hsFlat(npc, target.getX(), target.getZ());
-    var len = dist + 4;
-    if (len < 14) len = 14;
+    var len = dist + BT_LEN_OVER;
+    if (len < BT_LEN_MIN) len = BT_LEN_MIN;
     var yaw = hsYawTo(npc, target);
-    if (b1LineHitsMud(npc, npc.getX(), npc.getZ(), yaw, len)) len = len + 4;
-    if (len > 24) len = 24;
+    if (b1LineHitsMud(npc, npc.getX(), npc.getZ(), yaw, len)) len = len + BT_LEN_MUD;
+    if (len > BT_LEN_MAX) len = BT_LEN_MAX;
     return len;
 }
 
 function b1DrawLine(npc, x, y, z, yaw, len, ticks) {
     b1DropLine(npc);
-    var id = TelegraphAPI.line(npc, x, y, z, yaw, len, 3.0, ticks, HS.RED);
+    var id = TelegraphAPI.line(npc, x, y, z, yaw, len, BT_LINE_W, ticks, HS.RED);
     hsPut(npc, "b1_line", id == null ? "" : String(id));
 }
 
@@ -200,19 +248,19 @@ function b1FireDash(npc, target, charge, kind) {
     Combat.stopNavigation(npc);
     var started = hsStart(npc, "dash", target, AbilityAPI.params(
         "chargeTicks", charge,
-        "activeTicks", 8,
+        "activeTicks", BT_ACTIVE,
         "distance", len * 1.0,
         "damage", 0,
-        "hitRadius", 1.8,
-        "knockback", 0.6,
-        "knockbackY", 0.15
+        "hitRadius", BT_HIT_R,
+        "knockback", BT_KB,
+        "knockbackY", BT_KB_Y
     ));
     if (!started) {
         b1ClearLine(npc);
         b1Release(npc);
         return false;
     }
-    npc.getTimers().forceStart(B1_T_RAM, charge + 10, false);
+    npc.getTimers().forceStart(B1_T_RAM, charge + BT_RAM_TIMER_PAD, false);
     return true;
 }
 
@@ -222,23 +270,23 @@ function b1ResolveRam(npc) {
     var sz = hsNum(npc, "ram_z");
     var yaw = hsNum(npc, "ram_yaw");
     var len = hsNum(npc, "ram_len");
-    if (!(len > 0)) len = 14;
-    var pct = 0.35 + 0.05 * hsNum(npc, "b1_fury");
+    if (!(len > 0)) len = BT_LEN_MIN;
+    var pct = BT_HIT_PCT + BT_HIT_FURY * hsNum(npc, "b1_fury");
     var ps = hsPlayersAt(npc, sx, npc.getY(), sz, len + 2);
     for (var i = 0; i < ps.length; i++) {
-        if (!hsOnLine(ps[i], sx, sz, yaw, len, 1.8)) continue;
+        if (!hsOnLine(ps[i], sx, sz, yaw, len, BT_HIT_R)) continue;
         hsStrike(ps[i], pct);
-        b1AddFury(npc, 2);
+        b1AddFury(npc, BT_FURY_HIT);
     }
     if (hsGet(npc, "b1_mounted", "0") == "1") {
         for (var j = 0; j < ps.length; j++) {
-            if (hsOnLine(ps[j], sx, sz, yaw, len, 1.8)) continue;
-            if (b1OnSide(ps[j], sx, sz, yaw, len)) hsStrike(ps[j], 0.15);
+            if (hsOnLine(ps[j], sx, sz, yaw, len, BT_HIT_R)) continue;
+            if (b1OnSide(ps[j], sx, sz, yaw, len)) hsStrike(ps[j], BT_SIDE_PCT);
         }
     }
     if (b1Phase(npc) == 3) b1Trail(npc, sx, sz, yaw, len);
     if (b1StakeHit(npc)) return;
-    if (b1Phase(npc) == 3 && hsNum(npc, "b1_bounce") < 2 && b1NearEdge(npc)) {
+    if (b1Phase(npc) == 3 && hsNum(npc, "b1_bounce") < BT_BOUNCE_MAX && b1NearEdge(npc)) {
         b1StartBounce(npc);
         return;
     }
@@ -247,10 +295,11 @@ function b1ResolveRam(npc) {
 
 function b1Trail(npc, x, z, yaw, len) {
     var f = b1Forward(yaw);
-    var dmg = 2 * hsScale(npc.getWorld());
-    var n = Math.floor(len / 2);
+    var dmg = BT_TRAIL_DMG * hsScale(npc.getWorld());
+    var n = Math.floor(len / BT_TRAIL_STEP);
     for (var i = 0; i <= n; i++) {
-        ZoneAPI.hazardCircle(npc, x + f[0] * i * 2, npc.getY(), z + f[1] * i * 2, 1.2, 120, dmg, 20);
+        ZoneAPI.hazardCircle(npc, x + f[0] * i * BT_TRAIL_STEP, npc.getY(), z + f[1] * i * BT_TRAIL_STEP,
+            BT_TRAIL_R, BT_TRAIL_TICKS, dmg, BT_TRAIL_PERIOD);
     }
 }
 
@@ -264,22 +313,22 @@ function b1StartBounce(npc) {
     var f = b1Forward(hsNum(npc, "ram_yaw"));
     var fx = f[0];
     var fz = f[1];
-    if (adx >= a.hw - 2) fx = -fx;
-    if (adz >= a.hd - 2) fz = -fz;
+    if (adx >= a.hw - BT_BOUNCE_EDGE) fx = -fx;
+    if (adz >= a.hd - BT_BOUNCE_EDGE) fz = -fz;
     var yaw = b1YawFromForward(fx, fz);
     hsPut(npc, "b1_bounce", hsNum(npc, "b1_bounce") + 1);
     hsPut(npc, "ram_yaw", yaw);
     hsPut(npc, "b1_face", yaw);
     hsPut(npc, "ram_x", npc.getX());
     hsPut(npc, "ram_z", npc.getZ());
-    hsPut(npc, "ram_len", 10);
+    hsPut(npc, "ram_len", BT_LEN_BOUNCE);
     hsPut(npc, "b1_slide", 0);
     hsPut(npc, "ram_kind", "windup");
-    TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 10, 3.0, 20, HS.RED);
+    TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, BT_LEN_BOUNCE, BT_LINE_W, BT_BOUNCE_WINDUP, HS.RED);
     npc.setRotation(yaw);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
-    npc.getTimers().forceStart(B1_T_RAM, 20, false);
+    npc.getTimers().forceStart(B1_T_RAM, BT_BOUNCE_WINDUP, false);
 }
 
 function b1MaybeChase(npc) {
@@ -300,8 +349,8 @@ function b1MaybeChase(npc) {
             }
         }
     }
-    if (hsFlat(npc, target.getX(), target.getZ()) <= 6) return false;
-    return b1BeginDash(npc, target, 15, "chase");
+    if (hsFlat(npc, target.getX(), target.getZ()) <= BT_CHASE_MIN_DIST) return false;
+    return b1BeginDash(npc, target, BT_CHASE_CHARGE, "chase");
 }
 
 function b1FinishSeries(npc) {
@@ -345,7 +394,7 @@ function timer(e) {
         npc.setRotation(hsNum(npc, "ram_yaw"));
         hsPut(npc, "ram_kind", "slide");
         if (!hsStart(npc, "b1_slide", npc, AbilityAPI.params(
-                "activeTicks", 8, "distance", 10, "telegraph", 0))) {
+                "activeTicks", BT_ACTIVE, "distance", BT_LEN_BOUNCE, "telegraph", 0))) {
             hsPut(npc, "ram_kind", "dash");
             b1ResolveRam(npc);
         }

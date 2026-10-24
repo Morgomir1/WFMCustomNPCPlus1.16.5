@@ -61,6 +61,7 @@ public final class AbilityRegistry {
         register(new WeaponSpinAbility());
         register(new B1SlideAbility());
         register(new B1PullAbility());
+        register(new B1NetAbility());
     }
 
     private AbilityRegistry() {

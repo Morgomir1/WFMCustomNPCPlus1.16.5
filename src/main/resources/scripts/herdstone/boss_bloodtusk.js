@@ -56,6 +56,9 @@ function tick(e) {
     b1HornTick(npc);
     b1Face(npc);
     if (b1WidowTick(npc)) return;
+    if (hsGet(npc, "b1_feed", "").length >= 32 && hsNum(npc, "ram_at") > hsNow(npc) + 25) {
+        hsPut(npc, "ram_at", hsNow(npc) + 15);
+    }
     if (!b1CanAct(npc)) return;
     if (hsGet(npc, "b1_call", "0") == "1") {
         hsPut(npc, "b1_call", 0);
@@ -99,9 +102,9 @@ function b1CanAct(npc) {
 
 function b1RamCd(npc) {
     var phase = b1Phase(npc);
-    if (phase == 3) return 120;
-    if (phase == 2) return 200;
-    return 180;
+    if (phase == 3) return 50;
+    if (phase == 2) return 80;
+    return 70;
 }
 
 function b1ChargeTicks(npc) {
@@ -118,6 +121,11 @@ function b1ChargeTicks(npc) {
 }
 
 function b1Pick(npc, ps) {
+    var fed = b1FindPlayer(npc, hsGet(npc, "b1_feed", ""));
+    if (fed != null) {
+        hsPut(npc, "b1_feed", "");
+        return fed;
+    }
     if (ps == null || ps.length == 0) return npc.getAttackTarget();
     if (b1Phase(npc) == 2 && hsGet(npc, "b1_mounted", "0") == "1") {
         var avoid = hsGet(npc, "b1_last", "");
@@ -154,9 +162,6 @@ function b1BeginDash(npc, target, charge, kind) {
     hsPut(npc, "b1_bounce", 0);
     hsPut(npc, "b1_last", String(target.getUUID()));
     TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, len, 3.0, charge, HS.RED);
-    if (kind == "series") {
-        TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 6, 30, charge, HS.GOLD);
-    }
     var started = hsStart(npc, "dash", target, AbilityAPI.params(
         "chargeTicks", charge,
         "activeTicks", 8,
@@ -291,5 +296,5 @@ function damaged(e) {
 }
 
 function died(e) {
-    b1OnDied(e.npc);
+    b1Died(e);
 }

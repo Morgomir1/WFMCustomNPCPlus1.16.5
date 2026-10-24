@@ -772,4 +772,14 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.TELEGRAPH, 0);
         return map;
     }
+
+    public static Map<String, Object> b1Net() {
+        final Map<String, Object> map = new HashMap<>();
+        map.put(AbilityParamKeys.CHARGE_TICKS, 16);
+        map.put(AbilityParamKeys.ACTIVE_TICKS, 12);
+        map.put(AbilityParamKeys.RADIUS, 2.2);
+        map.put(AbilityParamKeys.EFFECT_DURATION, 100);
+        map.put(AbilityParamKeys.TELEGRAPH, 0);
+        return map;
+    }
 }

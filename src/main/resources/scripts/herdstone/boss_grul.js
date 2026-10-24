@@ -55,6 +55,8 @@ function tick(e) {
     if (!ritual) b1MountTick(npc);
     if (ritual || hsGet(npc, "b1_ritual", "0") == "1") return;
     if (hsGet(npc, "stun", "0") == "1" || hsGet(npc, "b1_mounting", "0") == "1") return;
+    if (hsGet(npc, "b1_mounted", "0") == "1") gMountedNet(npc, ps);
+    if (hsGet(npc, "b1_haul", "0") == "1") return;
     gCycle(npc, ps);
     gTrip(npc, ps);
     gExtraLasso(npc, ps);
@@ -211,8 +213,30 @@ function gExtraLasso(npc, ps) {
     gLasso(npc, ps);
 }
 
+function gMountedNet(npc, ps) {
+    if (AbilityAPI.isBusy(npc) || b1RoarBlocks(npc)) return;
+    if (ps == null || ps.length == 0) return;
+    var now = hsNow(npc);
+    if (now < hsNum(npc, "b1_net_at")) return;
+    var target = ps[0];
+    var best = hsFlat(npc, target.getX(), target.getZ());
+    var i;
+    for (i = 1; i < ps.length; i++) {
+        var dist = hsFlat(npc, ps[i].getX(), ps[i].getZ());
+        if (dist < best) {
+            best = dist;
+            target = ps[i];
+        }
+    }
+    if (best > 24) return;
+    if (!hsStart(npc, "b1_net", target, AbilityAPI.params(
+            "chargeTicks", 16, "activeTicks", 12, "radius", 2.2, "telegraph", 0))) return;
+    hsPut(npc, "b1_net_at", now + 160);
+    b1Say(npc, "Грул кидает сеть!");
+}
+
 function gTrip(npc, ps) {
-    if (hsGet(npc, "b1_mounted", "0") == "1") return;
+    if (hsGet(npc, "b1_mounted", "0") == "1" || hsGet(npc, "b1_haul", "0") == "1") return;
     if (hsGet(npc, "b1_mounting", "0") == "1") return;
     if (npc.getTimers().has(B1_T_TRIP) || npc.getTimers().has(B1_T_ROAR)) return;
     if (ps == null || ps.length == 0) return;
@@ -261,6 +285,10 @@ function gTrip(npc, ps) {
 
 function gTripHit(npc) {
     if (!npc.isAlive()) return;
+    if (hsGet(npc, "b1_mounted", "0") == "1" || hsGet(npc, "b1_haul", "0") == "1") {
+        b1Release(npc);
+        return;
+    }
     var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), 6);
     var yaw = hsNum(npc, "b1_trip_yaw");
     var x = hsNum(npc, "b1_trip_x");
@@ -375,5 +403,5 @@ function damaged(e) {
 }
 
 function died(e) {
-    b1OnDied(e.npc);
+    b1Died(e);
 }

@@ -491,24 +491,31 @@ function b1StartRitual(npc) {
     b1Say(npc, "Начинается кровавый ритуал!");
 }
 
-function b1ReviveSpawn(npc, partnerName) {
-    var home = b1WGet(npc, "hs_b1_home_" + partnerName, "");
-    var x, y, z;
-    if (home.length > 0) {
-        var parts = home.split(",");
-        x = Number(parts[0]) + 0.5;
-        y = Number(parts[1]);
-        z = Number(parts[2]) + 0.5;
-    } else {
-        var h = hsHome(npc);
-        x = h[0];
-        y = h[1];
-        z = h[2];
+function b1FindCorpse(npc, name) {
+    var id = b1WGet(npc, "hs_b1_corpse_" + name, "");
+    if (id.length >= 32) {
+        try {
+            var byId = npc.getWorld().getEntity(id);
+            if (byId != null && String(byId.getName()) == name && !byId.isAlive()) return byId;
+        } catch (err) {}
     }
+    var c = hsArenaCenter(npc);
+    var list = npc.getWorld().getNearbyEntities(NpcAPI.getIPos(c[0], c[1], c[2]), hsScanRange(), 2);
+    for (var i = 0; i < list.length; i++) {
+        if (String(list[i].getName()) != name || list[i].isAlive()) continue;
+        return list[i];
+    }
+    return null;
+}
+
+function b1ReviveSpawn(npc, partnerName) {
+    var corpse = b1FindCorpse(npc, partnerName);
+    b1WDel(npc, "hs_b1_corpse_" + partnerName);
+    if (corpse == null) return;
     var maxHp = b1WGet(npc, "hs_b1_max_" + partnerName, "100");
     b1WPut(npc, "hs_b1_revive_" + partnerName, maxHp);
     b1WPut(npc, "hs_b1_noremount", "1");
-    npc.getWorld().spawnClone(x, y, z, HS.TAB, partnerName);
+    corpse.reset();
 }
 
 function b1RitualFire(npc) {
@@ -589,6 +596,11 @@ function b1ApplyRevive(npc, maxHp) {
     hsPut(npc, "dispel_at", hsNow(npc) + HS.DISPEL_SEC * 20);
     b1WPut(npc, "hs_b1_noremount", "1");
     b1WPut(npc, "hs_b1_locked", "0");
+    var selfId = String(npc.getUUID());
+    var copies = hsFind(npc, String(npc.getName()));
+    for (var i = 0; i < copies.length; i++) {
+        if (String(copies[i].getUUID()) != selfId) copies[i].despawn();
+    }
     if (other != null) b1ClearWidow(other);
     b1Release(npc);
     b1Say(npc, "Павший поднимается на ноги!");
@@ -631,6 +643,8 @@ function b1ResetWorld(npc) {
     b1WPut(npc, "hs_b1_horns", "");
     b1WPut(npc, "hs_b1_next_roar", "0");
     b1WPut(npc, "hs_b1_roar_until", "0");
+    b1WDel(npc, "hs_b1_corpse_" + B1_BOAR);
+    b1WDel(npc, "hs_b1_corpse_" + B1_GRUL);
     b1ClearRing(npc);
 }
 
@@ -772,6 +786,7 @@ function b1MountTick(grul) {
     if (hsGet(grul, "b1_mounting", "0") == "1") return;
     if (hsGet(grul, "stun", "0") == "1") return;
     if (hsGet(grul, "b1_ritual", "0") == "1") return;
+    if (hsGet(grul, "b1_haul", "0") == "1") return;
     if (hsNum(grul, "b1_recover") > hsNow(grul)) return;
     if (b1Phase(grul) != 2) return;
     if (hsGet(grul, "b1_mount_done", "0") == "1" && hsGet(grul, "b1_mount_go", "0") != "1") return;
@@ -862,6 +877,17 @@ function hsEnrage(npc, ps, now) {
     b1RingDamage(npc, ps, inner);
 }
 
+function b1Died(e) {
+    var npc = e.npc;
+    var other = b1Other(npc);
+    if (other != null) {
+        b1WPut(npc, "hs_b1_corpse_" + String(npc.getName()), String(npc.getUUID()));
+        e.droppedItems = null;
+        e.expDropped = 0;
+    }
+    b1OnDied(npc);
+}
+
 function b1OnDied(npc) {
     AbilityAPI.cancel(npc);
     hsZoneClear(npc);
@@ -894,6 +920,7 @@ function b1ClearRide(npc) {
     hsPut(npc, "b1_mount_done", 0);
     hsPut(npc, "b1_mount_go", 0);
     hsPut(npc, "b1_recover", 0);
+    hsPut(npc, "b1_haul", 0);
     hsPut(npc, "b1_step", -1);
     hsPut(npc, "b1_ritual", 0);
     hsPut(npc, "widowed", 0);

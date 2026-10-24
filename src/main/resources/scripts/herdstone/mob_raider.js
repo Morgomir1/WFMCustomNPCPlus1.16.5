@@ -1,25 +1,38 @@
 // Унгор-рейдер. Третий файл после hs_mob.js.
-// Ближе 9 блоков отступает, иначе стоит и кидает сеть (6–18).
+// Ближе FLEE_DIST отступает, иначе стоит и кидает сеть (NET_MIN–NET_MAX).
 // Пока идёт каст сети или рывок клича — AI не трогаем.
+
+// --- НАСТРОЙКИ СПОСОБНОСТЕЙ ---
 var RETALIATE_RETREAT = 2;
 var RETALIATE_NONE = 3;
+var RAIDER_SPEED = 6;
 var FLEE_DIST = 9;
+// Сеть (net_throw)
+var NET_CD = 130;
+var NET_MIN = 6;
+var NET_MAX = 24;
+var NET_CHARGE = 8;
+var NET_ACTIVE = 8;
+var NET_R = 2.2;
+var NET_EFFECT = 100;
 var NET_COLOR = 0xC0D8C090 | 0;
+// Мили
+var SLOW_ON_HIT = 3;
+var MELEE_SLOW_SEC = 3;
+var MELEE_SLOW_AMP = 2;
 
 CASTS = [
-    { ability: "net_throw", cd: 160, min: 6, max: 18, shape: "", pct: 0,
+    { ability: "net_throw", cd: NET_CD, min: NET_MIN, max: NET_MAX, shape: "", pct: 0,
       params: function () {
           return AbilityAPI.params(
-              "chargeTicks", 8,
-              "activeTicks", 8,
-              "radius", 2.2,
-              "effectDuration", 100,
+              "chargeTicks", NET_CHARGE,
+              "activeTicks", NET_ACTIVE,
+              "radius", NET_R,
+              "effectDuration", NET_EFFECT,
               "telegraphColor", NET_COLOR
           );
       } }
 ];
-SLOW_ON_HIT = 3;
-var RAIDER_SPEED = 6;
 
 function init(e) {
     hsMobInit(e.npc);
@@ -41,5 +54,5 @@ function hsMobExtra(npc) {
 
 function meleeAttack(e) {
     if (e.target == null || !e.target.typeOf(1)) return;
-    e.target.addPotionEffect(PotionEffectType_SLOWNESS, 3, 2, false);
+    e.target.addPotionEffect(PotionEffectType_SLOWNESS, MELEE_SLOW_SEC, MELEE_SLOW_AMP, false);
 }

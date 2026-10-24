@@ -21,7 +21,7 @@ function damaged(e) {
     var boss = findBoss(totem);
     var b = boss == null ? null : boss.getStoreddata();
     if (b == null || text(b, "song") != "listen") {
-        w.playSoundAt(totem.getPos(), NOTE_SOUND, 3.0, Number(String(d.get("hs_pitch"))));
+        soundAround(totem, NOTE_SOUND, 1.0, Number(String(d.get("hs_pitch"))));
         return;
     }
     var now = Number(w.getTotalTime());
@@ -32,7 +32,7 @@ function damaged(e) {
         wrongNote(totem, now);
         return;
     }
-    w.playSoundAt(totem.getPos(), NOTE_SOUND, 3.0, Number(String(d.get("hs_pitch"))));
+    soundAround(totem, NOTE_SOUND, 1.0, Number(String(d.get("hs_pitch"))));
     pos++;
     b.put("seq_pos", String(pos));
     b.put("last_note", String(note));
@@ -46,7 +46,7 @@ function wrongNote(totem, now) {
     if (now - Number(text(d, "wrong_at")) < SAME_SWING) return;
     d.put("wrong_at", String(now));
     var w = totem.getWorld();
-    w.playSoundAt(totem.getPos(), "minecraft:block.note_block.didgeridoo", 3.0, 0.5);
+    soundAround(totem, "minecraft:block.note_block.didgeridoo", 1.0, 0.5);
     w.playSoundAt(totem.getPos(), "minecraft:entity.generic.explode", 2.0, 1.2);
     w.spawnParticle("explosion", totem.getX(), totem.getY() + 1, totem.getZ(), 1.5, 0.5, 1.5, 0, 6);
     var ps = hsPlayersAt(totem, totem.getX(), totem.getY(), totem.getZ(), WRONG_R);
@@ -54,6 +54,12 @@ function wrongNote(totem, now) {
         hsStrike(ps[i], WRONG_STRIKE);
         ps[i].message("§cФальшивая нота! Тотем бьёт всех рядом.");
     }
+}
+
+// playSoundAt CustomNPCs слышат только в 16 блоках от точки; ноту тотема должна слышать вся арена.
+function soundAround(totem, sound, volume, pitch) {
+    var list = totem.getWorld().getNearbyEntities(totem.getPos(), 48, 1);
+    for (var i = 0; i < list.length; i++) list[i].playSound(sound, volume, pitch);
 }
 
 // Копия и тотем, сохранённые в клонер с самого Мургрота, несут его метку в NBT — их пропускаем.

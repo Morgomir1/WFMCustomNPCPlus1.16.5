@@ -1,10 +1,11 @@
 // Мургрот Туманный Глас (Б2). В контейнере вторым после hs_core.js.
-// Скорость 0, On Attack = Мстить, рендж в GUI. Круг B5, r 20.
+// Круг B5, r 20. Скорость 0 и On Attack = Ничего ставит init: обычной атаки нет, снаряд в GUI не нужен.
+// Вместо неё навес: раз в 3,5 с сгусток дугой в случайного игрока и лужа на 10 с (crimson_blob).
 // Сам по себе неуязвим и не сходит с места: стоит на якоре, двигается только шагом на место тотема.
 // Тотемы — его инструмент: стоят весь бой, у каждого своя нота (hs_core.js → murgrot_totem.js).
 // Перекличка: Мургрот поёт 3 ноты (после 66% — 4, после 33% — 5), игроки бьют тотемы в том же
 // порядке. Неверный тотем бьёт всех рядом с собой (murgrot_totem.js), песнь идёт дальше.
-// Повторили — 8 с он захлёбывается: не стреляет и получает урон, но за одно окно не ниже
+// Повторили — 8 с он захлёбывается: не бросает навес и получает урон, но за одно окно не ниже
 // следующей трети (66%, 33%, смерть). Не успели — все теряют 40%, он лечится на 10%.
 // Шаг сквозь туман: раз в 22 с или если к нему жмутся 6 с — меняется местами с тотемом,
 // на старом месте туман с тошнотой. На 50% встают копии, он шагает к тотему; копии поют
@@ -40,7 +41,12 @@ var STEP_FIRST = 300, STEP_EVERY = 440, STEP_GAP = 160, HUG_R = 3, HUG_TICKS = 1
 var FOG_R = 3.5, FOG_TICKS = 200, FOG_COLOR = 0x90A080C0 | 0;
 var ROT_FIRST = 100, ROT_EVERY = 300, ROT_TICKS = 80, ROT_R = 6;
 var WAVE_FIRST = 30, WAVE_EVERY = 80, WAVE_WINDUP = 20, WAVE_STEP_TICKS = 2, WAVE_STEP = 1.0;
-var WAVE_START = 1.5, WAVE_STRIKE = 0.25, WAVE_JUMP = 0.5, WAVE_COLOR = 0xC0B040FF | 0;
+// Цвет кольца — тот же, что «предупреждение» библиотеки подсказок (0xC0FF0000): в последнюю четверть
+// жизни она перекрашивает подсказку в него, и короткие кольца другого цвета мигали бы.
+var WAVE_START = 1.5, WAVE_STRIKE = 0.25, WAVE_JUMP = 0.5, WAVE_COLOR = 0xC0FF0000 | 0, WAVE_RING_TICKS = 4;
+// Навес вместо обычной атаки — crimson_blob, как у вампиров: сгусток дугой в случайного игрока,
+// на месте падения 10 с лежит лужа (урон раз в полсекунды и Замедление II).
+var LOB_FIRST = 60, LOB_EVERY = 70, LOB_RANGE = 40;
 var T_NOTE = 1, T_ROT = 2, T_WAVE = 3, T_WAVE_STEP = 4;
 
 function init(e) {
@@ -48,8 +54,7 @@ function init(e) {
     npc.addTag(BOSS_TAG);
     if (!hsInit(npc)) return;
     despawnTagged(npc, COPY_TAG);
-    if (hsGet(npc, "base_retaliate", "") == "") hsPut(npc, "base_retaliate", npc.getAi().getRetaliateType());
-    npc.getAi().setRetaliateType(hsNum(npc, "base_retaliate"));
+    npc.getAi().setRetaliateType(3);   // обычной атаки нет: вместо неё навес (lobTick)
     npc.getAi().setWalkingSpeed(0);
     npc.getStats().setResistance(3, 2.0);   // отбрасывание: 2 = совсем не сдвигается
     var home = hsHome(npc);
@@ -65,6 +70,7 @@ function init(e) {
     hsPut(npc, "fog_until", 0);
     hsPut(npc, "wave_at", 0);
     hsPut(npc, "wave_told", 0);
+    hsPut(npc, "lob_at", 0);
 }
 
 // Нет клона во вкладке — строка в консоль, бой идёт дальше. Исключение выключило бы весь скрипт.
@@ -120,11 +126,19 @@ function makeSong(notes, length) {
     return seq;
 }
 
+// CustomNPCs шлёт playSoundAt только тем, кто в 16 блоках от точки, а тотемы стоят в 35–40 блоках друг
+// от друга. Звуки боя идут каждому игроку у арены прямо в уши: громко и без расстояния.
+function arenaSound(npc, sound, volume, pitch) {
+    var c = hsArenaCenter(npc);
+    var list = npc.getWorld().getNearbyEntities(NpcAPI.getIPos(c[0], c[1], c[2]), HS.ARENA_R + 16, 1);
+    for (var i = 0; i < list.length; i++) list[i].playSound(sound, volume, pitch);
+}
+
 function playNote(npc, totem, note, real) {
     if (totem == null) return;
     var w = npc.getWorld();
     TelegraphAPI.circle(npc, totem.getX(), totem.getY(), totem.getZ(), 2.0, NOTE_GAP, NOTES[note].color);
-    w.playSoundAt(totem.getPos(), NOTE_SOUND, 3.0, real ? NOTES[note].pitch : NOTES[note].pitch * FALSE_PITCH);
+    arenaSound(npc, NOTE_SOUND, 1.0, real ? NOTES[note].pitch : NOTES[note].pitch * FALSE_PITCH);
     if (real) w.spawnParticle(NOTES[note].particle, totem.getX(), totem.getY() + 1.5, totem.getZ(), 0.4, 0.6, 0.4, 0.02, 20);
 }
 
@@ -191,16 +205,14 @@ function startWindow(npc, now) {
     hsPut(npc, "song", "stun");
     hsPut(npc, "stun_until", now + WINDOW_TICKS);
     AbilityAPI.cancel(npc);
-    npc.getAi().setRetaliateType(3);
     TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), 2.5, WINDOW_TICKS, NOTES[1].color);
-    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.stunned", 3.0, 0.8);
+    arenaSound(npc, "minecraft:entity.ravager.stunned", 1.0, 0.8);
     npc.say("§aПеснь подхвачена! Мургрот захлёбывается — бейте!");
 }
 
 function endWindow(npc, now) {
     hsPut(npc, "song", "");
     hsPut(npc, "song_at", now + SONG_EVERY);
-    npc.getAi().setRetaliateType(hsNum(npc, "base_retaliate"));
     npc.say("§7Мургрот приходит в себя.");
 }
 
@@ -252,12 +264,13 @@ function stepTo(npc, now) {
     if (pool.length == 0) return;
     var t = hsRandom(pool);
     var ox = npc.getX(), oy = npc.getY(), oz = npc.getZ();
-    var w = npc.getWorld();
-    w.playSoundAt(npc.getPos(), "minecraft:entity.illusioner.mirror_move", 2.0, 0.7);
+    arenaSound(npc, "minecraft:entity.illusioner.mirror_move", 1.0, 0.7);
     npc.setPosition(t.getX(), t.getY(), t.getZ());
     setAnchor(npc, t.getX(), t.getY(), t.getZ());
     t.setPosition(ox, oy, oz);
-    w.playSoundAt(npc.getPos(), "minecraft:entity.illusioner.mirror_move", 2.0, 0.7);
+    // Тотем без цели CustomNPCs возвращает к точке спауна, а застрявшего (скорость 0) — телепортом;
+    // без нового дома он прыгнул бы обратно на постамент, где теперь стоит Мургрот.
+    t.setHome(Math.floor(ox), Math.floor(oy), Math.floor(oz));
     var zone = ZoneAPI.hazardCircle(npc, ox, oy, oz, FOG_R, FOG_TICKS, 0, 20);
     if (zone != null) {
         try { zone.setColor(FOG_COLOR); } catch (err) {}
@@ -280,7 +293,7 @@ function waveTick(npc, now) {
     hsPut(npc, "wave_at", now + WAVE_EVERY);
     var floorY = hsArenaCenter(npc)[1];
     TelegraphAPI.circle(npc, npc.getX(), floorY, npc.getZ(), 2.5, WAVE_WINDUP, WAVE_COLOR);
-    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", 3.0, 1.4);
+    arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.4);
     if (hsGet(npc, "wave_told", "0") == "0") {
         hsPut(npc, "wave_told", 1);
         npc.say("§5Глас Мургрота катится по земле — прыгайте!");
@@ -295,7 +308,7 @@ function waveRelease(npc) {
     hsPut(npc, "wave_r", WAVE_START);
     hsPut(npc, "wave_max", hsFlat(npc, c[0], c[2]) + HS.ARENA_R + 1);
     hsPut(npc, "wave_hit", "");
-    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:block.bell.resonate", 3.0, 0.6);
+    arenaSound(npc, "minecraft:block.bell.resonate", 1.0, 0.6);
     npc.getTimers().forceStart(T_WAVE_STEP, WAVE_STEP_TICKS, false);
 }
 
@@ -305,7 +318,7 @@ function waveStep(npc) {
     var ox = hsNum(npc, "wave_x"), oz = hsNum(npc, "wave_z");
     var floorY = hsArenaCenter(npc)[1];
     var r0 = hsNum(npc, "wave_r"), r1 = r0 + WAVE_STEP;
-    TelegraphAPI.ring(npc, ox, floorY, oz, r1 + 0.5, r1 - 0.5, WAVE_STEP_TICKS + 1, WAVE_COLOR);
+    TelegraphAPI.ring(npc, ox, floorY, oz, r1 + 0.5, r1 - 0.5, WAVE_RING_TICKS, WAVE_COLOR);
     var hit = hsGet(npc, "wave_hit", "");
     var ps = hsPlayersAt(npc, ox, floorY, oz, r1 + 1);
     for (var i = 0; i < ps.length; i++) {
@@ -323,6 +336,19 @@ function waveStep(npc) {
     hsPut(npc, "wave_hit", hit);
     hsPut(npc, "wave_r", r1);
     if (r1 < hsNum(npc, "wave_max")) npc.getTimers().forceStart(T_WAVE_STEP, WAVE_STEP_TICKS, false);
+}
+
+function lobTick(npc, ps, now) {
+    if (hsGet(npc, "song", "") == "stun" || now < hsNum(npc, "lob_at") || AbilityAPI.isBusy(npc)) return;
+    hsPut(npc, "lob_at", now + LOB_EVERY);
+    hsStart(npc, "crimson_blob", hsRandom(ps), AbilityAPI.params(
+        "chargeTicks", 15, "activeTicks", 16, "arcHeight", 6.0, "landRadius", 2.5, "maxRange", LOB_RANGE,
+        "zoneTicks", 200, "damage", 2.0, "damageInterval", 10,
+        "effectId", "minecraft:slowness", "effectDuration", 30, "effectAmplifier", 1,
+        "zoneColor", 0xC0400070 | 0, "telegraphColor", 0xC0B040FF | 0,
+        "blobParticles", "minecraft:portal,minecraft:dragon_breath,minecraft:smoke",
+        "landParticles", "minecraft:dragon_breath,minecraft:large_smoke,minecraft:portal",
+        "particleCount", 10));
 }
 
 function fogTick(npc, now) {
@@ -347,6 +373,7 @@ function tick(e) {
             hsPut(npc, "rot_at", now + ROT_FIRST);
             hsPut(npc, "song_at", now + SONG_FIRST);
             hsPut(npc, "step_at", now + STEP_FIRST);
+            hsPut(npc, "lob_at", now + LOB_FIRST);
             raiseTotems(npc);
             npc.say("§5Тотемы, пойте со мной!");
         } else {
@@ -375,6 +402,7 @@ function tick(e) {
         npc.getWorld().spawnParticle("witch", npc.getX(), npc.getY() + 2.6, npc.getZ(), 0.3, 0.3, 0.3, 0, 12);
     }
     stepTick(npc, ps, now);
+    lobTick(npc, ps, now);
     // Пока он поёт ноты, порча не начинается: их надо слышать и видеть.
     if (hsGet(npc, "song", "") == "sing") return;
     if (npc.getTimers().has(T_ROT) || now < hsNum(npc, "rot_at")) return;

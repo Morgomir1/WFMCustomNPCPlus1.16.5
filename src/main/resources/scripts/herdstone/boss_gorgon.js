@@ -24,6 +24,8 @@ function init(e) {
     if (!hsInit(npc)) return;
     if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
     // 0 = Мстить: преследует цель. Урон мили режется в meleeAttack.
+    // setRetaliateType → updateAI → updateTasks сбрасывает moveControl; apply пишет °/тик
+    // в PersistentData, mixin/ensureInstalled возвращают Smooth* после rebuild.
     npc.getAi().setRetaliateType(0);
     npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("gorgon turn: " + err); }

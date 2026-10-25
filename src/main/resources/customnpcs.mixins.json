@@ -11,6 +11,7 @@
     "EntityNPCInterfaceHitboxMixin",
     "EntityNPCInterfaceRespawnPoseMixin",
     "EntityNPCInterfaceNameFormatMixin",
+    "EntityNPCInterfaceSmoothTurnMixin",
     "EntityNPCInterfaceSpawnPacketMixin",
     "EntityNPCInterfaceVisibilityMixin",
     "AvailabilityHasOptionsMixin",

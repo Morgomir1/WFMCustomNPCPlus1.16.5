@@ -183,6 +183,9 @@ tasks.register('mergeMixinRefmap') {
 }
 
 jar.dependsOn('mergeMixinRefmap')
+// processResources removes from build/resources/main what Gradle recorded there after the previous build, the merged
+// refmap included, so every other build packed the base refmap without our mixins. Merge after it.
+tasks.named('mergeMixinRefmap') { mustRunAfter 'processResources' }
 
 tasks.register('verifyWfmLib') {
     doFirst {

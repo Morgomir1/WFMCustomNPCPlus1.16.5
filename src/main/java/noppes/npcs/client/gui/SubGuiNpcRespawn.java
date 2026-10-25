@@ -1,5 +1,6 @@
 package noppes.npcs.client.gui;
 
+import noppes.npcs.entity.NpcRespawnLogged;
 import noppes.npcs.entity.data.*;
 import noppes.npcs.shared.client.gui.listeners.*;
 import noppes.npcs.shared.client.gui.components.*;
@@ -29,6 +30,10 @@ public class SubGuiNpcRespawn extends GuiBasic implements ITextfieldListener
             this.addLabel(new GuiLabel(4, "stats.deadbody", this.guiLeft + 4, this.guiTop + 79));
             this.addButton(new GuiButtonNop(this, 4, this.guiLeft + 122, this.guiTop + 74, 60, 20, new String[] { "gui.no", "gui.yes" }, (int)(this.stats.hideKilledBody ? 1 : 0)));
         }
+        // WahaCraft: deaths, respawns and clone spawns of this NPC go to the server log (NpcRespawnLog).
+        final int logY = this.stats.respawnTime > 0 ? this.guiTop + 96 : this.guiTop + 52;
+        this.addLabel(new GuiLabel(5, "stats.respawnlog", this.guiLeft + 4, logY + 5));
+        this.addButton(new GuiButtonNop(this, 5, this.guiLeft + 122, logY, 60, 20, new String[] { "gui.no", "gui.yes" }, ((NpcRespawnLogged)this.stats).cnpc$isRespawnLogged() ? 1 : 0));
         this.addButton(new GuiButtonNop(this, 66, this.guiLeft + 82, this.guiTop + 190, 98, 20, "gui.done"));
     }
     
@@ -48,6 +53,9 @@ public class SubGuiNpcRespawn extends GuiBasic implements ITextfieldListener
         }
         else if (button.id == 4) {
             this.stats.hideKilledBody = (button.getValue() == 1);
+        }
+        else if (button.id == 5) {
+            ((NpcRespawnLogged)this.stats).cnpc$setRespawnLogged(button.getValue() == 1);
         }
         if (id == 66) {
             this.close();

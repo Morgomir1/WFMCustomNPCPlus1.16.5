@@ -28,16 +28,14 @@ import java.time.temporal.ChronoUnit;
  * Upstream logs none of it, so a boss raised early with the wand or the remote left no trace. Each caller names
  * itself through {@link #expectReset} or {@link #expectSpawn} right before the call; a reset is written at the head
  * of {@code reset()}, while the NPC still shows its state before it. What is done by hand (wand menu, remote,
- * commands, the cloner, {@code /kill} on a corpse) is logged for any NPC, the respawn timer, scripts and spawners
- * only for bosses.
+ * commands, the cloner, {@code /kill} on a corpse) is logged for any NPC. Deaths, the respawn timer, scripts and
+ * spawners only for NPCs with "Log to server" in their respawn window ({@link NpcRespawnLogged}): on this server
+ * dungeon bosses respawn in an hour like ordinary mobs, so neither the respawn time nor the boss bar tells them apart.
  */
 @Mod.EventBusSubscriber(modid = "customnpcs", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class NpcRespawnLog {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final String PREFIX = "[NPC respawn] ";
-    // NPCs with a boss bar or with a respawn time longer than this count as bosses. Ordinary NPCs of the server
-    // respawn in an hour, and not every boss has a bar.
-    private static final int BOSS_RESPAWN_SECONDS = 60 * 60;
 
     // Server thread only: set right before the call, taken by it, dropped at the end of the tick in any case.
     private static String pendingResetCause;
@@ -48,7 +46,7 @@ public final class NpcRespawnLog {
     private NpcRespawnLog() {
     }
 
-    /** Names the cause of the reset that follows. {@code byHand} logs it for every NPC, not only for bosses. */
+    /** Names the cause of the reset that follows. {@code byHand} logs it for every NPC, not only for marked ones. */
     public static void expectReset(final String cause, final boolean byHand) {
         pendingResetCause = cause;
         pendingResetByHand = byHand;
@@ -80,7 +78,7 @@ public final class NpcRespawnLog {
         final boolean byHand = pendingResetByHand;
         pendingResetCause = null;
         pendingResetByHand = false;
-        if (!byHand && !isBoss(npc)) {
+        if (!byHand && !isLogged(npc)) {
             return;
         }
         if (cause == null) {
@@ -98,7 +96,7 @@ public final class NpcRespawnLog {
             return;
         }
         final EntityNPCInterface npc = (EntityNPCInterface) entity;
-        if (!byHand && !isBoss(npc)) {
+        if (!byHand && !isLogged(npc)) {
             return;
         }
         if (cause == null) {
@@ -108,8 +106,17 @@ public final class NpcRespawnLog {
         LOGGER.info(PREFIX + describe(npc) + " spawned as a clone by " + cause);
     }
 
+    /** The stats menu was saved: a changed "Log to server" goes to the log, turning it off as well. */
+    public static void onSwitch(final EntityNPCInterface npc, final boolean wasLogged, final String player) {
+        final boolean logged = isLogged(npc);
+        if (logged == wasLogged || npc.level == null || npc.level.isClientSide) {
+            return;
+        }
+        LOGGER.info(PREFIX + describe(npc) + " logging turned " + (logged ? "ON" : "OFF") + " by player " + player);
+    }
+
     public static void onDeath(final EntityNPCInterface npc, final DamageSource source) {
-        if (npc.level == null || npc.level.isClientSide || !isBoss(npc)) {
+        if (npc.level == null || npc.level.isClientSide || !isLogged(npc)) {
             return;
         }
         LOGGER.info(PREFIX + describe(npc) + " died, killed by " + killer(npc, source) + ": " + respawnAfterDeath(npc));
@@ -154,8 +161,8 @@ public final class NpcRespawnLog {
         }
     }
 
-    private static boolean isBoss(final EntityNPCInterface npc) {
-        return npc.display.getBossbar() != 0 || npc.stats.respawnTime > BOSS_RESPAWN_SECONDS;
+    private static boolean isLogged(final EntityNPCInterface npc) {
+        return ((NpcRespawnLogged) npc.stats).cnpc$isRespawnLogged();
     }
 
     private static String describe(final EntityNPCInterface npc) {

@@ -22,6 +22,7 @@ import noppes.npcs.api.entity.IEntityItem;
 import noppes.npcs.api.entity.data.IData;
 import noppes.npcs.api.item.IItemStack;
 import noppes.npcs.controllers.ServerCloneController;
+import noppes.npcs.entity.NpcRespawnLog;
 
 import java.util.*;
 
@@ -243,6 +244,7 @@ public class EntityWrapper<T extends Entity> implements IEntity
         }
         this.entity.removed = false;
         this.levelWrapper.getMCWorld().addFreshEntity(this.entity);
+        NpcRespawnLog.onSpawn(this.entity);
     }
 
     @Override

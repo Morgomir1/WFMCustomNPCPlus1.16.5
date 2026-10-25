@@ -21,6 +21,7 @@ public class ScriptContainer
     private static final String lock = "lock";
     public static ScriptContainer Current;
     private static String CurrentType;
+    private static Object CurrentEvent;
     public static final HashMap<String, Object> Data;
     public String fullscript;
     public String script;
@@ -84,6 +85,19 @@ public class ScriptContainer
         return compound;
     }
     
+    // Who runs the script and for which event: NpcRespawnLog names the script that reset or spawned a boss.
+    public IScriptHandler getHandler() {
+        return this.handler;
+    }
+
+    public static String getCurrentType() {
+        return ScriptContainer.CurrentType;
+    }
+
+    public static Object getCurrentEvent() {
+        return ScriptContainer.CurrentEvent;
+    }
+
     private String getFullCode() {
         if (!this.init) {
             this.fullscript = this.script;
@@ -121,6 +135,7 @@ public class ScriptContainer
         synchronized ("lock") {
             ScriptContainer.Current = this;
             ScriptContainer.CurrentType = type;
+            ScriptContainer.CurrentEvent = event;
             final StringWriter sw = new StringWriter();
             final PrintWriter pw = new PrintWriter(sw);
             this.engine.getContext().setWriter(pw);

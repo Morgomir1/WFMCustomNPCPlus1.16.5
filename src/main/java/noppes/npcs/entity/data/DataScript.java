@@ -54,6 +54,10 @@ public class DataScript implements IScriptHandler
         }
     }
     
+    public EntityNPCInterface getNpc() {
+        return this.npc;
+    }
+
     public boolean isEnabled() {
         return this.enabled && ScriptController.HasStart && !this.npc.level.isClientSide;
     }

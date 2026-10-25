@@ -139,6 +139,7 @@ public class NPCWrapper<T extends EntityNPCInterface> extends EntityLivingWrappe
 
     @Override
     public void reset() {
+        NpcRespawnLog.expectReset(NpcRespawnLog.scriptCause(), false);
         this.entity.reset();
     }
 

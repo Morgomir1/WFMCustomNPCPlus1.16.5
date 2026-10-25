@@ -266,6 +266,7 @@
   "stats.meleeeffect": "Effect(s)",
   "stats.respawn": "Respawn",
   "stats.deadbody": "HideDeadBody",
+  "stats.respawnlog": "Log to server",
   "stats.fireimmune": "ImmuneToFire",
   "stats.candrown": "CanDrown",
   "stats.firesound": "FireSound",

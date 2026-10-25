@@ -47,6 +47,7 @@ import noppes.npcs.controllers.PixelmonHelper;
 import noppes.npcs.controllers.ScriptController;
 import noppes.npcs.entity.EntityNPCInterface;
 import noppes.npcs.entity.EntityProjectile;
+import noppes.npcs.entity.NpcRespawnLog;
 import noppes.npcs.packets.Packets;
 import noppes.npcs.packets.client.PacketPlaySound;
 
@@ -488,6 +489,8 @@ public class WorldWrapper implements IWorld
         }
         e.setPos(e.getX(), e.getY(), e.getZ());
         this.level.addFreshEntity(e);
+        // A script can bring back a boss removed on death from its saved NBT.
+        NpcRespawnLog.onSpawn(e);
     }
 
     @Override

@@ -517,6 +517,7 @@
   "stats.meleeeffect": "Эффекты",
   "stats.respawn": "Респавн",
   "stats.deadbody": "Скрыть Труп",
+  "stats.respawnlog": "Писать в лог",
   "stats.fireimmune": "Иммунитет к Огню",
   "stats.candrown": "Может плавать",
   "stats.firesound": "Файл звука",

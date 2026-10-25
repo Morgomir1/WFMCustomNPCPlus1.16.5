@@ -35,8 +35,9 @@ import java.time.temporal.ChronoUnit;
 public final class NpcRespawnLog {
     private static final Logger LOGGER = LogManager.getLogger();
     private static final String PREFIX = "[NPC respawn] ";
-    // NPCs with a boss bar or with at least this respawn time count as bosses.
-    private static final int BOSS_RESPAWN_SECONDS = 30 * 60;
+    // NPCs with a boss bar or with a respawn time longer than this count as bosses. Ordinary NPCs of the server
+    // respawn in an hour, and not every boss has a bar.
+    private static final int BOSS_RESPAWN_SECONDS = 60 * 60;
 
     // Server thread only: set right before the call, taken by it, dropped at the end of the tick in any case.
     private static String pendingResetCause;
@@ -154,7 +155,7 @@ public final class NpcRespawnLog {
     }
 
     private static boolean isBoss(final EntityNPCInterface npc) {
-        return npc.display.getBossbar() != 0 || npc.stats.respawnTime >= BOSS_RESPAWN_SECONDS;
+        return npc.display.getBossbar() != 0 || npc.stats.respawnTime > BOSS_RESPAWN_SECONDS;
     }
 
     private static String describe(final EntityNPCInterface npc) {

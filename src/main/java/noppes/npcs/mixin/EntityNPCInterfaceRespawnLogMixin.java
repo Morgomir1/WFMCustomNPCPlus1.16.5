@@ -28,13 +28,13 @@ public abstract class EntityNPCInterfaceRespawnLogMixin {
     }
 
     @Inject(method = "tickDeath", at = @At(value = "INVOKE",
-            target = "Lnoppes/npcs/entity/EntityNPCInterface;reset()V", remap = false), require = 1)
+            target = "Lnoppes/npcs/entity/EntityNPCInterface;reset()V", remap = false))
     private void cnpc$resetByTimer(final CallbackInfo ci) {
         NpcRespawnLog.expectReset("respawn timer", false);
     }
 
     @Inject(method = "hurt", at = @At(value = "INVOKE",
-            target = "Lnoppes/npcs/entity/EntityNPCInterface;reset()V", remap = false), require = 1)
+            target = "Lnoppes/npcs/entity/EntityNPCInterface;reset()V", remap = false))
     private void cnpc$resetByVoidDamage(final DamageSource source, final float amount,
             final CallbackInfoReturnable<Boolean> cir) {
         NpcRespawnLog.expectReset("out-of-world damage on the corpse (/kill or the void)", true);

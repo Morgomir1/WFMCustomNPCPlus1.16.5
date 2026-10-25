@@ -21,14 +21,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class SPacketToolMobSpawnerLogMixin {
 
     @Inject(method = "handle()V", at = @At(value = "INVOKE",
-            target = "Lnoppes/npcs/packets/server/SPacketToolMobSpawner;spawnClone(Lnet/minecraft/nbt/CompoundNBT;DDDLnet/minecraft/world/World;)Lnet/minecraft/entity/Entity;"),
-            require = 1)
+            target = "Lnoppes/npcs/packets/server/SPacketToolMobSpawner;spawnClone(Lnet/minecraft/nbt/CompoundNBT;DDDLnet/minecraft/world/World;)Lnet/minecraft/entity/Entity;"))
     private void cnpc$nameToolSpawn(final CallbackInfo ci) {
         final String player = ((IPacketServer) (Object) this).player.getName().getString();
         NpcRespawnLog.expectSpawn("cloner tool, player " + player, true);
     }
 
-    @Inject(method = "spawnClone", at = @At("RETURN"), require = 1)
+    @Inject(method = "spawnClone", at = @At("RETURN"))
     private static void cnpc$logCloneSpawn(final CompoundNBT compound, final double x, final double y, final double z,
             final World world, final CallbackInfoReturnable<Entity> cir) {
         NpcRespawnLog.onSpawn(cir.getReturnValue());

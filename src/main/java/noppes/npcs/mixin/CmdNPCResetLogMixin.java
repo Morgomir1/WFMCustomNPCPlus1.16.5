@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class CmdNPCResetLogMixin {
 
     @Inject(method = "lambda$register$8", at = @At(value = "INVOKE",
-            target = "Lnoppes/npcs/entity/EntityNPCInterface;reset()V"), require = 1)
+            target = "Lnoppes/npcs/entity/EntityNPCInterface;reset()V"))
     private static void cnpc$logCommandReset(final CommandContext<CommandSource> context,
             final CallbackInfoReturnable<Integer> cir) {
         NpcRespawnLog.expectReset("command /noppes npc reset, by " + context.getSource().getTextName(), true);

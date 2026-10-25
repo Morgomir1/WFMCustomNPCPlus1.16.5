@@ -19,15 +19,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = CmdClone.class, remap = false)
 public abstract class CmdCloneSpawnLogMixin {
 
-    @Inject(method = "spawnClone", at = @At("HEAD"), require = 1)
+    @Inject(method = "spawnClone", at = @At("HEAD"))
     private static void cnpc$nameCommandSpawn(final CommandContext<CommandSource> context, final BlockPos pos,
             final String newName, final CallbackInfo ci) {
         NpcRespawnLog.expectSpawn("command /noppes clone, by " + context.getSource().getTextName(), true);
     }
 
     @ModifyArg(method = "spawnClone", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/world/World;addFreshEntity(Lnet/minecraft/entity/Entity;)Z", remap = true),
-            require = 1)
+            target = "Lnet/minecraft/world/World;addFreshEntity(Lnet/minecraft/entity/Entity;)Z", remap = true))
     private static Entity cnpc$logCommandSpawn(final Entity entity) {
         NpcRespawnLog.onSpawn(entity);
         return entity;

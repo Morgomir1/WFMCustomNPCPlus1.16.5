@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class NpcResetPacketLogMixin extends PacketServerBasic {
 
     @Inject(method = "handle()V", at = @At(value = "INVOKE",
-            target = "Lnoppes/npcs/entity/EntityNPCInterface;reset()V"), require = 1)
+            target = "Lnoppes/npcs/entity/EntityNPCInterface;reset()V"))
     private void cnpc$logWandReset(final CallbackInfo ci) {
         final String how = (Object) this instanceof SPacketRemoteNpcReset ? "wand remote Reset" : "wand menu closed";
         NpcRespawnLog.expectReset(how + ", player " + this.player.getName().getString(), true);

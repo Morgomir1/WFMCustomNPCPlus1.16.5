@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(EntityNPCInterface.class)
 public abstract class EntityNPCInterfaceSmoothTurnMixin {
 
-    @Inject(method = "updateTasks", at = @At("RETURN"))
+    @Inject(method = "updateTasks", at = @At("RETURN"), remap = false)
     private void cnpc$reapplySmoothTurn(final CallbackInfo ci) {
         NpcTurnHelper.ensureInstalled((MobEntity) (Object) this);
     }

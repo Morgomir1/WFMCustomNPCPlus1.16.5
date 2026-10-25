@@ -97,6 +97,7 @@ public final class JumpSlamAbility implements CnpcAbility {
             settleJumpLanding(active, ctx, end);
             ctx.npc.setPosition(active.ex, active.ey, active.ez);
             ctx.npc.setRotation(active.yaw);
+            AbilityCombatHelper.clearFallDistance(ctx.npc);
             doLanding(active, ctx);
             return TickResult.FINISHED;
         }
@@ -117,12 +118,14 @@ public final class JumpSlamAbility implements CnpcAbility {
             settleJumpLanding(active, ctx, point);
             ctx.npc.setPosition(active.ex, active.ey, active.ez);
             ctx.npc.setRotation(active.yaw);
+            AbilityCombatHelper.clearFallDistance(ctx.npc);
             doLanding(active, ctx);
             return TickResult.FINISHED;
         }
 
         ctx.npc.setPosition(point[0], point[1], point[2]);
         ctx.npc.setRotation(active.yaw);
+        AbilityCombatHelper.clearFallDistance(ctx.npc);
         AbilityVfx.spawnJumpTrail(ctx.world, point[0], point[1], point[2]);
         active.ticksLeft--;
         return TickResult.CONTINUE;

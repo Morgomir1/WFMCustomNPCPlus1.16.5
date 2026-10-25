@@ -79,6 +79,20 @@ public final class AbilityCombatHelper {
         }
     }
 
+    /** Reset vanilla fallDistance so scripted jumps do not self-damage on land. */
+    public static void clearFallDistance(final IEntityLiving entity) {
+        if (entity == null) {
+            return;
+        }
+        try {
+            final Object mc = entity.getMCEntity();
+            if (mc instanceof Entity) {
+                ((Entity) mc).fallDistance = 0.0F;
+            }
+        } catch (final Exception ignored) {
+        }
+    }
+
     public static void zeroHorizontalMotion(final IEntityLiving npc) {
         try {
             npc.setMotionX(0.0);

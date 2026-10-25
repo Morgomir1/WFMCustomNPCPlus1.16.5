@@ -127,7 +127,8 @@ function tick(e) {
     if (hsGet(npc, "b1_haul", "0") == "1") return;
     var leap = hsGet(npc, "b1_leap", "");
     if (leap != "") {
-        gLeapStep(npc);
+        // stomp — jump_slam (AbilityAPI). roar — ручная дуга к центру.
+        if (leap == "roar") gLeapStep(npc);
         return;
     }
     // На кабане — только колья; рёв/клич/прыжки выключены.
@@ -482,7 +483,7 @@ function gBusy(npc) {
     return false;
 }
 
-/** Удар у ног + прыжок на игроков (ф1 — лимит дальности, ф3 — полный). Не кастует при рёве/ритуале. */
+/** Удар у ног + jump_slam на игрока (ф1 — maxRange, ф3 — полный). Не кастует при рёве/ритуале. */
 function gStompTry(npc) {
     if (gBusy(npc)) return;
     if (hsGet(npc, "b1_mounted", "0") == "1") return;
@@ -493,18 +494,16 @@ function gStompTry(npc) {
     var x = npc.getX();
     var y = npc.getY();
     var z = npc.getZ();
-    var maxDist = gShouldFight(npc) ? 0 : G_STOMP_LEAP_MAX_P1;
-    var dest = gStompDestOnto(npc, maxDist);
+    var target = gStompPickTarget(npc);
     hsPut(npc, "b1_stomp", 1);
     hsPut(npc, "b1_stomp_x", x);
     hsPut(npc, "b1_stomp_y", y);
     hsPut(npc, "b1_stomp_z", z);
     hsPut(npc, "b1_stomp_at", now + G_STOMP_CD);
-    if (dest != null) {
+    if (target != null) {
         hsPut(npc, "b1_stomp_leap", 1);
-        hsPut(npc, "b1_stomp_lx", dest[0]);
-        hsPut(npc, "b1_stomp_lz", dest[1]);
-        TelegraphAPI.circleAt(npc, dest[0], y, dest[1], G_STOMP_R, G_STOMP_CHARGE + G_LEAP_TICKS, HS.RED);
+        var warn = gStompLeapAim(npc, target);
+        TelegraphAPI.circleAt(npc, warn[0], y, warn[1], G_STOMP_R, G_STOMP_CHARGE + G_LEAP_TICKS, HS.RED);
     } else {
         hsPut(npc, "b1_stomp_leap", 0);
     }
@@ -515,7 +514,7 @@ function gStompTry(npc) {
     Combat.holdInPlace(npc, x, y, z);
     npc.getTimers().forceStart(B1_T_STOMP, G_STOMP_CHARGE, false);
     npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", G_STOMP_SOUND_VOL, G_STOMP_SOUND_PITCH);
-    if (dest != null) b1Say(npc, "Грул бьёт землю и прыгает на добычу!");
+    if (target != null) b1Say(npc, "Грул бьёт землю и прыгает на добычу!");
     else b1Say(npc, "Грул бьёт копытом о землю!");
 }
 
@@ -532,10 +531,8 @@ function gStompHit(npc) {
     }
     gStompBlast(npc, x, y, z);
     if (hsGet(npc, "b1_stomp_leap", "0") == "1") {
-        var lx = hsNum(npc, "b1_stomp_lx");
-        var lz = hsNum(npc, "b1_stomp_lz");
         hsPut(npc, "b1_stomp_leap", 0);
-        if (gStartLeap(npc, lx, lz, "stomp")) return;
+        if (gStartStompLeap(npc, gStompPickTarget(npc))) return;
     }
     gApplyAi(npc);
 }
@@ -551,8 +548,8 @@ function gStompBlast(npc, x, y, z) {
     npc.getWorld().playSoundAt(NpcAPI.getIPos(x, y, z), "minecraft:entity.generic.explode", G_STOMP_HIT_VOL, G_STOMP_HIT_PITCH);
 }
 
-/** Точка у ближайшего игрока. maxDist > 0 — обрезать прыжок по дальности (фаза 1). */
-function gStompDestOnto(npc, maxDist) {
+/** Ближайший игрок на арене. */
+function gStompPickTarget(npc) {
     var ps = hsPlayers(npc);
     if (ps == null || ps.length == 0) return null;
     var nearest = ps[0];
@@ -565,17 +562,67 @@ function gStompDestOnto(npc, maxDist) {
             nearest = ps[i];
         }
     }
-    var tx = nearest.getX();
-    var tz = nearest.getZ();
-    if (maxDist > 0 && best > maxDist) {
+    return nearest;
+}
+
+/** Точка приземления для telegraph (с учётом лимита ф1). */
+function gStompLeapAim(npc, target) {
+    var maxDist = gShouldFight(npc) ? 0 : G_STOMP_LEAP_MAX_P1;
+    var tx = target.getX();
+    var tz = target.getZ();
+    var dist = hsFlat(npc, tx, tz);
+    if (maxDist > 0 && dist > maxDist) {
         var dx = tx - npc.getX();
         var dz = tz - npc.getZ();
         var len = Math.sqrt(dx * dx + dz * dz);
-        if (len < 0.05) return null;
-        tx = npc.getX() + dx / len * maxDist;
-        tz = npc.getZ() + dz / len * maxDist;
+        if (len >= 0.05) {
+            tx = npc.getX() + dx / len * maxDist;
+            tz = npc.getZ() + dz / len * maxDist;
+        }
     }
     return gClampArena(npc, tx, tz);
+}
+
+/** Прыжок стомпа через AbilityAPI jump_slam (как посадка на кабана). */
+function gStartStompLeap(npc, target) {
+    if (target == null || !target.isAlive()) return false;
+    if (AbilityAPI.isBusy(npc) || hsGet(npc, "b1_leap", "") != "") return false;
+    var charge = 1;
+    var active = G_LEAP_TICKS;
+    var maxRange = gShouldFight(npc) ? 48 : G_STOMP_LEAP_MAX_P1;
+    var now = hsNow(npc);
+    hsPut(npc, "b1_leap", "stomp");
+    hsPut(npc, "b1_leap_from", now);
+    hsPut(npc, "immune_until", now + charge + active + 20);
+    if (!hsStart(npc, "jump_slam", target, AbilityAPI.params(
+            "chargeTicks", charge,
+            "activeTicks", active,
+            "landRadius", G_STOMP_R,
+            "damage", 0,
+            "arcHeight", G_LEAP_ARC,
+            "maxRange", maxRange,
+            "knockback", 0,
+            "knockbackY", 0
+        ))) {
+        hsPut(npc, "b1_leap", "");
+        return false;
+    }
+    npc.getAi().setWalkingSpeed(0);
+    npc.getAi().setRetaliateType(3);
+    npc.getTimers().forceStart(B1_T_LEAP, charge + active + 2, false);
+    return true;
+}
+
+function gStompLeapLand(npc) {
+    if (hsGet(npc, "b1_leap", "") != "stomp") return;
+    hsPut(npc, "b1_leap", "");
+    gClearFall(npc);
+    if (!npc.isAlive()) {
+        b1Release(npc);
+        return;
+    }
+    gStompBlast(npc, npc.getX(), npc.getY(), npc.getZ());
+    b1Release(npc);
 }
 
 function gKnock(p, cx, cz, str, lift) {
@@ -597,18 +644,19 @@ function gKnock(p, cx, cz, str, lift) {
 
 function gStartLeap(npc, x, z, mode) {
     if (hsGet(npc, "b1_leap", "") != "") return false;
+    if (AbilityAPI.isBusy(npc)) return false;
     var spot = gClampArena(npc, x, z);
+    var now = hsNow(npc);
     hsPut(npc, "b1_leap", mode);
     hsPut(npc, "b1_leap_x", spot[0]);
     hsPut(npc, "b1_leap_z", spot[1]);
     hsPut(npc, "b1_leap_sx", npc.getX());
     hsPut(npc, "b1_leap_sy", npc.getY());
     hsPut(npc, "b1_leap_sz", npc.getZ());
-    hsPut(npc, "b1_leap_from", hsNow(npc));
+    hsPut(npc, "b1_leap_from", now);
+    hsPut(npc, "immune_until", now + G_LEAP_TICKS + 20);
     var color = mode == "roar" ? HS.PURPLE : HS.RED;
-    var radius = G_LEAP_R_OTHER;
-    if (mode == "roar") radius = G_LEAP_R_ROAR;
-    else if (mode == "stomp") radius = G_STOMP_R;
+    var radius = mode == "roar" ? G_LEAP_R_ROAR : G_LEAP_R_OTHER;
     TelegraphAPI.circleAt(npc, spot[0], npc.getY(), spot[1], radius, G_LEAP_TICKS, color);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
@@ -654,22 +702,19 @@ function gLeapEnd(npc, landed) {
         gRoarNow(npc);
         return;
     }
-    if (mode == "stomp") {
-        gStompBlast(npc, npc.getX(), npc.getY(), npc.getZ());
-        b1Release(npc);
-        return;
-    }
     var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), G_LEAP_LAND_R);
     for (var i = 0; i < ps.length; i++) hsStrike(ps[i], G_LEAP_LAND_PCT);
     b1Release(npc);
 }
 
-/** Сброс fallDistance — иначе дуга прыжка даёт урон от падения. */
+/** Сброс fallDistance (роар-дуга; стомп идёт через jump_slam + immune_until). */
 function gClearFall(npc) {
-    try {
-        var mc = npc.getMCEntity();
-        if (mc != null) mc.fallDistance = 0.0;
-    } catch (err) {}
+    try { Combat.clearFallDistance(npc); } catch (err) {
+        try {
+            var mc = npc.getMCEntity();
+            if (mc != null) mc.fallDistance = 0.0;
+        } catch (err2) {}
+    }
 }
 
 function gSqueal(npc, ps) {
@@ -742,6 +787,10 @@ function timer(e) {
         return;
     }
     if (e.id == B1_T_LEAP) {
+        if (hsGet(npc, "b1_leap", "") == "stomp") {
+            gStompLeapLand(npc);
+            return;
+        }
         gLeapStep(npc);
     }
 }

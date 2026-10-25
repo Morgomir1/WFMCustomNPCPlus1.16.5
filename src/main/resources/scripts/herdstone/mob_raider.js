@@ -1,5 +1,5 @@
 // Унгор-рейдер. Третий файл после hs_mob.js.
-// Ближе FLEE_DIST отступает, иначе стоит и кидает сеть (NET_MIN–NET_MAX).
+// Ближе FLEE_DIST отступает, иначе стоит и кидает 3 сети рядом с игроком (NET_MIN–NET_MAX).
 // Пока идёт каст сети или рывок клича — AI не трогаем.
 
 // --- НАСТРОЙКИ СПОСОБНОСТЕЙ ---
@@ -7,12 +7,14 @@ var RETALIATE_RETREAT = 2;
 var RETALIATE_NONE = 3;
 var RAIDER_SPEED = 6;
 var FLEE_DIST = 9;
-// Сеть (net_throw)
+// Сеть (net_throw): 3 точки около цели, полёт дольше (activeTicks ×2 от старых 8)
 var NET_CD = 130;
 var NET_MIN = 6;
 var NET_MAX = 24;
 var NET_CHARGE = 8;
-var NET_ACTIVE = 8;
+var NET_ACTIVE = 16;
+var NET_COUNT = 3;
+var NET_SPREAD = 3.2;
 var NET_R = 2.2;
 var NET_EFFECT = 100;
 var NET_COLOR = 0xC0D8C090 | 0;
@@ -27,8 +29,11 @@ CASTS = [
           return AbilityAPI.params(
               "chargeTicks", NET_CHARGE,
               "activeTicks", NET_ACTIVE,
+              "summonCount", NET_COUNT,
+              "spreadRadius", NET_SPREAD,
               "radius", NET_R,
               "effectDuration", NET_EFFECT,
+              "telegraph", 0,
               "telegraphColor", NET_COLOR
           );
       } }

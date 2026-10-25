@@ -51,6 +51,8 @@ public final class AbilityDefaults {
         map.put(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
         map.put(AbilityParamKeys.PROJECTILE_ITEM, "wfm:dwarf_ranger_net");
         map.put(AbilityParamKeys.ACCURACY, 2);
+        map.put(AbilityParamKeys.SUMMON_COUNT, 1);
+        map.put(AbilityParamKeys.SPREAD_RADIUS, 0.0);
         return map;
     }
 

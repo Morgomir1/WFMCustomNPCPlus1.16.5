@@ -1,7 +1,7 @@
 // Грул Кабанья Рука (Б1). В контейнере третьим файлом: hs_core.js, hs_b1.js, этот файл.
 // Цикл 45 с: рёв и колья. Фаза 2 — прыжок на кабана. Фаза 3 — клич и ритуал.
-// Пока кабан жив — кит + удар по земле. Без кабана (ф3) — мили + тот же удар.
-// Сети кидают унгоры-рейдеры (mob_raider.js).
+// Удар по земле: удар у ног + прыжок на игроков (ф1 — ограничена дальность, ф3 один — без лимита).
+// Во время рёва и ритуала стомп не кастует. Сети — унгоры-рейдеры (mob_raider.js).
 HS.BASE_HP = 300;
 HS.ARENA = { shape: "rect", hw: 22, hd: 19 };
 HS.ENRAGE_SEC = 240;
@@ -37,7 +37,7 @@ var G_ARENA_PAD = 2;
 var G_STAKE_R = 1.8;
 var G_STAKE_CHARGE = 60;
 var G_ARM_CANCEL = 0.05;       // доля max HP для срыва каста кола
-// Удар по земле
+// Удар по земле + прыжок
 var G_STOMP_R = 4.5;
 var G_STOMP_CHARGE = 30;
 var G_STOMP_CD = 100;
@@ -48,6 +48,7 @@ var G_STOMP_SOUND_VOL = 1.4;
 var G_STOMP_SOUND_PITCH = 0.75;
 var G_STOMP_HIT_VOL = 1.6;
 var G_STOMP_HIT_PITCH = 0.7;
+var G_STOMP_LEAP_MAX_P1 = 10;  // ф1: макс. дальность прыжка на игрока (ф3 — без лимита)
 // Прыжок к центру перед рёвом
 var G_LEAP_TICKS = 24;
 var G_LEAP_ARC = 3.2;
@@ -101,6 +102,7 @@ function init(e) {
     hsPut(npc, "b1_squeal", 0);
     hsPut(npc, "b1_stomp", 0);
     hsPut(npc, "b1_stomp_at", 0);
+    hsPut(npc, "b1_stomp_leap", 0);
     b1ResetWorld(npc);
     gApplyAi(npc);
 }
@@ -124,7 +126,7 @@ function tick(e) {
     b1EdgeTick(npc, ps);
     if (hsGet(npc, "b1_haul", "0") == "1") return;
     var leap = hsGet(npc, "b1_leap", "");
-    if (leap == "roar") {
+    if (leap != "") {
         gLeapStep(npc);
         return;
     }
@@ -135,6 +137,12 @@ function tick(e) {
     }
     if (hsGet(npc, "b1_stomp", "0") == "1") {
         Combat.holdInPlace(npc, hsNum(npc, "b1_stomp_x"), hsNum(npc, "b1_stomp_y"), hsNum(npc, "b1_stomp_z"));
+        return;
+    }
+    if (npc.getTimers().has(B1_T_ROAR)) {
+        Combat.holdInPlace(npc, hsNum(npc, "b1_roar_x"), hsNum(npc, "b1_roar_y"), hsNum(npc, "b1_roar_z"));
+        npc.getAi().setWalkingSpeed(0);
+        npc.getAi().setRetaliateType(3);
         return;
     }
     gCycle(npc, ps);
@@ -156,6 +164,7 @@ function gApplyAi(npc) {
     if (hsGet(npc, "b1_stomp", "0") == "1") return;
     if (hsGet(npc, "b1_leap", "") != "") return;
     if (hsGet(npc, "b1_ritual", "0") == "1") return;
+    if (npc.getTimers().has(B1_T_ROAR)) return;
     if (gShouldFight(npc)) {
         var speed = hsNum(npc, "base_speed");
         if (!(speed > 0)) speed = G_BASE_SPEED;
@@ -204,6 +213,7 @@ function gSanity(npc) {
     }
     if (hsGet(npc, "b1_stomp", "0") == "1" && !npc.getTimers().has(B1_T_STOMP)) {
         hsPut(npc, "b1_stomp", 0);
+        hsPut(npc, "b1_stomp_leap", 0);
         gApplyAi(npc);
     }
     if (hsGet(npc, "b1_mounted", "0") == "1" && AbilityAPI.isBusy(npc)) {
@@ -270,11 +280,16 @@ function gRoarNow(npc) {
     var from = hsNum(npc, "b1_cycle_from");
     var loop = hsNum(npc, "b1_cycle_loop");
     b1WPut(npc, "hs_b1_next_roar", from + (loop + 1) * G_CYCLE_LEN);
+    hsPut(npc, "b1_roar_x", npc.getX());
+    hsPut(npc, "b1_roar_y", npc.getY());
+    hsPut(npc, "b1_roar_z", npc.getZ());
     if (hsGet(npc, "b1_mounted", "0") == "1") {
         b1InterruptDash(b1Other(npc));
     } else {
         npc.getAi().setWalkingSpeed(0);
         npc.getAi().setRetaliateType(3);
+        Combat.stopNavigation(npc);
+        Combat.holdInPlace(npc, npc.getX(), npc.getY(), npc.getZ());
     }
     TelegraphAPI.ring(npc, npc.getX(), npc.getY(), npc.getZ(), B1_ROAR_R, G_ROAR_RING_W, G_ROAR_TICKS, HS.PURPLE);
     npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", G_ROAR_SOUND_VOL, G_ROAR_SOUND_PITCH);
@@ -467,21 +482,32 @@ function gBusy(npc) {
     return false;
 }
 
-/** Удар по земле у ног: telegraph → большой % HP + радиальное откидывание. */
+/** Удар у ног + прыжок на игроков (ф1 — лимит дальности, ф3 — полный). Не кастует при рёве/ритуале. */
 function gStompTry(npc) {
     if (gBusy(npc)) return;
     if (hsGet(npc, "b1_mounted", "0") == "1") return;
     if (hsGet(npc, "b1_arm", "0") == "1") return;
+    if (hsGet(npc, "b1_ritual", "0") == "1") return;
     var now = hsNow(npc);
     if (now < hsNum(npc, "b1_stomp_at")) return;
     var x = npc.getX();
     var y = npc.getY();
     var z = npc.getZ();
+    var maxDist = gShouldFight(npc) ? 0 : G_STOMP_LEAP_MAX_P1;
+    var dest = gStompDestOnto(npc, maxDist);
     hsPut(npc, "b1_stomp", 1);
     hsPut(npc, "b1_stomp_x", x);
     hsPut(npc, "b1_stomp_y", y);
     hsPut(npc, "b1_stomp_z", z);
     hsPut(npc, "b1_stomp_at", now + G_STOMP_CD);
+    if (dest != null) {
+        hsPut(npc, "b1_stomp_leap", 1);
+        hsPut(npc, "b1_stomp_lx", dest[0]);
+        hsPut(npc, "b1_stomp_lz", dest[1]);
+        TelegraphAPI.circleAt(npc, dest[0], y, dest[1], G_STOMP_R, G_STOMP_CHARGE + G_LEAP_TICKS, HS.RED);
+    } else {
+        hsPut(npc, "b1_stomp_leap", 0);
+    }
     TelegraphAPI.circleAt(npc, x, y, z, G_STOMP_R, G_STOMP_CHARGE, HS.RED);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
@@ -489,7 +515,8 @@ function gStompTry(npc) {
     Combat.holdInPlace(npc, x, y, z);
     npc.getTimers().forceStart(B1_T_STOMP, G_STOMP_CHARGE, false);
     npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.ravager.roar", G_STOMP_SOUND_VOL, G_STOMP_SOUND_PITCH);
-    b1Say(npc, "Грул бьёт копытом о землю!");
+    if (dest != null) b1Say(npc, "Грул бьёт землю и прыгает на добычу!");
+    else b1Say(npc, "Грул бьёт копытом о землю!");
 }
 
 function gStompHit(npc) {
@@ -503,14 +530,52 @@ function gStompHit(npc) {
         y = npc.getY();
         z = npc.getZ();
     }
+    gStompBlast(npc, x, y, z);
+    if (hsGet(npc, "b1_stomp_leap", "0") == "1") {
+        var lx = hsNum(npc, "b1_stomp_lx");
+        var lz = hsNum(npc, "b1_stomp_lz");
+        hsPut(npc, "b1_stomp_leap", 0);
+        if (gStartLeap(npc, lx, lz, "stomp")) return;
+    }
+    gApplyAi(npc);
+}
+
+/** Урон и откидывание в круге стомпа. */
+function gStompBlast(npc, x, y, z) {
     var ps = hsPlayersAt(npc, x, y, z, G_STOMP_R);
     for (var i = 0; i < ps.length; i++) {
         var p = ps[i];
         hsStrike(p, G_STOMP_PCT);
         gKnock(p, x, z, G_STOMP_KB, G_STOMP_KB_Y);
     }
-    npc.getWorld().playSoundAt(npc.getPos(), "minecraft:entity.generic.explode", G_STOMP_HIT_VOL, G_STOMP_HIT_PITCH);
-    gApplyAi(npc);
+    npc.getWorld().playSoundAt(NpcAPI.getIPos(x, y, z), "minecraft:entity.generic.explode", G_STOMP_HIT_VOL, G_STOMP_HIT_PITCH);
+}
+
+/** Точка у ближайшего игрока. maxDist > 0 — обрезать прыжок по дальности (фаза 1). */
+function gStompDestOnto(npc, maxDist) {
+    var ps = hsPlayers(npc);
+    if (ps == null || ps.length == 0) return null;
+    var nearest = ps[0];
+    var best = hsFlat(npc, nearest.getX(), nearest.getZ());
+    var i;
+    for (i = 1; i < ps.length; i++) {
+        var dist = hsFlat(npc, ps[i].getX(), ps[i].getZ());
+        if (dist < best) {
+            best = dist;
+            nearest = ps[i];
+        }
+    }
+    var tx = nearest.getX();
+    var tz = nearest.getZ();
+    if (maxDist > 0 && best > maxDist) {
+        var dx = tx - npc.getX();
+        var dz = tz - npc.getZ();
+        var len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.05) return null;
+        tx = npc.getX() + dx / len * maxDist;
+        tz = npc.getZ() + dz / len * maxDist;
+    }
+    return gClampArena(npc, tx, tz);
 }
 
 function gKnock(p, cx, cz, str, lift) {
@@ -541,7 +606,9 @@ function gStartLeap(npc, x, z, mode) {
     hsPut(npc, "b1_leap_sz", npc.getZ());
     hsPut(npc, "b1_leap_from", hsNow(npc));
     var color = mode == "roar" ? HS.PURPLE : HS.RED;
-    var radius = mode == "roar" ? G_LEAP_R_ROAR : G_LEAP_R_OTHER;
+    var radius = G_LEAP_R_OTHER;
+    if (mode == "roar") radius = G_LEAP_R_ROAR;
+    else if (mode == "stomp") radius = G_STOMP_R;
     TelegraphAPI.circleAt(npc, spot[0], npc.getY(), spot[1], radius, G_LEAP_TICKS, color);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
@@ -551,7 +618,7 @@ function gStartLeap(npc, x, z, mode) {
 }
 
 function gLeapStep(npc) {
-    if (hsGet(npc, "b1_leap", "") != "roar") return;
+    if (hsGet(npc, "b1_leap", "") == "") return;
     if (!npc.isAlive() || hsGet(npc, "stun", "0") == "1") {
         gLeapEnd(npc, false);
         return;
@@ -564,6 +631,7 @@ function gLeapStep(npc) {
     var z = hsNum(npc, "b1_leap_sz") + (hsNum(npc, "b1_leap_z") - hsNum(npc, "b1_leap_sz")) * t;
     var y = hsNum(npc, "b1_leap_sy") + Math.sin(t * Math.PI) * G_LEAP_ARC;
     npc.setPosition(x, y, z);
+    gClearFall(npc);
     Combat.stopNavigation(npc);
     npc.getAi().setWalkingSpeed(0);
     npc.getAi().setRetaliateType(3);
@@ -575,17 +643,33 @@ function gLeapEnd(npc, landed) {
     npc.getTimers().stop(B1_T_LEAP);
     var mode = hsGet(npc, "b1_leap", "");
     hsPut(npc, "b1_leap", "");
+    gClearFall(npc);
     if (!landed || !npc.isAlive()) {
         b1Release(npc);
         return;
     }
     npc.setPosition(hsNum(npc, "b1_leap_x"), hsNum(npc, "b1_leap_sy"), hsNum(npc, "b1_leap_z"));
-    if (mode == "roar") gRoarNow(npc);
-    else {
-        var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), G_LEAP_LAND_R);
-        for (var i = 0; i < ps.length; i++) hsStrike(ps[i], G_LEAP_LAND_PCT);
-        b1Release(npc);
+    gClearFall(npc);
+    if (mode == "roar") {
+        gRoarNow(npc);
+        return;
     }
+    if (mode == "stomp") {
+        gStompBlast(npc, npc.getX(), npc.getY(), npc.getZ());
+        b1Release(npc);
+        return;
+    }
+    var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), G_LEAP_LAND_R);
+    for (var i = 0; i < ps.length; i++) hsStrike(ps[i], G_LEAP_LAND_PCT);
+    b1Release(npc);
+}
+
+/** Сброс fallDistance — иначе дуга прыжка даёт урон от падения. */
+function gClearFall(npc) {
+    try {
+        var mc = npc.getMCEntity();
+        if (mc != null) mc.fallDistance = 0.0;
+    } catch (err) {}
 }
 
 function gSqueal(npc, ps) {

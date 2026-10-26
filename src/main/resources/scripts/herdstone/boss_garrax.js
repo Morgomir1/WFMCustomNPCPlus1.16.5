@@ -1,41 +1,746 @@
-// Гарракс Расколотый Рог (Б4). В контейнере вторым после hs_core.js.
-// Круг D3, r 26. Фазы в storeddata: 1 → 2 → 2b → 3.
+// Гарракс Расколотый Рог (Б4), думбулл с двумя топорами. В контейнере вторым после hs_core.js.
+// Финал данжа и бой против него самого: неуязвимых фаз, сердец и кристаллов нет, бить можно всегда.
+// Сложность — в темпе и связках; окна — когда он шатается после вихря и когда оба топора в полёте.
+// Фаза 1 (выше 66%): перекрёстный удар (слева, справа, третий — накрест прямо перед собой), вихрь,
+//   Раскол — волна по полосе перед ним с оглушением WFM, за ней рывок в оглушённого; рывок к дальнему.
+// Фаза 2 (66–33%): плюс бросок топора-бумеранга (пока топор летит — размах оставшимся вокруг себя)
+//   и прыжок на Камень Стада: от Камня бегут кольца по земле (прыгать), по трём жёлобам течёт кровь.
+// Фаза 3 (33% и ниже), Ночь Тайн: всё на треть чаще, вихрь длиннее и кончается Расколом в три стороны,
+//   оба топора в полёт (безоружен — топчет), варп-молнии всё гуще; раз в минуту удары на 15% сильнее.
+// Обычной атаки мода нет (meleeAttack отменяется): он идёт к цели, а бьёт скриптом.
 // setSize меняет и GeckoLib: RenderCustomNpc.scale умножает модель на 0.2 * size.
 // Устье — пробка, которую ставит строитель, а не всё кольцо барьера.
 // Кольцо (y входа +1…+4, между r+1 и r+3) остаётся. Скрипт открывает только
 // южный проём 3×3×3: cx-1…+1, y1+1…+3, cz+27…+29. Плюс столбик у выхода на винт.
-HS.BASE_HP = 900;
+HS.BASE_HP = 1800;
 HS.CAP = 14;
 HS.ARENA_R = 26;
-HS.ENRAGE_SEC = 600;
-ORIGIN = [230, 8, 602];    // мировой блок пола. Сдвинул данж — впиши центр этой арены
+HS.ENRAGE_SEC = 99999;   // мягкая ярость ядра выключена — своя, rageTick
+HS.DISPEL_SEC = 99999;   // «Рёв Стада» ядра снимал бы и оглушение Раскола
+ORIGIN = [-373274, 29, -12965];   // мировой блок пола в центре арены (вход данжа -373504, 101, -13567). Сдвинул данж — впиши свой
 GATE = hsBox(-32, 0, 10, 1, 2, 1);
 GATE = GATE.concat(hsBox(-1, 73, 27, 3, 3, 3));
 GATE_BLOCK = "minecraft:barrier";
-SUMMONS = ["Гор (призыв)"];
+// Прежний Гарракс звал горов, сердца и кристаллы; init снимает остатки, если они есть.
+SUMMONS = ["Гор (призыв)", "Сердце жёлоба", "Варп-кристалл"];
 
-var HEARTS = [ [0, 0, 22], [-19, 0, -13], [19, 0, -13] ];
-var CRYSTALS = [ [-10, 0, 10], [10, 0, 10], [-10, 0, -10], [10, 0, -10] ];
-var HEART = "Сердце жёлоба", CRYSTAL = "Варп-кристалл", ADD = "Гор (призыв)";
-var HEARTS_TICKS = 900;
-var ADD_CAP = 6;
-var T_HIT = 1, T_BRAND = 2, T_HEARTS = 3, T_CIRCLES = 4;
+// Цвет «предупреждения» библиотеки подсказок: в конце жизни она перекрашивает подсказку в него,
+// так что короткие подсказки этого цвета не мигают.
+var RED = 0xC0FF0000 | 0;
+var STUN_ID = "wfm:stun";
+var OPEN_MUL = 1.5;          // урон по нему, пока шатается или безоружен
+var RAGE_EVERY = 1200, RAGE_STEP = 0.15;
+
+// Перекрёстный удар: слева и справа (конусы, повёрнутые на COMBO_SIDE), третий — накрест по полосе.
+var COMBO_RANGE = 5, COMBO_LEN = 5.5, COMBO_SIDE = 35, COMBO_HALF = 55, COMBO_PCT = 0.2;
+var COMBO_T1 = 12, COMBO_T2 = 8, COMBO_T3 = 14, COMBO_RECOVER = 12, COMBO_CD = 60;
+var CROSS_LEN = 7, CROSS_W = 1.3, CROSS_PCT = 0.45;
+// Вихрь — weapon_spin обоими топорами, ползёт к цели; после — шатается.
+var SPIN_CHARGE = 20, SPIN_ACTIVE = 60, SPIN_ACTIVE3 = 90, SPIN_R = 4.0, SPIN_DMG = 2.0;
+var SPIN_APPROACH = 0.45, SPIN_CD = 360, DIZZY_TICKS = 30;
+// Раскол: полоса шириной 6 и длиной 18, волна бежит по ней по 2 блока за 2 тика.
+var QUAKE_CHARGE = 22, QUAKE_CHARGE_FAST = 12, QUAKE_LEN = 18, QUAKE_W = 3, QUAKE_STEP = 2;
+var QUAKE_PCT = 0.25, QUAKE_STUN = 40, QUAKE_CD = 300, QUAKE_RECOVER = 10;
+// Рывок с ударом: к самому дальнему (или к оглушённому Расколом), в конце — круг вокруг себя.
+var DASH_CHARGE = 18, DASH_CHARGE_FOLLOW = 10, FOLLOW_DASH_DELAY = 4;
+var DASH_ACTIVE = 8, DASH_MIN = 6, DASH_MAX = 22, DASH_W = 1.5, DASH_DMG = 6.0;
+var DASH_HIT_R = 3, DASH_PCT = 0.35, DASH_CD = 240, DASH_RECOVER = 10, DASH_MIN_TARGET = 7;
+// Бросок топора (axe_throw, бумеранг на THROW_LEN) и размах оставшимся вокруг себя.
+var THROW_CHARGE = 10, THROW_OUT = 14, THROW_HOLD = 4, THROW_BACK = 10, THROW_LEN = 20, THROW_HIT_R = 1.5;
+var THROW_MIN = 6, THROW_PCT = 0.2, THROW_CD = 240;
+var QUICK_T = 8, SWEEP_AT = THROW_CHARGE + 6, SWEEP_R = 4, SWEEP_PCT = 0.25;
+// Прыжок на Камень, кольца по земле и кровь в жёлобах.
+var LEAP_CHARGE = 30, LEAP_R = 3, LEAP_PCT = 0.3, LEAP_CD = 520, LEAP_RECOVER = 20;
+var RINGS = 3, RING_GAP = 16, RING_EVERY = 2, RING_STEP = 1, RING_PCT = 0.2, RING_JUMP = 0.5, RING_TICKS = 4;
+var BLOOD_WARN = 20, BLOOD_TICKS = 160, BLOOD_W = 1.5, BLOOD_PCT = 0.05;
+// Жёлобы от Камня к сердцам — как их кладёт строитель (chan_n, chan_sw, chan_se), от центра арены.
+var CHANNELS = [ [0, 22], [-19, -13], [19, -13] ];
+// Оба топора в полёт: настоящий axe_throw в одного, второй топор скриптом; безоружен — топчет.
+var STORM_LEN = 20, STORM_HIT_R = 1.5, STORM_PCT = 0.2, STORM_CD = 400, STORM_SPREAD = 25;
+var STOMP_AT = 4, STOMP_R = 3.5, STOMP_PCT = 0.3;
+// Варп-молнии Ночи Тайн: подсказка, затем удар; число растёт.
+var BOLTS_EVERY = 80, BOLT_WARN = 30, BOLT_R = 2.5, BOLT_PCT = 0.3, BOLTS_MIN = 2, BOLTS_MAX = 6, BOLTS_GROW = 400;
+
+var T_HOLD = 1, T_COMBO = 2, T_SPIN_END = 3, T_QUAKE = 4, T_QUAKE_STEP = 5, T_DASH_END = 6;
+var T_QUICK = 7, T_LEAP = 8, T_RINGS = 9, T_BLOOD = 10, T_STORM = 11, T_STOMP = 12;
+var T_BOLTS = 13, T_FORCE_DASH = 14, T_RECOVER = 15, T_SWEEP = 16;
+var ALL_TIMERS = [T_HOLD, T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END, T_QUICK, T_LEAP, T_RINGS,
+    T_BLOOD, T_STORM, T_STOMP, T_BOLTS, T_FORCE_DASH, T_RECOVER, T_SWEEP];
+// Пока идёт любой из этих — новый приём не начинается.
+var CAST_TIMERS = [T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END, T_QUICK, T_LEAP,
+    T_FORCE_DASH, T_RECOVER];
+
+// Клипы GeckoLib-модели Гарракса. Имён в репозитории нет — пока пусто, вместо них взмахи рук.
+var ANIM = { combo: "", cross: "", spin: "", quake: "", dash: "", leap: "", dizzy: "", throwAxe: "" };
 
 function init(e) {
     var npc = e.npc;
     if (!hsInit(npc)) return;
-    hsDespawnAll(npc, HEART);
-    hsDespawnAll(npc, CRYSTAL);
     if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
     npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
     npc.getAi().setRetaliateType(0);
     npc.getDisplay().setSize(10);
-    hsPut(npc, "phase", "1");
-    hsPut(npc, "rite_done", 0);
-    hsPut(npc, "cast_at", 0);
-    hsPut(npc, "brand_at", 0);
-    hsPut(npc, "circles_at", 0);
-    hsPut(npc, "wave_at", 0);
+    npc.getStats().setResistance(3, 2.0);   // отбрасывание: 2 = не сдвигается
+    var keys = ["started", "rage", "dizzy_until", "unarmed_until", "combo_step"];
+    for (var i = 0; i < keys.length; i++) hsPut(npc, keys[i], 0);
+    hsPut(npc, "phase", 1);
+}
+
+// --- Общее ---
+
+function gPhase(npc) {
+    var hp = npc.getHealth() / npc.getMaxHealth();
+    return hp > 0.66 ? 1 : (hp > 0.33 ? 2 : 3);
+}
+
+function cd(npc, ticks) {
+    return hsNum(npc, "phase") >= 3 ? Math.round(ticks * 0.7) : ticks;
+}
+
+function gSpeed(npc) {
+    var spd = hsNum(npc, "base_speed");
+    if (hsNum(npc, "phase") >= 3) spd = Math.min(10, spd + 1);
+    return spd;
+}
+
+// Камень Стада — центр арены по ORIGIN, там сходятся жёлобы. Высота — пол под ногами Гарракса.
+function gStone(npc) {
+    var o = hsOrigin(npc);
+    return [o[0] + 0.5, o[2] + 0.5];
+}
+
+// Удары Гарракса — доля здоровья с яростью; крошечный урон через hurt даёт клиенту вздрогнуть.
+function gStrike(npc, p, pct) {
+    hsStrike(p, pct * (1 + RAGE_STEP * hsNum(npc, "rage")));
+    if (p.isAlive()) Combat.dealPureDamage(p, 0.01, true);
+}
+
+function gPush(p, ox, oz, power) {
+    p.knockback(power, Combat.computeYaw(p.getX() - ox, p.getZ() - oz));
+}
+
+// playSoundAt CustomNPCs слышен только в 16 блоках от точки, а арена радиусом 26.
+function arenaSound(npc, sound, volume, pitch) {
+    var c = hsArenaCenter(npc);
+    var list = npc.getWorld().getNearbyEntities(NpcAPI.getIPos(c[0], c[1], c[2]), HS.ARENA_R + 16, 1);
+    for (var i = 0; i < list.length; i++) list[i].playSound(sound, volume, pitch);
+}
+
+function gAnim(npc, key) {
+    var name = ANIM[key];
+    if (!name) return;
+    try {
+        npc.syncAnimationsForAll(NpcAPI.createAnimBuilder().playOnce(name));
+    } catch (err) {
+        log("garrax anim: " + err);
+    }
+}
+
+function swingBoth(npc) {
+    npc.swingMainhand();
+    npc.swingOffhand();
+}
+
+// Стоит на месте лицом в одну сторону, пока идёт приём.
+function gFreeze(npc, yaw) {
+    npc.getAi().setWalkingSpeed(0);
+    npc.getAi().setRetaliateType(3);
+    hsPut(npc, "hold_x", npc.getX());
+    hsPut(npc, "hold_y", npc.getY());
+    hsPut(npc, "hold_z", npc.getZ());
+    hsPut(npc, "hold_yaw", yaw);
+    npc.setRotation(yaw);
+    npc.getTimers().forceStart(T_HOLD, 2, true);
+}
+
+function gHold(npc) {
+    Combat.holdInPlace(npc, hsNum(npc, "hold_x"), hsNum(npc, "hold_y"), hsNum(npc, "hold_z"));
+    npc.setRotation(hsNum(npc, "hold_yaw"));
+}
+
+function gRelease(npc) {
+    npc.getTimers().stop(T_HOLD);
+    npc.getAi().setWalkingSpeed(gSpeed(npc));
+    npc.getAi().setRetaliateType(0);
+}
+
+function gRecover(npc, ticks) {
+    gFreeze(npc, npc.getRotation());
+    npc.getTimers().forceStart(T_RECOVER, ticks, false);
+}
+
+function gBusy(npc, now) {
+    if (AbilityAPI.isBusy(npc) || now < hsNum(npc, "dizzy_until")) return true;
+    var t = npc.getTimers();
+    for (var i = 0; i < CAST_TIMERS.length; i++) if (t.has(CAST_TIMERS[i])) return true;
+    return false;
+}
+
+function nearest(npc, ps, r) {
+    var best = null, bd = r;
+    for (var i = 0; i < ps.length; i++) {
+        var d = hsFlat(ps[i], npc.getX(), npc.getZ());
+        if (d <= bd) { bd = d; best = ps[i]; }
+    }
+    return best;
+}
+
+function farthest(npc, ps, r) {
+    var best = null, bd = -1;
+    for (var i = 0; i < ps.length; i++) {
+        var d = hsFlat(ps[i], npc.getX(), npc.getZ());
+        if (d > bd && d <= r) { bd = d; best = ps[i]; }
+    }
+    return best;
+}
+
+function byId(npc, id) {
+    if (id == null || String(id).length < 32) return null;
+    try {
+        var e = npc.getWorld().getEntity(String(id));
+        if (e != null && e.isAlive()) return e;
+    } catch (err) {}
+    return null;
+}
+
+// Вдоль полосы и поперёк неё от точки (x, z) по yaw.
+function along(p, x, z, yaw) {
+    var rad = (yaw + 90) * Math.PI / 180;
+    var dx = p.getX() - x, dz = p.getZ() - z;
+    return [dx * Math.cos(rad) + dz * Math.sin(rad), Math.abs(dx * Math.sin(rad) - dz * Math.cos(rad))];
+}
+
+// --- Перекрёстный удар ---
+
+function startCombo(npc, t) {
+    var yaw = hsYawTo(npc, t);
+    gFreeze(npc, yaw);
+    hsPut(npc, "combo_step", 1);
+    TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw - COMBO_SIDE, COMBO_LEN, COMBO_HALF, COMBO_T1, RED);
+    gAnim(npc, "combo");
+    npc.getTimers().forceStart(T_COMBO, COMBO_T1, false);
+}
+
+function comboStep(npc) {
+    var step = hsNum(npc, "combo_step");
+    var x = hsNum(npc, "hold_x"), y = hsNum(npc, "hold_y"), z = hsNum(npc, "hold_z"), yaw = hsNum(npc, "hold_yaw");
+    var ps = hsPlayers(npc);
+    var i;
+    if (step == 1 || step == 2) {
+        var side = step == 1 ? yaw - COMBO_SIDE : yaw + COMBO_SIDE;
+        if (step == 1) npc.swingMainhand(); else npc.swingOffhand();
+        arenaSound(npc, "minecraft:entity.player.attack.sweep", 1.0, 0.6);
+        for (i = 0; i < ps.length; i++) {
+            if (hsFlat(ps[i], x, z) <= COMBO_LEN && Combat.isInFrontCone(x, z, side, ps[i], COMBO_HALF)) gStrike(npc, ps[i], COMBO_PCT);
+        }
+        if (step == 1) {
+            hsPut(npc, "combo_step", 2);
+            TelegraphAPI.cone(npc, x, y, z, yaw + COMBO_SIDE, COMBO_LEN, COMBO_HALF, COMBO_T2, RED);
+            npc.getTimers().forceStart(T_COMBO, COMBO_T2, false);
+        } else {
+            hsPut(npc, "combo_step", 3);
+            TelegraphAPI.line(npc, x, y, z, yaw, CROSS_LEN, CROSS_W * 2, COMBO_T3, RED);
+            gAnim(npc, "cross");
+            npc.getTimers().forceStart(T_COMBO, COMBO_T3, false);
+        }
+        return;
+    }
+    swingBoth(npc);
+    arenaSound(npc, "minecraft:entity.player.attack.strong", 1.0, 0.5);
+    for (i = 0; i < ps.length; i++) {
+        if (!hsOnLine(ps[i], x, z, yaw, CROSS_LEN, CROSS_W)) continue;
+        gStrike(npc, ps[i], CROSS_PCT);
+        gPush(ps[i], x, z, 1);
+    }
+    hsPut(npc, "combo_step", 0);
+    npc.getTimers().forceStart(T_RECOVER, COMBO_RECOVER, false);
+}
+
+// --- Вихрь ---
+
+function startSpin(npc, t, phase) {
+    var active = phase >= 3 ? SPIN_ACTIVE3 : SPIN_ACTIVE;
+    var ok = hsStart(npc, "weapon_spin", t, AbilityAPI.params(
+        "chargeTicks", SPIN_CHARGE, "activeTicks", active, "radius", SPIN_R,
+        "damagePerTick", SPIN_DMG, "damageInterval", 5, "approachSpeed", SPIN_APPROACH,
+        "knockback", 0.4, "knockbackY", 0.1));
+    if (!ok) return false;
+    hsPut(npc, "spin_triple", phase >= 3 ? 1 : 0);
+    gAnim(npc, "spin");
+    arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.1);
+    npc.getTimers().forceStart(T_SPIN_END, SPIN_CHARGE + active + 2, false);
+    return true;
+}
+
+function spinEnd(npc) {
+    if (hsGet(npc, "spin_triple", "0") == "1") {
+        var yaw = npc.getRotation();
+        var t = nearest(npc, hsPlayers(npc), 99);
+        if (t != null) yaw = hsYawTo(npc, t);
+        startQuake(npc, [yaw, yaw + 120, yaw + 240], QUAKE_CHARGE_FAST, true);
+        return;
+    }
+    startDizzy(npc);
+}
+
+function startDizzy(npc) {
+    hsPut(npc, "dizzy_until", hsNow(npc) + DIZZY_TICKS);
+    gRecover(npc, DIZZY_TICKS);
+    gAnim(npc, "dizzy");
+    arenaSound(npc, "minecraft:entity.ravager.stunned", 1.0, 0.8);
+    npc.getWorld().spawnParticle("crit", npc.getX(), npc.getY() + 3.2, npc.getZ(), 0.6, 0.3, 0.6, 0.05, 20);
+    npc.say("§6Гарракс шатается!");
+}
+
+// --- Раскол ---
+
+function startQuake(npc, yaws, charge, dizzyAfter) {
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ();
+    gFreeze(npc, yaws[0]);
+    hsPut(npc, "q_x", x);
+    hsPut(npc, "q_y", y);
+    hsPut(npc, "q_z", z);
+    hsPut(npc, "q_yaws", yaws.join(","));
+    hsPut(npc, "q_r", 0);
+    hsPut(npc, "q_hit", "");
+    hsPut(npc, "q_stunned", "");
+    hsPut(npc, "q_dizzy", dizzyAfter ? 1 : 0);
+    for (var i = 0; i < yaws.length; i++) TelegraphAPI.line(npc, x, y, z, yaws[i], QUAKE_LEN, QUAKE_W * 2, charge, RED);
+    gAnim(npc, "quake");
+    arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.7);
+    npc.getTimers().forceStart(T_QUAKE, charge, false);
+}
+
+function quakeRelease(npc) {
+    swingBoth(npc);
+    arenaSound(npc, "minecraft:entity.generic.explode", 1.0, 0.6);
+    npc.getTimers().forceStart(T_QUAKE_STEP, 2, true);
+}
+
+function quakeStep(npc) {
+    var x = hsNum(npc, "q_x"), y = hsNum(npc, "q_y"), z = hsNum(npc, "q_z");
+    var yaws = hsGet(npc, "q_yaws", "").split(",");
+    var r0 = hsNum(npc, "q_r"), r1 = r0 + QUAKE_STEP;
+    var hit = hsGet(npc, "q_hit", ""), stunned = hsGet(npc, "q_stunned", "");
+    var ps = hsPlayers(npc);
+    var w = npc.getWorld();
+    for (var k = 0; k < yaws.length; k++) {
+        var yaw = Number(yaws[k]);
+        var rad = (yaw + 90) * Math.PI / 180;
+        var fx = Math.cos(rad), fz = Math.sin(rad);
+        for (var s = -1; s <= 1; s++) {
+            w.spawnParticle("cloud", x + fx * r1 - fz * s * QUAKE_W, y + 0.2, z + fz * r1 + fx * s * QUAKE_W, 0.3, 0.1, 0.3, 0.02, 4);
+        }
+        w.spawnParticle("explosion", x + fx * r1, y + 0.5, z + fz * r1, 0, 0, 0, 0, 1);
+        for (var i = 0; i < ps.length; i++) {
+            var id = String(ps[i].getUUID());
+            if (hit.indexOf(id) >= 0) continue;
+            var a = along(ps[i], x, z, yaw);
+            if (a[0] <= r0 || a[0] > r1 || a[1] > QUAKE_W) continue;
+            hit += id + ";";
+            gStrike(npc, ps[i], QUAKE_PCT);
+            if (!ps[i].isAlive()) continue;
+            Combat.applyNamedEffect(ps[i], STUN_ID, QUAKE_STUN, 0);
+            ps[i].message("§6Раскол сбивает тебя с ног!");
+            stunned += id + ";";
+        }
+    }
+    hsPut(npc, "q_hit", hit);
+    hsPut(npc, "q_stunned", stunned);
+    hsPut(npc, "q_r", r1);
+    if (r1 < QUAKE_LEN) return;
+    npc.getTimers().stop(T_QUAKE_STEP);
+    if (hsGet(npc, "q_dizzy", "0") == "1") {
+        startDizzy(npc);
+        return;
+    }
+    var target = null, bd = 999;
+    var ids = stunned.split(";");
+    for (var j = 0; j < ids.length; j++) {
+        var p = byId(npc, ids[j]);
+        if (p == null) continue;
+        var d = hsFlat(p, npc.getX(), npc.getZ());
+        if (d < bd) { bd = d; target = p; }
+    }
+    if (target != null) {
+        hsPut(npc, "force_dash", String(target.getUUID()));
+        npc.getTimers().forceStart(T_FORCE_DASH, FOLLOW_DASH_DELAY, false);
+        return;
+    }
+    npc.getTimers().forceStart(T_RECOVER, QUAKE_RECOVER, false);
+}
+
+// --- Рывок с ударом ---
+
+function startDash(npc, t, charge) {
+    var yaw = hsYawTo(npc, t);
+    var len = hsFlat(npc, t.getX(), t.getZ()) + 1.5;
+    if (len < DASH_MIN) len = DASH_MIN;
+    if (len > DASH_MAX) len = DASH_MAX;
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ();
+    var rad = (yaw + 90) * Math.PI / 180;
+    npc.getTimers().stop(T_HOLD);
+    npc.getAi().setWalkingSpeed(0);
+    npc.getAi().setRetaliateType(3);
+    npc.setRotation(yaw);
+    var ok = hsStart(npc, "dash", t, AbilityAPI.params(
+        "chargeTicks", charge, "activeTicks", DASH_ACTIVE, "distance", len,
+        "damage", DASH_DMG, "hitRadius", 1.8, "knockback", 1.0, "knockbackY", 0.3));
+    if (!ok) {
+        gRelease(npc);
+        return false;
+    }
+    TelegraphAPI.line(npc, x, y, z, yaw, len, DASH_W * 2, charge, RED);
+    TelegraphAPI.circle(npc, x + Math.cos(rad) * len, y, z + Math.sin(rad) * len, DASH_HIT_R, charge + DASH_ACTIVE, RED);
+    gAnim(npc, "dash");
+    arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.3);
+    npc.getTimers().forceStart(T_DASH_END, charge + DASH_ACTIVE + 2, false);
+    return true;
+}
+
+function dashEnd(npc) {
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ();
+    swingBoth(npc);
+    arenaSound(npc, "minecraft:entity.player.attack.strong", 1.0, 0.6);
+    var ps = hsPlayersAt(npc, x, y, z, DASH_HIT_R);
+    for (var i = 0; i < ps.length; i++) {
+        gStrike(npc, ps[i], DASH_PCT);
+        gPush(ps[i], x, z, 1);
+    }
+    gRecover(npc, DASH_RECOVER);
+}
+
+// --- Удар вокруг себя: размах оставшимся топором или топот безоружного ---
+
+function startAround(npc, r, pct) {
+    hsPut(npc, "ar_x", npc.getX());
+    hsPut(npc, "ar_y", npc.getY());
+    hsPut(npc, "ar_z", npc.getZ());
+    hsPut(npc, "ar_r", r);
+    hsPut(npc, "ar_pct", pct);
+    TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), r, QUICK_T, RED);
+    npc.getTimers().forceStart(T_QUICK, QUICK_T, false);
+}
+
+function aroundHit(npc) {
+    var x = hsNum(npc, "ar_x"), y = hsNum(npc, "ar_y"), z = hsNum(npc, "ar_z");
+    npc.swingMainhand();
+    arenaSound(npc, "minecraft:entity.player.attack.knockback", 1.0, 0.6);
+    var ps = hsPlayersAt(npc, x, y, z, hsNum(npc, "ar_r"));
+    for (var i = 0; i < ps.length; i++) {
+        gStrike(npc, ps[i], hsNum(npc, "ar_pct"));
+        gPush(ps[i], x, z, 1);
+    }
+}
+
+// --- Бросок топора ---
+
+function throwAxe(npc, t) {
+    return hsStart(npc, "axe_throw", t, AbilityAPI.params(
+        "chargeTicks", THROW_CHARGE, "maxRange", THROW_LEN, "hitRadius", THROW_HIT_R,
+        "outboundTicks", THROW_OUT, "holdTicks", THROW_HOLD, "returnTicks", THROW_BACK,
+        "damagePercent", THROW_PCT * hsScale(npc.getWorld()) * (1 + RAGE_STEP * hsNum(npc, "rage")),
+        "effectDuration", 40, "effectAmplifier", 1));
+}
+
+function startThrow(npc, t) {
+    if (!throwAxe(npc, t)) return false;
+    gAnim(npc, "throwAxe");
+    npc.getTimers().forceStart(T_SWEEP, SWEEP_AT, false);
+    return true;
+}
+
+// --- Прыжок на Камень, кольца, кровь ---
+
+function startLeap(npc) {
+    var s = gStone(npc);
+    var y = npc.getY();
+    hsPut(npc, "floor_y", y);
+    gFreeze(npc, npc.getRotation());
+    TelegraphAPI.circle(npc, s[0], y, s[1], LEAP_R, LEAP_CHARGE, RED);
+    gAnim(npc, "leap");
+    arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.5);
+    npc.say("§4Кровь – Камню!");
+    npc.getTimers().forceStart(T_LEAP, LEAP_CHARGE, false);
+}
+
+function leapLand(npc, now) {
+    var s = gStone(npc), y = hsNum(npc, "floor_y");
+    npc.setPosition(s[0], y, s[1]);
+    hsPut(npc, "hold_x", s[0]);
+    hsPut(npc, "hold_y", y);
+    hsPut(npc, "hold_z", s[1]);
+    swingBoth(npc);
+    npc.getWorld().spawnParticle("explosion", s[0], y + 0.5, s[1], 1.5, 0.3, 1.5, 0, 8);
+    arenaSound(npc, "minecraft:entity.generic.explode", 1.0, 0.5);
+    var ps = hsPlayersAt(npc, s[0], y, s[1], LEAP_R);
+    for (var i = 0; i < ps.length; i++) {
+        gStrike(npc, ps[i], LEAP_PCT);
+        gPush(ps[i], s[0], s[1], 1);
+    }
+    hsPut(npc, "rings_from", now);
+    hsPut(npc, "ring_r", "0,0,0");
+    hsPut(npc, "ring_hit", "||");
+    npc.getTimers().forceStart(T_RINGS, RING_EVERY, true);
+    startBlood(npc, now);
+    npc.getTimers().forceStart(T_RECOVER, LEAP_RECOVER, false);
+}
+
+// Кольца от Камня, по одному раз в RING_GAP тиков; на полу — удар и толчок, в прыжке — мимо.
+function ringsStep(npc, now) {
+    var s = gStone(npc), y = hsNum(npc, "floor_y");
+    var rs = hsGet(npc, "ring_r", "0,0,0").split(",");
+    var hits = hsGet(npc, "ring_hit", "||").split("|");
+    var from = hsNum(npc, "rings_from");
+    var ps = hsPlayers(npc);
+    var left = 0;
+    for (var k = 0; k < RINGS; k++) {
+        var r0 = Number(rs[k]);
+        if (r0 >= HS.ARENA_R + 1) continue;
+        left++;
+        if (now < from + k * RING_GAP) continue;
+        var r1 = r0 + RING_STEP;
+        TelegraphAPI.ring(npc, s[0], y, s[1], r1 + 0.5, Math.max(0, r1 - 1), RING_TICKS, RED);
+        for (var i = 0; i < ps.length; i++) {
+            var id = String(ps[i].getUUID());
+            if (hits[k].indexOf(id) >= 0) continue;
+            var d = hsFlat(ps[i], s[0], s[1]);
+            if (d <= r0 || d > r1) continue;
+            hits[k] += id + ";";
+            if (ps[i].getY() - y >= RING_JUMP) continue;
+            gStrike(npc, ps[i], RING_PCT);
+            gPush(ps[i], s[0], s[1], 1);
+        }
+        rs[k] = r1;
+    }
+    hsPut(npc, "ring_r", rs.join(","));
+    hsPut(npc, "ring_hit", hits.join("|"));
+    if (left == 0) npc.getTimers().stop(T_RINGS);
+}
+
+function channelLines(npc) {
+    var s = gStone(npc);
+    var out = [];
+    for (var i = 0; i < CHANNELS.length; i++) {
+        var dx = CHANNELS[i][0], dz = CHANNELS[i][1];
+        out.push({ x: s[0], z: s[1], yaw: Combat.computeYaw(dx, dz), len: Math.sqrt(dx * dx + dz * dz) });
+    }
+    return out;
+}
+
+function drawChannels(npc, ticks, color) {
+    var y = hsNum(npc, "floor_y");
+    var lines = channelLines(npc);
+    for (var i = 0; i < lines.length; i++) {
+        TelegraphAPI.line(npc, lines[i].x, y, lines[i].z, lines[i].yaw, lines[i].len, BLOOD_W * 2, ticks, color);
+    }
+}
+
+function startBlood(npc, now) {
+    hsPut(npc, "blood_on", now + BLOOD_WARN);
+    hsPut(npc, "blood_until", now + BLOOD_WARN + BLOOD_TICKS);
+    hsPut(npc, "blood_drawn", 0);
+    drawChannels(npc, BLOOD_WARN, HS.GOLD);
+    npc.getTimers().forceStart(T_BLOOD, 10, true);
+}
+
+function bloodStep(npc, now) {
+    if (now >= hsNum(npc, "blood_until")) {
+        npc.getTimers().stop(T_BLOOD);
+        return;
+    }
+    if (now < hsNum(npc, "blood_on")) return;
+    if (now - hsNum(npc, "blood_drawn") >= 20) {
+        if (hsNum(npc, "blood_drawn") == 0) npc.say("§4По жёлобам течёт кровь!");
+        hsPut(npc, "blood_drawn", now);
+        drawChannels(npc, 22, RED);
+    }
+    var lines = channelLines(npc);
+    var ps = hsPlayers(npc);
+    for (var i = 0; i < ps.length; i++) {
+        for (var k = 0; k < lines.length; k++) {
+            if (!hsOnLine(ps[i], lines[k].x, lines[k].z, lines[k].yaw, lines[k].len, BLOOD_W)) continue;
+            gStrike(npc, ps[i], BLOOD_PCT);
+            break;
+        }
+    }
+}
+
+// --- Оба топора в полёт ---
+
+function startStorm(npc, ps, t) {
+    if (!throwAxe(npc, t)) return false;
+    var other = null, bd = -1;
+    for (var i = 0; i < ps.length; i++) {
+        if (String(ps[i].getUUID()) == String(t.getUUID())) continue;
+        var d = hsFlat(ps[i], npc.getX(), npc.getZ());
+        if (d > bd && d <= STORM_LEN) { bd = d; other = ps[i]; }
+    }
+    // Второго нет — второй топор идёт рядом с первым, вилкой.
+    var yaw = other != null ? hsYawTo(npc, other) : hsYawTo(npc, t) + STORM_SPREAD;
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ();
+    var now = hsNow(npc), release = now + THROW_CHARGE, flight = THROW_OUT + THROW_HOLD + THROW_BACK;
+    hsPut(npc, "st_x", x);
+    hsPut(npc, "st_y", y);
+    hsPut(npc, "st_z", z);
+    hsPut(npc, "st_yaw", yaw);
+    hsPut(npc, "st_release", release);
+    hsPut(npc, "st_hit", "|");
+    hsPut(npc, "unarmed_until", release + flight);
+    TelegraphAPI.line(npc, x, y, z, yaw, STORM_LEN, STORM_HIT_R * 2, THROW_CHARGE + flight, RED);
+    gAnim(npc, "throwAxe");
+    npc.say("§4Гарракс бросает оба топора!");
+    npc.getTimers().forceStart(T_STORM, 2, true);
+    npc.getTimers().forceStart(T_STOMP, THROW_CHARGE + STOMP_AT, false);
+    return true;
+}
+
+// Второй топор летит туда и обратно по своей полосе; бьёт раз на каждом пролёте.
+function stormStep(npc, now) {
+    var e = now - hsNum(npc, "st_release");
+    if (e < 0) return;
+    if (e > THROW_OUT + THROW_HOLD + THROW_BACK) {
+        npc.getTimers().stop(T_STORM);
+        return;
+    }
+    var dist, pass;
+    if (e <= THROW_OUT) { dist = STORM_LEN * e / THROW_OUT; pass = 0; }
+    else if (e <= THROW_OUT + THROW_HOLD) { dist = STORM_LEN; pass = 0; }
+    else { dist = STORM_LEN * (1 - (e - THROW_OUT - THROW_HOLD) / THROW_BACK); pass = 1; }
+    var x = hsNum(npc, "st_x"), y = hsNum(npc, "st_y"), z = hsNum(npc, "st_z"), yaw = hsNum(npc, "st_yaw");
+    var rad = (yaw + 90) * Math.PI / 180;
+    var px = x + Math.cos(rad) * dist, pz = z + Math.sin(rad) * dist;
+    var w = npc.getWorld();
+    w.spawnParticle("sweep_attack", px, y + 1.2, pz, 0.2, 0.2, 0.2, 0, 1);
+    w.spawnParticle("crit", px, y + 1.2, pz, 0.3, 0.3, 0.3, 0.1, 6);
+    var hits = hsGet(npc, "st_hit", "|").split("|");
+    var ps = hsPlayersAt(npc, px, y, pz, STORM_HIT_R);
+    for (var i = 0; i < ps.length; i++) {
+        var id = String(ps[i].getUUID());
+        if (hits[pass].indexOf(id) >= 0) continue;
+        hits[pass] += id + ";";
+        gStrike(npc, ps[i], STORM_PCT);
+    }
+    hsPut(npc, "st_hit", hits.join("|"));
+}
+
+// --- Варп-молнии ---
+
+function boltsTick(npc, ps, phase, now) {
+    if (phase < 3 || now < hsNum(npc, "bolts_at") || npc.getTimers().has(T_BOLTS)) return;
+    hsPut(npc, "bolts_at", now + BOLTS_EVERY);
+    var n = BOLTS_MIN + Math.floor((now - hsNum(npc, "p3_at")) / BOLTS_GROW);
+    if (n > BOLTS_MAX) n = BOLTS_MAX;
+    var c = hsArenaCenter(npc);
+    var y = npc.getY();
+    var pts = [];
+    for (var i = 0; i < n; i++) {
+        var x, z;
+        if (i % 2 == 0 && ps.length > 0) {
+            var p = hsRandom(ps);
+            x = p.getX();
+            z = p.getZ();
+        } else {
+            var a = Math.random() * Math.PI * 2, r = Math.random() * (HS.ARENA_R - 4);
+            x = c[0] + Math.cos(a) * r;
+            z = c[2] + Math.sin(a) * r;
+        }
+        pts.push(x.toFixed(2) + ":" + z.toFixed(2));
+        TelegraphAPI.circle(npc, x, y, z, BOLT_R, BOLT_WARN, HS.PURPLE);
+    }
+    hsPut(npc, "bolts", pts.join(";"));
+    hsPut(npc, "bolts_y", y);
+    npc.getTimers().forceStart(T_BOLTS, BOLT_WARN, false);
+}
+
+function boltsHit(npc) {
+    var y = hsNum(npc, "bolts_y");
+    var pts = hsGet(npc, "bolts", "").split(";");
+    var w = npc.getWorld();
+    arenaSound(npc, "minecraft:entity.lightning_bolt.thunder", 0.8, 1.2);
+    for (var i = 0; i < pts.length; i++) {
+        var xz = pts[i].split(":");
+        if (xz.length < 2) continue;
+        var x = Number(xz[0]), z = Number(xz[1]);
+        w.spawnParticle("end_rod", x, y + 2, z, 0.2, 2.0, 0.2, 0.05, 30);
+        w.spawnParticle("explosion", x, y + 0.3, z, 0, 0, 0, 0, 1);
+        var ps = hsPlayersAt(npc, x, y, z, BOLT_R);
+        for (var j = 0; j < ps.length; j++) gStrike(npc, ps[j], BOLT_PCT);
+    }
+}
+
+// --- Фазы и ярость ---
+
+function enterPhase(npc, phase, now) {
+    hsPut(npc, "phase", phase);
+    if (phase == 2) {
+        hsPut(npc, "throw_at", now + 40);
+        hsPut(npc, "leap_at", now + 100);
+        npc.say("§4Хватит игр. Камень хочет крови!");
+    }
+    if (phase >= 3) {
+        hsPut(npc, "p3_at", now);
+        hsPut(npc, "storm_at", now + 120);
+        hsPut(npc, "bolts_at", now + 60);
+        hsPut(npc, "rage_at", now + RAGE_EVERY);
+        if (hsNum(npc, "throw_at") == 0) hsPut(npc, "throw_at", now + 40);
+        if (hsNum(npc, "leap_at") == 0) hsPut(npc, "leap_at", now + 200);
+        npc.say("§5Ночь Тайн! Над колодцем гаснут звёзды.");
+    }
+}
+
+function rageTick(npc, phase, now) {
+    if (phase < 3 || now < hsNum(npc, "rage_at")) return;
+    hsPut(npc, "rage", hsNum(npc, "rage") + 1);
+    hsPut(npc, "rage_at", now + RAGE_EVERY);
+    npc.say("§4Ярость Гарракса растёт.");
+}
+
+function startFight(npc, now) {
+    hsPut(npc, "started", 1);
+    hsPut(npc, "combo_at", now + 20);
+    hsPut(npc, "quake_at", now + 100);
+    hsPut(npc, "dash_at", now + 160);
+    hsPut(npc, "spin_at", now + 240);
+    var keys = ["throw_at", "leap_at", "storm_at", "bolts_at", "rage_at", "p3_at"];
+    for (var i = 0; i < keys.length; i++) hsPut(npc, keys[i], 0);
+}
+
+function tryCast(npc, ps, t, phase, now) {
+    if (phase >= 2 && now >= hsNum(npc, "leap_at")) {
+        hsPut(npc, "leap_at", now + cd(npc, LEAP_CD));
+        startLeap(npc);
+        return;
+    }
+    if (phase >= 3 && now >= hsNum(npc, "storm_at")) {
+        hsPut(npc, "storm_at", now + cd(npc, STORM_CD));
+        if (startStorm(npc, ps, t)) return;
+    }
+    if (now >= hsNum(npc, "spin_at")) {
+        hsPut(npc, "spin_at", now + cd(npc, SPIN_CD));
+        if (startSpin(npc, t, phase)) return;
+    }
+    if (now >= hsNum(npc, "quake_at") && hsFlat(t, npc.getX(), npc.getZ()) <= QUAKE_LEN) {
+        hsPut(npc, "quake_at", now + cd(npc, QUAKE_CD));
+        startQuake(npc, [hsYawTo(npc, t)], QUAKE_CHARGE, false);
+        return;
+    }
+    if (phase >= 2 && now >= hsNum(npc, "throw_at")) {
+        var aim = farthest(npc, ps, THROW_LEN - 1);
+        if (aim != null && hsFlat(aim, npc.getX(), npc.getZ()) >= THROW_MIN) {
+            hsPut(npc, "throw_at", now + cd(npc, THROW_CD));
+            if (startThrow(npc, aim)) return;
+        }
+    }
+    var far = farthest(npc, ps, 99);
+    if (now >= hsNum(npc, "dash_at") && far != null && hsFlat(far, npc.getX(), npc.getZ()) >= DASH_MIN_TARGET) {
+        hsPut(npc, "dash_at", now + cd(npc, DASH_CD));
+        if (startDash(npc, far, DASH_CHARGE)) return;
+    }
+    if (now >= hsNum(npc, "combo_at") && hsFlat(t, npc.getX(), npc.getZ()) <= COMBO_RANGE) {
+        hsPut(npc, "combo_at", now + cd(npc, COMBO_CD));
+        startCombo(npc, t);
+    }
 }
 
 function tick(e) {
@@ -44,171 +749,60 @@ function tick(e) {
     var ps = hsFight(npc);
     if (ps == null) return;
     var now = hsNow(npc);
-    var hp = npc.getHealth() / npc.getMaxHealth();
-    var ph = hsGet(npc, "phase", "1");
-    var i;
-
-    if (ph == "1" && hp <= 0.6) {
-        AbilityAPI.cancel(npc);
-        hsPut(npc, "phase", "2");
-        npc.getAi().setRetaliateType(3);
-        npc.getAi().setWalkingSpeed(0);
-        var stone = hsOrigin(npc);
-        npc.setPosition(stone[0] + 0.5, stone[1], stone[2] + 0.5);
-        for (i = 0; i < HEARTS.length; i++) hsSpawnAt(npc, HEARTS[i], HEART);
-        npc.getTimers().forceStart(T_HEARTS, HEARTS_TICKS, false);
-        npc.say("§4КРОВЬ — КАМНЮ! У вас 45 ударов сердца!");
-        return;
-    }
-    if (ph == "2") {
-        if (hsCount(npc, HEART) == 0) {
-            npc.getTimers().stop(T_HEARTS);
-            hsPut(npc, "phase", "2b");
-            npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
-            npc.getAi().setRetaliateType(0);
-            npc.say("§cЖёлобы пусты…");
-        } else if (now >= hsNum(npc, "wave_at")) {
-            hsPut(npc, "wave_at", now + 200);
-            summonAdds(npc);
-        }
-        return;
-    }
-    if (ph == "2b" && hp <= 0.3) {
-        hsPut(npc, "phase", "3");
-        npc.getDisplay().setSize(12);
-        for (i = 0; i < CRYSTALS.length; i++) hsSpawnAt(npc, CRYSTALS[i], CRYSTAL);
-        npc.say("§2Ночь Тайн пришла!");
-        ph = "3";
-    }
-    var rite = ph == "3" && hsGet(npc, "rite_done", "0") == "0";
-    if (rite && hsCount(npc, CRYSTAL) == 0) {
-        hsPut(npc, "rite_done", 1);
-        rite = false;
-        npc.getDisplay().setSize(10);
-        npc.setHealth(Math.max(1, npc.getHealth() - npc.getMaxHealth() * 0.15));
-        npc.say("§cНЕТ! Камень… молчит…");
-    }
-
-    if (now >= hsNum(npc, "brand_at") && !npc.getTimers().has(T_BRAND)) {
-        hsPut(npc, "brand_at", now + 400);
-        var b = hsRandom(ps);
-        hsPut(npc, "brand_uuid", b.getUUID());
-        TelegraphAPI.follow(TelegraphAPI.circle(npc, b.getX(), b.getY(), b.getZ(), 3.0, 120, HS.GOLD), b);
-        b.addPotionEffect(PotionEffectType_GLOWING, 6, 0, false);
-        for (i = 0; i < ps.length; i++) ps[i].message("§6Клеймо на §f" + b.getName() + "§6 — встаньте рядом и разделите удар!");
-        npc.getTimers().forceStart(T_BRAND, 120, false);
-    }
-    if (rite && now >= hsNum(npc, "circles_at") && !npc.getTimers().has(T_CIRCLES)) {
-        hsPut(npc, "circles_at", now + 300);
-        var h = hsHome(npc), pts = [];
-        for (i = 0; i < ps.length; i++) {
-            var a = Math.random() * Math.PI * 2, r = 6 + Math.random() * 12;
-            var cx = h[0] + Math.cos(a) * r, cz = h[2] + Math.sin(a) * r;
-            pts.push(cx.toFixed(1) + ":" + cz.toFixed(1));
-            TelegraphAPI.circle(npc, cx, h[1], cz, 2.0, 70, HS.GOLD);
-        }
-        hsPut(npc, "circles", pts.join(";"));
-        npc.say("§2Камень жаждет! Встаньте в круги!");
-        npc.getTimers().forceStart(T_CIRCLES, 70, false);
-    }
-
-    if (AbilityAPI.isBusy(npc) || npc.getTimers().has(T_HIT) || now < hsNum(npc, "cast_at")) return;
+    if (hsGet(npc, "started", "0") != "1") startFight(npc, now);
+    var phase = gPhase(npc);
+    if (phase > hsNum(npc, "phase")) enterPhase(npc, phase, now);
+    phase = hsNum(npc, "phase");
+    rageTick(npc, phase, now);
+    boltsTick(npc, ps, phase, now);
+    if (gBusy(npc, now)) return;
     var t = npc.getAttackTarget();
-    if (t == null || !t.isAlive()) return;
-    hsPut(npc, "cast_at", now + 100);
-    var yaw = hsYawTo(npc, t);
-    hsPut(npc, "hit_x", npc.getX());
-    hsPut(npc, "hit_z", npc.getZ());
-    hsPut(npc, "hit_yaw", yaw);
-    var roll = Math.random();
-    if (roll < 0.34) {
-        hsPut(npc, "hit", "spin");
-        hsStart(npc, "weapon_spin", t, AbilityAPI.params("chargeTicks", 20, "activeTicks", 40, "radius", 4.5, "damagePerTick", 2.0));
-        npc.getTimers().forceStart(T_HIT, 60, false);
-    } else if (roll < 0.67) {
-        hsPut(npc, "hit", "dash");
-        TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 14.0, 3.6, 40, HS.RED);
-        hsStart(npc, "dash", t, AbilityAPI.params("chargeTicks", 30, "distance", 14.0, "damage", 6.0, "hitRadius", 1.8));
-        npc.getTimers().forceStart(T_HIT, 40, false);
-    } else {
-        hsPut(npc, "hit", "cone");
-        TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, 9.0, 30.0, 36, HS.RED);
-        npc.getTimers().forceStart(T_HIT, 36, false);
-    }
-}
-
-function summonAdds(npc) {
-    var room = ADD_CAP - hsCount(npc, ADD);
-    if (room > 2) room = 2;
-    if (room <= 0) return;
-    if (room >= 1) hsSpawnAt(npc, [8, 0, 0], ADD);
-    if (room >= 2) hsSpawnAt(npc, [-8, 0, 0], ADD);
+    if (t == null || !t.isAlive() || !t.typeOf(1)) t = nearest(npc, ps, 99);
+    if (t == null) return;
+    tryCast(npc, ps, t, phase, now);
 }
 
 function timer(e) {
     var npc = e.npc;
     if (!npc.isAlive()) return;
-    var ps = hsPlayers(npc);
-    var i;
-    if (e.id == T_HEARTS) {
-        if (hsCount(npc, HEART) == 0) return;
-        npc.say("§4Камень напился. Вы — следующие.");
-        for (i = 0; i < ps.length; i++) hsKill(ps[i]);
-        return;
-    }
-    if (e.id == T_BRAND) {
-        var b = aliveById(npc, "brand_uuid");
-        if (b == null) return;
-        var share = hsPlayersAt(npc, b.getX(), b.getY(), b.getZ(), 3.0);
-        for (i = 0; i < share.length; i++) hsStrike(share[i], 0.8 / share.length);
-        return;
-    }
-    if (e.id == T_CIRCLES) {
-        var pts = hsGet(npc, "circles", "").split(";"), empty = 0;
-        for (i = 0; i < pts.length; i++) {
-            var xz = pts[i].split(":");
-            if (xz.length < 2) continue;
-            if (hsPlayersAt(npc, Number(xz[0]), npc.getY(), Number(xz[1]), 2.0).length == 0) empty++;
-        }
-        if (empty == 0) return;
-        npc.say("§2Камень пьёт из пустых кругов!");
-        for (i = 0; i < ps.length; i++) hsStrike(ps[i], 0.6 * empty);
-        return;
-    }
-    if (e.id != T_HIT) return;
-    var kind = hsGet(npc, "hit", ""), ox = hsNum(npc, "hit_x"), oz = hsNum(npc, "hit_z"), yaw = hsNum(npc, "hit_yaw");
-    for (i = 0; i < ps.length; i++) {
-        var p = ps[i];
-        if (kind == "spin" && hsFlat(p, npc.getX(), npc.getZ()) <= 4.5) hsStrike(p, 0.25);
-        if (kind == "dash" && hsOnLine(p, ox, oz, yaw, 14, 1.8)) hsStrike(p, 0.35);
-        if (kind == "cone" && hsFlat(p, ox, oz) <= 9 && Combat.isInFrontCone(ox, oz, yaw, p, 30.0)) hsStrike(p, 0.6);
+    var now = hsNow(npc);
+    var id = e.id;
+    if (id == T_HOLD) gHold(npc);
+    else if (id == T_COMBO) comboStep(npc);
+    else if (id == T_SPIN_END) spinEnd(npc);
+    else if (id == T_QUAKE) quakeRelease(npc);
+    else if (id == T_QUAKE_STEP) quakeStep(npc);
+    else if (id == T_DASH_END) dashEnd(npc);
+    else if (id == T_QUICK) aroundHit(npc);
+    else if (id == T_LEAP) leapLand(npc, now);
+    else if (id == T_RINGS) ringsStep(npc, now);
+    else if (id == T_BLOOD) bloodStep(npc, now);
+    else if (id == T_STORM) stormStep(npc, now);
+    else if (id == T_BOLTS) boltsHit(npc);
+    else if (id == T_RECOVER) gRelease(npc);
+    else if (id == T_SWEEP) startAround(npc, SWEEP_R, SWEEP_PCT);
+    else if (id == T_STOMP) startAround(npc, STOMP_R, STOMP_PCT);
+    else if (id == T_FORCE_DASH) {
+        var victim = byId(npc, hsGet(npc, "force_dash", ""));
+        if (victim == null || !startDash(npc, victim, DASH_CHARGE_FOLLOW)) gRelease(npc);
     }
 }
 
+function meleeAttack(e) {
+    e.setCanceled(true);
+}
+
 function damaged(e) {
-    var npc = e.npc;
-    var ph = hsGet(npc, "phase", "1");
-    if (ph == "2") { e.setCanceled(true); return; }
-    hsCap(e, ph == "3" && hsGet(npc, "rite_done", "0") == "0" ? HS.WEAK : 1);
+    var npc = e.npc, now = hsNow(npc);
+    var open = now < hsNum(npc, "dizzy_until") || now < hsNum(npc, "unarmed_until");
+    hsCap(e, open ? OPEN_MUL : 1);
 }
 
 function died(e) {
     var npc = e.npc;
     AbilityAPI.cancel(npc);
+    for (var i = 0; i < ALL_TIMERS.length; i++) npc.getTimers().stop(ALL_TIMERS[i]);
     hsZoneClear(npc);
-    hsDespawnAll(npc, HEART);
-    hsDespawnAll(npc, CRYSTAL);
-    hsDespawnAll(npc, ADD);
     hsSetGate(npc, false);
     npc.say("§7Камень трескается. Устье колодца открыто.");
-}
-
-function aliveById(npc, key) {
-    var id = hsGet(npc, key, "");
-    if (id.length < 32) return null;
-    try {
-        var p = npc.getWorld().getEntity(id);
-        if (p != null && p.isAlive()) return p;
-    } catch (err) {}
-    return null;
 }

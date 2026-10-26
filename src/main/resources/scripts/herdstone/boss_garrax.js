@@ -62,7 +62,7 @@ var QUICK_T = 8, SWEEP_AT = THROW_CHARGE + 6, SWEEP_R = 4.5, SWEEP_PCT = 0.3;
 var LEAP_CHARGE = 30, LEAP_R = 3, LEAP_PCT = 0.35, LEAP_CD = 520, LEAP_RECOVER = 20;
 // Кольцо — одна зона мода на всё время, ей каждый тик растёт радиус (подсказки, рисуемые заново, мерцали),
 // и по её краю идёт ударная волна из частиц — через тик, чтобы не слать лишнего.
-var RINGS = 3, RING_GAP = 16, RING_STEP = 0.5, RING_PCT = 0.25, RING_JUMP = 0.5;
+var RINGS = 3, RING_GAP = 16, RING_STEP = 0.5, RING_PCT = 0.55, RING_JUMP = 0.5;
 // Тьма: круг VOID_R вокруг Камня (больше трети арены). Жёлтый с начала прыжка, тьма — через VOID_WARN после посадки.
 var VOID_R = 17, VOID_WARN = 30, VOID_TICKS = 160, VOID_PCT = 0.08, VOID_COLOR = 0xC0400070 | 0;
 // Оба топора в полёт: настоящий axe_throw в одного, второй топор скриптом; безоружен — топчет.

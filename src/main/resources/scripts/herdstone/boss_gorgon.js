@@ -98,7 +98,7 @@ var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13;
 
 // Клипы beastmen_gorgon.animation.json (WAH-4440). Пока новых клипов нет в модели —
 // держи false: играются старые attack/attack2/attack3/idle2/idle3.
-var GORGON_NEW_ANIMS = false;
+var GORGON_NEW_ANIMS = true;
 var ANIM_SLASH = GORGON_NEW_ANIMS ? "attack_slash" : "attack3";     // 2.00s: impact 1.50
 var ANIM_STOMP = GORGON_NEW_ANIMS ? "attack_stomp" : "attack2";     // 1.75s: impact 1.25
 var ANIM_INHALE = GORGON_NEW_ANIMS ? "attack_inhale" : "idle2";     // 2.00s, дальше stomp
@@ -164,6 +164,7 @@ function gorgonRestoreAi(npc) {
     npc.getAi().setWalkingSpeed(gorgonWalkSpeed(npc));
     npc.getAi().setRetaliateType(0);
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("gorgon turn: " + err); }
+    try { NpcTurnHelper.unlockFace(npc); } catch (err) { log("gorgon unlock: " + err); }
 }
 
 function gorgonFreezeAi(npc) {
@@ -226,20 +227,13 @@ function gorgonSafeR(npc, phase) {
     return r;
 }
 
-// Жёсткий лок взгляда: setRotation пишет только yRot, а GeckoLib/тело
-// крутятся по yBodyRot/yHeadRot — без них модель смотрит мимо телеграфа.
+// Жёсткий лок взгляда: GeckoLib крутит модель по клиентскому yBodyRot, который
+// ванила не синкает — lockFace пишет rot на сервере и шлёт yaw клиентам пакетом.
+// Снимается в gorgonRestoreAi.
 function gorgonFaceYaw(npc, yaw) {
     if (yaw == null || isNaN(yaw)) return;
     try {
-        npc.setRotation(yaw);
-        var mc = npc.getMCEntity();
-        if (mc == null) return;
-        mc.yRot = yaw;
-        mc.yRotO = yaw;
-        mc.yHeadRot = yaw;
-        mc.yHeadRotO = yaw;
-        mc.yBodyRot = yaw;
-        mc.yBodyRotO = yaw;
+        NpcTurnHelper.lockFace(npc, yaw);
     } catch (err) {
         try { npc.setRotation(yaw); } catch (err2) {}
     }
@@ -923,6 +917,7 @@ function died(e) {
             T_RINGS, T_RINGS2, T_SPOKES, T_SPOKES2, T_RAM, T_DOUBLE, T_RECOVER];
         for (var i = 0; i < ids.length; i++) npc.getTimers().stop(ids[i]);
     } catch (err) {}
+    try { NpcTurnHelper.unlockFace(npc); } catch (err) {}
     hsZoneClear(npc);
     hsSetGate(npc, false);
     npc.say("§7Утроба затихла. Глотка открыта.");

@@ -14,6 +14,7 @@ import net.minecraft.util.math.vector.*;
 import noppes.npcs.entity.*;
 import noppes.npcs.NpcSoftVisibility;
 import noppes.npcs.mixin.*;
+import noppes.npcs.client.ClientNpcFaceLock;
 import noppes.npcs.client.EntityUtil;
 import noppes.npcs.shared.common.util.*;
 import net.minecraft.util.*;
@@ -208,6 +209,7 @@ public class RenderNPCInterface<T extends EntityNPCInterface, M extends EntityMo
             npc.yBodyRot = n;
             npc.yBodyRotO = n;
         }
+        ClientNpcFaceLock.apply(npc);
         this.shadowRadius = npc.getBbWidth() * 0.8f;
         final int stackSize = ((MatrixStackMixin)matrixStack).getStack().size();
         try {

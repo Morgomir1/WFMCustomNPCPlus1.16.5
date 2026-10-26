@@ -23,6 +23,7 @@
     "EntityNPCInterfaceVisibilityMixin",
     "AvailabilityHasOptionsMixin",
     "DataDisplayVisibleToMixin",
+    "ModelDataSharedKeepGeoEntityMixin",
     "SPacketMenuSaveVisibilityMixin",
     "ServerEventsHandlerTrackingMixin",
     "VisibilityControllerSoftMixin",

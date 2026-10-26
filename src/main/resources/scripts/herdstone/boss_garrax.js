@@ -40,7 +40,7 @@ var CROSS_LEN = 8, CROSS_W = 1.6, CROSS_PCT = 0.45;
 // Вихрь — weapon_spin обоими топорами, ползёт к цели; после — шатается. Свой удар мода плоский и через броню,
 // его почти не чувствуют; основной урон — доля здоровья скриптом раз в SPIN_PULSE тиков всем в SPIN_R.
 var SPIN_CHARGE = 20, SPIN_ACTIVE = 60, SPIN_ACTIVE3 = 90, SPIN_R = 5.0, SPIN_DMG = 1.0;
-var SPIN_PCT = 0.07, SPIN_PULSE = 10;
+var SPIN_PCT = 0.18, SPIN_PULSE = 10;
 var SPIN_APPROACH = 0.45, SPIN_CD = 360, DIZZY_TICKS = 30;
 // weapon_spin везёт его по прямой через setPosition и стен не видит. Скрипт каждый тик смотрит вперёд
 // на половину корпуса и шаг: стена или обрыв — дальше не едет и докручивает на месте.

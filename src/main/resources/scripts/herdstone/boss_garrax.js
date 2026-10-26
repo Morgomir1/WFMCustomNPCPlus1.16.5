@@ -37,14 +37,15 @@ var WALK_GAP = 40, WALK_GAP3 = 30;
 var COMBO_RANGE = 6, COMBO_LEN = 6.5, COMBO_SIDE = 35, COMBO_HALF = 60, COMBO_PCT = 0.25;
 var COMBO_T1 = 12, COMBO_T2 = 8, COMBO_T3 = 14, COMBO_RECOVER = 12, COMBO_CD = 60;
 var CROSS_LEN = 8, CROSS_W = 1.6, CROSS_PCT = 0.45;
-// Вихрь — weapon_spin обоими топорами, ползёт к цели; после — шатается. Свой удар мода плоский и через броню,
-// его почти не чувствуют; основной урон — доля здоровья скриптом раз в SPIN_PULSE тиков всем в SPIN_R.
-var SPIN_CHARGE = 20, SPIN_ACTIVE = 60, SPIN_ACTIVE3 = 90, SPIN_R = 5.0, SPIN_DMG = 1.0;
-var SPIN_PCT = 0.18, SPIN_PULSE = 10;
-var SPIN_APPROACH = 0.45, SPIN_CD = 360, DIZZY_TICKS = 30;
-// weapon_spin везёт его по прямой через setPosition и стен не видит. Скрипт каждый тик смотрит вперёд
-// на половину корпуса и шаг: стена или обрыв — дальше не едет и докручивает на месте.
-var SPIN_BODY = 1.0, SPIN_LOOK = 0.6;
+// Вихрь: weapon_spin мода крутит модель и рисует круг, а ведёт его скрипт — каждый тик шаг SPIN_SPEED к цели
+// (медленнее бега игрока, быстрее шага), до SPIN_REACH от неё; в стену не входит, вдоль неё скользит. После —
+// шатается. Урон — доля здоровья раз в SPIN_PULSE тиков всем в SPIN_R; свой плоский удар мода через броню слаб.
+var SPIN_CHARGE = 20, SPIN_ACTIVE = 70, SPIN_ACTIVE3 = 100, SPIN_R = 5.0, SPIN_DMG = 1.0;
+var SPIN_PCT = 0.18, SPIN_PULSE = 10, SPIN_SPEED = 0.25, SPIN_SPEED3 = 0.28, SPIN_REACH = 1.5;
+// Сам мод везёт по прямой со скоростью approachSpeed, меньше 0,05 за тик не даёт. Способности мода ходят в конце
+// серверного тика, после таймеров: скрипт каждый тик ставит его на своё место, мод добавляет те же 0,05 — сноса нет.
+var SPIN_APPROACH = 0.05, SPIN_CD = 360, DIZZY_TICKS = 30;
+var SPIN_BODY = 1.0;
 // Раскол: полоса шириной 6 и длиной 18, волна бежит по ней по 2 блока за 2 тика.
 var QUAKE_CHARGE = 16, QUAKE_CHARGE_FAST = 10, QUAKE_LEN = 18, QUAKE_W = 3, QUAKE_STEP = 2;
 var QUAKE_PCT = 0.3, QUAKE_STUN = 40, QUAKE_CD = 300, QUAKE_RECOVER = 10;
@@ -281,16 +282,16 @@ function startSpin(npc, t, phase) {
         "damagePerTick", SPIN_DMG, "damageInterval", 5, "approachSpeed", SPIN_APPROACH,
         "knockback", 0.4, "knockbackY", 0.1));
     if (!ok) return false;
+    var now = hsNow(npc);
     hsPut(npc, "spin_triple", phase >= 3 ? 1 : 0);
-    hsPut(npc, "spin_pin", 0);
-    // Мод шагает в конце тиков с SPIN_CHARGE-го по SPIN_CHARGE + active - 1 от старта; дальше прижимать не к чему.
-    hsPut(npc, "spin_from", hsNow(npc) + SPIN_CHARGE);
-    hsPut(npc, "spin_last", hsNow(npc) + SPIN_CHARGE + active - 1);
-    hsPut(npc, "spin_sx", npc.getX());
-    hsPut(npc, "spin_sy", npc.getY());
-    hsPut(npc, "spin_sz", npc.getZ());
-    hsPut(npc, "spin_px", npc.getX());
-    hsPut(npc, "spin_pz", npc.getZ());
+    hsPut(npc, "spin_speed", phase >= 3 ? SPIN_SPEED3 : SPIN_SPEED);
+    hsPut(npc, "spin_t", String(t.getUUID()));
+    // Мод шагает в конце тиков с SPIN_CHARGE-го по SPIN_CHARGE + active - 1 от старта.
+    hsPut(npc, "spin_from", now + SPIN_CHARGE);
+    hsPut(npc, "spin_last", now + SPIN_CHARGE + active - 1);
+    hsPut(npc, "spin_x", npc.getX());
+    hsPut(npc, "spin_y", npc.getY());
+    hsPut(npc, "spin_z", npc.getZ());
     gAnim(npc, "spin");
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.1);
     npc.getTimers().forceStart(T_SPIN_END, SPIN_CHARGE + active + 2, false);
@@ -298,37 +299,62 @@ function startSpin(npc, t, phase) {
     return true;
 }
 
-// Каждый тик вихря: последнее место, где он помещается, и проверка на шаг вперёд по ходу движения.
-// Способности мода ходят в конце серверного тика, после таймеров: прижатый к месту, он каждый тик
-// сдвигается модом на тот же шаг от него, и клиент видит одну и ту же точку.
+// Каждый тик вихря: урон и шаг к цели.
 function spinGuard(npc) {
     if (!AbilityAPI.isBusy(npc)) {
         npc.getTimers().stop(T_SPIN_GUARD);
         return;
     }
     spinPulse(npc);
-    if (hsGet(npc, "spin_pin", "0") == "1") {
-        spinHold(npc);
-        return;
+    var now = hsNow(npc);
+    if (now < hsNum(npc, "spin_from") || now > hsNum(npc, "spin_last")) return;
+    var x = hsNum(npc, "spin_x"), y = hsNum(npc, "spin_y"), z = hsNum(npc, "spin_z");
+    var t = spinTarget(npc);
+    if (t != null) {
+        var dx = t.getX() - x, dz = t.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
+        if (d > SPIN_REACH) {
+            var step = Math.min(hsNum(npc, "spin_speed"), d - SPIN_REACH);
+            var ux = dx / d * step, uz = dz / d * step;
+            // Прямо к цели, иначе вдоль стены по одной из осей.
+            var tries = [[ux, uz], [ux, 0], [0, uz]];
+            for (var i = 0; i < tries.length; i++) {
+                var at = spinFree(npc, x, y, z, tries[i][0], tries[i][1]);
+                if (at == null) continue;
+                x = at[0];
+                y = at[1];
+                z = at[2];
+                break;
+            }
+        }
     }
+    hsPut(npc, "spin_x", x);
+    hsPut(npc, "spin_y", y);
+    hsPut(npc, "spin_z", z);
+    Combat.holdInPlace(npc, x, y, z);
+}
+
+// Цель вихря — та, на кого он начал, пока жива и на арене; иначе ближайший.
+function spinTarget(npc) {
+    var c = hsArenaCenter(npc);
+    var t = byId(npc, hsGet(npc, "spin_t", ""));
+    if (t != null && hsInArena(t, c[0], c[2], 0)) return t;
+    t = nearest(npc, hsPlayers(npc), 99);
+    if (t != null) hsPut(npc, "spin_t", String(t.getUUID()));
+    return t;
+}
+
+// Сдвиг на (mx, mz), если там помещается он сам и передний край корпуса; ступенька в блок — вверх или вниз.
+function spinFree(npc, x, y, z, mx, mz) {
+    var m = Math.sqrt(mx * mx + mz * mz);
+    if (m < 0.001) return null;
     var w = npc.getWorld();
-    var x = npc.getX(), y = npc.getY(), z = npc.getZ();
-    if (!Combat.canStandAt(w, x, y, z)) {
-        hsPut(npc, "spin_pin", 1);
-        spinHold(npc);
-        return;
+    var nx = x + mx, nz = z + mz, ex = nx + mx / m * SPIN_BODY, ez = nz + mz / m * SPIN_BODY;
+    var dys = [0, 1, -1];
+    for (var i = 0; i < dys.length; i++) {
+        var ny = y + dys[i];
+        if (Combat.canStandAt(w, nx, ny, nz) && Combat.canStandAt(w, ex, ny, ez)) return [nx, ny, nz];
     }
-    hsPut(npc, "spin_sx", x);
-    hsPut(npc, "spin_sy", y);
-    hsPut(npc, "spin_sz", z);
-    var dx = x - hsNum(npc, "spin_px"), dz = z - hsNum(npc, "spin_pz");
-    hsPut(npc, "spin_px", x);
-    hsPut(npc, "spin_pz", z);
-    var d = Math.sqrt(dx * dx + dz * dz);
-    if (d < 0.01) return;
-    var ax = x + dx / d * (SPIN_BODY + SPIN_LOOK), az = z + dz / d * (SPIN_BODY + SPIN_LOOK);
-    if (Combat.canStandAt(w, ax, y, az) || Combat.canStandAt(w, ax, y + 1, az)) return;
-    hsPut(npc, "spin_pin", 1);
+    return null;
 }
 
 function spinPulse(npc) {
@@ -336,11 +362,6 @@ function spinPulse(npc) {
     if (now < from || now > hsNum(npc, "spin_last") || (now - from) % SPIN_PULSE != 0) return;
     var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), SPIN_R);
     for (var i = 0; i < ps.length; i++) gStrike(npc, ps[i], SPIN_PCT);
-}
-
-function spinHold(npc) {
-    if (hsNow(npc) > hsNum(npc, "spin_last")) return;
-    Combat.holdInPlace(npc, hsNum(npc, "spin_sx"), hsNum(npc, "spin_sy"), hsNum(npc, "spin_sz"));
 }
 
 function spinEnd(npc) {

@@ -45,7 +45,13 @@ var SPIN_PCT = 0.18, SPIN_PULSE = 10, SPIN_SPEED = 0.25, SPIN_SPEED3 = 0.28, SPI
 // Сам мод везёт по прямой со скоростью approachSpeed, меньше 0,05 за тик не даёт. Способности мода ходят в конце
 // серверного тика, после таймеров: скрипт каждый тик ставит его на своё место, мод добавляет те же 0,05 — сноса нет.
 var SPIN_APPROACH = 0.05, SPIN_CD = 360, DIZZY_TICKS = 30;
-var SPIN_BODY = 1.0;
+// Шаг скрипта (вихрь, выход из угла): рамка Гарракса при setSize(10) — 1,2 на 3,6, Combat.canStandAt меряет 0,6.
+// Поэтому свободны должны быть и место, и края корпуса (STEP_HALF в стороны) и передний край на STEP_EDGE.
+var STEP_HALF = 0.5, STEP_EDGE = 1.0;
+// Застрял: поиск пути CustomNPCs для такой рамки требует проход в 2 блока и в углах ступенчатой стены встаёт.
+// Стоит на месте UNSTICK_AFTER проверок подряд (по 10 тиков, полторы секунды), а цель дальше удара — скрипт ведёт
+// его к цели сам UNSTICK_TICKS тиков, дальше снова ИИ.
+var UNSTICK_AFTER = 3, UNSTICK_TICKS = 20, UNSTICK_SPEED = 0.25, UNSTICK_MOVED = 0.3;
 // Раскол: полоса шириной 6 и длиной 18, волна бежит по ней по 2 блока за 2 тика.
 var QUAKE_CHARGE = 16, QUAKE_CHARGE_FAST = 10, QUAKE_LEN = 18, QUAKE_W = 3, QUAKE_STEP = 2;
 var QUAKE_PCT = 0.3, QUAKE_STUN = 40, QUAKE_CD = 300, QUAKE_RECOVER = 10;
@@ -74,9 +80,9 @@ var BOLTS_EVERY = 80, BOLT_WARN = 30, BOLT_R = 5, BOLT_PCT = 0.35, BOLTS_MIN = 2
 
 var T_HOLD = 1, T_COMBO = 2, T_SPIN_END = 3, T_QUAKE = 4, T_QUAKE_STEP = 5, T_DASH_END = 6;
 var T_QUICK = 7, T_LEAP = 8, T_RINGS = 9, T_VOID = 10, T_STORM = 11, T_STOMP = 12;
-var T_BOLTS = 13, T_FORCE_DASH = 14, T_RECOVER = 15, T_SWEEP = 16, T_SPIN_GUARD = 17;
+var T_BOLTS = 13, T_FORCE_DASH = 14, T_RECOVER = 15, T_SWEEP = 16, T_SPIN_GUARD = 17, T_UNSTICK = 18;
 var ALL_TIMERS = [T_HOLD, T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END, T_QUICK, T_LEAP, T_RINGS,
-    T_VOID, T_STORM, T_STOMP, T_BOLTS, T_FORCE_DASH, T_RECOVER, T_SWEEP, T_SPIN_GUARD];
+    T_VOID, T_STORM, T_STOMP, T_BOLTS, T_FORCE_DASH, T_RECOVER, T_SWEEP, T_SPIN_GUARD, T_UNSTICK];
 // Пока идёт любой из этих — новый приём не начинается.
 var CAST_TIMERS = [T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END, T_QUICK, T_LEAP,
     T_FORCE_DASH, T_RECOVER];
@@ -311,20 +317,11 @@ function spinGuard(npc) {
     var x = hsNum(npc, "spin_x"), y = hsNum(npc, "spin_y"), z = hsNum(npc, "spin_z");
     var t = spinTarget(npc);
     if (t != null) {
-        var dx = t.getX() - x, dz = t.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
-        if (d > SPIN_REACH) {
-            var step = Math.min(hsNum(npc, "spin_speed"), d - SPIN_REACH);
-            var ux = dx / d * step, uz = dz / d * step;
-            // Прямо к цели, иначе вдоль стены по одной из осей.
-            var tries = [[ux, uz], [ux, 0], [0, uz]];
-            for (var i = 0; i < tries.length; i++) {
-                var at = spinFree(npc, x, y, z, tries[i][0], tries[i][1]);
-                if (at == null) continue;
-                x = at[0];
-                y = at[1];
-                z = at[2];
-                break;
-            }
+        var at = gSteer(npc, x, y, z, t.getX(), t.getZ(), hsNum(npc, "spin_speed"), SPIN_REACH);
+        if (at != null) {
+            x = at[0];
+            y = at[1];
+            z = at[2];
         }
     }
     hsPut(npc, "spin_x", x);
@@ -343,18 +340,81 @@ function spinTarget(npc) {
     return t;
 }
 
-// Сдвиг на (mx, mz), если там помещается он сам и передний край корпуса; ступенька в блок — вверх или вниз.
-function spinFree(npc, x, y, z, mx, mz) {
+// Шаг к точке (tx, tz) не больше step и не ближе reach. Прямо; не вышло — под 45° в ту сторону, куда обходил прошлый
+// раз, потом в другую, под 90°, вдоль осей (если вдоль оси шаг не крошечный: такой выигрывал бы у обхода и он полз бы
+// у колонны). Сторону помнит, чтобы не метаться. null — шагнуть некуда или незачем.
+function gSteer(npc, x, y, z, tx, tz, step, reach) {
+    var dx = tx - x, dz = tz - z, d = Math.sqrt(dx * dx + dz * dz);
+    if (d <= reach) return null;
+    var len = Math.min(step, d - reach);
+    var ux = dx / d * len, uz = dz / d * len;
+    var side = hsNum(npc, "steer_side") < 0 ? -1 : 1;
+    var turns = [0, 45 * side, -45 * side, 90 * side, -90 * side, "x", "z"];
+    for (var i = 0; i < turns.length; i++) {
+        var mx, mz;
+        if (turns[i] == "x") { mx = ux; mz = 0; }
+        else if (turns[i] == "z") { mx = 0; mz = uz; }
+        else {
+            var a = turns[i] * Math.PI / 180;
+            mx = ux * Math.cos(a) - uz * Math.sin(a);
+            mz = ux * Math.sin(a) + uz * Math.cos(a);
+        }
+        if (Math.sqrt(mx * mx + mz * mz) < len * 0.3) continue;
+        var at = gFree(npc, x, y, z, mx, mz);
+        if (at == null) continue;
+        if (typeof turns[i] == "number" && turns[i] != 0) hsPut(npc, "steer_side", turns[i] > 0 ? 1 : -1);
+        return at;
+    }
+    return null;
+}
+
+// Сдвиг на (mx, mz), если там помещается корпус целиком (середина и края на STEP_HALF) и свободен передний край;
+// ступенька в блок — вверх или вниз.
+function gFree(npc, x, y, z, mx, mz) {
     var m = Math.sqrt(mx * mx + mz * mz);
     if (m < 0.001) return null;
     var w = npc.getWorld();
-    var nx = x + mx, nz = z + mz, ex = nx + mx / m * SPIN_BODY, ez = nz + mz / m * SPIN_BODY;
+    var nx = x + mx, nz = z + mz;
+    var pts = [[0, 0], [STEP_HALF, 0], [-STEP_HALF, 0], [0, STEP_HALF], [0, -STEP_HALF], [mx / m * STEP_EDGE, mz / m * STEP_EDGE]];
     var dys = [0, 1, -1];
     for (var i = 0; i < dys.length; i++) {
-        var ny = y + dys[i];
-        if (Combat.canStandAt(w, nx, ny, nz) && Combat.canStandAt(w, ex, ny, ez)) return [nx, ny, nz];
+        var ny = y + dys[i], ok = true;
+        for (var k = 0; k < pts.length && ok; k++) ok = Combat.canStandAt(w, nx + pts[k][0], ny, nz + pts[k][1]);
+        if (ok) return [nx, ny, nz];
     }
     return null;
+}
+
+// Проверка раз в 10 тиков: стоит, хотя свободен и цель дальше удара — ведём к цели сами UNSTICK_TICKS тиков.
+function stuckCheck(npc, t, now) {
+    var x = npc.getX(), z = npc.getZ();
+    var moved = Math.sqrt(Math.pow(x - hsNum(npc, "last_x"), 2) + Math.pow(z - hsNum(npc, "last_z"), 2));
+    hsPut(npc, "last_x", x);
+    hsPut(npc, "last_z", z);
+    if (npc.getTimers().has(T_UNSTICK)) return;
+    if (moved >= UNSTICK_MOVED || hsFlat(t, x, z) <= COMBO_RANGE) {
+        hsPut(npc, "still", 0);
+        return;
+    }
+    hsPut(npc, "still", hsNum(npc, "still") + 1);
+    if (hsNum(npc, "still") < UNSTICK_AFTER) return;
+    hsPut(npc, "still", 0);
+    hsPut(npc, "unstick_until", now + UNSTICK_TICKS);
+    npc.getTimers().forceStart(T_UNSTICK, 1, true);
+}
+
+function unstickStep(npc, now) {
+    var t = npc.getAttackTarget();
+    if (now > hsNum(npc, "unstick_until") || gBusy(npc, now) || t == null || !t.isAlive()) {
+        npc.getTimers().stop(T_UNSTICK);
+        return;
+    }
+    var at = gSteer(npc, npc.getX(), npc.getY(), npc.getZ(), t.getX(), t.getZ(), UNSTICK_SPEED, COMBO_RANGE - 1);
+    if (at == null) {
+        npc.getTimers().stop(T_UNSTICK);
+        return;
+    }
+    npc.setPosition(at[0], at[1], at[2]);
 }
 
 function spinPulse(npc) {
@@ -928,6 +988,7 @@ function tick(e) {
         npc.setAttackTarget(t);
     }
     tryCast(npc, ps, t, phase, now);
+    if (!gBusy(npc, now)) stuckCheck(npc, t, now);
 }
 
 function timer(e) {
@@ -939,6 +1000,7 @@ function timer(e) {
     else if (id == T_COMBO) comboStep(npc);
     else if (id == T_SPIN_END) spinEnd(npc);
     else if (id == T_SPIN_GUARD) spinGuard(npc);
+    else if (id == T_UNSTICK) unstickStep(npc, now);
     else if (id == T_QUAKE) quakeRelease(npc);
     else if (id == T_QUAKE_STEP) quakeStep(npc);
     else if (id == T_DASH_END) dashEnd(npc);

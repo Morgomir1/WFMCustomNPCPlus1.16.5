@@ -94,7 +94,7 @@ var PUDDLE_PERIOD = 20;
 var T_SLASH = 1, T_SLASH_HOLD = 3;
 var T_STOMP = 4, T_INHALE = 5, T_INHALE_TICK = 6;
 var T_RINGS = 7, T_RINGS2 = 8, T_SPOKES = 9, T_SPOKES2 = 10;
-var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13;
+var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13, T_RAM_GO = 14;
 
 // Клипы beastmen_gorgon.animation.json (WAH-4440). Пока новых клипов нет в модели —
 // держи false: играются старые attack/attack2/attack3/idle2/idle3.
@@ -107,9 +107,20 @@ var ANIM_STUN = GORGON_NEW_ANIMS ? "stun_wall" : "idle2";           // 3.00s
 var ANIM_ROAR = GORGON_NEW_ANIMS ? "attack_roar" : "idle3";         // 3.30s: волны 2.00 и 2.90
 var ANIM_SPOKES = GORGON_NEW_ANIMS ? "attack_spokes" : "idle3";     // 3.00s: удары 1.80 и 2.60
 
-// sounds.json: enchantment.pommel_strike_stun → enchantments/stun; enchantment.earth_tremor
+// WFM sounds.json (ключи проверены на наличие .ogg)
 var SND_STUN = "wfm:enchantment.pommel_strike_stun";
 var SND_TREMOR = "wfm:enchantment.earth_tremor";
+var SND_ROAR = "wfm:entity.gorgon.attack";               // рык на старте каста
+var SND_GROWL = "wfm:entity.gorgon.ambient";
+var SND_SWING = "wfm:entity.terracota_sentinel.swing";   // взмах пасти
+var SND_BITE = "wfm:enchantment.snake_bite";             // щелчок челюстей
+var SND_BREATH = "wfm:entity.hydra.fire_breath";         // вдох утробы (низкий pitch)
+var SND_RAM_PREP = "wfm:entity.goat.prepare_ram";
+var SND_RAM_GO = "wfm:entity.artillery.battering_ram_release";
+var SND_RAM_HIT = "wfm:entity.goat.ram_impact";
+var SND_BOOM = "wfm:entity.skull_cannon.impact";         // волны колец / спицы / удар в стену
+var SND_SPOKES = "wfm:entity.skull_cannon.cannon_ball_roar";
+var SND_BIG_ROAR = "minecraft:entity.ravager.roar";
 
 var TURN_DEG = 5;
 var NpcTurnHelper = Java.type("noppes.npcs.ai.NpcTurnHelper");
@@ -299,6 +310,7 @@ function gorgonStartSlash(npc, yaw, followDouble) {
     gorgonFreezeAi(npc);
     gorgonHoldSlash(npc);
     gorgonAnim(npc, ANIM_SLASH);
+    gorgonSound(npc, SND_ROAR, 2.0, 0.9);
     TelegraphAPI.coneTruncated(npc, g.apexX, sy, g.apexZ, yaw, g.minDist, g.maxDist, SLASH_HALF, SLASH_CHARGE, HS.RED);
     npc.getTimers().forceStart(T_SLASH, SLASH_CHARGE, false);
     npc.getTimers().forceStart(T_SLASH_HOLD, 1, true);
@@ -311,6 +323,8 @@ function gorgonSlashHit(npc, ps) {
     var minD = hsNum(npc, "slash_min"), maxD = hsNum(npc, "slash_max");
     var rad = (yaw + 90) * Math.PI / 180;
     var fx = Math.cos(rad), fz = Math.sin(rad);
+    gorgonSound(npc, SND_SWING, 2.0, 0.6);
+    gorgonSound(npc, SND_BITE, 2.0, 0.6);
     for (var i = 0; i < ps.length; i++) {
         var p = ps[i];
         var dist = hsFlat(p, ax, az);
@@ -408,6 +422,7 @@ function gorgonSpasmTick(npc, h, phase, safeR, now) {
         if (future < SAFE_R - 1) future = SAFE_R - 1;
         TelegraphAPI.ring(npc, h[0], h[1], h[2], safeR, future, SPASM_WARN, HS.RED);
         npc.say("§4Утроба содрогается!");
+        gorgonSound(npc, SND_GROWL, 3.0, 0.5);
         return safeR;
     }
     if (state == 1 && now >= hsNum(npc, "spasm_until")) {
@@ -436,6 +451,7 @@ function gorgonStartStomp(npc) {
     gorgonFaceTarget(npc, npc.getAttackTarget());
     gorgonHoldAt(npc, x, y, z, hsNum(npc, "face_yaw"));
     gorgonAnim(npc, ANIM_STOMP);
+    gorgonSound(npc, SND_GROWL, 2.0, 0.7);
     TelegraphAPI.circle(npc, x, y, z, STOMP_R, STOMP_CHARGE, HS.RED);
     npc.getTimers().forceStart(T_STOMP, STOMP_CHARGE, false);
     npc.getTimers().forceStart(T_SLASH_HOLD, 1, true);
@@ -444,7 +460,8 @@ function gorgonStartStomp(npc) {
 
 function gorgonStompHit(npc, ps) {
     var ox = hsNum(npc, "stomp_x"), oz = hsNum(npc, "stomp_z");
-    gorgonSound(npc, SND_TREMOR, 1.0, 1.0);
+    gorgonSound(npc, SND_TREMOR, 2.0, 0.9);
+    gorgonSound(npc, SND_BOOM, 1.5, 0.6);
     for (var i = 0; i < ps.length; i++) {
         if (hsFlat(ps[i], ox, oz) > STOMP_R) continue;
         hsStrike(ps[i], STOMP_PCT);
@@ -463,6 +480,7 @@ function gorgonStartInhale(npc) {
     gorgonFaceTarget(npc, npc.getAttackTarget());
     gorgonHoldAt(npc, x, y, z, hsNum(npc, "face_yaw"));
     gorgonAnim(npc, ANIM_INHALE);
+    gorgonSound(npc, SND_BREATH, 2.0, 0.5);
     TelegraphAPI.circle(npc, x, y, z, STOMP_R, INHALE_WIND + STOMP_CHARGE, HS.RED);
     npc.getTimers().forceStart(T_INHALE, INHALE_WIND, false);
     npc.getTimers().forceStart(T_INHALE_TICK, 1, true);
@@ -495,6 +513,7 @@ function gorgonStartRings(npc) {
     gorgonFaceTarget(npc, npc.getAttackTarget());
     gorgonHoldAt(npc, npc.getX(), npc.getY(), npc.getZ(), hsNum(npc, "face_yaw"));
     gorgonAnim(npc, ANIM_ROAR);
+    gorgonSound(npc, SND_BIG_ROAR, 3.0, 0.7);
     // Волна 1: 0–5 и 10–15
     TelegraphAPI.circle(npc, h[0], h[1], h[2], 5.0, RINGS_CHARGE, HS.RED);
     TelegraphAPI.ring(npc, h[0], h[1], h[2], 15.0, 10.0, RINGS_CHARGE, HS.RED);
@@ -505,6 +524,7 @@ function gorgonStartRings(npc) {
 
 function gorgonRingBandHit(npc, ps, inner, outer) {
     var ox = hsNum(npc, "rings_x"), oz = hsNum(npc, "rings_z");
+    gorgonSound(npc, SND_BOOM, 2.0, 0.5 + inner / 30);
     for (var i = 0; i < ps.length; i++) {
         var d = hsFlat(ps[i], ox, oz);
         if (d < inner || d > outer) continue;
@@ -525,6 +545,7 @@ function gorgonStartSpokes(npc, offsetDeg) {
     gorgonFaceTarget(npc, npc.getAttackTarget());
     gorgonHoldAt(npc, x, y, z, hsNum(npc, "face_yaw"));
     gorgonAnim(npc, ANIM_SPOKES);
+    gorgonSound(npc, SND_ROAR, 2.5, 0.7);
     var step = 360.0 / SPOKES_N;
     for (var i = 0; i < SPOKES_N; i++) {
         var yaw = offsetDeg + i * step;
@@ -540,6 +561,8 @@ function gorgonSpokesHit(npc, ps) {
     var off = hsNum(npc, "spokes_off");
     var len = HS.ARENA_R + 2;
     var step = 360.0 / SPOKES_N;
+    gorgonSound(npc, SND_SPOKES, 2.5, 0.8);
+    gorgonSound(npc, SND_BOOM, 2.0, 0.7);
     for (var i = 0; i < SPOKES_N; i++) {
         var yaw = off + i * step;
         for (var j = 0; j < ps.length; j++) {
@@ -571,6 +594,7 @@ function gorgonStartRam(npc, target) {
     Combat.stopNavigation(npc);
     gorgonFaceYaw(npc, yaw);
     gorgonAnim(npc, ANIM_RAM);
+    gorgonSound(npc, SND_RAM_PREP, 2.0, 0.6);
     TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, len, RAM_LINE_W, RAM_CHARGE, HS.RED);
     var started = hsStart(npc, "dash", target, AbilityAPI.params(
         "chargeTicks", RAM_CHARGE,
@@ -587,6 +611,7 @@ function gorgonStartRam(npc, target) {
         return false;
     }
     npc.getTimers().forceStart(T_RAM, RAM_CHARGE + RAM_ACTIVE + RAM_PAD, false);
+    npc.getTimers().forceStart(T_RAM_GO, RAM_CHARGE, false);
     return true;
 }
 
@@ -595,6 +620,7 @@ function gorgonResolveRam(npc, phase) {
     hsPut(npc, "ram_pending", 0);
     var safeR = gorgonSafeR(npc, phase);
     if (gorgonNearWall(npc, safeR)) {
+        gorgonSound(npc, SND_BOOM, 2.5, 0.6);
         gorgonWallCrash(npc);
         hsPut(npc, "ram_chain", 0);
         return;
@@ -897,6 +923,12 @@ function timer(e) {
         gorgonResolveRam(npc, phase);
         return;
     }
+
+    if (e.id == T_RAM_GO) {
+        gorgonSound(npc, SND_RAM_GO, 2.0, 0.6);
+        gorgonSound(npc, SND_RAM_HIT, 2.0, 0.6);
+        return;
+    }
 }
 
 function meleeAttack(e) {
@@ -914,7 +946,7 @@ function died(e) {
     AbilityAPI.cancel(npc);
     try {
         var ids = [T_SLASH, T_SLASH_HOLD, T_STOMP, T_INHALE, T_INHALE_TICK,
-            T_RINGS, T_RINGS2, T_SPOKES, T_SPOKES2, T_RAM, T_DOUBLE, T_RECOVER];
+            T_RINGS, T_RINGS2, T_SPOKES, T_SPOKES2, T_RAM, T_DOUBLE, T_RECOVER, T_RAM_GO];
         for (var i = 0; i < ids.length; i++) npc.getTimers().stop(ids[i]);
     } catch (err) {}
     try { NpcTurnHelper.unlockFace(npc); } catch (err) {}

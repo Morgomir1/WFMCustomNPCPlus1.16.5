@@ -35,8 +35,7 @@ var SLASH_PCT = 0.70;
 var SLASH_KB = 1.8;
 var SLASH_KB_Y = 0.45;
 var SLASH_CD = 200;
-var BITE_CHARGE = 25;      // windup короткого укуса (1.25s)
-var BITE_RECOVER = 6;      // откат короткого укуса (0.3s) → клип ~1.55s
+var DOUBLE_GAP = 8;        // пауза между ударами двойной пасти (0.4s)
 
 // --- Топот брюхом ---
 var STOMP_R = 7.0;
@@ -101,7 +100,6 @@ var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13;
 // держи false: играются старые attack/attack2/attack3/idle2/idle3.
 var GORGON_NEW_ANIMS = false;
 var ANIM_SLASH = GORGON_NEW_ANIMS ? "attack_slash" : "attack3";     // 2.00s: impact 1.50
-var ANIM_BITE = GORGON_NEW_ANIMS ? "attack_bite" : "attack";        // 1.55s: impact 1.25
 var ANIM_STOMP = GORGON_NEW_ANIMS ? "attack_stomp" : "attack2";     // 1.75s: impact 1.25
 var ANIM_INHALE = GORGON_NEW_ANIMS ? "attack_inhale" : "idle2";     // 2.00s, дальше stomp
 var ANIM_RAM = GORGON_NEW_ANIMS ? "attack_ram" : "attack";          // 2.40s: dash 1.40–1.80
@@ -288,7 +286,7 @@ function gorgonSlashGeom(sx, sz, yaw) {
     };
 }
 
-function gorgonStartSlash(npc, yaw, anim, followDouble) {
+function gorgonStartSlash(npc, yaw, followDouble) {
     var sx = npc.getX(), sy = npc.getY(), sz = npc.getZ();
     var g = gorgonSlashGeom(sx, sz, yaw);
     hsPut(npc, "slash_x", sx);
@@ -302,19 +300,13 @@ function gorgonStartSlash(npc, yaw, anim, followDouble) {
     hsPut(npc, "slash_max", g.maxDist);
     hsPut(npc, "double_next", followDouble ? 1 : 0);
     // Двойная пасть: recovery только после второго удара.
-    var useBite = (anim == ANIM_BITE);
-    var charge = useBite ? BITE_CHARGE : SLASH_CHARGE;
-    var rec = 0;
-    if (!followDouble) {
-        rec = useBite ? BITE_RECOVER : SLASH_RECOVER;
-    }
-    hsPut(npc, "recover_ticks", rec);
+    hsPut(npc, "recover_ticks", followDouble ? 0 : SLASH_RECOVER);
 
     gorgonFreezeAi(npc);
     gorgonHoldSlash(npc);
-    gorgonAnim(npc, anim == null ? ANIM_SLASH : anim);
-    TelegraphAPI.coneTruncated(npc, g.apexX, sy, g.apexZ, yaw, g.minDist, g.maxDist, SLASH_HALF, charge, HS.RED);
-    npc.getTimers().forceStart(T_SLASH, charge, false);
+    gorgonAnim(npc, ANIM_SLASH);
+    TelegraphAPI.coneTruncated(npc, g.apexX, sy, g.apexZ, yaw, g.minDist, g.maxDist, SLASH_HALF, SLASH_CHARGE, HS.RED);
+    npc.getTimers().forceStart(T_SLASH, SLASH_CHARGE, false);
     npc.getTimers().forceStart(T_SLASH_HOLD, 1, true);
 }
 
@@ -707,7 +699,7 @@ function gorgonTryCast(npc, ps, t, now, phase) {
         hsPut(npc, "slash_at", now + cd(npc, SLASH_CD));
         var yaw = hsYawTo(npc, t);
         var dbl = phase >= 3 && Math.random() < 0.55;
-        gorgonStartSlash(npc, yaw, ANIM_SLASH, dbl);
+        gorgonStartSlash(npc, yaw, dbl);
     }
 }
 
@@ -814,7 +806,7 @@ function timer(e) {
         if (hsGet(npc, "double_next", "0") == "1") {
             hsPut(npc, "double_next", 0);
             hsPut(npc, "hold_mode", "cast");
-            npc.getTimers().forceStart(T_DOUBLE, 8, false);
+            npc.getTimers().forceStart(T_DOUBLE, DOUBLE_GAP, false);
             npc.getTimers().forceStart(T_SLASH_HOLD, 1, true);
             return;
         }
@@ -825,7 +817,7 @@ function timer(e) {
     if (e.id == T_DOUBLE) {
         var yaw2 = hsNum(npc, "slash_yaw") + 180;
         if (yaw2 >= 360) yaw2 = yaw2 - 360;
-        gorgonStartSlash(npc, yaw2, ANIM_BITE, false);
+        gorgonStartSlash(npc, yaw2, false);
         return;
     }
 

@@ -39,7 +39,7 @@ var CROSS_LEN = 7, CROSS_W = 1.3, CROSS_PCT = 0.45;
 var SPIN_CHARGE = 20, SPIN_ACTIVE = 60, SPIN_ACTIVE3 = 90, SPIN_R = 4.0, SPIN_DMG = 2.0;
 var SPIN_APPROACH = 0.45, SPIN_CD = 360, DIZZY_TICKS = 30;
 // weapon_spin везёт его по прямой через setPosition и стен не видит. Скрипт каждый тик смотрит вперёд
-// на половину корпуса и шаг: стена или обрыв — вихрь обрывается, он врезается и шатается.
+// на половину корпуса и шаг: стена или обрыв — дальше не едет и докручивает на месте.
 var SPIN_BODY = 1.0, SPIN_LOOK = 0.6;
 // Раскол: полоса шириной 6 и длиной 18, волна бежит по ней по 2 блока за 2 тика.
 var QUAKE_CHARGE = 22, QUAKE_CHARGE_FAST = 12, QUAKE_LEN = 18, QUAKE_W = 3, QUAKE_STEP = 2;
@@ -269,6 +269,9 @@ function startSpin(npc, t, phase) {
         "knockback", 0.4, "knockbackY", 0.1));
     if (!ok) return false;
     hsPut(npc, "spin_triple", phase >= 3 ? 1 : 0);
+    hsPut(npc, "spin_pin", 0);
+    // Мод шагает в конце тиков с SPIN_CHARGE-го по SPIN_CHARGE + active - 1 от старта; дальше прижимать не к чему.
+    hsPut(npc, "spin_last", hsNow(npc) + SPIN_CHARGE + active - 1);
     hsPut(npc, "spin_sx", npc.getX());
     hsPut(npc, "spin_sy", npc.getY());
     hsPut(npc, "spin_sz", npc.getZ());
@@ -282,16 +285,22 @@ function startSpin(npc, t, phase) {
 }
 
 // Каждый тик вихря: последнее место, где он помещается, и проверка на шаг вперёд по ходу движения.
+// Способности мода ходят в конце серверного тика, после таймеров: прижатый к месту, он каждый тик
+// сдвигается модом на тот же шаг от него, и клиент видит одну и ту же точку.
 function spinGuard(npc) {
     if (!AbilityAPI.isBusy(npc)) {
         npc.getTimers().stop(T_SPIN_GUARD);
         return;
     }
+    if (hsGet(npc, "spin_pin", "0") == "1") {
+        spinHold(npc);
+        return;
+    }
     var w = npc.getWorld();
     var x = npc.getX(), y = npc.getY(), z = npc.getZ();
     if (!Combat.canStandAt(w, x, y, z)) {
-        npc.setPosition(hsNum(npc, "spin_sx"), hsNum(npc, "spin_sy"), hsNum(npc, "spin_sz"));
-        spinBlocked(npc);
+        hsPut(npc, "spin_pin", 1);
+        spinHold(npc);
         return;
     }
     hsPut(npc, "spin_sx", x);
@@ -304,18 +313,15 @@ function spinGuard(npc) {
     if (d < 0.01) return;
     var ax = x + dx / d * (SPIN_BODY + SPIN_LOOK), az = z + dz / d * (SPIN_BODY + SPIN_LOOK);
     if (Combat.canStandAt(w, ax, y, az) || Combat.canStandAt(w, ax, y + 1, az)) return;
-    spinBlocked(npc);
+    hsPut(npc, "spin_pin", 1);
 }
 
-function spinBlocked(npc) {
-    npc.getTimers().stop(T_SPIN_GUARD);
-    npc.getTimers().stop(T_SPIN_END);
-    AbilityAPI.cancel(npc);
-    arenaSound(npc, "minecraft:entity.ravager.attack", 1.0, 0.5);
-    spinEnd(npc, true);
+function spinHold(npc) {
+    if (hsNow(npc) > hsNum(npc, "spin_last")) return;
+    Combat.holdInPlace(npc, hsNum(npc, "spin_sx"), hsNum(npc, "spin_sy"), hsNum(npc, "spin_sz"));
 }
 
-function spinEnd(npc, wall) {
+function spinEnd(npc) {
     npc.getTimers().stop(T_SPIN_GUARD);
     if (hsGet(npc, "spin_triple", "0") == "1") {
         var yaw = npc.getRotation();
@@ -324,16 +330,16 @@ function spinEnd(npc, wall) {
         startQuake(npc, [yaw, yaw + 120, yaw + 240], QUAKE_CHARGE_FAST, true);
         return;
     }
-    startDizzy(npc, wall ? "§6Гарракс врезается в стену и шатается!" : "§6Гарракс шатается!");
+    startDizzy(npc);
 }
 
-function startDizzy(npc, line) {
+function startDizzy(npc) {
     hsPut(npc, "dizzy_until", hsNow(npc) + DIZZY_TICKS);
     gRecover(npc, DIZZY_TICKS);
     gAnim(npc, "dizzy");
     arenaSound(npc, "minecraft:entity.ravager.stunned", 1.0, 0.8);
     npc.getWorld().spawnParticle("crit", npc.getX(), npc.getY() + 3.2, npc.getZ(), 0.6, 0.3, 0.6, 0.05, 20);
-    npc.say(line || "§6Гарракс шатается!");
+    npc.say("§6Гарракс шатается!");
 }
 
 // --- Раскол ---
@@ -823,7 +829,7 @@ function timer(e) {
     var id = e.id;
     if (id == T_HOLD) gHold(npc);
     else if (id == T_COMBO) comboStep(npc);
-    else if (id == T_SPIN_END) spinEnd(npc, false);
+    else if (id == T_SPIN_END) spinEnd(npc);
     else if (id == T_SPIN_GUARD) spinGuard(npc);
     else if (id == T_QUAKE) quakeRelease(npc);
     else if (id == T_QUAKE_STEP) quakeStep(npc);

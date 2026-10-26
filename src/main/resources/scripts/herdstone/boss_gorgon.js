@@ -936,9 +936,8 @@ function meleeAttack(e) {
 }
 
 function damaged(e) {
-    var mul = 1;
-    if (gorgonStunned(e.npc)) mul = STUN_CAP_MUL;
-    hsCap(e, mul);
+    if (!gorgonStunned(e.npc)) { e.setCanceled(true); return; }
+    hsCap(e, STUN_CAP_MUL);
 }
 
 function died(e) {

@@ -71,7 +71,7 @@ var LEAP_CHARGE = 30, LEAP_R = 3, LEAP_PCT = 0.35, LEAP_CD = 520, LEAP_RECOVER =
 // и по её краю идёт ударная волна из частиц — через тик, чтобы не слать лишнего.
 var RINGS = 3, RING_GAP = 16, RING_STEP = 0.5, RING_PCT = 0.55, RING_JUMP = 0.5;
 // Тьма: круг VOID_R вокруг Камня (больше трети арены). Жёлтый с начала прыжка, тьма — через VOID_WARN после посадки.
-var VOID_R = 17, VOID_WARN = 30, VOID_TICKS = 160, VOID_PCT = 0.08, VOID_COLOR = 0xC0400070 | 0;
+var VOID_R = 17, VOID_WARN = 30, VOID_TICKS = 160, VOID_PCT = 0.08, VOID_EVERY = 10, VOID_COLOR = 0xC0400070 | 0;
 // Оба топора в полёт: настоящий axe_throw в одного, второй топор скриптом; безоружен — топчет.
 var STORM_LEN = 20, STORM_HIT_R = 1.5, STORM_PCT = 0.25, STORM_CD = 400, STORM_SPREAD = 25;
 var STOMP_AT = 4, STOMP_R = 4, STOMP_PCT = 0.35;
@@ -154,6 +154,12 @@ function gAnim(npc, key) {
     }
 }
 
+// Таймер CustomNPCs с числом N срабатывает на N+1-е обновление (Timer.update: «if (ticks-- > 0) return»), повторный —
+// раз в N+1 тиков: «каждый тик» с 1 шёл раз в два. Здесь ticks — сколько тиков на самом деле.
+function gTimer(npc, id, ticks, repeat) {
+    npc.getTimers().forceStart(id, Math.max(0, ticks - 1), repeat);
+}
+
 function swingBoth(npc) {
     npc.swingMainhand();
     npc.swingOffhand();
@@ -168,7 +174,7 @@ function gFreeze(npc, yaw) {
     hsPut(npc, "hold_z", npc.getZ());
     hsPut(npc, "hold_yaw", yaw);
     npc.setRotation(yaw);
-    npc.getTimers().forceStart(T_HOLD, 2, true);
+    gTimer(npc, T_HOLD, 2, true);
 }
 
 function gHold(npc) {
@@ -189,7 +195,7 @@ function gAiBack(npc) {
 
 function gRecover(npc, ticks) {
     gFreeze(npc, npc.getRotation());
-    npc.getTimers().forceStart(T_RECOVER, ticks, false);
+    gTimer(npc, T_RECOVER, ticks, false);
 }
 
 function gBusy(npc, now) {
@@ -241,7 +247,7 @@ function startCombo(npc, t) {
     hsPut(npc, "combo_step", 1);
     TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw - COMBO_SIDE, COMBO_LEN, COMBO_HALF, COMBO_T1, RED);
     gAnim(npc, "combo");
-    npc.getTimers().forceStart(T_COMBO, COMBO_T1, false);
+    gTimer(npc, T_COMBO, COMBO_T1, false);
 }
 
 function comboStep(npc) {
@@ -259,12 +265,12 @@ function comboStep(npc) {
         if (step == 1) {
             hsPut(npc, "combo_step", 2);
             TelegraphAPI.cone(npc, x, y, z, yaw + COMBO_SIDE, COMBO_LEN, COMBO_HALF, COMBO_T2, RED);
-            npc.getTimers().forceStart(T_COMBO, COMBO_T2, false);
+            gTimer(npc, T_COMBO, COMBO_T2, false);
         } else {
             hsPut(npc, "combo_step", 3);
             TelegraphAPI.line(npc, x, y, z, yaw, CROSS_LEN, CROSS_W * 2, COMBO_T3, RED);
             gAnim(npc, "cross");
-            npc.getTimers().forceStart(T_COMBO, COMBO_T3, false);
+            gTimer(npc, T_COMBO, COMBO_T3, false);
         }
         return;
     }
@@ -276,7 +282,7 @@ function comboStep(npc) {
         gPush(ps[i], x, z, 1);
     }
     hsPut(npc, "combo_step", 0);
-    npc.getTimers().forceStart(T_RECOVER, COMBO_RECOVER, false);
+    gTimer(npc, T_RECOVER, COMBO_RECOVER, false);
 }
 
 // --- Вихрь ---
@@ -294,14 +300,15 @@ function startSpin(npc, t, phase) {
     hsPut(npc, "spin_t", String(t.getUUID()));
     // Мод шагает в конце тиков с SPIN_CHARGE-го по SPIN_CHARGE + active - 1 от старта.
     hsPut(npc, "spin_from", now + SPIN_CHARGE);
+    hsPut(npc, "spin_pulse_at", now + SPIN_CHARGE);
     hsPut(npc, "spin_last", now + SPIN_CHARGE + active - 1);
     hsPut(npc, "spin_x", npc.getX());
     hsPut(npc, "spin_y", npc.getY());
     hsPut(npc, "spin_z", npc.getZ());
     gAnim(npc, "spin");
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.1);
-    npc.getTimers().forceStart(T_SPIN_END, SPIN_CHARGE + active + 2, false);
-    npc.getTimers().forceStart(T_SPIN_GUARD, 1, true);
+    gTimer(npc, T_SPIN_END, SPIN_CHARGE + active + 2, false);
+    gTimer(npc, T_SPIN_GUARD, 1, true);
     return true;
 }
 
@@ -400,7 +407,7 @@ function stuckCheck(npc, t, now) {
     if (hsNum(npc, "still") < UNSTICK_AFTER) return;
     hsPut(npc, "still", 0);
     hsPut(npc, "unstick_until", now + UNSTICK_TICKS);
-    npc.getTimers().forceStart(T_UNSTICK, 1, true);
+    gTimer(npc, T_UNSTICK, 1, true);
 }
 
 function unstickStep(npc, now) {
@@ -418,8 +425,9 @@ function unstickStep(npc, now) {
 }
 
 function spinPulse(npc) {
-    var now = hsNow(npc), from = hsNum(npc, "spin_from");
-    if (now < from || now > hsNum(npc, "spin_last") || (now - from) % SPIN_PULSE != 0) return;
+    var now = hsNow(npc);
+    if (now < hsNum(npc, "spin_pulse_at") || now > hsNum(npc, "spin_last")) return;
+    hsPut(npc, "spin_pulse_at", hsNum(npc, "spin_pulse_at") + SPIN_PULSE);
     var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), SPIN_R);
     for (var i = 0; i < ps.length; i++) gStrike(npc, ps[i], SPIN_PCT);
 }
@@ -461,13 +469,13 @@ function startQuake(npc, yaws, charge, dizzyAfter) {
     for (var i = 0; i < yaws.length; i++) TelegraphAPI.line(npc, x, y, z, yaws[i], QUAKE_LEN, QUAKE_W * 2, charge, RED);
     gAnim(npc, "quake");
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.7);
-    npc.getTimers().forceStart(T_QUAKE, charge, false);
+    gTimer(npc, T_QUAKE, charge, false);
 }
 
 function quakeRelease(npc) {
     swingBoth(npc);
     arenaSound(npc, "minecraft:entity.generic.explode", 1.0, 0.6);
-    npc.getTimers().forceStart(T_QUAKE_STEP, 2, true);
+    gTimer(npc, T_QUAKE_STEP, 2, true);
 }
 
 function quakeStep(npc) {
@@ -517,10 +525,10 @@ function quakeStep(npc) {
     }
     if (target != null) {
         hsPut(npc, "force_dash", String(target.getUUID()));
-        npc.getTimers().forceStart(T_FORCE_DASH, FOLLOW_DASH_DELAY, false);
+        gTimer(npc, T_FORCE_DASH, FOLLOW_DASH_DELAY, false);
         return;
     }
-    npc.getTimers().forceStart(T_RECOVER, QUAKE_RECOVER, false);
+    gTimer(npc, T_RECOVER, QUAKE_RECOVER, false);
 }
 
 // --- Рывок с ударом ---
@@ -546,7 +554,7 @@ function startDash(npc, t, charge) {
     TelegraphAPI.circle(npc, x + Math.cos(rad) * len, y, z + Math.sin(rad) * len, DASH_HIT_R, charge + DASH_ACTIVE, RED);
     gAnim(npc, "dash");
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.3);
-    npc.getTimers().forceStart(T_DASH_END, charge + DASH_ACTIVE + 2, false);
+    gTimer(npc, T_DASH_END, charge + DASH_ACTIVE + 2, false);
     return true;
 }
 
@@ -571,7 +579,7 @@ function startAround(npc, r, pct) {
     hsPut(npc, "ar_r", r);
     hsPut(npc, "ar_pct", pct);
     TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), r, QUICK_T, RED);
-    npc.getTimers().forceStart(T_QUICK, QUICK_T, false);
+    gTimer(npc, T_QUICK, QUICK_T, false);
 }
 
 function aroundHit(npc) {
@@ -598,7 +606,7 @@ function throwAxe(npc, t) {
 function startThrow(npc, t) {
     if (!throwAxe(npc, t)) return false;
     gAnim(npc, "throwAxe");
-    npc.getTimers().forceStart(T_SWEEP, SWEEP_AT, false);
+    gTimer(npc, T_SWEEP, SWEEP_AT, false);
     return true;
 }
 
@@ -613,7 +621,7 @@ function startLeap(npc) {
     gAnim(npc, "leap");
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.5);
     npc.say("§4Кровь – Камню!");
-    npc.getTimers().forceStart(T_LEAP, LEAP_CHARGE, false);
+    gTimer(npc, T_LEAP, LEAP_CHARGE, false);
     startVoid(npc, s, y, hsNow(npc));
 }
 
@@ -644,8 +652,8 @@ function leapLand(npc, now) {
     hsPut(npc, "rings_from", now);
     hsPut(npc, "ring_r", "0,0,0");
     hsPut(npc, "ring_hit", "||");
-    npc.getTimers().forceStart(T_RINGS, 1, true);
-    npc.getTimers().forceStart(T_RECOVER, LEAP_RECOVER, false);
+    gTimer(npc, T_RINGS, 1, true);
+    gTimer(npc, T_RECOVER, LEAP_RECOVER, false);
 }
 
 // Кольца от Камня, по одному раз в RING_GAP тиков; на полу — удар и толчок, в прыжке — мимо.
@@ -747,7 +755,8 @@ function startVoid(npc, s, y, now) {
     hsPut(npc, "void_on", on);
     hsPut(npc, "void_until", on + VOID_TICKS);
     hsPut(npc, "void_lit", 0);
-    npc.getTimers().forceStart(T_VOID, 10, true);
+    hsPut(npc, "void_hit_at", on);
+    gTimer(npc, T_VOID, 1, true);
 }
 
 function voidStep(npc, now) {
@@ -768,6 +777,8 @@ function voidStep(npc, now) {
         arenaSound(npc, "minecraft:entity.wither.ambient", 1.0, 0.6);
         npc.say("§5Камень пьёт свет – вокруг него тьма!");
     }
+    if (now < hsNum(npc, "void_hit_at")) return;
+    hsPut(npc, "void_hit_at", hsNum(npc, "void_hit_at") + VOID_EVERY);
     var s = gStone(npc);
     var ps = hsPlayers(npc);
     for (var i = 0; i < ps.length; i++) {
@@ -795,12 +806,13 @@ function startStorm(npc, ps, t) {
     hsPut(npc, "st_yaw", yaw);
     hsPut(npc, "st_release", release);
     hsPut(npc, "st_hit", "|");
+    hsPut(npc, "st_prev", 0);
     hsPut(npc, "unarmed_until", release + flight);
     TelegraphAPI.line(npc, x, y, z, yaw, STORM_LEN, STORM_HIT_R * 2, THROW_CHARGE + flight, RED);
     gAnim(npc, "throwAxe");
     npc.say("§4Гарракс бросает оба топора!");
-    npc.getTimers().forceStart(T_STORM, 2, true);
-    npc.getTimers().forceStart(T_STOMP, THROW_CHARGE + STOMP_AT, false);
+    gTimer(npc, T_STORM, 2, true);
+    gTimer(npc, T_STOMP, THROW_CHARGE + STOMP_AT, false);
     return true;
 }
 
@@ -822,11 +834,16 @@ function stormStep(npc, now) {
     var w = npc.getWorld();
     w.spawnParticle("sweep_attack", px, y + 1.2, pz, 0.2, 0.2, 0.2, 0, 1);
     w.spawnParticle("crit", px, y + 1.2, pz, 0.3, 0.3, 0.3, 0.1, 6);
+    // На обратном пути топор пролетает 4 блока за шаг: бьёт всех на отрезке от прошлого шага до этого.
+    var prev = hsNum(npc, "st_prev"), lo = Math.min(prev, dist) - STORM_HIT_R, hi = Math.max(prev, dist) + STORM_HIT_R;
+    hsPut(npc, "st_prev", dist);
     var hits = hsGet(npc, "st_hit", "|").split("|");
-    var ps = hsPlayersAt(npc, px, y, pz, STORM_HIT_R);
+    var ps = hsPlayers(npc);
     for (var i = 0; i < ps.length; i++) {
         var id = String(ps[i].getUUID());
         if (hits[pass].indexOf(id) >= 0) continue;
+        var a = along(ps[i], x, z, yaw);
+        if (a[0] < lo || a[0] > hi || a[1] > STORM_HIT_R) continue;
         hits[pass] += id + ";";
         gStrike(npc, ps[i], STORM_PCT);
     }
@@ -859,7 +876,7 @@ function boltsTick(npc, ps, phase, now) {
     }
     hsPut(npc, "bolts", pts.join(";"));
     hsPut(npc, "bolts_y", y);
-    npc.getTimers().forceStart(T_BOLTS, BOLT_WARN, false);
+    gTimer(npc, T_BOLTS, BOLT_WARN, false);
 }
 
 function boltsHit(npc) {

@@ -97,12 +97,17 @@ var T_STOMP = 4, T_INHALE = 5, T_INHALE_TICK = 6;
 var T_RINGS = 7, T_RINGS2 = 8, T_SPOKES = 9, T_SPOKES2 = 10;
 var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13;
 
-// Клипы beastmen_gorgon.animation.json
-var ANIM_SLASH = "attack3";
-var ANIM_STOMP = "attack2";
-var ANIM_BITE = "attack";
-var ANIM_INHALE = "idle2";
-var ANIM_ROAR = "idle3";
+// Клипы beastmen_gorgon.animation.json (WAH-4440). Пока новых клипов нет в модели —
+// держи false: играются старые attack/attack2/attack3/idle2/idle3.
+var GORGON_NEW_ANIMS = false;
+var ANIM_SLASH = GORGON_NEW_ANIMS ? "attack_slash" : "attack3";     // 2.00s: impact 1.50
+var ANIM_BITE = GORGON_NEW_ANIMS ? "attack_bite" : "attack";        // 1.55s: impact 1.25
+var ANIM_STOMP = GORGON_NEW_ANIMS ? "attack_stomp" : "attack2";     // 1.75s: impact 1.25
+var ANIM_INHALE = GORGON_NEW_ANIMS ? "attack_inhale" : "idle2";     // 2.00s, дальше stomp
+var ANIM_RAM = GORGON_NEW_ANIMS ? "attack_ram" : "attack";          // 2.40s: dash 1.40–1.80
+var ANIM_STUN = GORGON_NEW_ANIMS ? "stun_wall" : "idle2";           // 3.00s
+var ANIM_ROAR = GORGON_NEW_ANIMS ? "attack_roar" : "idle3";         // 3.30s: волны 2.00 и 2.90
+var ANIM_SPOKES = GORGON_NEW_ANIMS ? "attack_spokes" : "idle3";     // 3.00s: удары 1.80 и 2.60
 
 // sounds.json: enchantment.pommel_strike_stun → enchantments/stun; enchantment.earth_tremor
 var SND_STUN = "wfm:enchantment.pommel_strike_stun";
@@ -533,7 +538,7 @@ function gorgonStartSpokes(npc, offsetDeg) {
     gorgonFreezeAi(npc);
     gorgonFaceTarget(npc, npc.getAttackTarget());
     gorgonHoldAt(npc, x, y, z, hsNum(npc, "face_yaw"));
-    gorgonAnim(npc, ANIM_ROAR);
+    gorgonAnim(npc, ANIM_SPOKES);
     var step = 360.0 / SPOKES_N;
     for (var i = 0; i < SPOKES_N; i++) {
         var yaw = offsetDeg + i * step;
@@ -579,7 +584,7 @@ function gorgonStartRam(npc, target) {
     gorgonFreezeAi(npc);
     Combat.stopNavigation(npc);
     gorgonFaceYaw(npc, yaw);
-    gorgonAnim(npc, ANIM_BITE);
+    gorgonAnim(npc, ANIM_RAM);
     TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, len, RAM_LINE_W, RAM_CHARGE, HS.RED);
     var started = hsStart(npc, "dash", target, AbilityAPI.params(
         "chargeTicks", RAM_CHARGE,
@@ -632,7 +637,7 @@ function gorgonWallCrash(npc) {
     gorgonFreezeAi(npc);
     gorgonLockFace(npc, npc.getRotation());
     gorgonHoldAt(npc, npc.getX(), npc.getY(), npc.getZ(), hsNum(npc, "face_yaw"));
-    gorgonAnim(npc, ANIM_INHALE);
+    gorgonAnim(npc, ANIM_STUN);
     gorgonSound(npc, SND_STUN, 2.5, 1.0);
     npc.say("§6Утроба отрыгнула! Горгон оглушён!");
 }

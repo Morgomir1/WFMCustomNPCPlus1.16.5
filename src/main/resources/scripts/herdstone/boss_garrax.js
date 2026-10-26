@@ -34,39 +34,40 @@ var RAGE_EVERY = 1200, RAGE_STEP = 0.15;
 var WALK_GAP = 40, WALK_GAP3 = 30;
 
 // Перекрёстный удар: слева и справа (конусы, повёрнутые на COMBO_SIDE), третий — накрест по полосе.
-var COMBO_RANGE = 5, COMBO_LEN = 5.5, COMBO_SIDE = 35, COMBO_HALF = 55, COMBO_PCT = 0.25;
+var COMBO_RANGE = 6, COMBO_LEN = 6.5, COMBO_SIDE = 35, COMBO_HALF = 60, COMBO_PCT = 0.25;
 var COMBO_T1 = 12, COMBO_T2 = 8, COMBO_T3 = 14, COMBO_RECOVER = 12, COMBO_CD = 60;
-var CROSS_LEN = 7, CROSS_W = 1.3, CROSS_PCT = 0.45;
+var CROSS_LEN = 8, CROSS_W = 1.6, CROSS_PCT = 0.45;
 // Вихрь — weapon_spin обоими топорами, ползёт к цели; после — шатается. Свой удар мода плоский и через броню,
 // его почти не чувствуют; основной урон — доля здоровья скриптом раз в SPIN_PULSE тиков всем в SPIN_R.
-var SPIN_CHARGE = 20, SPIN_ACTIVE = 60, SPIN_ACTIVE3 = 90, SPIN_R = 4.0, SPIN_DMG = 1.0;
+var SPIN_CHARGE = 20, SPIN_ACTIVE = 60, SPIN_ACTIVE3 = 90, SPIN_R = 5.0, SPIN_DMG = 1.0;
 var SPIN_PCT = 0.07, SPIN_PULSE = 10;
 var SPIN_APPROACH = 0.45, SPIN_CD = 360, DIZZY_TICKS = 30;
 // weapon_spin везёт его по прямой через setPosition и стен не видит. Скрипт каждый тик смотрит вперёд
 // на половину корпуса и шаг: стена или обрыв — дальше не едет и докручивает на месте.
 var SPIN_BODY = 1.0, SPIN_LOOK = 0.6;
 // Раскол: полоса шириной 6 и длиной 18, волна бежит по ней по 2 блока за 2 тика.
-var QUAKE_CHARGE = 22, QUAKE_CHARGE_FAST = 12, QUAKE_LEN = 18, QUAKE_W = 3, QUAKE_STEP = 2;
+var QUAKE_CHARGE = 16, QUAKE_CHARGE_FAST = 10, QUAKE_LEN = 18, QUAKE_W = 3, QUAKE_STEP = 2;
 var QUAKE_PCT = 0.3, QUAKE_STUN = 40, QUAKE_CD = 300, QUAKE_RECOVER = 10;
 // Рывок с ударом: к самому дальнему (или к оглушённому Расколом), в конце — круг вокруг себя.
 var DASH_CHARGE = 18, DASH_CHARGE_FOLLOW = 10, FOLLOW_DASH_DELAY = 4;
 var DASH_ACTIVE = 8, DASH_MIN = 6, DASH_MAX = 22, DASH_W = 1.5, DASH_DMG = 8.0;
-var DASH_HIT_R = 3, DASH_PCT = 0.4, DASH_CD = 240, DASH_RECOVER = 10, DASH_MIN_TARGET = 7;
+var DASH_HIT_R = 3.5, DASH_PCT = 0.4, DASH_CD = 240, DASH_RECOVER = 10, DASH_MIN_TARGET = 7;
 // Бросок топора (axe_throw, бумеранг на THROW_LEN) и размах оставшимся вокруг себя. Мод бьёт кубом THROW_HIT_R
 // вокруг самого топора, а топор летит по параболе высотой arcHeight (по умолчанию 3,5): на середине пути он шёл
 // над головой. THROW_ARC — почти плоско, на высоте груди.
 var THROW_CHARGE = 10, THROW_OUT = 14, THROW_HOLD = 4, THROW_BACK = 10, THROW_LEN = 20, THROW_HIT_R = 1.6;
 var THROW_ARC = 0.4, THROW_MIN = 6, THROW_PCT = 0.25, THROW_CD = 240;
-var QUICK_T = 8, SWEEP_AT = THROW_CHARGE + 6, SWEEP_R = 4, SWEEP_PCT = 0.3;
+var QUICK_T = 8, SWEEP_AT = THROW_CHARGE + 6, SWEEP_R = 4.5, SWEEP_PCT = 0.3;
 // Прыжок на Камень, кольца по земле и тьма вокруг Камня.
 var LEAP_CHARGE = 30, LEAP_R = 3, LEAP_PCT = 0.35, LEAP_CD = 520, LEAP_RECOVER = 20;
-// Кольцо — ударная волна из частиц по земле, на шаг RING_STEP за RING_EVERY тиков; подсказок на полу нет.
-var RINGS = 3, RING_GAP = 16, RING_EVERY = 2, RING_STEP = 1, RING_PCT = 0.25, RING_JUMP = 0.5;
+// Кольцо — одна зона мода на всё время, ей каждый тик растёт радиус (подсказки, рисуемые заново, мерцали),
+// и по её краю идёт ударная волна из частиц — через тик, чтобы не слать лишнего.
+var RINGS = 3, RING_GAP = 16, RING_STEP = 0.5, RING_PCT = 0.25, RING_JUMP = 0.5;
 // Тьма: круг VOID_R вокруг Камня (больше трети арены). Жёлтый с начала прыжка, тьма — через VOID_WARN после посадки.
 var VOID_R = 17, VOID_WARN = 30, VOID_TICKS = 160, VOID_PCT = 0.08, VOID_COLOR = 0xC0400070 | 0;
 // Оба топора в полёт: настоящий axe_throw в одного, второй топор скриптом; безоружен — топчет.
 var STORM_LEN = 20, STORM_HIT_R = 1.5, STORM_PCT = 0.25, STORM_CD = 400, STORM_SPREAD = 25;
-var STOMP_AT = 4, STOMP_R = 3.5, STOMP_PCT = 0.35;
+var STOMP_AT = 4, STOMP_R = 4, STOMP_PCT = 0.35;
 // Варп-молнии Ночи Тайн: подсказка, затем удар; число растёт.
 var BOLTS_EVERY = 80, BOLT_WARN = 30, BOLT_R = 5, BOLT_PCT = 0.35, BOLTS_MIN = 2, BOLTS_MAX = 6, BOLTS_GROW = 400;
 
@@ -85,6 +86,7 @@ var ANIM = { combo: "", cross: "", spin: "", quake: "", dash: "", leap: "", dizz
 function init(e) {
     var npc = e.npc;
     if (!hsInit(npc)) return;
+    gRingsClear(npc);
     if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
     npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
     npc.getAi().setRetaliateType(0);
@@ -561,7 +563,7 @@ function leapLand(npc, now) {
     hsPut(npc, "rings_from", now);
     hsPut(npc, "ring_r", "0,0,0");
     hsPut(npc, "ring_hit", "||");
-    npc.getTimers().forceStart(T_RINGS, RING_EVERY, true);
+    npc.getTimers().forceStart(T_RINGS, 1, true);
     npc.getTimers().forceStart(T_RECOVER, LEAP_RECOVER, false);
 }
 
@@ -579,7 +581,19 @@ function ringsStep(npc, now) {
         left++;
         if (now < from + k * RING_GAP) continue;
         var r1 = r0 + RING_STEP;
-        shockwave(npc, s[0], y, s[1], r1);
+        var zone = gRing(npc, k);
+        if (zone == null && r0 == 0) {
+            zone = ZoneAPI.hazardRing(npc, s[0], y + 0.05, s[1], 0.5, 0.05, 200, 0, 999);
+            if (zone != null) {
+                zone.setColor(RED);
+                npc.getTempdata().put("g_ring" + k, zone);
+            }
+        }
+        if (zone != null) {
+            zone.setRadius(r1 + 0.5);
+            zone.setInnerRadius(Math.max(0.05, r1 - 1));
+        }
+        if (Math.round(r1 * 2) % 2 == 0) shockwave(npc, s[0], y, s[1], r1);
         for (var i = 0; i < ps.length; i++) {
             var id = String(ps[i].getUUID());
             if (hits[k].indexOf(id) >= 0) continue;
@@ -591,10 +605,42 @@ function ringsStep(npc, now) {
             gPush(ps[i], s[0], s[1], 1);
         }
         rs[k] = r1;
+        if (r1 >= HS.ARENA_R + 1) gRingClear(npc, k);
     }
     hsPut(npc, "ring_r", rs.join(","));
     hsPut(npc, "ring_hit", hits.join("|"));
     if (left == 0) npc.getTimers().stop(T_RINGS);
+}
+
+function gRing(npc, k) {
+    var td = npc.getTempdata();
+    if (td == null || !td.has("g_ring" + k)) return null;
+    var zone = td.get("g_ring" + k);
+    try {
+        if (zone == null || zone.removed) {
+            td.remove("g_ring" + k);
+            return null;
+        }
+    } catch (err) {
+        td.remove("g_ring" + k);
+        return null;
+    }
+    return zone;
+}
+
+function gRingClear(npc, k) {
+    var zone = gRing(npc, k);
+    if (zone == null) return;
+    npc.getTempdata().remove("g_ring" + k);
+    try {
+        ZoneAPI.remove(zone);
+    } catch (err) {
+        log("garrax ring: " + err);
+    }
+}
+
+function gRingsClear(npc) {
+    for (var k = 0; k < RINGS; k++) gRingClear(npc, k);
 }
 
 // Кольцо пыли и искр на радиусе r, разлетается наружу. Точек — примерно через 2 блока, не больше 36.
@@ -905,6 +951,7 @@ function died(e) {
     AbilityAPI.cancel(npc);
     for (var i = 0; i < ALL_TIMERS.length; i++) npc.getTimers().stop(ALL_TIMERS[i]);
     hsZoneClear(npc);
+    gRingsClear(npc);
     hsSetGate(npc, false);
     npc.say("§7Камень трескается. Устье колодца открыто.");
 }

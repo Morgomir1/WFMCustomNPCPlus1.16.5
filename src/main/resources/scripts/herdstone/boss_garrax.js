@@ -4,7 +4,7 @@
 // Фаза 1 (выше 66%): перекрёстный удар (слева, справа, третий — накрест прямо перед собой), вихрь,
 //   Раскол — волна по полосе перед ним с оглушением WFM, за ней рывок в оглушённого; рывок к дальнему.
 // Фаза 2 (66–33%): плюс бросок топора-бумеранга (пока топор летит — размах оставшимся вокруг себя)
-//   и прыжок на Камень Стада: от Камня бегут кольца по земле (прыгать), по трём жёлобам течёт кровь.
+//   и прыжок на Камень Стада: от Камня бегут кольца по земле (прыгать), середину арены заливает тьма.
 // Фаза 3 (33% и ниже), Ночь Тайн: всё на треть чаще, вихрь длиннее и кончается Расколом в три стороны,
 //   оба топора в полёт (безоружен — топчет), варп-молнии всё гуще; раз в минуту удары на 15% сильнее.
 // Обычной атаки мода нет (meleeAttack отменяется): он идёт к цели, а бьёт скриптом.
@@ -30,45 +30,51 @@ var RED = 0xC0FF0000 | 0;
 var STUN_ID = "wfm:stun";
 var OPEN_MUL = 1.5;          // урон по нему, пока шатается или безоружен
 var RAGE_EVERY = 1200, RAGE_STEP = 0.15;
+// После любого приёма столько тиков он только идёт к цели и рубит (перекрёстный удар), без других приёмов.
+var WALK_GAP = 40, WALK_GAP3 = 30;
 
 // Перекрёстный удар: слева и справа (конусы, повёрнутые на COMBO_SIDE), третий — накрест по полосе.
-var COMBO_RANGE = 5, COMBO_LEN = 5.5, COMBO_SIDE = 35, COMBO_HALF = 55, COMBO_PCT = 0.2;
+var COMBO_RANGE = 5, COMBO_LEN = 5.5, COMBO_SIDE = 35, COMBO_HALF = 55, COMBO_PCT = 0.25;
 var COMBO_T1 = 12, COMBO_T2 = 8, COMBO_T3 = 14, COMBO_RECOVER = 12, COMBO_CD = 60;
 var CROSS_LEN = 7, CROSS_W = 1.3, CROSS_PCT = 0.45;
-// Вихрь — weapon_spin обоими топорами, ползёт к цели; после — шатается.
-var SPIN_CHARGE = 20, SPIN_ACTIVE = 60, SPIN_ACTIVE3 = 90, SPIN_R = 4.0, SPIN_DMG = 2.0;
+// Вихрь — weapon_spin обоими топорами, ползёт к цели; после — шатается. Свой удар мода плоский и через броню,
+// его почти не чувствуют; основной урон — доля здоровья скриптом раз в SPIN_PULSE тиков всем в SPIN_R.
+var SPIN_CHARGE = 20, SPIN_ACTIVE = 60, SPIN_ACTIVE3 = 90, SPIN_R = 4.0, SPIN_DMG = 1.0;
+var SPIN_PCT = 0.07, SPIN_PULSE = 10;
 var SPIN_APPROACH = 0.45, SPIN_CD = 360, DIZZY_TICKS = 30;
 // weapon_spin везёт его по прямой через setPosition и стен не видит. Скрипт каждый тик смотрит вперёд
 // на половину корпуса и шаг: стена или обрыв — дальше не едет и докручивает на месте.
 var SPIN_BODY = 1.0, SPIN_LOOK = 0.6;
 // Раскол: полоса шириной 6 и длиной 18, волна бежит по ней по 2 блока за 2 тика.
 var QUAKE_CHARGE = 22, QUAKE_CHARGE_FAST = 12, QUAKE_LEN = 18, QUAKE_W = 3, QUAKE_STEP = 2;
-var QUAKE_PCT = 0.25, QUAKE_STUN = 40, QUAKE_CD = 300, QUAKE_RECOVER = 10;
+var QUAKE_PCT = 0.3, QUAKE_STUN = 40, QUAKE_CD = 300, QUAKE_RECOVER = 10;
 // Рывок с ударом: к самому дальнему (или к оглушённому Расколом), в конце — круг вокруг себя.
 var DASH_CHARGE = 18, DASH_CHARGE_FOLLOW = 10, FOLLOW_DASH_DELAY = 4;
-var DASH_ACTIVE = 8, DASH_MIN = 6, DASH_MAX = 22, DASH_W = 1.5, DASH_DMG = 6.0;
-var DASH_HIT_R = 3, DASH_PCT = 0.35, DASH_CD = 240, DASH_RECOVER = 10, DASH_MIN_TARGET = 7;
-// Бросок топора (axe_throw, бумеранг на THROW_LEN) и размах оставшимся вокруг себя.
-var THROW_CHARGE = 10, THROW_OUT = 14, THROW_HOLD = 4, THROW_BACK = 10, THROW_LEN = 20, THROW_HIT_R = 1.5;
-var THROW_MIN = 6, THROW_PCT = 0.2, THROW_CD = 240;
-var QUICK_T = 8, SWEEP_AT = THROW_CHARGE + 6, SWEEP_R = 4, SWEEP_PCT = 0.25;
-// Прыжок на Камень, кольца по земле и кровь в жёлобах.
-var LEAP_CHARGE = 30, LEAP_R = 3, LEAP_PCT = 0.3, LEAP_CD = 520, LEAP_RECOVER = 20;
-var RINGS = 3, RING_GAP = 16, RING_EVERY = 2, RING_STEP = 1, RING_PCT = 0.2, RING_JUMP = 0.5, RING_TICKS = 4;
-var BLOOD_WARN = 20, BLOOD_TICKS = 160, BLOOD_W = 1.5, BLOOD_PCT = 0.05;
-// Жёлобы от Камня к сердцам — как их кладёт строитель (chan_n, chan_sw, chan_se), от центра арены.
-var CHANNELS = [ [0, 22], [-19, -13], [19, -13] ];
+var DASH_ACTIVE = 8, DASH_MIN = 6, DASH_MAX = 22, DASH_W = 1.5, DASH_DMG = 8.0;
+var DASH_HIT_R = 3, DASH_PCT = 0.4, DASH_CD = 240, DASH_RECOVER = 10, DASH_MIN_TARGET = 7;
+// Бросок топора (axe_throw, бумеранг на THROW_LEN) и размах оставшимся вокруг себя. Мод бьёт кубом THROW_HIT_R
+// вокруг самого топора, а топор летит по параболе высотой arcHeight (по умолчанию 3,5): на середине пути он шёл
+// над головой. THROW_ARC — почти плоско, на высоте груди.
+var THROW_CHARGE = 10, THROW_OUT = 14, THROW_HOLD = 4, THROW_BACK = 10, THROW_LEN = 20, THROW_HIT_R = 1.6;
+var THROW_ARC = 0.4, THROW_MIN = 6, THROW_PCT = 0.25, THROW_CD = 240;
+var QUICK_T = 8, SWEEP_AT = THROW_CHARGE + 6, SWEEP_R = 4, SWEEP_PCT = 0.3;
+// Прыжок на Камень, кольца по земле и тьма вокруг Камня.
+var LEAP_CHARGE = 30, LEAP_R = 3, LEAP_PCT = 0.35, LEAP_CD = 520, LEAP_RECOVER = 20;
+// Кольцо — ударная волна из частиц по земле, на шаг RING_STEP за RING_EVERY тиков; подсказок на полу нет.
+var RINGS = 3, RING_GAP = 16, RING_EVERY = 2, RING_STEP = 1, RING_PCT = 0.25, RING_JUMP = 0.5;
+// Тьма: круг VOID_R вокруг Камня (больше трети арены). Жёлтый с начала прыжка, тьма — через VOID_WARN после посадки.
+var VOID_R = 17, VOID_WARN = 30, VOID_TICKS = 160, VOID_PCT = 0.08, VOID_COLOR = 0xC0400070 | 0;
 // Оба топора в полёт: настоящий axe_throw в одного, второй топор скриптом; безоружен — топчет.
-var STORM_LEN = 20, STORM_HIT_R = 1.5, STORM_PCT = 0.2, STORM_CD = 400, STORM_SPREAD = 25;
-var STOMP_AT = 4, STOMP_R = 3.5, STOMP_PCT = 0.3;
+var STORM_LEN = 20, STORM_HIT_R = 1.5, STORM_PCT = 0.25, STORM_CD = 400, STORM_SPREAD = 25;
+var STOMP_AT = 4, STOMP_R = 3.5, STOMP_PCT = 0.35;
 // Варп-молнии Ночи Тайн: подсказка, затем удар; число растёт.
-var BOLTS_EVERY = 80, BOLT_WARN = 30, BOLT_R = 2.5, BOLT_PCT = 0.3, BOLTS_MIN = 2, BOLTS_MAX = 6, BOLTS_GROW = 400;
+var BOLTS_EVERY = 80, BOLT_WARN = 30, BOLT_R = 5, BOLT_PCT = 0.35, BOLTS_MIN = 2, BOLTS_MAX = 6, BOLTS_GROW = 400;
 
 var T_HOLD = 1, T_COMBO = 2, T_SPIN_END = 3, T_QUAKE = 4, T_QUAKE_STEP = 5, T_DASH_END = 6;
-var T_QUICK = 7, T_LEAP = 8, T_RINGS = 9, T_BLOOD = 10, T_STORM = 11, T_STOMP = 12;
+var T_QUICK = 7, T_LEAP = 8, T_RINGS = 9, T_VOID = 10, T_STORM = 11, T_STOMP = 12;
 var T_BOLTS = 13, T_FORCE_DASH = 14, T_RECOVER = 15, T_SWEEP = 16, T_SPIN_GUARD = 17;
 var ALL_TIMERS = [T_HOLD, T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END, T_QUICK, T_LEAP, T_RINGS,
-    T_BLOOD, T_STORM, T_STOMP, T_BOLTS, T_FORCE_DASH, T_RECOVER, T_SWEEP, T_SPIN_GUARD];
+    T_VOID, T_STORM, T_STOMP, T_BOLTS, T_FORCE_DASH, T_RECOVER, T_SWEEP, T_SPIN_GUARD];
 // Пока идёт любой из этих — новый приём не начинается.
 var CAST_TIMERS = [T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END, T_QUICK, T_LEAP,
     T_FORCE_DASH, T_RECOVER];
@@ -144,10 +150,10 @@ function swingBoth(npc) {
     npc.swingOffhand();
 }
 
-// Стоит на месте лицом в одну сторону, пока идёт приём.
+// Стоит на месте лицом в одну сторону, пока идёт приём. Режим ответа на атаку не трогаем: CustomNPCs
+// пересобирает ИИ после его смены раз в секунду, и после каждого приёма он стоял бы, не идя к цели.
 function gFreeze(npc, yaw) {
     npc.getAi().setWalkingSpeed(0);
-    npc.getAi().setRetaliateType(3);
     hsPut(npc, "hold_x", npc.getX());
     hsPut(npc, "hold_y", npc.getY());
     hsPut(npc, "hold_z", npc.getZ());
@@ -164,7 +170,12 @@ function gHold(npc) {
 function gRelease(npc) {
     npc.getTimers().stop(T_HOLD);
     npc.getAi().setWalkingSpeed(gSpeed(npc));
-    npc.getAi().setRetaliateType(0);
+    gAiBack(npc);
+}
+
+// Бросок и вихрь мода на время полёта ставят «на атаку — ничего»; вернуть, только если не вернули.
+function gAiBack(npc) {
+    if (npc.getAi().getRetaliateType() != 0) npc.getAi().setRetaliateType(0);
 }
 
 function gRecover(npc, ticks) {
@@ -271,6 +282,7 @@ function startSpin(npc, t, phase) {
     hsPut(npc, "spin_triple", phase >= 3 ? 1 : 0);
     hsPut(npc, "spin_pin", 0);
     // Мод шагает в конце тиков с SPIN_CHARGE-го по SPIN_CHARGE + active - 1 от старта; дальше прижимать не к чему.
+    hsPut(npc, "spin_from", hsNow(npc) + SPIN_CHARGE);
     hsPut(npc, "spin_last", hsNow(npc) + SPIN_CHARGE + active - 1);
     hsPut(npc, "spin_sx", npc.getX());
     hsPut(npc, "spin_sy", npc.getY());
@@ -292,6 +304,7 @@ function spinGuard(npc) {
         npc.getTimers().stop(T_SPIN_GUARD);
         return;
     }
+    spinPulse(npc);
     if (hsGet(npc, "spin_pin", "0") == "1") {
         spinHold(npc);
         return;
@@ -314,6 +327,13 @@ function spinGuard(npc) {
     var ax = x + dx / d * (SPIN_BODY + SPIN_LOOK), az = z + dz / d * (SPIN_BODY + SPIN_LOOK);
     if (Combat.canStandAt(w, ax, y, az) || Combat.canStandAt(w, ax, y + 1, az)) return;
     hsPut(npc, "spin_pin", 1);
+}
+
+function spinPulse(npc) {
+    var now = hsNow(npc), from = hsNum(npc, "spin_from");
+    if (now < from || now > hsNum(npc, "spin_last") || (now - from) % SPIN_PULSE != 0) return;
+    var ps = hsPlayersAt(npc, npc.getX(), npc.getY(), npc.getZ(), SPIN_R);
+    for (var i = 0; i < ps.length; i++) gStrike(npc, ps[i], SPIN_PCT);
 }
 
 function spinHold(npc) {
@@ -431,7 +451,6 @@ function startDash(npc, t, charge) {
     var rad = (yaw + 90) * Math.PI / 180;
     npc.getTimers().stop(T_HOLD);
     npc.getAi().setWalkingSpeed(0);
-    npc.getAi().setRetaliateType(3);
     npc.setRotation(yaw);
     var ok = hsStart(npc, "dash", t, AbilityAPI.params(
         "chargeTicks", charge, "activeTicks", DASH_ACTIVE, "distance", len,
@@ -488,7 +507,7 @@ function aroundHit(npc) {
 function throwAxe(npc, t) {
     return hsStart(npc, "axe_throw", t, AbilityAPI.params(
         "chargeTicks", THROW_CHARGE, "maxRange", THROW_LEN, "hitRadius", THROW_HIT_R,
-        "outboundTicks", THROW_OUT, "holdTicks", THROW_HOLD, "returnTicks", THROW_BACK,
+        "outboundTicks", THROW_OUT, "holdTicks", THROW_HOLD, "returnTicks", THROW_BACK, "arcHeight", THROW_ARC,
         "damagePercent", THROW_PCT * hsScale(npc.getWorld()) * (1 + RAGE_STEP * hsNum(npc, "rage")),
         "effectDuration", 40, "effectAmplifier", 1));
 }
@@ -500,7 +519,7 @@ function startThrow(npc, t) {
     return true;
 }
 
-// --- Прыжок на Камень, кольца, кровь ---
+// --- Прыжок на Камень, кольца, тьма ---
 
 function startLeap(npc) {
     var s = gStone(npc);
@@ -512,6 +531,7 @@ function startLeap(npc) {
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.5);
     npc.say("§4Кровь – Камню!");
     npc.getTimers().forceStart(T_LEAP, LEAP_CHARGE, false);
+    startVoid(npc, s, y, hsNow(npc));
 }
 
 // Куда встать у Камня: сам центр или до трёх блоков выше; занято всё — остаётся где стоял.
@@ -542,7 +562,6 @@ function leapLand(npc, now) {
     hsPut(npc, "ring_r", "0,0,0");
     hsPut(npc, "ring_hit", "||");
     npc.getTimers().forceStart(T_RINGS, RING_EVERY, true);
-    startBlood(npc, now);
     npc.getTimers().forceStart(T_RECOVER, LEAP_RECOVER, false);
 }
 
@@ -560,7 +579,7 @@ function ringsStep(npc, now) {
         left++;
         if (now < from + k * RING_GAP) continue;
         var r1 = r0 + RING_STEP;
-        TelegraphAPI.ring(npc, s[0], y, s[1], r1 + 0.5, Math.max(0, r1 - 1), RING_TICKS, RED);
+        shockwave(npc, s[0], y, s[1], r1);
         for (var i = 0; i < ps.length; i++) {
             var id = String(ps[i].getUUID());
             if (hits[k].indexOf(id) >= 0) continue;
@@ -578,51 +597,54 @@ function ringsStep(npc, now) {
     if (left == 0) npc.getTimers().stop(T_RINGS);
 }
 
-function channelLines(npc) {
-    var s = gStone(npc);
-    var out = [];
-    for (var i = 0; i < CHANNELS.length; i++) {
-        var dx = CHANNELS[i][0], dz = CHANNELS[i][1];
-        out.push({ x: s[0], z: s[1], yaw: Combat.computeYaw(dx, dz), len: Math.sqrt(dx * dx + dz * dz) });
-    }
-    return out;
-}
-
-function drawChannels(npc, ticks, color) {
-    var y = hsNum(npc, "floor_y");
-    var lines = channelLines(npc);
-    for (var i = 0; i < lines.length; i++) {
-        TelegraphAPI.line(npc, lines[i].x, y, lines[i].z, lines[i].yaw, lines[i].len, BLOOD_W * 2, ticks, color);
+// Кольцо пыли и искр на радиусе r, разлетается наружу. Точек — примерно через 2 блока, не больше 36.
+function shockwave(npc, x, y, z, r) {
+    var w = npc.getWorld();
+    var n = Math.max(8, Math.min(36, Math.ceil(2 * Math.PI * r / 2)));
+    for (var i = 0; i < n; i++) {
+        var a = (i + Math.random() * 0.3) / n * Math.PI * 2;
+        var c = Math.cos(a), sn = Math.sin(a);
+        w.spawnParticle("cloud", x + c * r, y + 0.15, z + sn * r, c * 0.3, 0.03, sn * 0.3, 1.0, 0);
+        if (i % 3 == 0) w.spawnParticle("crit", x + c * r, y + 0.4, z + sn * r, c * 0.4, 0.15, sn * 0.4, 1.0, 0);
     }
 }
 
-function startBlood(npc, now) {
-    hsPut(npc, "blood_on", now + BLOOD_WARN);
-    hsPut(npc, "blood_until", now + BLOOD_WARN + BLOOD_TICKS);
-    hsPut(npc, "blood_drawn", 0);
-    drawChannels(npc, BLOOD_WARN, HS.GOLD);
-    npc.getTimers().forceStart(T_BLOOD, 10, true);
+// Тьма вокруг Камня: зона мода показывает её (с начала прыжка — жёлтым), урон долей здоровья — скриптом.
+function startVoid(npc, s, y, now) {
+    var on = now + LEAP_CHARGE + VOID_WARN;
+    var zone = ZoneAPI.hazardCircle(npc, s[0], y + 0.05, s[1], VOID_R, on - now + VOID_TICKS, 0, 999);
+    if (zone != null) {
+        zone.setColor(HS.GOLD);
+        hsZonePut(npc, zone);
+    }
+    hsPut(npc, "void_on", on);
+    hsPut(npc, "void_until", on + VOID_TICKS);
+    hsPut(npc, "void_lit", 0);
+    npc.getTimers().forceStart(T_VOID, 10, true);
 }
 
-function bloodStep(npc, now) {
-    if (now >= hsNum(npc, "blood_until")) {
-        npc.getTimers().stop(T_BLOOD);
+function voidStep(npc, now) {
+    if (now >= hsNum(npc, "void_until")) {
+        npc.getTimers().stop(T_VOID);
+        hsZoneClear(npc);
         return;
     }
-    if (now < hsNum(npc, "blood_on")) return;
-    if (now - hsNum(npc, "blood_drawn") >= 20) {
-        if (hsNum(npc, "blood_drawn") == 0) npc.say("§4По жёлобам течёт кровь!");
-        hsPut(npc, "blood_drawn", now);
-        drawChannels(npc, 22, RED);
+    if (now < hsNum(npc, "void_on")) return;
+    if (hsGet(npc, "void_lit", "0") != "1") {
+        hsPut(npc, "void_lit", 1);
+        var td = npc.getTempdata();
+        try {
+            if (td != null && td.has(HS_ZONE)) td.get(HS_ZONE).setColor(VOID_COLOR);
+        } catch (err) {
+            log("garrax void: " + err);
+        }
+        arenaSound(npc, "minecraft:entity.wither.ambient", 1.0, 0.6);
+        npc.say("§5Камень пьёт свет – вокруг него тьма!");
     }
-    var lines = channelLines(npc);
+    var s = gStone(npc);
     var ps = hsPlayers(npc);
     for (var i = 0; i < ps.length; i++) {
-        for (var k = 0; k < lines.length; k++) {
-            if (!hsOnLine(ps[i], lines[k].x, lines[k].z, lines[k].yaw, lines[k].len, BLOOD_W)) continue;
-            gStrike(npc, ps[i], BLOOD_PCT);
-            break;
-        }
+        if (hsFlat(ps[i], s[0], s[1]) <= VOID_R) gStrike(npc, ps[i], VOID_PCT);
     }
 }
 
@@ -762,11 +784,15 @@ function startFight(npc, now) {
     hsPut(npc, "quake_at", now + 100);
     hsPut(npc, "dash_at", now + 160);
     hsPut(npc, "spin_at", now + 240);
-    var keys = ["throw_at", "leap_at", "storm_at", "bolts_at", "rage_at", "p3_at"];
+    var keys = ["throw_at", "leap_at", "storm_at", "bolts_at", "rage_at", "p3_at", "free_at", "was_busy"];
     for (var i = 0; i < keys.length; i++) hsPut(npc, keys[i], 0);
 }
 
 function tryCast(npc, ps, t, phase, now) {
+    if (now < hsNum(npc, "free_at")) {
+        tryCombo(npc, t, now);
+        return;
+    }
     if (phase >= 2 && now >= hsNum(npc, "leap_at")) {
         hsPut(npc, "leap_at", now + cd(npc, LEAP_CD));
         startLeap(npc);
@@ -797,10 +823,13 @@ function tryCast(npc, ps, t, phase, now) {
         hsPut(npc, "dash_at", now + cd(npc, DASH_CD));
         if (startDash(npc, far, DASH_CHARGE)) return;
     }
-    if (now >= hsNum(npc, "combo_at") && hsFlat(t, npc.getX(), npc.getZ()) <= COMBO_RANGE) {
-        hsPut(npc, "combo_at", now + cd(npc, COMBO_CD));
-        startCombo(npc, t);
-    }
+    tryCombo(npc, t, now);
+}
+
+function tryCombo(npc, t, now) {
+    if (now < hsNum(npc, "combo_at") || hsFlat(t, npc.getX(), npc.getZ()) > COMBO_RANGE) return;
+    hsPut(npc, "combo_at", now + cd(npc, COMBO_CD));
+    startCombo(npc, t);
 }
 
 function tick(e) {
@@ -815,10 +844,22 @@ function tick(e) {
     phase = hsNum(npc, "phase");
     rageTick(npc, phase, now);
     boltsTick(npc, ps, phase, now);
-    if (gBusy(npc, now)) return;
+    if (gBusy(npc, now)) {
+        hsPut(npc, "was_busy", 1);
+        return;
+    }
+    if (hsGet(npc, "was_busy", "0") == "1") {
+        hsPut(npc, "was_busy", 0);
+        hsPut(npc, "free_at", now + (phase >= 3 ? WALK_GAP3 : WALK_GAP));
+        gAiBack(npc);
+    }
     var t = npc.getAttackTarget();
-    if (t == null || !t.isAlive() || !t.typeOf(1)) t = nearest(npc, ps, 99);
-    if (t == null) return;
+    if (t == null || !t.isAlive() || !t.typeOf(1)) {
+        t = nearest(npc, ps, 99);
+        if (t == null) return;
+        // Цель пропала, пока ИИ был выключен приёмом: без неё он уходит к месту старта (Return to start).
+        npc.setAttackTarget(t);
+    }
     tryCast(npc, ps, t, phase, now);
 }
 
@@ -837,7 +878,7 @@ function timer(e) {
     else if (id == T_QUICK) aroundHit(npc);
     else if (id == T_LEAP) leapLand(npc, now);
     else if (id == T_RINGS) ringsStep(npc, now);
-    else if (id == T_BLOOD) bloodStep(npc, now);
+    else if (id == T_VOID) voidStep(npc, now);
     else if (id == T_STORM) stormStep(npc, now);
     else if (id == T_BOLTS) boltsHit(npc);
     else if (id == T_RECOVER) gRelease(npc);

@@ -50,7 +50,7 @@ var STOMP_CD = 280;
 
 // --- Топот-отброс: запасной, когда остальные спеллы на кд и игроки бьют в упор ---
 var SHOVE_R = 5.0;
-var SHOVE_CHARGE = 25;     // тот же клип attack_stomp: impact 1.25s
+var SHOVE_CHARGE = 25;     // attack_shove: impact 1.25s
 var SHOVE_RECOVER = 10;
 var SHOVE_PCT = 0.08;
 var SHOVE_KB = 4.0;
@@ -113,6 +113,7 @@ var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13, T_RAM_GO = 14, T_EDGE = 15, T_SHO
 var GORGON_NEW_ANIMS = true;
 var ANIM_SLASH = GORGON_NEW_ANIMS ? "attack_slash" : "attack3";     // 2.00s: impact 1.50
 var ANIM_STOMP = GORGON_NEW_ANIMS ? "attack_stomp" : "attack2";     // 1.75s: impact 1.25
+var ANIM_SHOVE = GORGON_NEW_ANIMS ? "attack_shove" : "attack2";     // 1.75s: impact 1.25 (WAH-4465)
 var ANIM_INHALE = GORGON_NEW_ANIMS ? "attack_inhale" : "idle2";     // 2.00s, дальше stomp
 var ANIM_RAM = GORGON_NEW_ANIMS ? "attack_ram" : "attack";          // 2.40s: dash 1.40–1.80
 var ANIM_STUN = GORGON_NEW_ANIMS ? "stun_wall" : "idle2";           // 3.00s
@@ -522,7 +523,7 @@ function gorgonStartShove(npc) {
     gorgonFreezeAi(npc);
     gorgonFaceTarget(npc, npc.getAttackTarget());
     gorgonHoldAt(npc, x, y, z, hsNum(npc, "face_yaw"));
-    gorgonAnim(npc, ANIM_STOMP);
+    gorgonAnim(npc, ANIM_SHOVE);
     gorgonSound(npc, SND_GROWL, 1.6, 1.15);
     TelegraphAPI.circle(npc, x, y, z, SHOVE_R, SHOVE_CHARGE, HS.RED);
     npc.getTimers().forceStart(T_SHOVE, SHOVE_CHARGE, false);

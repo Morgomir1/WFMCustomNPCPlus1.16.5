@@ -1,6 +1,7 @@
 // Кровохряк (Б1). В контейнере третьим файлом: hs_core.js, hs_b1.js, этот файл.
 // Таран, ярость, серия фазы «Наездник», рикошет и кровавый след фазы «Одиночка».
 HS.BASE_HP = 300;
+HS.FIXED_SCALE = true;
 HS.ARENA = { shape: "rect", hw: 22, hd: 19 };
 HS.ENRAGE_SEC = 240;
 HS.DISPEL_SEC = 99999;
@@ -93,7 +94,7 @@ function tick(e) {
     }
     var ps = hsFight(npc);
     if (ps == null) return;
-    b1Boot(npc, ps);
+    b1Boot(npc);
     b1ClearStun(npc);
     if (hsGet(npc, "ram_kind", "") == "slide" && !AbilityAPI.isBusy(npc)) {
         hsPut(npc, "ram_kind", "dash");
@@ -295,7 +296,7 @@ function b1ResolveRam(npc) {
 
 function b1Trail(npc, x, z, yaw, len) {
     var f = b1Forward(yaw);
-    var dmg = BT_TRAIL_DMG * hsScale(npc.getWorld());
+    var dmg = BT_TRAIL_DMG;
     var n = Math.floor(len / BT_TRAIL_STEP);
     for (var i = 0; i <= n; i++) {
         ZoneAPI.hazardCircle(npc, x + f[0] * i * BT_TRAIL_STEP, npc.getY(), z + f[1] * i * BT_TRAIL_STEP,

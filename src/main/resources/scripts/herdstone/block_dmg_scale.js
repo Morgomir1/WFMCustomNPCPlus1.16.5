@@ -1,6 +1,7 @@
 // Шкала урона данжа. Scripted Block у входа, ПКМ в креативе.
-// Пишет world storeddata "hs_dmg". NPC с hs_core читают его в hsScale:
-// исходящий урон и HP боссов. Цикл: 0.75 → 1 → 1.25 → 1.5 → 2 → 0.75.
+// Пишет world storeddata "hs_dmg". Мобы и эффекты с hs_core читают его в hsScale.
+// Боссы не читают: у них HS.FIXED_SCALE, здоровье и урон — числа из файла босса.
+// Цикл: 0.75 → 1 → 1.25 → 1.5 → 2 → 0.75.
 // Без блока достаточно поменять HS.DMG в ядре.
 var STEPS = [0.75, 1, 1.25, 1.5, 2];
 
@@ -19,5 +20,5 @@ function interact(e) {
         }
     }
     d.put("hs_dmg", String(next));
-    e.player.message("§eУрон и HP боссов ×" + next);
+    e.player.message("§eУрон данжа ×" + next + "§7. Боссы не меняются.");
 }

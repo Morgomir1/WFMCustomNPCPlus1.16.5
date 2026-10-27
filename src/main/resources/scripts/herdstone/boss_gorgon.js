@@ -2,6 +2,7 @@
 // Круг C5, r 21. Зона сжимается ступенями + спазмы; таран в стенку даёт
 // стан и временное расширение. Большие AoE с анимациями модели gorgon.
 HS.BASE_HP = 520;
+HS.FIXED_SCALE = true;
 HS.CAP = 14;
 HS.ARENA_R = 21;
 HS.ENRAGE_SEC = 99999; // soft-enrage из hs_core отключён (см. hsEnrage ниже)
@@ -72,7 +73,7 @@ var RAM_LEN_MAX = 18;
 var RAM_OVER = 4;
 var RAM_LINE_W = 4.0;
 var RAM_HIT_R = 2.0;
-var RAM_DMG = 8.0;         // flat AbilityAPI (масштабируется hsStart)
+var RAM_DMG = 8.0;         // flat AbilityAPI, без шкалы hs_dmg
 var RAM_KB = 1.4;
 var RAM_KB_Y = 0.35;
 var RAM_CD = 260;
@@ -413,7 +414,7 @@ function gorgonUpdateRing(npc, h, safeR) {
 }
 
 function gorgonPuddle(npc, x, y, z) {
-    var dmg = PUDDLE_DMG * hsScale(npc.getWorld());
+    var dmg = PUDDLE_DMG;
     var zone = ZoneAPI.hazardCircle(npc, x, y, z, PUDDLE_R, PUDDLE_TICKS, dmg, PUDDLE_PERIOD);
     if (zone == null) return;
     try { zone.setColor(HS.RED); } catch (err) {}

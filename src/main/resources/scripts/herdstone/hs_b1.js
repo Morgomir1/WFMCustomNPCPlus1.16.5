@@ -85,20 +85,9 @@ function b1Phase(npc) {
     return 1;
 }
 
-function b1FightN(npc) {
-    var n = Number(b1WGet(npc, "hs_b1_fight_n", "1"));
-    if (!(n > 0)) n = 1;
-    return n;
-}
+function b1LinkRange(npc) { return 4; }
 
-function b1LinkRange(npc) { return b1FightN(npc) <= 1 ? 4 : 8; }
-
-function b1NestLimit(npc) {
-    var lim = 3 + Math.floor(b1FightN(npc) / 2);
-    if (lim > 4) lim = 4;
-    if (lim < 3) lim = 3;
-    return lim;
-}
+function b1NestLimit(npc) { return 3; }
 
 function b1Forward(yaw) {
     var rad = (Number(yaw) + 90) * Math.PI / 180;
@@ -679,13 +668,10 @@ function b1Remember(npc) {
     b1WPut(npc, "hs_b1_home_" + name, npc.getHomeX() + "," + npc.getHomeY() + "," + npc.getHomeZ());
 }
 
-function b1Boot(npc, ps) {
+function b1Boot(npc) {
     b1Remember(npc);
     if (b1WGet(npc, "hs_b1_seeded", "0") == "1") return;
     b1WPut(npc, "hs_b1_seeded", "1");
-    var n = ps != null ? ps.length : 1;
-    if (n < 1) n = 1;
-    b1WPut(npc, "hs_b1_fight_n", n);
     b1WPut(npc, "hs_b1_locked", "0");
     b1WPut(npc, "hs_b1_mask", "00000000");
     b1WPut(npc, "hs_b1_next_roar", hsNow(npc) + 1);

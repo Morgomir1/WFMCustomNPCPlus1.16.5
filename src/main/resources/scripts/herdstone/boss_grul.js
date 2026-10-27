@@ -3,6 +3,7 @@
 // Удар по земле: удар у ног + прыжок на игроков (ф1 — ограничена дальность, ф3 один — без лимита).
 // Во время рёва и ритуала стомп не кастует. Сети — унгоры-рейдеры (mob_raider.js).
 HS.BASE_HP = 300;
+HS.FIXED_SCALE = true;
 HS.ARENA = { shape: "rect", hw: 22, hd: 19 };
 HS.ENRAGE_SEC = 240;
 HS.DISPEL_SEC = 99999;
@@ -27,8 +28,7 @@ var G_ROAR_PCT = 0.10;
 var G_ROAR_LEAP_DIST = 1.5;    // если дальше центра — прыжок, потом рёв
 // Призыв рейдеров
 var G_SUMMON_MAX = 4;
-var G_SUMMON_SOLO = 1;
-var G_SUMMON_GROUP = 2;
+var G_SUMMON_COUNT = 1;
 var G_SUMMON_BACK = 5;
 var G_SUMMON_SIDE = 3;
 var G_SUMMON_NEAR = 9;         // sq-дистанция «рядом с живым»
@@ -36,7 +36,6 @@ var G_ARENA_PAD = 2;
 // Колья
 var G_STAKE_R = 1.8;
 var G_STAKE_CHARGE = 60;
-var G_ARM_CANCEL = 0.05;       // доля max HP для срыва каста кола
 // Удар по земле + прыжок
 var G_STOMP_R = 4.5;
 var G_STOMP_CHARGE = 30;
@@ -112,7 +111,7 @@ function tick(e) {
     if (!npc.isAlive()) return;
     var ps = hsFight(npc);
     if (ps == null) return;
-    b1Boot(npc, ps);
+    b1Boot(npc);
     b1ClearStun(npc);
     gSanity(npc);
     b1RefreshLink(npc);
@@ -314,7 +313,7 @@ function gRoarHit(npc) {
 }
 
 function gSummon(npc) {
-    var want = b1FightN(npc) <= 1 ? G_SUMMON_SOLO : G_SUMMON_GROUP;
+    var want = G_SUMMON_COUNT;
     var room = G_SUMMON_MAX - hsCount(npc, B1_RAIDER);
     if (room > want) room = want;
     if (room <= 0) return;
@@ -454,8 +453,6 @@ function gStake(npc) {
     TelegraphAPI.circleAt(npc, s[0], s[1], s[2], G_STAKE_R, G_STAKE_CHARGE, HS.GOLD);
     hsPut(npc, "b1_nest", index);
     hsPut(npc, "b1_arm", 1);
-    hsPut(npc, "b1_arm_dmg", 0);
-    hsPut(npc, "b1_arm_cancel", 0);
     npc.getTimers().forceStart(B1_T_STAKE, G_STAKE_CHARGE, false);
     b1Say(npc, "Грул вбивает новый кол!");
 }
@@ -463,10 +460,6 @@ function gStake(npc) {
 function gStakePlace(npc) {
     hsPut(npc, "b1_arm", 0);
     if (!npc.isAlive()) return;
-    if (hsGet(npc, "b1_arm_cancel", "0") == "1") {
-        b1Say(npc, "Кол не вбит!");
-        return;
-    }
     if (b1WGet(npc, "hs_b1_locked", "0") == "1") return;
     if (b1StakeCount(npc) >= b1NestLimit(npc)) return;
     var index = hsNum(npc, "b1_nest");
@@ -812,12 +805,6 @@ function damaged(e) {
     b1Cap(e, 1);
     if (hsNow(npc) < hsNum(npc, "immune_until")) return;
     b1RitualHurt(e);
-    if (hsGet(npc, "b1_arm", "0") == "1" && b1FightN(npc) >= 2) {
-        var sum = hsNum(npc, "b1_arm_dmg") + Number(e.damage);
-        hsPut(npc, "b1_arm_dmg", sum);
-        var max = npc.getStats().getMaxHealth();
-        if (max > 0 && sum >= max * G_ARM_CANCEL) hsPut(npc, "b1_arm_cancel", 1);
-    }
 }
 
 function died(e) {

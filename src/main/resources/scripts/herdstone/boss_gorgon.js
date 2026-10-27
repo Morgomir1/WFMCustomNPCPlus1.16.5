@@ -48,6 +48,16 @@ var STOMP_KB = 2.2;
 var STOMP_KB_Y = 0.55;
 var STOMP_CD = 280;
 
+// --- Топот-отброс: запасной, когда остальные спеллы на кд и игроки бьют в упор ---
+var SHOVE_R = 5.0;
+var SHOVE_CHARGE = 25;     // тот же клип attack_stomp: impact 1.25s
+var SHOVE_RECOVER = 10;
+var SHOVE_PCT = 0.08;
+var SHOVE_KB = 4.0;
+var SHOVE_KB_Y = 0.9;
+var SHOVE_CD = 90;
+var SHOVE_HURT = 40;       // сколько тиков после удара игрока ещё считается «его бьют»
+
 // --- Вдох утробы → топот ---
 var INHALE_WIND = 40;      // idle2 2.0s
 var INHALE_PULL = 0.35;
@@ -96,7 +106,7 @@ var PUDDLE_PERIOD = 20;
 var T_SLASH = 1, T_SLASH_HOLD = 3;
 var T_STOMP = 4, T_INHALE = 5, T_INHALE_TICK = 6;
 var T_RINGS = 7, T_RINGS2 = 8, T_SPOKES = 9, T_SPOKES2 = 10;
-var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13, T_RAM_GO = 14, T_EDGE = 15;
+var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13, T_RAM_GO = 14, T_EDGE = 15, T_SHOVE = 16;
 
 // Клипы beastmen_gorgon.animation.json (WAH-4440). Пока новых клипов нет в модели —
 // держи false: играются старые attack/attack2/attack3/idle2/idle3.
@@ -161,6 +171,8 @@ function init(e) {
     hsPut(npc, "ram_pending", 0);
     hsPut(npc, "ram_chain", 0);
     hsPut(npc, "double_next", 0);
+    hsPut(npc, "shove_at", 0);
+    hsPut(npc, "hurt_until", 0);
     npc.getTimers().forceStart(T_EDGE, EDGE_PERIOD, true);
 }
 
@@ -200,7 +212,7 @@ function gorgonBusy(npc) {
     var t = npc.getTimers();
     return t.has(T_SLASH) || t.has(T_STOMP) || t.has(T_INHALE)
         || t.has(T_RINGS) || t.has(T_RINGS2) || t.has(T_SPOKES) || t.has(T_SPOKES2)
-        || t.has(T_RAM) || t.has(T_DOUBLE) || t.has(T_RECOVER);
+        || t.has(T_RAM) || t.has(T_DOUBLE) || t.has(T_RECOVER) || t.has(T_SHOVE);
 }
 
 // Держим позу после impact, пока доигрывается recovery-часть клипа.
@@ -494,6 +506,40 @@ function gorgonStompHit(npc, ps) {
     gorgonPuddle(npc, ox, hsNum(npc, "stomp_y"), oz);
 }
 
+function gorgonMeleePress(npc, ps, now) {
+    if (now >= hsNum(npc, "hurt_until")) return false;
+    for (var i = 0; i < ps.length; i++) {
+        if (hsFlat(ps[i], npc.getX(), npc.getZ()) <= SHOVE_R + 1.0) return true;
+    }
+    return false;
+}
+
+function gorgonStartShove(npc) {
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ();
+    hsPut(npc, "shove_x", x);
+    hsPut(npc, "shove_y", y);
+    hsPut(npc, "shove_z", z);
+    gorgonFreezeAi(npc);
+    gorgonFaceTarget(npc, npc.getAttackTarget());
+    gorgonHoldAt(npc, x, y, z, hsNum(npc, "face_yaw"));
+    gorgonAnim(npc, ANIM_STOMP);
+    gorgonSound(npc, SND_GROWL, 1.6, 1.15);
+    TelegraphAPI.circle(npc, x, y, z, SHOVE_R, SHOVE_CHARGE, HS.RED);
+    npc.getTimers().forceStart(T_SHOVE, SHOVE_CHARGE, false);
+    npc.getTimers().forceStart(T_SLASH_HOLD, 1, true);
+    hsPut(npc, "hold_mode", "shove");
+}
+
+function gorgonShoveHit(npc, ps) {
+    var ox = hsNum(npc, "shove_x"), oz = hsNum(npc, "shove_z");
+    gorgonSound(npc, SND_TREMOR, 2.4, 0.55);
+    for (var i = 0; i < ps.length; i++) {
+        if (hsFlat(ps[i], ox, oz) > SHOVE_R) continue;
+        hsStrike(ps[i], SHOVE_PCT);
+        gorgonKnockFrom(npc, ps[i], ox, oz, SHOVE_KB, SHOVE_KB_Y);
+    }
+}
+
 // --- Вдох ---
 function gorgonStartInhale(npc) {
     var x = npc.getX(), y = npc.getY(), z = npc.getZ();
@@ -685,6 +731,10 @@ function gorgonHoldMode(npc) {
         gorgonHoldAt(npc, hsNum(npc, "stomp_x"), hsNum(npc, "stomp_y"), hsNum(npc, "stomp_z"), face);
         return;
     }
+    if (mode == "shove") {
+        gorgonHoldAt(npc, hsNum(npc, "shove_x"), hsNum(npc, "shove_y"), hsNum(npc, "shove_z"), face);
+        return;
+    }
     if (mode == "inhale") {
         gorgonHoldAt(npc, hsNum(npc, "inhale_x"), hsNum(npc, "inhale_y"), hsNum(npc, "inhale_z"), face);
         return;
@@ -744,7 +794,12 @@ function gorgonTryCast(npc, ps, t, now, phase) {
         var yaw = hsYawTo(npc, t);
         var dbl = phase >= 3 && Math.random() < 0.55;
         gorgonStartSlash(npc, yaw, dbl);
+        return;
     }
+
+    if (now < hsNum(npc, "shove_at") || !gorgonMeleePress(npc, ps, now)) return;
+    hsPut(npc, "shove_at", now + cd(npc, SHOVE_CD));
+    gorgonStartShove(npc);
 }
 
 function tick(e) {
@@ -791,7 +846,7 @@ function tick(e) {
     }
 
     // Hold во время кастов
-    if (npc.getTimers().has(T_SLASH) || npc.getTimers().has(T_STOMP)
+    if (npc.getTimers().has(T_SLASH) || npc.getTimers().has(T_STOMP) || npc.getTimers().has(T_SHOVE)
             || npc.getTimers().has(T_INHALE) || npc.getTimers().has(T_RINGS)
             || npc.getTimers().has(T_RINGS2) || npc.getTimers().has(T_SPOKES)
             || npc.getTimers().has(T_SPOKES2) || npc.getTimers().has(T_DOUBLE)
@@ -825,7 +880,7 @@ function timer(e) {
     var i;
 
     if (e.id == T_SLASH_HOLD) {
-        if (!npc.getTimers().has(T_SLASH) && !npc.getTimers().has(T_STOMP)
+        if (!npc.getTimers().has(T_SLASH) && !npc.getTimers().has(T_STOMP) && !npc.getTimers().has(T_SHOVE)
                 && !npc.getTimers().has(T_RINGS) && !npc.getTimers().has(T_RINGS2)
                 && !npc.getTimers().has(T_SPOKES) && !npc.getTimers().has(T_SPOKES2)
                 && !npc.getTimers().has(T_DOUBLE) && !npc.getTimers().has(T_INHALE)
@@ -863,6 +918,12 @@ function timer(e) {
     if (e.id == T_STOMP) {
         gorgonStompHit(npc, ps);
         gorgonStartRecover(npc, STOMP_RECOVER);
+        return;
+    }
+
+    if (e.id == T_SHOVE) {
+        gorgonShoveHit(npc, ps);
+        gorgonStartRecover(npc, SHOVE_RECOVER);
         return;
     }
 
@@ -963,6 +1024,19 @@ function damaged(e) {
     var mul = 1;
     if (gorgonStunned(e.npc)) mul = STUN_CAP_MUL;
     hsCap(e, mul);
+    gorgonMarkHurt(e);
+}
+
+function gorgonMarkHurt(e) {
+    var src = e.source;
+    if (src == null) return;
+    var player = false;
+    try {
+        if (typeof src.typeOf == "function" && src.typeOf(1)) player = true;
+        else if (typeof src.getType == "function" && src.getType() == 1) player = true;
+    } catch (err) {}
+    if (!player) return;
+    hsPut(e.npc, "hurt_until", hsNow(e.npc) + SHOVE_HURT);
 }
 
 function died(e) {
@@ -970,7 +1044,7 @@ function died(e) {
     AbilityAPI.cancel(npc);
     try {
         var ids = [T_SLASH, T_SLASH_HOLD, T_STOMP, T_INHALE, T_INHALE_TICK,
-            T_RINGS, T_RINGS2, T_SPOKES, T_SPOKES2, T_RAM, T_DOUBLE, T_RECOVER, T_RAM_GO, T_EDGE];
+            T_RINGS, T_RINGS2, T_SPOKES, T_SPOKES2, T_RAM, T_DOUBLE, T_RECOVER, T_RAM_GO, T_EDGE, T_SHOVE];
         for (var i = 0; i < ids.length; i++) npc.getTimers().stop(ids[i]);
     } catch (err) {}
     try { NpcTurnHelper.unlockFace(npc); } catch (err) {}

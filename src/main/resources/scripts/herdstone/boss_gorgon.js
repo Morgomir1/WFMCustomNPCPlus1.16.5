@@ -23,7 +23,9 @@ var SPASM_WARN = 40;
 var SPASM_ACTIVE = 70;
 var SPASM_EXTRA = 4.5;     // доп. сжатие во время спазма
 var WALL_EDGE = 2.0;       // дистанция до границы safeR = «стена»
-var EDGE_DMG = 0.10;
+var EDGE_DPS = 0.13;       // доля max HP игрока в секунду (было 0.10 за удар раз в секунду)
+var EDGE_PERIOD = 5;       // тиков между проверками кольца (было окно в 20 — заход промахивался)
+var EDGE_HEAL = 0.05;      // доля max HP босса в секунду за каждого игрока в кольце
 
 // --- Удар пасти (усечённый конус) ---
 var SLASH_DIST = 12.0;
@@ -94,7 +96,7 @@ var PUDDLE_PERIOD = 20;
 var T_SLASH = 1, T_SLASH_HOLD = 3;
 var T_STOMP = 4, T_INHALE = 5, T_INHALE_TICK = 6;
 var T_RINGS = 7, T_RINGS2 = 8, T_SPOKES = 9, T_SPOKES2 = 10;
-var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13, T_RAM_GO = 14;
+var T_RAM = 11, T_DOUBLE = 12, T_RECOVER = 13, T_RAM_GO = 14, T_EDGE = 15;
 
 // Клипы beastmen_gorgon.animation.json (WAH-4440). Пока новых клипов нет в модели —
 // держи false: играются старые attack/attack2/attack3/idle2/idle3.
@@ -159,6 +161,7 @@ function init(e) {
     hsPut(npc, "ram_pending", 0);
     hsPut(npc, "ram_chain", 0);
     hsPut(npc, "double_next", 0);
+    npc.getTimers().forceStart(T_EDGE, EDGE_PERIOD, true);
 }
 
 function cd(npc, ticks) {
@@ -406,6 +409,27 @@ function gorgonPuddle(npc, x, y, z) {
 function gorgonNearWall(npc, safeR) {
     var h = hsHome(npc);
     return hsFlat(npc, h[0], h[2]) >= safeR - WALL_EDGE;
+}
+
+// Кольцо за safeR. Доля за один пульс = величина в секунду * период / 20.
+function gorgonEdgePulse(npc) {
+    if (hsNum(npc, "fight_at") == 0) return;
+    var phase = gorgonPhase(npc.getHealth() / npc.getMaxHealth());
+    var safeR = gorgonSafeR(npc, phase);
+    if (safeR >= HS.ARENA_R - 0.25) return;
+    var ps = hsPlayers(npc);
+    var h = hsHome(npc);
+    var hit = 0;
+    var share = EDGE_PERIOD / 20.0;
+    var i;
+    for (i = 0; i < ps.length; i++) {
+        if (hsFlat(ps[i], h[0], h[2]) <= safeR) continue;
+        hsStrike(ps[i], EDGE_DPS * share);
+        hit++;
+    }
+    if (hit <= 0) return;
+    var heal = npc.getMaxHealth() * EDGE_HEAL * share * hit;
+    npc.setHealth(Math.min(npc.getMaxHealth(), npc.getHealth() + heal));
 }
 
 // --- Спазмы ---
@@ -745,12 +769,7 @@ function tick(e) {
     var safeR = gorgonSafeR(npc, phase);
     safeR = gorgonSpasmTick(npc, h, phase, safeR, now);
     gorgonUpdateRing(npc, h, safeR);
-
-    if (safeR < HS.ARENA_R - 0.25 && now % 20 < 10) {
-        for (var i = 0; i < ps.length; i++) {
-            if (hsFlat(ps[i], h[0], h[2]) > safeR) hsStrike(ps[i], EDGE_DMG);
-        }
-    }
+    if (!npc.getTimers().has(T_EDGE)) npc.getTimers().forceStart(T_EDGE, EDGE_PERIOD, true);
 
     if (hsGet(npc, "frenzy", "0") == "0" && hp <= 0.25) {
         hsPut(npc, "frenzy", 1);
@@ -929,6 +948,11 @@ function timer(e) {
         gorgonSound(npc, SND_RAM_HIT, 2.0, 0.6);
         return;
     }
+
+    if (e.id == T_EDGE) {
+        gorgonEdgePulse(npc);
+        return;
+    }
 }
 
 function meleeAttack(e) {
@@ -936,8 +960,9 @@ function meleeAttack(e) {
 }
 
 function damaged(e) {
-    if (!gorgonStunned(e.npc)) { e.setCanceled(true); return; }
-    hsCap(e, STUN_CAP_MUL);
+    var mul = 1;
+    if (gorgonStunned(e.npc)) mul = STUN_CAP_MUL;
+    hsCap(e, mul);
 }
 
 function died(e) {
@@ -945,7 +970,7 @@ function died(e) {
     AbilityAPI.cancel(npc);
     try {
         var ids = [T_SLASH, T_SLASH_HOLD, T_STOMP, T_INHALE, T_INHALE_TICK,
-            T_RINGS, T_RINGS2, T_SPOKES, T_SPOKES2, T_RAM, T_DOUBLE, T_RECOVER, T_RAM_GO];
+            T_RINGS, T_RINGS2, T_SPOKES, T_SPOKES2, T_RAM, T_DOUBLE, T_RECOVER, T_RAM_GO, T_EDGE];
         for (var i = 0; i < ids.length; i++) npc.getTimers().stop(ids[i]);
     } catch (err) {}
     try { NpcTurnHelper.unlockFace(npc); } catch (err) {}

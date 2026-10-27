@@ -87,8 +87,21 @@ var ALL_TIMERS = [T_HOLD, T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END
 var CAST_TIMERS = [T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END, T_QUICK, T_LEAP,
     T_FORCE_DASH, T_RECOVER];
 
-// Клипы GeckoLib-модели Гарракса. Имён в репозитории нет — пока пусто, вместо них взмахи рук.
-var ANIM = { combo: "", cross: "", spin: "", quake: "", dash: "", leap: "", dizzy: "", throwAxe: "" };
+// Клипы GeckoLib-модели Гарракса, как у Горгона: время от начала клипа совпадает с таймерами приёмов.
+// Что в каждом – herdstone_garrax_animations.md в корне репозитория.
+// Пока клипов нет в модели — держи false: вместо них взмахи рук (клип Attack из окна модели).
+var GARRAX_NEW_ANIMS = false;
+var ANIM_COMBO = "attack_combo";            // 2.30s: удары 0.60 и 1.00, накрест 1.70
+var ANIM_SPIN = "spin_start";               // 1.00s, дальше ANIM_SPIN_LOOP до конца вихря
+var ANIM_SPIN_LOOP = "spin_loop";           // 0.50s; саму модель крутит мод, 42° за тик
+var ANIM_DIZZY = "dizzy";                   // 1.50s
+var ANIM_QUAKE = "attack_quake";            // 2.20s: удар в землю 0.80, волна до 1.70; тройной — в 1.6 раза быстрее
+var ANIM_DASH = "attack_dash";              // 1.90s: рывок 0.90–1.30, удар 1.40
+var ANIM_DASH_QUICK = "attack_dash_quick";  // 1.50s: рывок 0.50–0.90, удар 1.00
+var ANIM_THROW = "attack_throw";            // 2.00s: бросок 0.50, размах 1.20, топор в руке 1.90
+var ANIM_STORM = "attack_storm";            // 2.00s: бросок обоих 0.50, топот 1.10, топоры в руках 1.90
+var ANIM_LEAP = "attack_leap";              // 2.50s: приземление на Камень 1.50
+var SPIN_LOOP_TICKS = 10;
 
 function init(e) {
     var npc = e.npc;
@@ -144,11 +157,13 @@ function arenaSound(npc, sound, volume, pitch) {
     for (var i = 0; i < list.length; i++) list[i].playSound(sound, volume, pitch);
 }
 
-function gAnim(npc, key) {
-    var name = ANIM[key];
-    if (!name) return;
+// speed — скорость клипа (1 — как нарисован), loops — сколько раз после него повторить ANIM_SPIN_LOOP.
+function gAnim(npc, name, speed, loops) {
+    if (!GARRAX_NEW_ANIMS) return;
     try {
-        npc.syncAnimationsForAll(NpcAPI.createAnimBuilder().playOnce(name));
+        var b = NpcAPI.createAnimBuilder().playOnce(name);
+        if (loops > 0) b.addRepeatingAnimation(ANIM_SPIN_LOOP, loops);
+        npc.syncAnimationsForAll(b, speed > 0 ? speed : 1.0);
     } catch (err) {
         log("garrax anim: " + err);
     }
@@ -246,7 +261,7 @@ function startCombo(npc, t) {
     gFreeze(npc, yaw);
     hsPut(npc, "combo_step", 1);
     TelegraphAPI.cone(npc, npc.getX(), npc.getY(), npc.getZ(), yaw - COMBO_SIDE, COMBO_LEN, COMBO_HALF, COMBO_T1, RED);
-    gAnim(npc, "combo");
+    gAnim(npc, ANIM_COMBO);
     gTimer(npc, T_COMBO, COMBO_T1, false);
 }
 
@@ -269,7 +284,6 @@ function comboStep(npc) {
         } else {
             hsPut(npc, "combo_step", 3);
             TelegraphAPI.line(npc, x, y, z, yaw, CROSS_LEN, CROSS_W * 2, COMBO_T3, RED);
-            gAnim(npc, "cross");
             gTimer(npc, T_COMBO, COMBO_T3, false);
         }
         return;
@@ -305,7 +319,8 @@ function startSpin(npc, t, phase) {
     hsPut(npc, "spin_x", npc.getX());
     hsPut(npc, "spin_y", npc.getY());
     hsPut(npc, "spin_z", npc.getZ());
-    gAnim(npc, "spin");
+    // Клип не должен кончиться раньше вихря: его сменит dizzy или Раскол.
+    gAnim(npc, ANIM_SPIN, 1, Math.ceil((active + 2) / SPIN_LOOP_TICKS));
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.1);
     gTimer(npc, T_SPIN_END, SPIN_CHARGE + active + 2, false);
     gTimer(npc, T_SPIN_GUARD, 1, true);
@@ -447,7 +462,7 @@ function spinEnd(npc) {
 function startDizzy(npc) {
     hsPut(npc, "dizzy_until", hsNow(npc) + DIZZY_TICKS);
     gRecover(npc, DIZZY_TICKS);
-    gAnim(npc, "dizzy");
+    gAnim(npc, ANIM_DIZZY);
     arenaSound(npc, "minecraft:entity.ravager.stunned", 1.0, 0.8);
     npc.getWorld().spawnParticle("crit", npc.getX(), npc.getY() + 3.2, npc.getZ(), 0.6, 0.3, 0.6, 0.05, 20);
     npc.say("§6Гарракс шатается!");
@@ -467,7 +482,7 @@ function startQuake(npc, yaws, charge, dizzyAfter) {
     hsPut(npc, "q_stunned", "");
     hsPut(npc, "q_dizzy", dizzyAfter ? 1 : 0);
     for (var i = 0; i < yaws.length; i++) TelegraphAPI.line(npc, x, y, z, yaws[i], QUAKE_LEN, QUAKE_W * 2, charge, RED);
-    gAnim(npc, "quake");
+    gAnim(npc, ANIM_QUAKE, QUAKE_CHARGE / charge);
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.7);
     gTimer(npc, T_QUAKE, charge, false);
 }
@@ -552,7 +567,7 @@ function startDash(npc, t, charge) {
     }
     TelegraphAPI.line(npc, x, y, z, yaw, len, DASH_W * 2, charge, RED);
     TelegraphAPI.circle(npc, x + Math.cos(rad) * len, y, z + Math.sin(rad) * len, DASH_HIT_R, charge + DASH_ACTIVE, RED);
-    gAnim(npc, "dash");
+    gAnim(npc, charge < DASH_CHARGE ? ANIM_DASH_QUICK : ANIM_DASH);
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.3);
     gTimer(npc, T_DASH_END, charge + DASH_ACTIVE + 2, false);
     return true;
@@ -605,7 +620,7 @@ function throwAxe(npc, t) {
 
 function startThrow(npc, t) {
     if (!throwAxe(npc, t)) return false;
-    gAnim(npc, "throwAxe");
+    gAnim(npc, ANIM_THROW);
     gTimer(npc, T_SWEEP, SWEEP_AT, false);
     return true;
 }
@@ -618,7 +633,7 @@ function startLeap(npc) {
     hsPut(npc, "floor_y", y);
     gFreeze(npc, npc.getRotation());
     TelegraphAPI.circle(npc, s[0], y, s[1], LEAP_R, LEAP_CHARGE, RED);
-    gAnim(npc, "leap");
+    gAnim(npc, ANIM_LEAP);
     arenaSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.5);
     npc.say("§4Кровь – Камню!");
     gTimer(npc, T_LEAP, LEAP_CHARGE, false);
@@ -809,7 +824,7 @@ function startStorm(npc, ps, t) {
     hsPut(npc, "st_prev", 0);
     hsPut(npc, "unarmed_until", release + flight);
     TelegraphAPI.line(npc, x, y, z, yaw, STORM_LEN, STORM_HIT_R * 2, THROW_CHARGE + flight, RED);
-    gAnim(npc, "throwAxe");
+    gAnim(npc, ANIM_STORM);
     npc.say("§4Гарракс бросает оба топора!");
     gTimer(npc, T_STORM, 2, true);
     gTimer(npc, T_STOMP, THROW_CHARGE + STOMP_AT, false);

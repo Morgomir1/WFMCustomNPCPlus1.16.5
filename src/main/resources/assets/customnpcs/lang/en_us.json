@@ -165,6 +165,7 @@
   "display.hide": "Hide",
   "display.showAttacking": "Show when attacking",
   "display.size": "Size",
+  "display.geckoScale": "Gecko",
   "display.hitboxWidth": "Hitbox W",
   "display.hitboxHeight": "Hitbox H",
   "display.texture": "Texture",

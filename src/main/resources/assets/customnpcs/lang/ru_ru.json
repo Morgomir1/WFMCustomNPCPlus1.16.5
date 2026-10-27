@@ -124,6 +124,7 @@
   "display.hide": "Спрятать",
   "display.showAttacking": "Показывать когда атакован",
   "display.size": "Разм.",
+  "display.geckoScale": "Gecko",
   "display.hitboxWidth": "Хитбокс Ш",
   "display.hitboxHeight": "Хитбокс В",
   "display.texture": "Текстура",

@@ -517,6 +517,21 @@ public class DataDisplay implements INPCDisplay
     }
 
     @Override
+    public float getGeckoScale() {
+        return this.customModelData.getScale();
+    }
+
+    @Override
+    public void setGeckoScale(final float scale) {
+        final float corrected = ValueUtil.correctFloat(scale, CustomModelData.SCALE_MIN, CustomModelData.SCALE_MAX);
+        if (this.customModelData.getScale() == corrected) {
+            return;
+        }
+        this.customModelData.setScale(corrected);
+        this.npc.updateClient = true;
+    }
+
+    @Override
     public float getHitboxWidth() {
         return this.hitboxWidth;
     }

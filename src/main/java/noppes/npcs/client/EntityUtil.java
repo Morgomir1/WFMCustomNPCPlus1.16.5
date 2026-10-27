@@ -128,6 +128,7 @@ public class EntityUtil
             ((EntityCustomModel) entity).walkAnim=((EntityNPCInterface) copied).display.customModelData.getWalkAnim();
             ((EntityCustomModel) entity).geckoAttackAnim=((EntityNPCInterface) copied).display.customModelData.getAttackAnim();
             ((EntityCustomModel) entity).geckoHurtAnim=((EntityNPCInterface) copied).display.customModelData.getHurtAnim();
+            ((EntityCustomModel) entity).geckoScale=((EntityNPCInterface) copied).display.customModelData.getScale();
             if(((EntityNPCInterface) copied).inventory.getLeftHand()!=null){
                 ((EntityCustomModel) entity).leftHeldItem=((EntityNPCInterface) copied).inventory.getLeftHand().getMCItemStack();
             }

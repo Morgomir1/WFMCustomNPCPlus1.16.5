@@ -51,6 +51,11 @@ public interface INPCDisplay {
 
    void setSize(int var1);
 
+   /** Визуальный масштаб GeckoLib-модели. 1 — размер из geo-файла, не связан с {@link #getSize()}. */
+   float getGeckoScale();
+
+   void setGeckoScale(float scale);
+
    float getHitboxWidth();
 
    void setHitboxWidth(float var1);

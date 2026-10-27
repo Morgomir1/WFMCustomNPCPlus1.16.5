@@ -9,6 +9,10 @@ public class CustomModelData {
     private String walkAnim = "";
     private String attackAnim = "";
     private String hurtAnim = "";
+    /** Множитель визуального размера GeckoLib-модели. 1 — размер из geo-файла. */
+    private float scale = 1.0f;
+    public static final float SCALE_MIN = 0.05f;
+    public static final float SCALE_MAX = 20.0f;
 
     public CompoundNBT writeToNBT(CompoundNBT CompoundNBT) {
         CompoundNBT.putString("Model", model);
@@ -17,6 +21,7 @@ public class CustomModelData {
         CompoundNBT.putString("WalkAnim", walkAnim);
         CompoundNBT.putString("AttackAnim", attackAnim);
         CompoundNBT.putString("HurtAnim", hurtAnim);
+        CompoundNBT.putFloat("GeckoScale", scale);
         return CompoundNBT;
     }
 
@@ -28,6 +33,9 @@ public class CustomModelData {
             walkAnim = CompoundNBT.getString("WalkAnim");
             hurtAnim = CompoundNBT.getString("HurtAnim");
             attackAnim = CompoundNBT.getString("AttackAnim");
+        }
+        if (CompoundNBT.contains("GeckoScale")) {
+            setScale(CompoundNBT.getFloat("GeckoScale"));
         }
     }
 
@@ -77,5 +85,18 @@ public class CustomModelData {
 
     public void setHurtAnim(String hurtAnim) {
         this.hurtAnim = hurtAnim;
+    }
+
+    public float getScale() {
+        return scale;
+    }
+
+    public void setScale(float scale) {
+        if (scale < SCALE_MIN) {
+            scale = SCALE_MIN;
+        } else if (scale > SCALE_MAX) {
+            scale = SCALE_MAX;
+        }
+        this.scale = scale;
     }
 }

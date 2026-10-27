@@ -36,7 +36,7 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
    }
 
    public void init() {
-      this.imageHeight = Math.max(this.imageHeight, 250);
+      this.imageHeight = Math.max(this.imageHeight, 276);
       super.init();
       int y = this.guiTop + 4;
       this.addLabel(new GuiLabel(0, "gui.name", this.guiLeft + 5, y + 5));
@@ -61,6 +61,12 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
       this.getTextField(2).numbersOnly = true;
       this.getTextField(2).setMinMaxDefault(1, 30, 5);
       this.addLabel(new GuiLabel(3, "(1-30)", this.guiLeft + 246, y + 5));
+      y += 23;
+      this.addLabel(new GuiLabel(20, "display.geckoScale", this.guiLeft + 5, y + 5));
+      this.addTextField(new GuiTextFieldNop(20, this, this.guiLeft + 80, y, 50, 20, GuiTextFieldNop.formatFloat(this.display.getGeckoScale())));
+      this.getTextField(20).setFloatsOnly();
+      this.getTextField(20).setMinMaxDefault(0.05f, 20.0f, 1.0f);
+      this.addLabel(new GuiLabel(21, "(0.05-20)", this.guiLeft + 136, y + 5));
       y += 23;
       this.addLabel(new GuiLabel(17, "display.hitboxWidth", this.guiLeft + 5, y + 5));
       this.addTextField(new GuiTextFieldNop(17, this, this.guiLeft + 80, y, 50, 20, GuiTextFieldNop.formatFloat(this.display.getHitboxWidth())));
@@ -150,6 +156,8 @@ public class GuiNpcDisplay extends GuiNPCInterface2 implements ITextfieldListene
          }
       } else if (textfield.id == 2) {
          this.display.setSize(textfield.getInteger());
+      } else if (textfield.id == 20) {
+         this.display.setGeckoScale(textfield.getFloat());
       } else if (textfield.id == 17) {
          this.display.setHitboxWidth(textfield.getFloat());
       } else if (textfield.id == 18) {

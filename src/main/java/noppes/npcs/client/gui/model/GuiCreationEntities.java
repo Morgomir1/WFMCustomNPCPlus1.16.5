@@ -19,7 +19,7 @@ import net.minecraft.client.renderer.entity.*;
 import net.minecraft.client.gui.widget.button.*;
 import software.bernie.geckolib3.resource.GeckoLibCache;
 
-public class GuiCreationEntities extends GuiCreationScreenInterface implements ICustomScrollListener
+public class GuiCreationEntities extends GuiCreationScreenInterface implements ICustomScrollListener, ITextfieldListener
 {
     private List<EntityType<? extends Entity>> types;
     private GuiCustomScroll scroll;
@@ -108,6 +108,18 @@ public class GuiCreationEntities extends GuiCreationScreenInterface implements I
             this.addButton(new GuiButtonNop(this,12,this.guiLeft + 210, this.guiTop + 40, 100, 20, "selectServer.edit",(b)->{
                 setSubGui(new GuiModelAnimation());
             }));
+            this.addLabel(new GuiLabel(21, "display.geckoScale", this.guiLeft + 124, this.guiTop + 70, 0xffffff));
+            this.addTextField(new GuiTextFieldNop(21, this, this.guiLeft + 210, this.guiTop + 64, 50, 20, GuiTextFieldNop.formatFloat(this.npc.display.getGeckoScale())));
+            this.getTextField(21).setFloatsOnly();
+            this.getTextField(21).setMinMaxDefault(0.05f, 20.0f, 1.0f);
+            this.addLabel(new GuiLabel(22, "(0.05-20)", this.guiLeft + 264, this.guiTop + 70, 0xffffff));
+        }
+    }
+
+    @Override
+    public void unFocused(final GuiTextFieldNop textfield) {
+        if (textfield.id == 21) {
+            this.npc.display.setGeckoScale(textfield.getFloat());
         }
     }
 

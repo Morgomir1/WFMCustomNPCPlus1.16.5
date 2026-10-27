@@ -24,6 +24,8 @@ public class EntityCustomModel extends CreatureEntity implements IAnimatable, IA
     public String walkAnim = "";
     public String geckoHurtAnim = "";
     public String geckoAttackAnim = "";
+    /** Визуальный множитель модели. Копируется с display.customModelData при рендере. */
+    public float geckoScale = 1.0f;
     public AnimationBuilder dialogAnim = null;
     public AnimationBuilder manualAnim = null;
     public double manualAnimSpeed = 1.0;

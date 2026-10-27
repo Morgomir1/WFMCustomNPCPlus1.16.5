@@ -32,6 +32,7 @@ import net.minecraft.world.LightType;
 import net.minecraftforge.fml.ModList;
 import noppes.npcs.NpcSoftVisibility;
 import noppes.npcs.client.model.DummyVanilaModel;
+import noppes.npcs.entity.EntityCustomModel;
 import noppes.npcs.entity.EntityNPCInterface;
 import software.bernie.geckolib3.compat.PatchouliCompat;
 import software.bernie.geckolib3.core.IAnimatable;
@@ -166,6 +167,12 @@ public abstract class GeoEntityRendererCompat<T extends LivingEntity & IAnimatab
         }
         float f7 = this.handleRotationFloat(entity, partialTicks);
         this.applyRotations(entity, stack, f7, f, partialTicks);
+        if (entity instanceof EntityCustomModel) {
+            final float geckoScale = ((EntityCustomModel) entity).geckoScale;
+            if (geckoScale != 1.0F) {
+                stack.scale(geckoScale, geckoScale, geckoScale);
+            }
+        }
 
         float limbSwingAmount = 0.0F;
         float limbSwing = 0.0F;

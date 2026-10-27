@@ -14,7 +14,8 @@ var HS = {
     CAP: 12,
     WEAK: 0.25,
     BASE_HP: 300,
-    DMG: 1,
+    DMG: 1,            // шкала урона мобов и эффектов. Боссы её не читают (HS.FIXED_SCALE)
+    FIXED_SCALE: false,
     ENRAGE_SEC: 360,
     DISPEL_SEC: 50,
     EMPTY_SEC: 15,
@@ -207,6 +208,7 @@ function hsDespawnSummons(npc) {
 }
 
 function hsScale(world) {
+    if (HS.FIXED_SCALE) return 1;
     var v = HS.DMG;
     if (world != null) {
         var d = world.getStoreddata();
@@ -232,9 +234,8 @@ function hsStart(npc, id, target, params) {
     return AbilityAPI.start(npc, id, target);
 }
 
-function hsBossHp(npc, nPlayers) {
-    // HP не растёт от числа игроков — только шкала hs_dmg / HS.DMG.
-    return Math.max(1, Math.round(HS.BASE_HP * hsScale(npc.getWorld())));
+function hsBossHp(npc) {
+    return Math.max(1, Math.round(Number(HS.BASE_HP)));
 }
 
 function hsStrike(p, pct) {
@@ -314,7 +315,7 @@ function hsInit(npc) {
     hsPut(npc, "fight_at", 0);
     hsPut(npc, "empty_at", 0);
     hsPut(npc, "enrage_at", 0);
-    var hp0 = hsBossHp(npc, 1);
+    var hp0 = hsBossHp(npc);
     npc.getStats().setMaxHealth(hp0);
     npc.setHealth(hp0);
     if (GATE.length > 0) hsSetGate(npc, true);
@@ -327,7 +328,7 @@ function hsFight(npc) {
     var fightAt = hsNum(npc, "fight_at");
     if (fightAt == 0) {
         if (ps.length == 0 || npc.getAttackTarget() == null) return null;
-        var hp = hsBossHp(npc, ps.length);
+        var hp = hsBossHp(npc);
         npc.getStats().setMaxHealth(hp);
         npc.setHealth(hp);
         hsPut(npc, "fight_at", now);

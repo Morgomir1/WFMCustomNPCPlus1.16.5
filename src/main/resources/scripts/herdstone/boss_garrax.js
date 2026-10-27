@@ -13,6 +13,7 @@
 // Кольцо (y входа +1…+4, между r+1 и r+3) остаётся. Скрипт открывает только
 // южный проём 3×3×3: cx-1…+1, y1+1…+3, cz+27…+29. Плюс столбик у выхода на винт.
 HS.BASE_HP = 1800;
+HS.FIXED_SCALE = true;
 HS.CAP = 14;
 HS.ARENA_R = 26;
 HS.ENRAGE_SEC = 99999;   // мягкая ярость ядра выключена — своя, rageTick
@@ -614,7 +615,7 @@ function throwAxe(npc, t) {
     return hsStart(npc, "axe_throw", t, AbilityAPI.params(
         "chargeTicks", THROW_CHARGE, "maxRange", THROW_LEN, "hitRadius", THROW_HIT_R,
         "outboundTicks", THROW_OUT, "holdTicks", THROW_HOLD, "returnTicks", THROW_BACK, "arcHeight", THROW_ARC,
-        "damagePercent", THROW_PCT * hsScale(npc.getWorld()) * (1 + RAGE_STEP * hsNum(npc, "rage")),
+        "damagePercent", THROW_PCT * (1 + RAGE_STEP * hsNum(npc, "rage")),
         "effectDuration", 40, "effectAmplifier", 1));
 }
 

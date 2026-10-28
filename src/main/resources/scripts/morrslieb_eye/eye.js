@@ -1,9 +1,19 @@
 // eye.js — Око Моррслиба, ведущий ивента. Невидимый неуязвимый NPC в центре поля; вторым файлом после mo_core.js.
-// Ведёт время ивента, волны тайников, вскрытие тайников и свечение несущих осколки.
-// Запуск и остановка — ПКМ по Оку в креативе. Шифт + ПКМ в креативе — стак осколков (для сделок алтаря).
+// Ведёт волны тайников, вскрытие и свечение несущих осколки. Ивент включён, пока его не выключат.
+// ПКМ по Оку в креативе переключает ивент: вкл/выкл. Сам он не кончается, идёт пока не выключат.
+// Шифт + ПКМ в креативе — стак осколков (для сделок алтаря).
 // Ход ивента лежит в данных мира: после рестарта Око продолжает с того же места.
-// Кто был на поле с осколками и пропал с сервера, при следующем входе теряет все осколки, из мешков тоже: иначе выход —
-// бесплатное спасение от погони. Рестарт посреди ивента для Ока — выход всех.
+// Кто был на поле с осколками и вышел, роняет их на месте выхода (скрипт игрока, logout в mo_core.js), из мешка тоже.
+// Рестарт logout не вызывает: таких Око при следующем входе лишает осколков, на землю они уже не попадут.
+// Охота: за несущим осколки Око вызывает Кигора клоном из клонера — сначала столб света рядом с игроком, потом он.
+// Кигор не бродит по полю (иначе держать загруженными все чанки арены): живёт, пока гонится, и рассыпается.
+
+// Кигор — клон из клонера: вкладка KIGOR_TAB, имя KIGOR_NAME. На поле его не ставить, Око вызывает его само.
+var KIGOR_TAB = 1, KIGOR_NAME = "Кигор";
+// Одновременно не больше MAX_KIGORS. Несущего ближе GROUP_R к Кигору или к тому, за кем уже идут, Око не выдаёт.
+var MAX_KIGORS = 4, GROUP_R = 20;
+// Столб в SUMMON_MIN–SUMMON_MAX блоках от игрока, через SUMMON_WARN тиков там встаёт Кигор.
+var SUMMON_MIN = 12, SUMMON_MAX = 16, SUMMON_WARN = 40;
 
 // Тайники: блок [x, y, z] каждого. Сам тайник на поле — декорация строителя; скрипт ведёт только его свет.
 var CACHES = [
@@ -16,16 +26,13 @@ var CACHES = [
     [-483949, 80, -37119],
     [-484153, 80, -37120]
 ];
-var EVENT_MIN = 40;
 var FIRST_WAVE = 200, WAVE_EVERY = 3600, WAVE_SIZE = 4;
 // Вскрыть: стоять ближе OPEN_R столько тиков; урон сбивает.
 var CACHE_SHARDS = 3, OPEN_R = 2.0, OPEN_TICKS = 80;
-var WARN_MIN = [10, 5, 1];
 // Старт и конец ивента в глобальный чат. 0 — молчать (тест). Перед боевым ивентом поставь 1.
 var GLOBAL_CHAT = 0;
 
-var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", D_WARNED = "mo_warned", T_OPEN = "mo_open_";
-var D_CARRIERS = "mo_carriers", D_WIPE = "mo_wipe";
+var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", T_OPEN = "mo_open_", T_SUMMONS = "mo_summons";
 
 function eData(npc) { return npc.getWorld().getStoreddata(); }
 function eGet(npc, k, def) { var d = eData(npc); return d.has(k) ? String(d.get(k)) : def; }
@@ -65,27 +72,26 @@ function interact(e) {
         if (GLOBAL_CHAT != 1) p.message("§7[Око Моррслиб] Ивент остановлен. Глобальный чат молчит.");
     } else {
         eStart(npc);
-        if (GLOBAL_CHAT != 1) p.message("§7[Око Моррслиб] Ивент запущен на " + EVENT_MIN + " мин. Глобальный чат молчит.");
+        if (GLOBAL_CHAT != 1) p.message("§7[Око Моррслиб] Ивент запущен. Глобальный чат молчит.");
     }
 }
 
 function eStart(npc) {
     var w = npc.getWorld(), now = moNow(w);
     ePut(npc, MO_RUN, 1);
-    ePut(npc, MO_END, now + EVENT_MIN * 1200);
     ePut(npc, D_WAVE, now + FIRST_WAVE);
-    ePut(npc, D_WARNED, "");
     eSetLit(npc, []);
     eClearOpening(npc);
-    eBroadcast(w, "§a[Око Моррслиб] §fМоррслиб открыл глаз. Ивент идёт " + EVENT_MIN + " минут: собирайте осколки и сдавайте у алтаря.");
+    eBroadcast(w, "§a[Око Моррслиб] §fМоррслиб открыл глаз. Собирайте осколки и сдавайте у алтаря, пока глаз открыт.");
     if (CACHES.length == 0) log("morrslieb: впиши CACHES — без тайников ивенту нечего раздавать");
 }
 
 function eStop(npc, text) {
     ePut(npc, MO_RUN, 0);
-    ePut(npc, D_CARRIERS, "");
+    ePut(npc, MO_CARRIERS, "");
     eSetLit(npc, []);
     eClearOpening(npc);
+    npc.getTempdata().remove(T_SUMMONS);
     eBroadcast(npc.getWorld(), text);
 }
 
@@ -95,28 +101,128 @@ function tick(e) {
     eWipe(npc, online);
     if (!moRunning(w)) return;
     var now = moNow(w);
-    var end = Number(eGet(npc, MO_END, "0"));
-    if (now >= end) {
-        eStop(npc, "§a[Око Моррслиб] §fМоррслиб закрыл глаз. Ивент окончен; осколки сдаются у алтаря, пока он стоит.");
-        return;
-    }
     var ps = moPlayers(w);
-    eWarn(npc, ps, end - now);
     if (now >= Number(eGet(npc, D_WAVE, "0"))) eWave(npc, ps, now);
     var counts = eGlowAll(w, ps, now);
     eTrack(npc, ps, counts, online);
+    eHunt(npc, ps, counts, now);
     eCaches(npc, ps, now);
 }
 
-function eWarn(npc, ps, left) {
-    var warned = eGet(npc, D_WARNED, "");
-    for (var i = 0; i < WARN_MIN.length; i++) {
-        var m = WARN_MIN[i], key = "," + m + ",";
-        if (left > m * 1200 || warned.indexOf(key) >= 0) continue;
-        warned += key;
-        eTell(ps, "§a[Око Моррслиб] §fДо конца ивента " + m + (m == 1 ? " минута." : " минут."));
+// --- Охота ---
+
+// Самых ярких несущих, за кем никто не идёт, у кого нет паузы и кто не у алтаря, Око выдаёт Кигору.
+function eHunt(npc, ps, counts, now) {
+    var w = npc.getWorld();
+    var summons = eSummonsDue(npc, now);
+    var kigors = eKigors(w), cds = moHuntCdRead(w);
+    var carriers = [];
+    for (var i = 0; i < ps.length; i++) {
+        var n = counts[String(ps[i].getUUID())] || 0;
+        if (n > 0) carriers.push([n, ps[i]]);
     }
-    ePut(npc, D_WARNED, warned);
+    carriers.sort(function (a, b) { return b[0] - a[0]; });
+    for (var k = 0; k < carriers.length && kigors.length + summons.length < MAX_KIGORS; k++) {
+        var p = carriers[k][1], id = String(p.getUUID());
+        if (cds[id] > now || moInSanctuary(p.getX(), p.getZ()) || eCovered(p, ps, kigors, summons)) continue;
+        var at = eSummonPoint(w, p);
+        if (at == null) continue;
+        var s = { id: id, x: at[0], y: at[1], z: at[2], at: now + SUMMON_WARN };
+        summons.push(s);
+        eColumn(w, s);
+        p.message("§2Моррслиб видит твой свет. За тобой идёт Кигор.");
+        p.playSound("minecraft:entity.wolf.howl", 1.0, 0.5);
+    }
+    npc.getTempdata().put(T_SUMMONS, eSummonsText(summons));
+}
+
+function eKigors(w) {
+    var f = MO.FIELD, out = [];
+    var list = w.getNearbyEntities(NpcAPI.getIPos(f[0], f[1], f[2]), MO.FIELD_R, 2);
+    for (var i = 0; i < list.length; i++) if (list[i].isAlive() && String(list[i].getName()) == KIGOR_NAME) out.push(list[i]);
+    return out;
+}
+
+// За ним уже идут: его Кигор (как далеко бы он ни убежал), Кигор рядом или тот, за кем идёт вызов.
+function eCovered(p, ps, kigors, summons) {
+    var id = String(p.getUUID());
+    for (var i = 0; i < kigors.length; i++) {
+        var hunt = kigors[i].getStoreddata();
+        if (hunt.has("hunt") && String(hunt.get("hunt")) == id) return true;
+        if (moFlat(p, kigors[i].getX(), kigors[i].getZ()) <= GROUP_R) return true;
+    }
+    for (var j = 0; j < summons.length; j++) {
+        if (summons[j].id == String(p.getUUID())) return true;
+        for (var k = 0; k < ps.length; k++) {
+            if (String(ps[k].getUUID()) == summons[j].id && moFlat(p, ps[k].getX(), ps[k].getZ()) <= GROUP_R) return true;
+        }
+    }
+    return false;
+}
+
+// Точка на земле в SUMMON_MIN–SUMMON_MAX от игрока, не у алтаря; восемь попыток.
+function eSummonPoint(w, p) {
+    for (var i = 0; i < 8; i++) {
+        var a = Math.random() * Math.PI * 2, d = SUMMON_MIN + Math.random() * (SUMMON_MAX - SUMMON_MIN);
+        var x = p.getX() + Math.cos(a) * d, z = p.getZ() + Math.sin(a) * d;
+        if (moInSanctuary(x, z)) continue;
+        var g = moGround(w, x, z, p.getY(), 8, 12);
+        if (g != null) return [x, g, z];
+    }
+    return null;
+}
+
+// Вызовы: наступившие — Кигор встаёт; остальным — столб. Возвращает оставшиеся.
+function eSummonsDue(npc, now) {
+    var w = npc.getWorld(), td = npc.getTempdata(), left = [];
+    var parts = td.has(T_SUMMONS) ? String(td.get(T_SUMMONS)).split(";") : [];
+    for (var i = 0; i < parts.length; i++) {
+        var v = parts[i].split(":");
+        if (v.length < 5) continue;
+        var s = { id: v[0], x: Number(v[1]), y: Number(v[2]), z: Number(v[3]), at: Number(v[4]) };
+        if (now < s.at) {
+            eColumn(w, s);
+            left.push(s);
+            continue;
+        }
+        eSpawnKigor(w, s);
+    }
+    return left;
+}
+
+// Столб света там, где встанет Кигор.
+function eColumn(w, s) {
+    w.spawnParticle("happy_villager", s.x, s.y + 3, s.z, 0.3, 3, 0.3, 0, 30);
+    w.spawnParticle("end_rod", s.x, s.y + 6, s.z, 0.1, 6, 0.1, 0.02, 10);
+}
+
+function eSpawnKigor(w, s) {
+    var k = null;
+    try {
+        k = w.spawnClone(s.x, s.y, s.z, KIGOR_TAB, KIGOR_NAME);
+    } catch (err) {
+        moLogOnce("clone", "Кигор не вызван – проверь KIGOR_TAB и KIGOR_NAME: " + err);
+    }
+    if (k == null) return;
+    k.getStoreddata().put("hunt", s.id);
+    // Клон не должен вставать после смерти: spawnCycle 3 — «нет».
+    try {
+        var mc = k.getMCEntity();
+        mc.stats.spawnCycle = 3;
+        mc.stats.respawnTime = 0;
+    } catch (err) {
+        moLogOnce("respawn", "у клона Кигора не выключено возрождение: " + err);
+    }
+    w.spawnParticle("explosion", s.x, s.y + 1, s.z, 1.0, 0.5, 1.0, 0, 6);
+}
+
+function eSummonsText(summons) {
+    var parts = [];
+    for (var i = 0; i < summons.length; i++) {
+        var s = summons[i];
+        parts.push(s.id + ":" + s.x.toFixed(2) + ":" + s.y.toFixed(2) + ":" + s.z.toFixed(2) + ":" + s.at);
+    }
+    return parts.join(";");
 }
 
 // Волна: загораются до WAVE_SIZE тёмных тайников; Кигор, если жив, воет (сигнал через данные мира).
@@ -149,17 +255,17 @@ function eGlowAll(w, ps, now) {
     return counts;
 }
 
-function eList(npc, k) { var s = eGet(npc, k, ""); return s.length == 0 ? [] : s.split(","); }
-
 function eOnline(w) {
     var all = w.getAllPlayers(), out = {};
     for (var i = 0; i < all.length; i++) out[String(all[i].getUUID())] = all[i];
     return out;
 }
 
-// Несущие: кто был на поле с осколками и пока их не лишился, где бы ни был. Пропал с сервера — в список на потерю.
+// Несущие: кто был на поле с осколками и пока их не лишился, где бы ни был.
+// Пропал без logout (рестарт) — в список на потерю при входе. Обычный выход снимает сам logout.
 function eTrack(npc, ps, counts, online) {
-    var prev = eList(npc, D_CARRIERS), wipe = eList(npc, D_WIPE), next = [];
+    var w = npc.getWorld();
+    var prev = moCsv(w, MO_CARRIERS), wipe = moCsv(w, MO_WIPE), next = [];
     for (var i = 0; i < prev.length; i++) {
         var id = prev[i], p = online[id];
         if (p == null) {
@@ -172,13 +278,14 @@ function eTrack(npc, ps, counts, online) {
         var uid = String(ps[k].getUUID());
         if (counts[uid] > 0 && next.indexOf(uid) < 0) next.push(uid);
     }
-    ePut(npc, D_CARRIERS, next.join(","));
-    ePut(npc, D_WIPE, wipe.join(","));
+    ePut(npc, MO_CARRIERS, next.join(","));
+    ePut(npc, MO_WIPE, wipe.join(","));
 }
 
-// Вернувшийся теряет все осколки. Список живёт и после конца ивента.
+// Рестарт не вызывает logout, поэтому осколки ещё при игроке. При входе Око их забирает, на землю не кладёт:
+// игрок уже стоит на этом месте и сразу подобрал бы кучу.
 function eWipe(npc, online) {
-    var wipe = eList(npc, D_WIPE);
+    var wipe = moCsv(npc.getWorld(), MO_WIPE);
     if (wipe.length == 0) return;
     var left = [];
     for (var i = 0; i < wipe.length; i++) {
@@ -188,9 +295,9 @@ function eWipe(npc, online) {
             continue;
         }
         var n = moTakeAllShards(p);
-        if (n > 0) p.message("§cТы вышел с сервера с осколками Моррслиба – они рассыпались. Потеряно: " + n + ".");
+        if (n > 0) p.message("§cСервер оборвал выход с осколками Моррслиба – они пропали, а не выпали. Потеряно: " + n + ".");
     }
-    ePut(npc, D_WIPE, left.join(","));
+    ePut(npc, MO_WIPE, left.join(","));
 }
 
 // Свет горящих тайников и вскрытие: кто ближе OPEN_R, тот вскрывает; ушёл или получил урон — сначала.

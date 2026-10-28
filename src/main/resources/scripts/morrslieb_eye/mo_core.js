@@ -1,4 +1,5 @@
 // mo_core.js — общее ядро ивента «Око Моррслиб». В контейнере скрипта ПЕРВЫЙ файл: и у Ока, и у Кигора.
+// Тот же файл — единственный скрипт игрока (вкладка Player): на выходе logout роняет осколки под ноги.
 // Осколки Моррслиба — предметы с меткой MO.SHARD_TAG в NBT; скрипты сверяют метку, а не тип предмета.
 // Считаются и осколки в мешках мода: мешок хранит содержимое в NBT (Pouch.Items).
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
@@ -15,11 +16,20 @@ var MO = {
     // Ударивший Кигора светится столько тиков.
     MARK_TICKS: 260,
     // Яркость: с какого числа осколков начинается каждая ступень.
-    TIERS: [1, 5, 12, 25]
+    TIERS: [1, 5, 12, 25],
+    // Алтари [x, y, z]: ближе ALTAR_R Кигор не ступает и никого не бьёт, Око никого там не выдаёт. Впиши по полю.
+    ALTARS: [],
+    ALTAR_R: 15,
+    // Пауза перед следующим Кигором за тем же игроком, в тиках, по ступени яркости 1–4: чем ярче, тем короче.
+    HUNT_PAUSE: [1200, 1000, 800, 600]
 };
 
 // Данные мира: ход ивента — в постоянных (переживает рестарт), метки ударов и сигнал воя — во временных.
-var MO_RUN = "mo_running", MO_END = "mo_end_at", MO_MARKS = "mo_marks", MO_HOWL = "mo_howl";
+var MO_RUN = "mo_running", MO_MARKS = "mo_marks", MO_HOWL = "mo_howl";
+// Кого Око уже видело на поле с осколками, и кого не поймал logout (рестарт) — снять при входе.
+var MO_CARRIERS = "mo_carriers", MO_WIPE = "mo_wipe";
+// Пауза охоты по игрокам: uuid:до какого тика.
+var MO_HUNT_CD = "mo_hunt_cd";
 var MO_LOGGED = {};
 
 function moNow(world) { return Number(world.getTotalTime()); }
@@ -111,25 +121,31 @@ function moTakeShards(p, k) {
     return taken;
 }
 
-// Забирает все осколки: из инвентаря и из мешков. Возвращает, сколько забрал.
+// Вынимает осколки из мешка (NBT Pouch.Items). Возвращает, сколько вынул.
+function moPullPouchShards(item) {
+    if (item == null || item.isEmpty() || !item.hasNbt()) return 0;
+    var nbt = item.getNbt();
+    if (!nbt.has("Pouch")) return 0;
+    var pouch = nbt.getCompound("Pouch");
+    if (!pouch.has("Items")) return 0;
+    var list = pouch.getList("Items", 10), keep = [], n = 0;
+    for (var k = 0; k < list.length; k++) {
+        if (moIsShardNbt(list[k])) n += Number(list[k].getByte("Count"));
+        else keep.push(list[k]);
+    }
+    if (n == 0) return 0;
+    pouch.setList("Items", keep);
+    return n;
+}
+
+// Забирает все осколки: из инвентаря и из мешков. На землю не кладёт. Возвращает, сколько забрал.
 function moTakeAllShards(p) {
     var taken = moTakeShards(p, 1e9);
     try {
         var inv = p.getInventory(), changed = false;
         for (var i = 0; i < inv.getSize(); i++) {
-            var it = inv.getSlot(i);
-            if (it == null || it.isEmpty() || !it.hasNbt()) continue;
-            var nbt = it.getNbt();
-            if (!nbt.has("Pouch")) continue;
-            var pouch = nbt.getCompound("Pouch");
-            if (!pouch.has("Items")) continue;
-            var list = pouch.getList("Items", 10), keep = [], n = 0;
-            for (var k = 0; k < list.length; k++) {
-                if (moIsShardNbt(list[k])) n += Number(list[k].getByte("Count"));
-                else keep.push(list[k]);
-            }
+            var n = moPullPouchShards(inv.getSlot(i));
             if (n == 0) continue;
-            pouch.setList("Items", keep);
             taken += n;
             changed = true;
         }
@@ -138,6 +154,37 @@ function moTakeAllShards(p) {
         moLogOnce("wipe", "осколки из мешка не забраны: " + err);
     }
     return taken;
+}
+
+// Снимает все осколки и кладёт их под ноги: из инвентаря — тем же стаком, из мешка — новыми.
+function moDropAllShards(p) {
+    var dropped = 0;
+    try {
+        var inv = p.getInventory();
+        var w = p.getWorld();
+        for (var i = 0; i < inv.getSize(); i++) {
+            var it = inv.getSlot(i);
+            if (!moIsShard(it)) continue;
+            var n = it.getStackSize();
+            p.dropItem(it.copy());
+            it.setStackSize(0);
+            dropped += n;
+        }
+        for (var j = 0; j < inv.getSize(); j++) {
+            var fromPouch = moPullPouchShards(inv.getSlot(j));
+            var left = fromPouch;
+            while (left > 0) {
+                var c = Math.min(64, left);
+                p.dropItem(moMakeShards(w, c));
+                left -= c;
+            }
+            dropped += fromPouch;
+        }
+        if (dropped > 0) p.updatePlayerInventory();
+    } catch (err) {
+        moLogOnce("drop", "осколки не выпали: " + err);
+    }
+    return dropped;
 }
 
 function moMakeShards(world, n) {
@@ -190,6 +237,108 @@ function moMark(world, p, ticks) {
 function moMarked(marks, p, now) {
     var until = marks[String(p.getUUID())];
     return until != null && until > now;
+}
+
+// --- Выход с осколками ---
+
+function moCsv(world, key) {
+    var d = world.getStoreddata();
+    if (!d.has(key)) return [];
+    var s = String(d.get(key));
+    return s.length == 0 ? [] : s.split(",");
+}
+
+function moCsvHas(world, key, id) {
+    return moCsv(world, key).indexOf(id) >= 0;
+}
+
+function moCsvRemove(world, key, id) {
+    var list = moCsv(world, key), next = [];
+    for (var i = 0; i < list.length; i++) if (list[i] != id) next.push(list[i]);
+    world.getStoreddata().put(key, next.join(","));
+}
+
+// Игрок ивента: живой, не креатив и не наблюдатель, на поле.
+function moInEvent(p) {
+    if (p == null || !p.isAlive()) return false;
+    if (p.getGamemode() == 1 || p.getGamemode() == 3) return false;
+    return moFlat(p, MO.FIELD[0], MO.FIELD[2]) <= MO.FIELD_R;
+}
+
+// Выход во время ивента: осколки падают там, где стоял игрок, в том числе вынутые из мешка.
+// Уйти с поля раньше не спасает — Око уже записал его в MO_CARRIERS.
+// Рестарт сюда не попадает: игрока уже нет, остаток снимает Око при следующем входе.
+function logout(e) {
+    var p = e.player;
+    if (p == null) return;
+    var w = p.getWorld();
+    if (!moRunning(w)) return;
+    var id = String(p.getUUID());
+    var tracked = moCsvHas(w, MO_CARRIERS, id);
+    if (!tracked && !(moInEvent(p) && moShards(p) > 0)) return;
+    var had = moShards(p);
+    var dropped = had > 0 ? moDropAllShards(p) : 0;
+    if (moShards(p) > 0) return;
+    moCsvRemove(w, MO_CARRIERS, id);
+    moCsvRemove(w, MO_WIPE, id);
+    if (dropped <= 0) return;
+    w.spawnParticle("happy_villager", p.getX(), p.getY() + 0.2, p.getZ(), 0.6, 0.4, 0.6, 0, 40);
+    var text = "§c" + p.getName() + " вышел с осколками Моррслиба – они выпали на землю. " + dropped + " шт.";
+    p.message(text);
+    var ps = moPlayers(w);
+    for (var i = 0; i < ps.length; i++) if (String(ps[i].getUUID()) != id) ps[i].message(text);
+}
+
+// --- Охота ---
+
+function moInSanctuary(x, z) {
+    for (var i = 0; i < MO.ALTARS.length; i++) {
+        var a = MO.ALTARS[i], dx = x - (a[0] + 0.5), dz = z - (a[2] + 0.5);
+        if (dx * dx + dz * dz <= MO.ALTAR_R * MO.ALTAR_R) return true;
+    }
+    return false;
+}
+
+function moHuntCdRead(world) {
+    var d = world.getStoreddata(), out = {};
+    if (!d.has(MO_HUNT_CD)) return out;
+    var parts = String(d.get(MO_HUNT_CD)).split(";");
+    for (var i = 0; i < parts.length; i++) {
+        var kv = parts[i].split(":");
+        if (kv.length == 2) out[kv[0]] = Number(kv[1]);
+    }
+    return out;
+}
+
+// Пауза для игрока после охоты; длина — по числу его осколков сейчас.
+function moHuntCdSet(world, id, shards) {
+    var now = moNow(world), cds = moHuntCdRead(world), parts = [];
+    var t = Math.max(1, moTier(shards));
+    cds[id] = now + MO.HUNT_PAUSE[Math.min(t, MO.HUNT_PAUSE.length) - 1];
+    for (var k in cds) if (cds[k] > now) parts.push(k + ":" + cds[k]);
+    world.getStoreddata().put(MO_HUNT_CD, parts.join(";"));
+}
+
+// --- Земля ---
+
+// Сквозь это Кигор проходит, землёй это не считается. Воздух — по isAir: в «stairs» тоже есть «air».
+var MO_PASS = /leaves|_log$|_wood$|stem$|hyphae|water|lava|^minecraft:grass$|tall_grass|fern|flower|sapling|vine|bush|roots|mushroom$|sugar_cane|bamboo|kelp|seagrass|lily|torch|button|lever|rail|carpet|snow$|fence|wall$|pane|bars|door|sign|banner|web|tulip|orchid|allium|bluet|daisy|poppy|dandelion|lilac|peony/;
+
+function moSolid(b) {
+    if (b == null || b.isAir()) return false;
+    return !MO_PASS.test(String(b.getName()));
+}
+
+// Верх первого сверху твёрдого блока, над которым не твёрдое, от y + up до y − down; null — нет такого.
+function moGround(world, x, z, y, up, down) {
+    var bx = Math.floor(x), bz = Math.floor(z), top = Math.floor(y) + up;
+    var above = moSolid(world.getBlock(bx, top + 1, bz));
+    for (var by = top; by >= Math.floor(y) - down; by--) {
+        var solid = moSolid(world.getBlock(bx, by, bz));
+        if (solid && !above) return by + 1;
+        above = solid;
+    }
+    return null;
 }
 
 // --- Свечение ---

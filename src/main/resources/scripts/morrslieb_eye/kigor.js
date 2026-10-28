@@ -7,8 +7,9 @@
 // От него уходят: сдать осколки у алтаря (ближе MO.ALTAR_R он не ступает и не бьёт) или бросить их — тёмного он
 // не видит; оторваться — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN LOSE_TICKS подряд; пережить
 // HUNT_TICKS. Тогда он рассыпается, а Око не шлёт за этим игроком нового до паузы MO.HUNT_PAUSE.
-// Приёмы: удар кулаком, топот вокруг себя, глыба во вдаль, рывок рогами; ниже 66% — Взгляд Ока (луч, засвечивает;
-// после него 3 секунды урон по нему ×1,5); ниже 33% — глыбы залпом. Вой — по сигналу Ока, когда загораются тайники.
+// Приёмы, все с самого начала, фаз нет: удар кулаком, топот вокруг себя, глыбы залпом до VOLLEY целей, рывок рогами,
+// Взгляд Ока (луч засвечивает и тянет к нему; после него 3 секунды урон по нему ×1,5). Бьёт широко и очень сильно.
+// Вой — по сигналу Ока, когда загораются тайники.
 // Пожиратель душ: ударив несущего, вырывает часть осколков из инвентаря и лечится; убитый роняет всё съеденное.
 // Без добычи (поставлен руками, чтобы настроить и сохранить в клонер) стоит и ничего не делает. Ивент выключили —
 // охотник рассыпается. Съеденное роняет только убитый.
@@ -24,8 +25,8 @@ var CAP = 20, OPEN_MUL = 1.5;
 var SIGHT_R = 48;
 // Охота: HUNT_TICKS гонится; оторвался — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN — LOSE_TICKS подряд.
 var HUNT_TICKS = 1800, LOSE_R = 32, HIDE_MIN = 16, LOSE_TICKS = 120;
-// Шаг за тик в погоне: бегущий игрок — около 0,28, так что убежать можно. Встаёт в CHASE_STOP от цели.
-var CHASE_SPEED = 0.24, CHASE_STOP = 3;
+// Шаг за тик в погоне: бегущий игрок — около 0,28, под «Скоростью II» — около 0,34. Встаёт в CHASE_STOP от цели.
+var CHASE_SPEED = 0.32, CHASE_STOP = 3;
 // Земля под шагом — от GROUND_UP выше ног до GROUND_DOWN ниже; за тик не выше RISE и не ниже FALL.
 var GROUND_UP = 12, GROUND_DOWN = 16, RISE = 0.6, FALL = 1.2;
 // Пожиратель душ: доля осколков с удара (не меньше одного) и лечение за осколок — доля здоровья.
@@ -48,16 +49,17 @@ var ANIM_DASH = "attack_ram";
 var ANIM_HOWL = "attack_roar";
 var ANIM_GAZE = "attack_gaze";
 
-var PUNCH_RANGE = 5, PUNCH_LEN = 5.5, PUNCH_HALF = 50, PUNCH_WARN = 12, PUNCH_PCT = 0.25, PUNCH_CD = 40;
+var PUNCH_RANGE = 8, PUNCH_LEN = 9, PUNCH_HALF = 80, PUNCH_WARN = 12, PUNCH_PCT = 0.45, PUNCH_CD = 40, PUNCH_PUSH = 2;
 var PUNCH_RECOVER = 13;
-var STOMP_R = 6, STOMP_WARN = 25, STOMP_PCT = 0.3, STOMP_CD = 200;
+var STOMP_R = 10, STOMP_WARN = 25, STOMP_PCT = 0.45, STOMP_CD = 200, STOMP_PUSH = 3;
 var STOMP_RECOVER = 10;
-var BOULDER_MIN = 8, BOULDER_MAX = 40, BOULDER_R = 3.5, BOULDER_WARN = 30, BOULDER_PCT = 0.3, BOULDER_STUN = 30;
+var BOULDER_MIN = 8, BOULDER_MAX = 40, BOULDER_R = 6, BOULDER_WARN = 30, BOULDER_PCT = 0.45, BOULDER_STUN = 30;
 var BOULDER_CD = 160, VOLLEY = 3, THROW_ROOT = 25;
-var DASH_MIN = 6, DASH_MAX = 20, DASH_CHARGE = 28, DASH_ACTIVE = 8, DASH_W = 1.5, DASH_DMG = 8.0;
-var DASH_HIT_R = 3.5, DASH_PCT = 0.35, DASH_CD = 240, DASH_RECOVER = 10;
-var GAZE_LEN = 32, GAZE_HALF = 2, GAZE_WARN = 20, GAZE_TICKS = 40, GAZE_PULSE = 5, GAZE_OPEN = 60, GAZE_CD = 400;
-var GAZE_SLOW = 3;
+var DASH_MIN = 6, DASH_MAX = 20, DASH_CHARGE = 28, DASH_ACTIVE = 8, DASH_W = 3, DASH_DMG = 16.0;
+var DASH_HIT_R = 6, DASH_PCT = 0.55, DASH_CD = 240, DASH_RECOVER = 10, DASH_PUSH = 2;
+var GAZE_LEN = 32, GAZE_HALF = 3, GAZE_WARN = 20, GAZE_TICKS = 40, GAZE_PULSE = 5, GAZE_OPEN = 60, GAZE_CD = 400;
+// Луч тянет к нему: толчок GAZE_PULL за каждый пульс, пока игрок дальше GAZE_HOLD.
+var GAZE_SLOW = 3, GAZE_PULL = 2, GAZE_HOLD = 5;
 var HOWL_WARN = 40, HOWL_R = 64, HOWL_GLOW = 5, HOWL_MARK = 100;
 var HOWL_RECOVER = 27;
 var WALK_GAP = 30;
@@ -93,7 +95,7 @@ function init(e) {
     npc.getAi().setReturnsHome(false);
     npc.getAi().setWalkingSpeed(0);
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("kigor turn: " + err); }
-    var keys = ["eye_open_until", "free_at", "was_busy", "phase", "eaten", "lost", "run_seen"];
+    var keys = ["eye_open_until", "free_at", "was_busy", "eaten", "lost", "run_seen"];
     for (var i = 0; i < keys.length; i++) kPut(npc, keys[i], 0);
     kPut(npc, "face_yaw", npc.getRotation());
     kPut(npc, "howl_seen", kHowlSignal(npc));
@@ -208,15 +210,6 @@ function kTurn(npc, yaw) {
 }
 
 // --- Общее ---
-
-function kPhase(npc) {
-    var hp = npc.getHealth() / npc.getMaxHealth();
-    return hp > 0.66 ? 1 : (hp > 0.33 ? 2 : 3);
-}
-
-function cd(npc, ticks) {
-    return kNum(npc, "phase") >= 3 ? Math.round(ticks * 0.6) : ticks;
-}
 
 function kBusy(npc) {
     if (AbilityAPI.isBusy(npc)) return true;
@@ -345,7 +338,7 @@ function punchHit(npc) {
     for (var i = 0; i < ps.length; i++) {
         if (!Combat.isInFrontCone(x, z, yaw, ps[i], PUNCH_HALF)) continue;
         kStrike(npc, ps[i], PUNCH_PCT);
-        kPush(ps[i], x, z, 1);
+        kPush(ps[i], x, z, PUNCH_PUSH);
     }
     kRecover(npc, PUNCH_RECOVER);
 }
@@ -367,7 +360,7 @@ function stompHit(npc) {
     var ps = kPlayersAt(npc, x, z, STOMP_R);
     for (var i = 0; i < ps.length; i++) {
         kStrike(npc, ps[i], STOMP_PCT);
-        kPush(ps[i], x, z, 2);
+        kPush(ps[i], x, z, STOMP_PUSH);
     }
     kRecover(npc, STOMP_RECOVER);
 }
@@ -454,7 +447,7 @@ function dashEnd(npc) {
     var ps = kPlayersAt(npc, x, z, DASH_HIT_R);
     for (var i = 0; i < ps.length; i++) {
         kStrike(npc, ps[i], DASH_PCT);
-        kPush(ps[i], x, z, 1);
+        kPush(ps[i], x, z, DASH_PUSH);
     }
     kRecover(npc, DASH_RECOVER);
 }
@@ -499,6 +492,7 @@ function gazePulse(npc) {
         if (along < 0 || along > GAZE_LEN || across > GAZE_HALF || !npc.canSeeEntity(p)) continue;
         moMark(w, p, MO.MARK_TICKS);
         p.addPotionEffect(2, GAZE_SLOW, 1, true);
+        if (moFlat(p, x, z) > GAZE_HOLD) p.knockback(GAZE_PULL, Combat.computeYaw(x - p.getX(), z - p.getZ()));
     }
 }
 
@@ -530,35 +524,35 @@ function howlHit(npc) {
 
 // --- Бой ---
 
-function tryCast(npc, ps, marks, t, phase, now) {
+function tryCast(npc, ps, marks, t, now) {
     var d = moFlat(t, npc.getX(), npc.getZ());
     var near = kPlayersAt(npc, npc.getX(), npc.getZ(), STOMP_R);
     if (now >= kNum(npc, "free_at")) {
         if (near.length > 0 && now >= kNum(npc, "stomp_at")) {
-            kPut(npc, "stomp_at", now + cd(npc, STOMP_CD));
+            kPut(npc, "stomp_at", now + STOMP_CD);
             startStomp(npc);
             return;
         }
-        if (phase >= 2 && now >= kNum(npc, "gaze_at") && d <= GAZE_LEN) {
-            kPut(npc, "gaze_at", now + cd(npc, GAZE_CD));
+        if (now >= kNum(npc, "gaze_at") && d <= GAZE_LEN) {
+            kPut(npc, "gaze_at", now + GAZE_CD);
             startGaze(npc, t);
             return;
         }
         if (now >= kNum(npc, "boulder_at")) {
-            var aims = kBoulderAims(npc, ps, marks, now, phase >= 3 ? VOLLEY : 1);
+            var aims = kBoulderAims(npc, ps, marks, now, VOLLEY);
             if (aims.length > 0) {
-                kPut(npc, "boulder_at", now + cd(npc, BOULDER_CD));
+                kPut(npc, "boulder_at", now + BOULDER_CD);
                 startBoulders(npc, aims);
                 return;
             }
         }
         if (now >= kNum(npc, "dash_at") && d >= DASH_MIN && d <= DASH_MAX) {
-            kPut(npc, "dash_at", now + cd(npc, DASH_CD));
+            kPut(npc, "dash_at", now + DASH_CD);
             if (startDash(npc, t)) return;
         }
     }
     if (d <= PUNCH_RANGE && now >= kNum(npc, "punch_at")) {
-        kPut(npc, "punch_at", now + cd(npc, PUNCH_CD));
+        kPut(npc, "punch_at", now + PUNCH_CD);
         startPunch(npc, t);
     }
 }
@@ -601,9 +595,6 @@ function tick(e) {
         kVanish(npc, why);
         return;
     }
-    var phase = kPhase(npc);
-    if (phase > kNum(npc, "phase")) kEnterPhase(npc, phase);
-    phase = kNum(npc, "phase");
     var signal = kHowlSignal(npc);
     if (signal != kGet(npc, "howl_seen", "") && !kBusy(npc)) {
         kPut(npc, "howl_seen", signal);
@@ -619,13 +610,7 @@ function tick(e) {
         kPut(npc, "free_at", now + WALK_GAP);
     }
     if (moInSanctuary(q.getX(), q.getZ())) return;
-    tryCast(npc, moPlayers(w), marks, q, phase, now);
-}
-
-function kEnterPhase(npc, phase) {
-    kPut(npc, "phase", phase);
-    if (phase == 2) npc.say("§2Кигор чует магию сильнее. Берегитесь его взгляда.");
-    if (phase >= 3) npc.say("§4Кигор в ярости: глыбы летят одна за другой!");
+    tryCast(npc, moPlayers(w), marks, q, now);
 }
 
 function timer(e) {

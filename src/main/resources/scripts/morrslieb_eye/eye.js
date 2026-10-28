@@ -32,7 +32,7 @@ var CACHES = [
 // Волна: первая через FIRST_WAVE тиков после запуска, дальше раз в WAVE_EVERY (2 минуты) зажигает до WAVE_SIZE погасших.
 var FIRST_WAVE = 200, WAVE_EVERY = 2400, WAVE_SIZE = 4;
 // Вскрыть: стоять ближе OPEN_R столько тиков; урон сбивает.
-var CACHE_SHARDS = 3, OPEN_R = 2.0, OPEN_TICKS = 80;
+var CACHE_SHARDS = 1, OPEN_R = 2.0, OPEN_TICKS = 80;
 // Старт и конец ивента в глобальный чат. 0 — молчать (тест). Перед боевым ивентом поставь 1.
 var GLOBAL_CHAT = 0;
 
@@ -122,6 +122,7 @@ function eBeat(w) {
 function eStep(w, now) {
     var online = eOnline(w);
     eWipe(w, online);
+    eFallen(w, online, now);
     if (!moRunning(w)) return;
     var ps = moPlayers(w);
     if (now >= Number(eGet(w, D_WAVE, "0"))) eWave(w, ps, now);
@@ -324,6 +325,43 @@ function eWipe(w, online) {
     ePut(w, MO_WIPE, left.join(","));
 }
 
+// Погибшему с сохранённым инвентарём (оператор, символ богов) мод отдаёт его при возрождении, осколки тоже.
+// Око отнимает их и рассыпает в точке гибели: там, где их ждут убийца и соседи. Мод мог ещё не отдать вещи —
+// запись ждёт FALLEN_WAIT тиков с первого раза, как игрок снова жив. Точка в другом мире или её чанк выгружен —
+// осколки просто пропадают: погибший их лишается в любом случае.
+var FALLEN_WAIT = 100;
+
+function eFallen(w, online, now) {
+    var list = moCsv(w, MO_FALLEN);
+    if (list.length == 0) return;
+    var left = [];
+    for (var i = 0; i < list.length; i++) {
+        var f = list[i].split(";"), p = online[f[0]];
+        if (p == null || !p.isAlive()) {
+            left.push(list[i]);
+            continue;
+        }
+        var n = moTakeAllShards(p);
+        if (n > 0) {
+            if (f[1] == String(w.getName())) {
+                moScatter(w, Number(f[2]), Number(f[3]), Number(f[4]), n);
+                moFallenLand(w, Number(f[2]), Number(f[3]), Number(f[4]));
+            }
+            moCsvRemove(w, MO_CARRIERS, f[0]);
+            p.message("§cТвои осколки Моррслиба рассыпались там, где ты погиб: " + n + ".");
+            continue;
+        }
+        var seen = Number(f[5]);
+        if (seen == 0) {
+            f[5] = now;
+            left.push(f.join(";"));
+        } else if (now - seen < FALLEN_WAIT) {
+            left.push(list[i]);
+        }
+    }
+    ePut(w, MO_FALLEN, left.join(","));
+}
+
 // Свет горящих тайников и вскрытие: кто ближе OPEN_R, тот вскрывает; ушёл или получил урон — сначала.
 // У каждого тайника своё вскрытие: несколько тайников можно вскрывать разом.
 function eCaches(w, ps, now) {
@@ -383,6 +421,12 @@ function eNearest(ps, c) {
     return best;
 }
 
+function eShardWord(n) {
+    var a = n % 100, b = n % 10;
+    if (a >= 11 && a <= 14) return "осколков";
+    return b == 1 ? "осколок" : b >= 2 && b <= 4 ? "осколка" : "осколков";
+}
+
 function eOpen(w, ps, p, idx) {
     var lit = eLit(w);
     lit.splice(lit.indexOf(idx), 1);
@@ -392,6 +436,6 @@ function eOpen(w, ps, p, idx) {
     w.spawnParticle("happy_villager", c[0] + 0.5, c[1] + 4, c[2] + 0.5, 0.4, 4, 0.4, 0, 60);
     w.spawnParticle("end_rod", c[0] + 0.5, c[1] + 6, c[2] + 0.5, 0.2, 6, 0.2, 0.02, 30);
     eSound(ps, "minecraft:block.beacon.power_select", 1.0, 1.4);
-    p.message("§aТайник вскрыт: +" + CACHE_SHARDS + " осколка Моррслиба.");
+    p.message("§aТайник вскрыт: +" + CACHE_SHARDS + " " + eShardWord(CACHE_SHARDS) + " Моррслиба.");
     eTell(ps, "§a[Око Моррслиб] §fКто-то вскрыл тайник – над ним столб света.");
 }

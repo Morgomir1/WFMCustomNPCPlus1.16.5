@@ -8,7 +8,8 @@
 // не видит; оторваться — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN LOSE_TICKS подряд; пережить
 // HUNT_TICKS. Тогда он рассыпается, а Око не шлёт за этим игроком нового до паузы MO.HUNT_PAUSE.
 // Приёмы, все с самого начала, фаз нет: удар кулаком, топот вокруг себя, глыбы залпом до VOLLEY целей, рывок рогами,
-// Взгляд Ока (засвечивает и тянет к нему всех в круге GAZE_R, кого видит; после него 3 секунды урон по нему ×1,5). Бьёт широко и очень сильно.
+// Взгляд Ока (засвечивает и тянет к нему всех в круге GAZE_R, кого видит; следом — удар оземь по притянутым, после него
+// 3 секунды урон по нему ×1,5). Бьёт широко и очень сильно.
 // Вой — по сигналу Ока, когда загораются тайники.
 // Пожиратель душ: ударив несущего, вырывает часть осколков из инвентаря и лечится; убитый роняет всё съеденное.
 // Без добычи (поставлен руками, чтобы настроить и сохранить в клонер) стоит и ничего не делает. Ивент выключили —
@@ -25,8 +26,9 @@ var CAP = 20, OPEN_MUL = 1.5;
 var SIGHT_R = 48;
 // Охота: HUNT_TICKS гонится; оторвался — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN — LOSE_TICKS подряд.
 var HUNT_TICKS = 1800, LOSE_R = 32, HIDE_MIN = 16, LOSE_TICKS = 120;
-// Шаг за тик в погоне: бегущий игрок — около 0,28, под «Скоростью II» — около 0,34. Встаёт в CHASE_STOP от цели.
-var CHASE_SPEED = 0.32, CHASE_STOP = 3;
+// Шаг за тик в погоне: бегущий игрок — около 0,28, под «Скоростью II» — около 0,34. 0,37 — 7,4 блока в секунду.
+// Встаёт в CHASE_STOP от цели.
+var CHASE_SPEED = 0.37, CHASE_STOP = 3;
 // Земля под шагом — от GROUND_UP выше ног до GROUND_DOWN ниже; за тик не выше RISE и не ниже FALL.
 var GROUND_UP = 12, GROUND_DOWN = 16, RISE = 0.6, FALL = 1.2;
 // Пожиратель душ: доля осколков с удара (не меньше одного) и лечение за осколок — доля здоровья.
@@ -49,26 +51,30 @@ var ANIM_DASH = "attack_ram";
 var ANIM_HOWL = "attack_roar";
 var ANIM_GAZE = "attack_gaze";
 
-var PUNCH_RANGE = 8, PUNCH_LEN = 9, PUNCH_HALF = 80, PUNCH_WARN = 12, PUNCH_PCT = 0.45, PUNCH_CD = 40, PUNCH_PUSH = 2;
+// Области приёмов — прежние ×1,15: дальность и длина удара, радиусы топота, глыбы, рывка и взгляда, ширина рывка.
+var PUNCH_RANGE = 9.2, PUNCH_LEN = 10.4, PUNCH_HALF = 80, PUNCH_WARN = 12, PUNCH_PCT = 0.45, PUNCH_CD = 40, PUNCH_PUSH = 2;
 var PUNCH_RECOVER = 13;
-var STOMP_R = 10, STOMP_WARN = 25, STOMP_PCT = 0.45, STOMP_CD = 200, STOMP_PUSH = 3;
+var STOMP_R = 11.5, STOMP_WARN = 25, STOMP_PCT = 0.45, STOMP_CD = 200, STOMP_PUSH = 3;
 var STOMP_RECOVER = 10;
-var BOULDER_MIN = 8, BOULDER_MAX = 40, BOULDER_R = 6, BOULDER_WARN = 30, BOULDER_PCT = 0.45, BOULDER_STUN = 30;
+var BOULDER_MIN = 8, BOULDER_MAX = 40, BOULDER_R = 6.9, BOULDER_WARN = 30, BOULDER_PCT = 0.45, BOULDER_STUN = 30;
 var BOULDER_CD = 160, VOLLEY = 3, THROW_ROOT = 25;
-var DASH_MIN = 6, DASH_MAX = 20, DASH_CHARGE = 28, DASH_ACTIVE = 8, DASH_W = 3, DASH_DMG = 16.0;
-var DASH_HIT_R = 6, DASH_PCT = 0.55, DASH_CD = 240, DASH_RECOVER = 10, DASH_PUSH = 2;
-var GAZE_R = 20, GAZE_WARN = 20, GAZE_TICKS = 40, GAZE_PULSE = 5, GAZE_OPEN = 60, GAZE_CD = 400;
+var DASH_MIN = 6, DASH_MAX = 20, DASH_CHARGE = 28, DASH_ACTIVE = 8, DASH_W = 3.45, DASH_DMG = 16.0;
+var DASH_PATH_R = 2.1, DASH_HIT_R = 6.9, DASH_PCT = 0.55, DASH_CD = 240, DASH_RECOVER = 10, DASH_PUSH = 2;
+var GAZE_R = 23, GAZE_WARN = 20, GAZE_TICKS = 40, GAZE_PULSE = 5, GAZE_OPEN = 60, GAZE_CD = 400;
 // Взгляд тянет к нему всех в круге GAZE_R, кого он видит: толчок GAZE_PULL за каждый пульс, пока игрок дальше GAZE_HOLD.
 var GAZE_SLOW = 3, GAZE_PULL = 2, GAZE_HOLD = 5;
+// Удар оземь следом за взглядом: замах начинается за SLAM_LEAD тиков до конца притяжения, удар — через SLAM_WARN
+// (на ударе клипа топота), то есть через полсекунды после последнего рывка к нему. Бьёт всех в SLAM_R.
+var SLAM_LEAD = 15, SLAM_WARN = 25, SLAM_R = 8, SLAM_PCT = 0.45, SLAM_PUSH = 3;
 var HOWL_WARN = 40, HOWL_R = 64, HOWL_GLOW = 5, HOWL_MARK = 100;
 var HOWL_RECOVER = 27;
 var WALK_GAP = 30;
 
 var T_HOLD = 1, T_PUNCH = 2, T_STOMP = 3, T_BOULDER = 4, T_DASH_END = 5, T_GAZE = 6, T_GAZE_BEAM = 7;
-var T_HOWL = 8, T_RECOVER = 9, T_MOVE = 10;
-var ALL_TIMERS = [T_HOLD, T_PUNCH, T_STOMP, T_BOULDER, T_DASH_END, T_GAZE, T_GAZE_BEAM, T_HOWL, T_RECOVER, T_MOVE];
+var T_HOWL = 8, T_RECOVER = 9, T_MOVE = 10, T_SLAM = 11;
+var ALL_TIMERS = [T_HOLD, T_PUNCH, T_STOMP, T_BOULDER, T_DASH_END, T_GAZE, T_GAZE_BEAM, T_HOWL, T_RECOVER, T_MOVE, T_SLAM];
 // Пока идёт любой из этих — новый приём не начинается. Глыба после выпуска (1.25s) летит сама.
-var CAST_TIMERS = [T_PUNCH, T_STOMP, T_DASH_END, T_GAZE, T_GAZE_BEAM, T_HOWL, T_RECOVER];
+var CAST_TIMERS = [T_PUNCH, T_STOMP, T_DASH_END, T_GAZE, T_GAZE_BEAM, T_HOWL, T_RECOVER, T_SLAM];
 
 function kNow(npc) { return Number(npc.getWorld().getTotalTime()); }
 function kGet(npc, k, def) { var d = npc.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
@@ -441,7 +447,7 @@ function startDash(npc, t) {
     kFace(npc, yaw);
     var ok = AbilityAPI.start(npc, "dash", t, AbilityAPI.params(
         "chargeTicks", DASH_CHARGE, "activeTicks", DASH_ACTIVE, "distance", len,
-        "damage", DASH_DMG, "hitRadius", 1.8, "knockback", 1.0, "knockbackY", 0.3));
+        "damage", DASH_DMG, "hitRadius", DASH_PATH_R, "knockback", 1.0, "knockbackY", 0.3));
     if (!ok) {
         kRelease(npc);
         return false;
@@ -480,18 +486,18 @@ function startGaze(npc, t) {
 
 function gazeOpen(npc) {
     kPut(npc, "gaze_until", kNow(npc) + GAZE_TICKS);
+    kPut(npc, "slam_on", 0);
     kTimer(npc, T_GAZE_BEAM, GAZE_PULSE, true);
     gazePulse(npc);
 }
 
 // Взгляд: кто в круге GAZE_R и в прямой видимости — засвечен, замедлен и тянется к нему. За блоком не достаёт.
+// Под конец — замах удара оземь.
 function gazePulse(npc) {
-    var now = kNow(npc);
-    if (now >= kNum(npc, "gaze_until")) {
+    var now = kNow(npc), until = kNum(npc, "gaze_until");
+    if (now >= until - SLAM_LEAD && kGet(npc, "slam_on", "0") != "1") startSlam(npc);
+    if (now >= until) {
         npc.getTimers().stop(T_GAZE_BEAM);
-        kPut(npc, "eye_open_until", now + GAZE_OPEN);
-        kRecover(npc, GAZE_OPEN);
-        npc.say("§6Око Кигора открыто – бей!");
         return;
     }
     var x = kNum(npc, "hold_x"), y = kNum(npc, "hold_y"), z = kNum(npc, "hold_z");
@@ -509,6 +515,30 @@ function gazePulse(npc) {
         p.addPotionEffect(2, GAZE_SLOW, 1, true);
         if (moFlat(p, x, z) > GAZE_HOLD) p.knockback(GAZE_PULL, Combat.computeYaw(x - p.getX(), z - p.getZ()));
     }
+}
+
+// Удар оземь: красный круг SLAM_R, клип топота, на его ударе — всем в круге SLAM_PCT и толчок прочь.
+// После него Око открыто GAZE_OPEN тиков.
+function startSlam(npc) {
+    kPut(npc, "slam_on", 1);
+    kAnim(npc, ANIM_STOMP);
+    TelegraphAPI.circle(npc, kNum(npc, "hold_x"), kNum(npc, "hold_y"), kNum(npc, "hold_z"), SLAM_R, SLAM_WARN, RED);
+    kSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.5);
+    kTimer(npc, T_SLAM, SLAM_WARN, false);
+}
+
+function slamHit(npc) {
+    var x = kNum(npc, "hold_x"), y = kNum(npc, "hold_y"), z = kNum(npc, "hold_z");
+    npc.getWorld().spawnParticle("explosion", x, y + 0.3, z, 1.5, 0.2, 1.5, 0, 6);
+    kSound(npc, "minecraft:entity.generic.explode", 1.0, 0.5);
+    var ps = kPlayersAt(npc, x, z, SLAM_R);
+    for (var i = 0; i < ps.length; i++) {
+        kStrike(npc, ps[i], SLAM_PCT);
+        kPush(ps[i], x, z, SLAM_PUSH);
+    }
+    kPut(npc, "eye_open_until", kNow(npc) + GAZE_OPEN);
+    kRecover(npc, GAZE_OPEN);
+    npc.say("§6Око Кигора открыто – бей!");
 }
 
 // --- Вой ---
@@ -642,6 +672,7 @@ function timer(e) {
     else if (id == T_HOWL) howlHit(npc);
     else if (id == T_RECOVER) kRelease(npc);
     else if (id == T_MOVE) kMove(npc);
+    else if (id == T_SLAM) slamHit(npc);
 }
 
 function meleeAttack(e) {
@@ -673,7 +704,7 @@ function died(e) {
     kPut(npc, "eaten", 0);
     while (n > 0) {
         var k = Math.min(8, n);
-        npc.dropItem(moMakeShards(npc.getWorld(), k));
+        moSpill(w, npc.getX(), npc.getY(), npc.getZ(), moMakeShards(w, k));
         n -= k;
     }
     npc.say("§2Кигор падает. Съеденный свет Моррслиба рассыпается по земле.");

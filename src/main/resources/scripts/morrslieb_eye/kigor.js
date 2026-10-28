@@ -8,7 +8,7 @@
 // не видит; оторваться — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN LOSE_TICKS подряд; пережить
 // HUNT_TICKS. Тогда он рассыпается, а Око не шлёт за этим игроком нового до паузы MO.HUNT_PAUSE.
 // Приёмы, все с самого начала, фаз нет: удар кулаком, топот вокруг себя, глыбы залпом до VOLLEY целей, рывок рогами,
-// Взгляд Ока (луч засвечивает и тянет к нему; после него 3 секунды урон по нему ×1,5). Бьёт широко и очень сильно.
+// Взгляд Ока (засвечивает и тянет к нему всех в круге GAZE_R, кого видит; после него 3 секунды урон по нему ×1,5). Бьёт широко и очень сильно.
 // Вой — по сигналу Ока, когда загораются тайники.
 // Пожиратель душ: ударив несущего, вырывает часть осколков из инвентаря и лечится; убитый роняет всё съеденное.
 // Без добычи (поставлен руками, чтобы настроить и сохранить в клонер) стоит и ничего не делает. Ивент выключили —
@@ -57,8 +57,8 @@ var BOULDER_MIN = 8, BOULDER_MAX = 40, BOULDER_R = 6, BOULDER_WARN = 30, BOULDER
 var BOULDER_CD = 160, VOLLEY = 3, THROW_ROOT = 25;
 var DASH_MIN = 6, DASH_MAX = 20, DASH_CHARGE = 28, DASH_ACTIVE = 8, DASH_W = 3, DASH_DMG = 16.0;
 var DASH_HIT_R = 6, DASH_PCT = 0.55, DASH_CD = 240, DASH_RECOVER = 10, DASH_PUSH = 2;
-var GAZE_LEN = 32, GAZE_HALF = 3, GAZE_WARN = 20, GAZE_TICKS = 40, GAZE_PULSE = 5, GAZE_OPEN = 60, GAZE_CD = 400;
-// Луч тянет к нему: толчок GAZE_PULL за каждый пульс, пока игрок дальше GAZE_HOLD.
+var GAZE_R = 20, GAZE_WARN = 20, GAZE_TICKS = 40, GAZE_PULSE = 5, GAZE_OPEN = 60, GAZE_CD = 400;
+// Взгляд тянет к нему всех в круге GAZE_R, кого он видит: толчок GAZE_PULL за каждый пульс, пока игрок дальше GAZE_HOLD.
 var GAZE_SLOW = 3, GAZE_PULL = 2, GAZE_HOLD = 5;
 var HOWL_WARN = 40, HOWL_R = 64, HOWL_GLOW = 5, HOWL_MARK = 100;
 var HOWL_RECOVER = 27;
@@ -279,10 +279,24 @@ function kRecover(npc, ticks) {
     kTimer(npc, T_RECOVER, ticks, false);
 }
 
-// Звук на всё поле: playSoundAt CustomNPCs слышен лишь в 16 блоках.
+// Звук: в 16 блоках — из точки (playSoundAt CustomNPCs дальше 16 не шлёт), дальше до SOUND_R — каждому игроку
+// тише с расстоянием, ещё дальше не слышно. Прежде звук шёл каждому игроку поля в уши на полной громкости, и на поле
+// радиусом 600 Кигора слышали рядом из любого его угла.
+var SOUND_NEAR = 16, SOUND_R = 48;
+
 function kSound(npc, sound, volume, pitch) {
-    var ps = moPlayers(npc.getWorld());
-    for (var i = 0; i < ps.length; i++) ps[i].playSound(sound, volume, pitch);
+    kSoundAt(npc.getWorld(), npc.getX(), npc.getY(), npc.getZ(), sound, volume, pitch);
+}
+
+function kSoundAt(w, x, y, z, sound, volume, pitch) {
+    w.playSoundAt(NpcAPI.getIPos(x, y, z), sound, volume, pitch);
+    var ps = w.getNearbyEntities(NpcAPI.getIPos(x, y, z), SOUND_R, 1);
+    for (var i = 0; i < ps.length; i++) {
+        var dx = ps[i].getX() - x, dy = ps[i].getY() - y, dz = ps[i].getZ() - z;
+        var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist <= SOUND_NEAR || dist > SOUND_R) continue;
+        ps[i].playSound(sound, volume * (1 - (dist - SOUND_NEAR) / (SOUND_R - SOUND_NEAR)), pitch);
+    }
 }
 
 // Кого задевают его удары: у алтаря — никого.
@@ -398,11 +412,11 @@ function kArc(npc, x, y, z) {
 function boulderHit(npc) {
     var w = npc.getWorld();
     var pts = kGet(npc, "boulders", "").split(";");
-    kSound(npc, "minecraft:entity.generic.explode", 0.8, 0.7);
     for (var i = 0; i < pts.length; i++) {
         var c = pts[i].split(":");
         if (c.length < 3) continue;
         var x = Number(c[0]), y = Number(c[1]), z = Number(c[2]);
+        kSoundAt(w, x, y, z, "minecraft:entity.generic.explode", 0.8, 0.7);
         w.spawnParticle("explosion", x, y + 0.5, z, 1.0, 0.3, 1.0, 0, 4);
         w.spawnParticle("cloud", x, y + 0.3, z, 1.5, 0.3, 1.5, 0.02, 20);
         var ps = kPlayersAt(npc, x, z, BOULDER_R);
@@ -458,7 +472,7 @@ function startGaze(npc, t) {
     var yaw = kYawTo(npc, t);
     kFreeze(npc, yaw);
     kAnim(npc, ANIM_GAZE);
-    TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, GAZE_LEN, GAZE_HALF * 2, GAZE_WARN + GAZE_TICKS, GREEN);
+    TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), GAZE_R, GAZE_WARN + GAZE_TICKS, GREEN);
     kSound(npc, "minecraft:block.beacon.activate", 1.0, 0.5);
     npc.say("§2Око Кигора раскрывается.");
     kTimer(npc, T_GAZE, GAZE_WARN, false);
@@ -470,7 +484,7 @@ function gazeOpen(npc) {
     gazePulse(npc);
 }
 
-// Луч: кто на полосе и в прямой видимости — засвечен и замедлен. За блоком луч не достаёт.
+// Взгляд: кто в круге GAZE_R и в прямой видимости — засвечен, замедлен и тянется к нему. За блоком не достаёт.
 function gazePulse(npc) {
     var now = kNow(npc);
     if (now >= kNum(npc, "gaze_until")) {
@@ -480,16 +494,17 @@ function gazePulse(npc) {
         npc.say("§6Око Кигора открыто – бей!");
         return;
     }
-    var x = kNum(npc, "hold_x"), y = kNum(npc, "hold_y"), z = kNum(npc, "hold_z"), yaw = kNum(npc, "hold_yaw");
-    var rad = (yaw + 90) * Math.PI / 180, fx = Math.cos(rad), fz = Math.sin(rad);
+    var x = kNum(npc, "hold_x"), y = kNum(npc, "hold_y"), z = kNum(npc, "hold_z");
     var w = npc.getWorld();
-    for (var k = 2; k <= GAZE_LEN; k += 3) w.spawnParticle("happy_villager", x + fx * k, y + 2, z + fz * k, 0.3, 0.3, 0.3, 0, 2);
-    var ps = kPlayersAt(npc, x, z, GAZE_LEN);
+    for (var k = 0; k < 24; k++) {
+        var a = k / 24 * Math.PI * 2;
+        w.spawnParticle("happy_villager", x + Math.cos(a) * GAZE_R, y + 0.5, z + Math.sin(a) * GAZE_R, 0.2, 0.2, 0.2, 0, 1);
+    }
+    w.spawnParticle("end_rod", x, y + 4, z, 0.3, 0.3, 0.3, 0.05, 6);
+    var ps = kPlayersAt(npc, x, z, GAZE_R);
     for (var i = 0; i < ps.length; i++) {
         var p = ps[i];
-        var dx = p.getX() - x, dz = p.getZ() - z;
-        var along = dx * fx + dz * fz, across = Math.abs(dx * fz - dz * fx);
-        if (along < 0 || along > GAZE_LEN || across > GAZE_HALF || !npc.canSeeEntity(p)) continue;
+        if (!npc.canSeeEntity(p)) continue;
         moMark(w, p, MO.MARK_TICKS);
         p.addPotionEffect(2, GAZE_SLOW, 1, true);
         if (moFlat(p, x, z) > GAZE_HOLD) p.knockback(GAZE_PULL, Combat.computeYaw(x - p.getX(), z - p.getZ()));
@@ -533,7 +548,7 @@ function tryCast(npc, ps, marks, t, now) {
             startStomp(npc);
             return;
         }
-        if (now >= kNum(npc, "gaze_at") && d <= GAZE_LEN) {
+        if (now >= kNum(npc, "gaze_at") && d <= GAZE_R) {
             kPut(npc, "gaze_at", now + GAZE_CD);
             startGaze(npc, t);
             return;

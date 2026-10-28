@@ -1,6 +1,6 @@
 // mo_core.js — общее ядро ивента «Око Моррслиб». В контейнере скрипта ПЕРВЫЙ файл: и у Ока, и у Кигора.
-// Тот же файл — первый в скрипте игрока (вкладка Player), вторым там eye.js: на выходе logout роняет осколки под ноги,
-// а тики игроков ведут ивент вместо Ока.
+// Тот же файл — первый в скрипте игрока (вкладка Player), вторым там eye.js: на выходе (logout) и при гибели (died)
+// осколки рассыпаются горстями, а тики игроков ведут ивент вместо Ока.
 // Осколки Моррслиба — предметы с меткой MO.SHARD_TAG в NBT; скрипты сверяют метку, а не тип предмета.
 // Считаются и осколки в мешках мода: мешок хранит содержимое в NBT (Pouch.Items).
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
@@ -69,24 +69,34 @@ function moIsShard(item) {
     return item.hasNbt() && item.getNbt().getBoolean(MO.SHARD_TAG);
 }
 
-function moPouchShards(item) {
-    if (!item.hasNbt()) return 0;
+// Содержимое хранилища в инвентаре: мешок WFM (Pouch.Items) или шалкер (BlockEntityTag.Items). Мешок шалкеров не
+// берёт, но шалкер с осколками, носимый в инвентаре, прятал бы свет. null — не хранилище.
+function moStore(item) {
+    if (item == null || item.isEmpty() || !item.hasNbt()) return null;
     var nbt = item.getNbt();
-    if (!nbt.has("Pouch")) return 0;
-    var pouch = nbt.getCompound("Pouch");
-    if (!pouch.has("Items")) return 0;
-    var list = pouch.getList("Items", 10);
-    var n = 0;
+    var keys = ["Pouch", "BlockEntityTag"];
+    for (var i = 0; i < keys.length; i++) {
+        if (!nbt.has(keys[i])) continue;
+        var holder = nbt.getCompound(keys[i]);
+        if (holder.has("Items")) return holder;
+    }
+    return null;
+}
+
+function moPouchShards(item) {
+    var holder = moStore(item);
+    if (holder == null) return 0;
+    var list = holder.getList("Items", 10), n = 0;
     for (var i = 0; i < list.length; i++) if (moIsShardNbt(list[i])) n += Number(list[i].getByte("Count"));
     return n;
 }
 
-// Запись предмета в мешке: {id, Count, tag}.
+// Запись предмета в хранилище: {id, Count, tag}.
 function moIsShardNbt(e) {
     return String(e.getString("id")) == MO.SHARD_ID && e.has("tag") && e.getCompound("tag").getBoolean(MO.SHARD_TAG);
 }
 
-// Сколько осколков у игрока: в инвентаре и в мешках.
+// Сколько осколков у игрока: в инвентаре, в мешках и шалкерах.
 function moShards(p) {
     var n = 0;
     try {
@@ -103,7 +113,7 @@ function moShards(p) {
     return n;
 }
 
-// Забирает до k осколков из инвентаря (не из мешков); возвращает, сколько забрал.
+// Забирает до k осколков: сначала из инвентаря, не хватило — из мешков и шалкеров. Возвращает, сколько забрал.
 function moTakeShards(p, k) {
     var taken = 0;
     try {
@@ -115,6 +125,7 @@ function moTakeShards(p, k) {
             it.setStackSize(it.getStackSize() - take);
             taken += take;
         }
+        for (var j = 0; j < inv.getSize() && taken < k; j++) taken += moPullPouchShards(inv.getSlot(j), k - taken);
         if (taken > 0) p.updatePlayerInventory();
     } catch (err) {
         moLogOnce("take", "осколки не забраны: " + err);
@@ -122,70 +133,46 @@ function moTakeShards(p, k) {
     return taken;
 }
 
-// Вынимает осколки из мешка (NBT Pouch.Items). Возвращает, сколько вынул.
-function moPullPouchShards(item) {
-    if (item == null || item.isEmpty() || !item.hasNbt()) return 0;
-    var nbt = item.getNbt();
-    if (!nbt.has("Pouch")) return 0;
-    var pouch = nbt.getCompound("Pouch");
-    if (!pouch.has("Items")) return 0;
-    var list = pouch.getList("Items", 10), keep = [], n = 0;
-    for (var k = 0; k < list.length; k++) {
-        if (moIsShardNbt(list[k])) n += Number(list[k].getByte("Count"));
-        else keep.push(list[k]);
+// Вынимает до k осколков из мешка или шалкера, без k — все. Возвращает, сколько вынул.
+function moPullPouchShards(item, k) {
+    var holder = moStore(item);
+    if (holder == null) return 0;
+    var want = k == null ? 1e9 : k;
+    var list = holder.getList("Items", 10), keep = [], n = 0;
+    for (var i = 0; i < list.length; i++) {
+        var e = list[i];
+        if (n >= want || !moIsShardNbt(e)) {
+            keep.push(e);
+            continue;
+        }
+        var c = Number(e.getByte("Count")), take = Math.min(c, want - n);
+        n += take;
+        if (take < c) {
+            e.setByte("Count", c - take);
+            keep.push(e);
+        }
     }
-    if (n == 0) return 0;
-    pouch.setList("Items", keep);
+    if (n > 0) holder.setList("Items", keep);
     return n;
 }
 
-// Забирает все осколки: из инвентаря и из мешков. На землю не кладёт. Возвращает, сколько забрал.
+// Забирает все осколки: из инвентаря, мешков и шалкеров. На землю не кладёт. Возвращает, сколько забрал.
 function moTakeAllShards(p) {
-    var taken = moTakeShards(p, 1e9);
-    try {
-        var inv = p.getInventory(), changed = false;
-        for (var i = 0; i < inv.getSize(); i++) {
-            var n = moPullPouchShards(inv.getSlot(i));
-            if (n == 0) continue;
-            taken += n;
-            changed = true;
-        }
-        if (changed) p.updatePlayerInventory();
-    } catch (err) {
-        moLogOnce("wipe", "осколки из мешка не забраны: " + err);
-    }
-    return taken;
+    return moTakeShards(p, 1e9);
 }
 
-// Снимает все осколки и кладёт их под ноги: из инвентаря — тем же стаком, из мешка — новыми.
+// Снимает все осколки и роняет горстями по MO_HANDFUL — разлетаются вокруг. Возвращает, сколько уронил.
+var MO_HANDFUL = 4;
+
 function moDropAllShards(p) {
-    var dropped = 0;
+    var n = moTakeShards(p, 1e9);
     try {
-        var inv = p.getInventory();
         var w = p.getWorld();
-        for (var i = 0; i < inv.getSize(); i++) {
-            var it = inv.getSlot(i);
-            if (!moIsShard(it)) continue;
-            var n = it.getStackSize();
-            p.dropItem(it.copy());
-            it.setStackSize(0);
-            dropped += n;
-        }
-        for (var j = 0; j < inv.getSize(); j++) {
-            var fromPouch = moPullPouchShards(inv.getSlot(j));
-            var left = fromPouch;
-            while (left > 0) {
-                var c = Math.min(64, left);
-                p.dropItem(moMakeShards(w, c));
-                left -= c;
-            }
-            dropped += fromPouch;
-        }
-        if (dropped > 0) p.updatePlayerInventory();
+        for (var left = n; left > 0; left -= MO_HANDFUL) p.dropItem(moMakeShards(w, Math.min(MO_HANDFUL, left)));
     } catch (err) {
         moLogOnce("drop", "осколки не выпали: " + err);
     }
-    return dropped;
+    return n;
 }
 
 function moMakeShards(world, n) {
@@ -288,6 +275,23 @@ function logout(e) {
     p.message(text);
     var ps = moPlayers(w);
     for (var i = 0; i < ps.length; i++) if (String(ps[i].getUUID()) != id) ps[i].message(text);
+}
+
+// Смерть во время ивента: осколки рассыпаются там, где игрок погиб, из мешков и шалкеров тоже — и там, где вещи
+// при смерти не выпадают. Событие приходит раньше выпадения вещей: из инвентаря их уже сняли, второй раз не выпадут.
+// В контейнере Кигора своё died перекрывает это; у Ока (NPC) e.player нет.
+function died(e) {
+    var p = e.player;
+    if (p == null) return;
+    var w = p.getWorld();
+    if (!moRunning(w)) return;
+    var id = String(p.getUUID());
+    if (!moCsvHas(w, MO_CARRIERS, id) && moFlat(p, MO.FIELD[0], MO.FIELD[2]) > MO.FIELD_R) return;
+    var n = moDropAllShards(p);
+    if (n <= 0) return;
+    moCsvRemove(w, MO_CARRIERS, id);
+    w.spawnParticle("happy_villager", p.getX(), p.getY() + 0.5, p.getZ(), 0.8, 0.5, 0.8, 0, 40);
+    p.message("§cТвои осколки Моррслиба рассыпались: " + n + ".");
 }
 
 // --- Охота ---

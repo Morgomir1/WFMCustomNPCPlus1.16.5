@@ -2,8 +2,8 @@
 // Ведёт время ивента, волны тайников, вскрытие тайников и свечение несущих осколки.
 // Запуск и остановка — ПКМ по Оку в креативе. Шифт + ПКМ в креативе — стак осколков (для сделок алтаря).
 // Ход ивента лежит в данных мира: после рестарта Око продолжает с того же места.
-// Кто был на поле с осколками и пропал с сервера, при следующем входе теряет все осколки, из мешков тоже: иначе выход —
-// бесплатное спасение от погони. Рестарт посреди ивента для Ока — выход всех.
+// Кто был на поле с осколками и вышел, роняет их на месте выхода (скрипт игрока, logout в mo_core.js), из мешка тоже.
+// Рестарт logout не вызывает: таких Око при следующем входе лишает осколков, на землю они уже не попадут.
 
 // Тайники: блок [x, y, z] каждого. Сам тайник на поле — декорация строителя; скрипт ведёт только его свет.
 var CACHES = [];
@@ -14,7 +14,6 @@ var CACHE_SHARDS = 3, OPEN_R = 2.0, OPEN_TICKS = 80;
 var WARN_MIN = [10, 5, 1];
 
 var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", D_WARNED = "mo_warned", T_OPEN = "mo_open_";
-var D_CARRIERS = "mo_carriers", D_WIPE = "mo_wipe";
 
 function eData(npc) { return npc.getWorld().getStoreddata(); }
 function eGet(npc, k, def) { var d = eData(npc); return d.has(k) ? String(d.get(k)) : def; }
@@ -66,7 +65,7 @@ function eStart(npc) {
 
 function eStop(npc, text) {
     ePut(npc, MO_RUN, 0);
-    ePut(npc, D_CARRIERS, "");
+    ePut(npc, MO_CARRIERS, "");
     eSetLit(npc, []);
     eClearOpening(npc);
     npc.getWorld().broadcast(text);
@@ -132,17 +131,17 @@ function eGlowAll(w, ps, now) {
     return counts;
 }
 
-function eList(npc, k) { var s = eGet(npc, k, ""); return s.length == 0 ? [] : s.split(","); }
-
 function eOnline(w) {
     var all = w.getAllPlayers(), out = {};
     for (var i = 0; i < all.length; i++) out[String(all[i].getUUID())] = all[i];
     return out;
 }
 
-// Несущие: кто был на поле с осколками и пока их не лишился, где бы ни был. Пропал с сервера — в список на потерю.
+// Несущие: кто был на поле с осколками и пока их не лишился, где бы ни был.
+// Пропал без logout (рестарт) — в список на потерю при входе. Обычный выход снимает сам logout.
 function eTrack(npc, ps, counts, online) {
-    var prev = eList(npc, D_CARRIERS), wipe = eList(npc, D_WIPE), next = [];
+    var w = npc.getWorld();
+    var prev = moCsv(w, MO_CARRIERS), wipe = moCsv(w, MO_WIPE), next = [];
     for (var i = 0; i < prev.length; i++) {
         var id = prev[i], p = online[id];
         if (p == null) {
@@ -155,13 +154,14 @@ function eTrack(npc, ps, counts, online) {
         var uid = String(ps[k].getUUID());
         if (counts[uid] > 0 && next.indexOf(uid) < 0) next.push(uid);
     }
-    ePut(npc, D_CARRIERS, next.join(","));
-    ePut(npc, D_WIPE, wipe.join(","));
+    ePut(npc, MO_CARRIERS, next.join(","));
+    ePut(npc, MO_WIPE, wipe.join(","));
 }
 
-// Вернувшийся теряет все осколки. Список живёт и после конца ивента.
+// Рестарт не вызывает logout, поэтому осколки ещё при игроке. При входе Око их забирает, на землю не кладёт:
+// игрок уже стоит на этом месте и сразу подобрал бы кучу.
 function eWipe(npc, online) {
-    var wipe = eList(npc, D_WIPE);
+    var wipe = moCsv(npc.getWorld(), MO_WIPE);
     if (wipe.length == 0) return;
     var left = [];
     for (var i = 0; i < wipe.length; i++) {
@@ -171,9 +171,9 @@ function eWipe(npc, online) {
             continue;
         }
         var n = moTakeAllShards(p);
-        if (n > 0) p.message("§cТы вышел с сервера с осколками Моррслиба – они рассыпались. Потеряно: " + n + ".");
+        if (n > 0) p.message("§cСервер оборвал выход с осколками Моррслиба – они пропали, а не выпали. Потеряно: " + n + ".");
     }
-    ePut(npc, D_WIPE, left.join(","));
+    ePut(npc, MO_WIPE, left.join(","));
 }
 
 // Свет горящих тайников и вскрытие: кто ближе OPEN_R, тот вскрывает; ушёл или получил урон — сначала.

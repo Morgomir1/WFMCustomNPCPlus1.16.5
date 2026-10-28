@@ -29,6 +29,8 @@ var MO = {
 var MO_RUN = "mo_running", MO_MARKS = "mo_marks", MO_HOWL = "mo_howl";
 // Кого Око уже видело на поле с осколками, и кого не поймал logout (рестарт) — снять при входе.
 var MO_CARRIERS = "mo_carriers", MO_WIPE = "mo_wipe";
+// Погибшие, чей инвентарь мод сохранил (оператор, символ богов): «uuid;мир;x;y;z;с какого тика жив».
+var MO_FALLEN = "mo_fallen";
 // Пауза охоты по игрокам: uuid:до какого тика.
 var MO_HUNT_CD = "mo_hunt_cd";
 var MO_LOGGED = {};
@@ -166,13 +168,31 @@ var MO_HANDFUL = 4;
 
 function moDropAllShards(p) {
     var n = moTakeShards(p, 1e9);
+    moScatter(p.getWorld(), p.getX(), p.getY(), p.getZ(), n);
+    return n;
+}
+
+// n осколков горстями по MO_HANDFUL в точку.
+function moScatter(w, x, y, z, n) {
+    for (var left = n; left > 0; left -= MO_HANDFUL) moSpill(w, x, y, z, moMakeShards(w, Math.min(MO_HANDFUL, left)));
+}
+
+// Предмет на землю — сущностью мира. dropItem здесь не годится: у живой сущности сервер (Arclight) кладёт предмет
+// не на землю, а в список посмертного дропа Bukkit, и у игрока, который не умирает или уже умер, он пропадает.
+// Чанк точки не загружен — предмет не встаёт и пропадает.
+function moSpill(w, x, y, z, item) {
     try {
-        var w = p.getWorld();
-        for (var left = n; left > 0; left -= MO_HANDFUL) p.dropItem(moMakeShards(w, Math.min(MO_HANDFUL, left)));
+        var e = w.createEntity("minecraft:item");
+        e.setItem(item);
+        e.setPosition(x, y + 0.5, z);
+        e.setMotionX((Math.random() - 0.5) * 0.3);
+        e.setMotionY(0.25);
+        e.setMotionZ((Math.random() - 0.5) * 0.3);
+        e.setPickupDelay(20);
+        w.spawnEntity(e);
     } catch (err) {
         moLogOnce("drop", "осколки не выпали: " + err);
     }
-    return n;
 }
 
 function moMakeShards(world, n) {
@@ -189,7 +209,7 @@ function moGive(p, n) {
     while (n > 0) {
         var k = Math.min(64, n);
         var it = moMakeShards(w, k);
-        if (!p.giveItem(it)) p.dropItem(it);
+        if (!p.giveItem(it)) moSpill(w, p.getX(), p.getY(), p.getZ(), it);
         n -= k;
     }
 }
@@ -279,6 +299,8 @@ function logout(e) {
 
 // Смерть во время ивента: осколки рассыпаются там, где игрок погиб, из мешков и шалкеров тоже — и там, где вещи
 // при смерти не выпадают. Событие приходит раньше выпадения вещей: из инвентаря их уже сняли, второй раз не выпадут.
+// Оператору и носящему символ богов мод сохраняет весь инвентарь ещё до этого события и отдаёт при возрождении —
+// тогда осколков здесь уже нет: точка гибели записывается в MO_FALLEN, и Око отнимет их у возрождённого (eFallen).
 // В контейнере Кигора своё died перекрывает это; у Ока (NPC) e.player нет.
 function died(e) {
     var p = e.player;
@@ -286,12 +308,27 @@ function died(e) {
     var w = p.getWorld();
     if (!moRunning(w)) return;
     var id = String(p.getUUID());
-    if (!moCsvHas(w, MO_CARRIERS, id) && moFlat(p, MO.FIELD[0], MO.FIELD[2]) > MO.FIELD_R) return;
+    var tracked = moCsvHas(w, MO_CARRIERS, id);
+    if (!tracked && moFlat(p, MO.FIELD[0], MO.FIELD[2]) > MO.FIELD_R) return;
     var n = moDropAllShards(p);
-    if (n <= 0) return;
+    if (n <= 0) {
+        if (tracked) moFallenAdd(w, id, String(w.getName()), p.getX(), p.getY(), p.getZ());
+        return;
+    }
     moCsvRemove(w, MO_CARRIERS, id);
-    w.spawnParticle("happy_villager", p.getX(), p.getY() + 0.5, p.getZ(), 0.8, 0.5, 0.8, 0, 40);
+    moFallenLand(w, p.getX(), p.getY(), p.getZ());
     p.message("§cТвои осколки Моррслиба рассыпались: " + n + ".");
+}
+
+function moFallenAdd(w, id, world, x, y, z) {
+    var list = moCsv(w, MO_FALLEN), next = [];
+    for (var i = 0; i < list.length; i++) if (list[i].split(";")[0] != id) next.push(list[i]);
+    next.push([id, world, x.toFixed(2), y.toFixed(2), z.toFixed(2), 0].join(";"));
+    w.getStoreddata().put(MO_FALLEN, next.join(","));
+}
+
+function moFallenLand(w, x, y, z) {
+    w.spawnParticle("happy_villager", x, y + 0.5, z, 0.8, 0.5, 0.8, 0, 40);
 }
 
 // --- Охота ---

@@ -6,12 +6,23 @@
 // бесплатное спасение от погони. Рестарт посреди ивента для Ока — выход всех.
 
 // Тайники: блок [x, y, z] каждого. Сам тайник на поле — декорация строителя; скрипт ведёт только его свет.
-var CACHES = [];
+var CACHES = [
+    [-484146, 83, -37422],
+    [-483852, 80, -36954],
+    [-484124, 83, -36768],
+    [-484215, 80, -36855],
+    [-484300, 80, -37272],
+    [-483852, 80, -37276],
+    [-483949, 80, -37119],
+    [-484153, 80, -37120]
+];
 var EVENT_MIN = 40;
 var FIRST_WAVE = 200, WAVE_EVERY = 3600, WAVE_SIZE = 4;
 // Вскрыть: стоять ближе OPEN_R столько тиков; урон сбивает.
 var CACHE_SHARDS = 3, OPEN_R = 2.0, OPEN_TICKS = 80;
 var WARN_MIN = [10, 5, 1];
+// Старт и конец ивента в глобальный чат. 0 — молчать (тест). Перед боевым ивентом поставь 1.
+var GLOBAL_CHAT = 0;
 
 var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", D_WARNED = "mo_warned", T_OPEN = "mo_open_";
 var D_CARRIERS = "mo_carriers", D_WIPE = "mo_wipe";
@@ -32,6 +43,7 @@ function eLit(npc) {
 function eSetLit(npc, lit) { ePut(npc, D_LIT, lit.join(",")); }
 
 function eTell(ps, text) { for (var i = 0; i < ps.length; i++) ps[i].message(text); }
+function eBroadcast(w, text) { if (GLOBAL_CHAT == 1) w.broadcast(text); }
 function eSound(ps, sound, volume, pitch) { for (var i = 0; i < ps.length; i++) ps[i].playSound(sound, volume, pitch); }
 
 function init(e) {
@@ -48,8 +60,13 @@ function interact(e) {
         p.message("§7Стак осколков — для сделок алтаря.");
         return;
     }
-    if (moRunning(npc.getWorld())) eStop(npc, "§7[Око Моррслиб] Ивент остановлен.");
-    else eStart(npc);
+    if (moRunning(npc.getWorld())) {
+        eStop(npc, "§7[Око Моррслиб] Ивент остановлен.");
+        if (GLOBAL_CHAT != 1) p.message("§7[Око Моррслиб] Ивент остановлен. Глобальный чат молчит.");
+    } else {
+        eStart(npc);
+        if (GLOBAL_CHAT != 1) p.message("§7[Око Моррслиб] Ивент запущен на " + EVENT_MIN + " мин. Глобальный чат молчит.");
+    }
 }
 
 function eStart(npc) {
@@ -60,7 +77,7 @@ function eStart(npc) {
     ePut(npc, D_WARNED, "");
     eSetLit(npc, []);
     eClearOpening(npc);
-    w.broadcast("§a[Око Моррслиб] §fМоррслиб открыл глаз. Ивент идёт " + EVENT_MIN + " минут: собирайте осколки и сдавайте у алтаря.");
+    eBroadcast(w, "§a[Око Моррслиб] §fМоррслиб открыл глаз. Ивент идёт " + EVENT_MIN + " минут: собирайте осколки и сдавайте у алтаря.");
     if (CACHES.length == 0) log("morrslieb: впиши CACHES — без тайников ивенту нечего раздавать");
 }
 
@@ -69,7 +86,7 @@ function eStop(npc, text) {
     ePut(npc, D_CARRIERS, "");
     eSetLit(npc, []);
     eClearOpening(npc);
-    npc.getWorld().broadcast(text);
+    eBroadcast(npc.getWorld(), text);
 }
 
 function tick(e) {

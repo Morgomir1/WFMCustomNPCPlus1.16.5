@@ -15,8 +15,70 @@ var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
 var Combat = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
 var NpcTurnHelper = Java.type("noppes.npcs.ai.NpcTurnHelper");
 
-// Точки пути [x, y, z] по кругу; первая — где он стоит до ивента. Впиши по готовому полю.
-var PATH = [];
+// Точки пути [x, y, z] по кругу, номера 1-65. Первая — где он стоит до ивента.
+var PATH = [
+    [-484229, 80, -37120], // 1
+    [-484285, 80, -37135], // 2
+    [-484337, 80, -37139], // 3
+    [-484365, 80, -37175], // 4
+    [-484374, 80, -37213], // 5
+    [-484364, 80, -37258], // 6
+    [-484317, 80, -37321], // 7
+    [-484236, 80, -37370], // 8
+    [-484149, 81, -37386], // 9
+    [-484096, 80, -37371], // 10
+    [-484072, 80, -37342], // 11
+    [-484056, 80, -37279], // 12
+    [-484006, 80, -37257], // 13
+    [-483955, 80, -37306], // 14
+    [-483891, 80, -37324], // 15
+    [-483854, 80, -37289], // 16
+    [-483857, 80, -37255], // 17
+    [-483899, 80, -37242], // 18
+    [-483922, 80, -37208], // 19
+    [-483921, 80, -37145], // 20
+    [-483960, 80, -37120], // 21
+    [-483918, 80, -37080], // 22
+    [-483923, 80, -37017], // 23
+    [-483891, 80, -36997], // 24
+    [-483855, 80, -36980], // 25
+    [-483856, 80, -36942], // 27
+    [-483887, 80, -36919], // 28
+    [-483936, 80, -36924], // 29
+    [-484009, 80, -36979], // 30
+    [-484054, 80, -36963], // 31
+    [-484069, 80, -36912], // 32
+    [-484104, 80, -36864], // 33
+    [-484175, 80, -36855], // 34
+    [-484241, 80, -36875], // 35
+    [-484291, 80, -36902], // 36
+    [-484330, 80, -36935], // 37
+    [-484364, 80, -36983], // 38
+    [-484374, 80, -37032], // 39
+    [-484345, 80, -37093], // 40
+    [-484298, 80, -37105], // 41
+    [-484249, 80, -37095], // 42
+    [-484244, 80, -37060], // 46
+    [-484240, 80, -37030], // 47
+    [-484207, 80, -37011], // 48
+    [-484168, 80, -36994], // 49
+    [-484121, 80, -37005], // 50
+    [-484089, 80, -36989], // 51
+    [-484057, 80, -36962], // 51
+    [-484000, 80, -36986], // 52
+    [-483997, 80, -37077], // 54
+    [-483977, 80, -37142], // 55
+    [-484003, 80, -37196], // 56
+    [-484002, 80, -37252], // 57
+    [-484049, 80, -37270], // 58
+    [-484096, 80, -37248], // 59
+    [-484132, 80, -37232], // 60
+    [-484174, 80, -37249], // 61
+    [-484208, 80, -37230], // 62
+    [-484234, 80, -37213], // 63
+    [-484240, 80, -37190], // 64
+    [-484242, 97, -37160] // 65
+];
 var BASE_HP = 3000, HP_PER_PLAYER = 150, HP_MAX = 12000;
 var CAP = 20, OPEN_MUL = 1.5;
 var SIGHT_R = 48, LEASH = 40, BACK_R = 6, REGEN_PCT = 0.025;
@@ -83,8 +145,7 @@ function init(e) {
     npc.getAi().setRetaliateType(0);
     npc.getAi().setMovingType(0);
     npc.getAi().setReturnsHome(true);
-    if (kGet(npc, "base_speed", "") == "") kPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
-    npc.getAi().setWalkingSpeed(kNum(npc, "base_speed"));
+    kSyncSpeed(npc);
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("kigor turn: " + err); }
     kSetHp(npc);
     var keys = ["returning", "wait_until", "eye_open_until", "free_at", "was_busy", "phase", "eaten"];
@@ -225,6 +286,7 @@ function kAnim(npc, name) {
 }
 
 function kFreeze(npc, yaw) {
+    kSnapshotSpeed(npc);
     npc.getAi().setWalkingSpeed(0);
     kPut(npc, "hold_mode", "cast");
     kPut(npc, "hold_x", npc.getX());
@@ -237,6 +299,7 @@ function kFreeze(npc, yaw) {
 
 // Рывок сам везёт тело. Держим только взгляд, иначе holdInPlace гасит dash.
 function kFaceOnly(npc, yaw) {
+    kSnapshotSpeed(npc);
     npc.getAi().setWalkingSpeed(0);
     kPut(npc, "hold_mode", "face");
     kPut(npc, "hold_yaw", yaw);
@@ -249,6 +312,18 @@ function kHold(npc) {
         Combat.holdInPlace(npc, kNum(npc, "hold_x"), kNum(npc, "hold_y"), kNum(npc, "hold_z"));
     }
     kFace(npc, kNum(npc, "hold_yaw"));
+}
+
+// Скорость шага берётся из окна NPC. base_speed — копия на время приёма, когда шаг обнуляется.
+function kSnapshotSpeed(npc) {
+    var speed = npc.getAi().getWalkingSpeed();
+    if (speed > 0) kPut(npc, "base_speed", speed);
+}
+
+function kSyncSpeed(npc) {
+    kSnapshotSpeed(npc);
+    if (kNum(npc, "base_speed") <= 0) kPut(npc, "base_speed", 5);
+    if (npc.getAi().getWalkingSpeed() <= 0) npc.getAi().setWalkingSpeed(kNum(npc, "base_speed"));
 }
 
 function kRelease(npc) {
@@ -406,6 +481,7 @@ function startDash(npc, t) {
     var x = npc.getX(), y = npc.getY(), z = npc.getZ();
     var rad = (yaw + 90) * Math.PI / 180;
     npc.getTimers().stop(T_HOLD);
+    kSnapshotSpeed(npc);
     npc.getAi().setWalkingSpeed(0);
     kFace(npc, yaw);
     var ok = AbilityAPI.start(npc, "dash", t, AbilityAPI.params(

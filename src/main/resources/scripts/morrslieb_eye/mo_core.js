@@ -5,10 +5,10 @@ var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 
 var MO = {
     // Поле ивента: центр [x, y, z] и радиус. Игроки дальше — вне ивента. Впиши по готовому полю.
-    FIELD: [0, 64, 0],
-    FIELD_R: 120,
+    FIELD: [-484114, 79, -37119],
+    FIELD_R: 600,
     // Заглушка, пока нет своего предмета с текстурой. Сменишь — смени и в сделках алтаря.
-    SHARD_ID: "minecraft:prismarine_shard",
+    SHARD_ID: "wfm:warpstone",
     SHARD_TAG: "MorrsliebShard",
     SHARD_NAME: "§aОсколок Моррслиба",
     SHARD_LORE: ["§7Светится зелёным, пока он при тебе.", "§7Сдаётся у алтаря Моррслиба."],

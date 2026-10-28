@@ -119,10 +119,14 @@ function eHunt(npc, ps, counts, now) {
     npc.getTempdata().put(T_SUMMONS, eSummonsText(summons));
 }
 
+// Охотящиеся Кигоры: заготовку для клонера (без добычи) Око не считает.
 function eKigors(w) {
     var f = MO.FIELD, out = [];
     var list = w.getNearbyEntities(NpcAPI.getIPos(f[0], f[1], f[2]), MO.FIELD_R, 2);
-    for (var i = 0; i < list.length; i++) if (list[i].isAlive() && String(list[i].getName()) == KIGOR_NAME) out.push(list[i]);
+    for (var i = 0; i < list.length; i++) {
+        var k = list[i];
+        if (k.isAlive() && String(k.getName()) == KIGOR_NAME && k.getStoreddata().has("hunt")) out.push(k);
+    }
     return out;
 }
 

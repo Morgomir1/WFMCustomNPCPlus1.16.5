@@ -1,26 +1,32 @@
 // kigor.js — Кигор, сайгор ивента «Око Моррслиб». В контейнере скрипта вторым после mo_core.js.
 // Видит только свет: несущих осколки Моррслиба и ударивших его (метка на MO.MARK_TICKS). Тёмных не замечает —
 // событие target отменяет такую цель, кого бы ни выбрал мод; задевают их только удары по площади.
-// Ходит по PATH так же плавно, как Горгон: NpcTurnHelper, 5° за тик. Скрипт ставит дом NPC на следующую точку,
-// к ней ведёт возврат домой CustomNPCs (он же обходит препятствия и застрявшего переносит к точке).
-// За светящимся сходит с пути не дальше LEASH; дальше — возвращается
-// и лечится, убить его можно только на его пути.
+// Охотник: Око вызывает его клоном за несущим осколки и пишет в storeddata «hunt» его UUID. Гонится только за ним —
+// других светящихся бьёт заодно. Шаги ведёт скрипт, не поиск пути мода: прямо к цели, сквозь деревья, заборы
+// и стены, по земле вверх и вниз; поворачивается плавно, TURN_DEG за тик. Возврат домой выключен: он переносил NPC.
+// От него уходят: сдать осколки у алтаря (ближе MO.ALTAR_R он не ступает и не бьёт) или бросить их — тёмного он
+// не видит; оторваться — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN LOSE_TICKS подряд; пережить
+// HUNT_TICKS. Тогда он рассыпается, а Око не шлёт за этим игроком нового до паузы MO.HUNT_PAUSE.
 // Приёмы: удар кулаком, топот вокруг себя, глыба во вдаль, рывок рогами; ниже 66% — Взгляд Ока (луч, засвечивает;
 // после него 3 секунды урон по нему ×1,5); ниже 33% — глыбы залпом. Вой — по сигналу Ока, когда загораются тайники.
 // Пожиратель душ: ударив несущего, вырывает часть осколков из инвентаря и лечится; убитый роняет всё съеденное.
-// Вне ивента стоит на первой точке и урона не получает.
+// Ивент выключили — рассыпается. Съеденное роняет только убитый.
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
 var Combat = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
 var NpcTurnHelper = Java.type("noppes.npcs.ai.NpcTurnHelper");
 
-// Точки пути [x, y, z] по кругу; первая — где он стоит до ивента. Впиши по готовому полю.
-var PATH = [];
-var BASE_HP = 3000, HP_PER_PLAYER = 150, HP_MAX = 12000;
+// Здоровье при появлении: охотник живёт до полутора минут, убивать его не обязательно.
+var BASE_HP = 1500, HP_PER_PLAYER = 75, HP_MAX = 5000;
 var CAP = 20, OPEN_MUL = 1.5;
-var SIGHT_R = 48, LEASH = 40, BACK_R = 6, REGEN_PCT = 0.025;
-var NEAR_POINT = 2.5, WAIT_TICKS = 40;
+var SIGHT_R = 48;
+// Охота: HUNT_TICKS гонится; оторвался — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN — LOSE_TICKS подряд.
+var HUNT_TICKS = 1800, LOSE_R = 32, HIDE_MIN = 16, LOSE_TICKS = 120;
+// Шаг за тик в погоне: бегущий игрок — около 0,28, так что убежать можно. Встаёт в CHASE_STOP от цели.
+var CHASE_SPEED = 0.24, CHASE_STOP = 3;
+// Земля под шагом — от GROUND_UP выше ног до GROUND_DOWN ниже; за тик не выше RISE и не ниже FALL.
+var GROUND_UP = 12, GROUND_DOWN = 16, RISE = 0.6, FALL = 1.2;
 // Пожиратель душ: доля осколков с удара (не меньше одного) и лечение за осколок — доля здоровья.
 var EAT_PART = 0.25, EAT_HEAL = 0.01;
 var RED = 0xC0FF0000 | 0, GREEN = 0xC040FF40 | 0;
@@ -56,8 +62,8 @@ var HOWL_RECOVER = 27;
 var WALK_GAP = 30;
 
 var T_HOLD = 1, T_PUNCH = 2, T_STOMP = 3, T_BOULDER = 4, T_DASH_END = 5, T_GAZE = 6, T_GAZE_BEAM = 7;
-var T_HOWL = 8, T_RECOVER = 9;
-var ALL_TIMERS = [T_HOLD, T_PUNCH, T_STOMP, T_BOULDER, T_DASH_END, T_GAZE, T_GAZE_BEAM, T_HOWL, T_RECOVER];
+var T_HOWL = 8, T_RECOVER = 9, T_MOVE = 10;
+var ALL_TIMERS = [T_HOLD, T_PUNCH, T_STOMP, T_BOULDER, T_DASH_END, T_GAZE, T_GAZE_BEAM, T_HOWL, T_RECOVER, T_MOVE];
 // Пока идёт любой из этих — новый приём не начинается. Глыба после выпуска (1.25s) летит сама.
 var CAST_TIMERS = [T_PUNCH, T_STOMP, T_DASH_END, T_GAZE, T_GAZE_BEAM, T_HOWL, T_RECOVER];
 
@@ -81,17 +87,16 @@ function init(e) {
     // Цель дальше дальности агрессии мод бросает; тёмных отсекает событие target.
     npc.getStats().setAggroRange(SIGHT_R);
     npc.getAi().setRetaliateType(0);
+    // Сам мод его не водит: шагает скрипт (kMove), возврат домой выключен — он и переносил его на точку.
     npc.getAi().setMovingType(0);
-    npc.getAi().setReturnsHome(true);
-    if (kGet(npc, "base_speed", "") == "") kPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
-    npc.getAi().setWalkingSpeed(kNum(npc, "base_speed"));
+    npc.getAi().setReturnsHome(false);
+    npc.getAi().setWalkingSpeed(0);
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("kigor turn: " + err); }
-    kSetHp(npc);
-    var keys = ["returning", "wait_until", "eye_open_until", "free_at", "was_busy", "phase", "eaten"];
+    var keys = ["eye_open_until", "free_at", "was_busy", "phase", "eaten", "lost", "run_seen"];
     for (var i = 0; i < keys.length; i++) kPut(npc, keys[i], 0);
+    kPut(npc, "face_yaw", npc.getRotation());
     kPut(npc, "howl_seen", kHowlSignal(npc));
-    if (PATH.length == 0) log("morrslieb: впиши PATH — без пути Кигор стоит на месте");
-    kGoPoint(npc, kNum(npc, "path_i") % Math.max(1, PATH.length));
+    kTimer(npc, T_MOVE, 1, true);
 }
 
 // Здоровье от числа игроков на поле: при появлении и при старте ивента.
@@ -108,21 +113,6 @@ function kSees(npc, p, marks, now) {
     return moMarked(marks, p, now) || moShards(p) > 0;
 }
 
-// Самый яркий из видимых в SIGHT_R, кто не дальше LEASH от пути; при равенстве — ближний.
-function kPick(npc, ps, marks, now) {
-    var best = null, bs = 0, bd = 0;
-    for (var i = 0; i < ps.length; i++) {
-        var p = ps[i];
-        var d = moFlat(p, npc.getX(), npc.getZ());
-        if (d > SIGHT_R || kPathDist(p)[0] > LEASH) continue;
-        var n = moShards(p);
-        var score = n > 0 ? n : (moMarked(marks, p, now) ? 0.5 : 0);
-        if (score == 0) continue;
-        if (best == null || score > bs || (score == bs && d < bd)) { best = p; bs = score; bd = d; }
-    }
-    return best;
-}
-
 function kGlowing(npc, ps, marks, now, r) {
     var out = [];
     for (var i = 0; i < ps.length; i++) {
@@ -137,53 +127,83 @@ function target(e) {
     if (!moRunning(w) || !kSees(e.npc, e.entity, moMarksRead(w), moNow(w))) e.setCanceled(true);
 }
 
-// --- Путь ---
+// --- Охота ---
 
-// [расстояние, номер] до ближайшей точки пути.
-function kPathDist(e) {
-    var best = 1e9, bi = 0;
-    for (var i = 0; i < PATH.length; i++) {
-        var d = moFlat(e, PATH[i][0] + 0.5, PATH[i][2] + 0.5);
-        if (d < best) { best = d; bi = i; }
-    }
-    return [PATH.length == 0 ? 0 : best, bi];
+// Его добыча, пока светится; иначе null.
+function kQuarry(npc, w, marks, now) {
+    var id = kGet(npc, "hunt", "");
+    if (id.length == 0) return null;
+    var p = null;
+    try {
+        p = w.getEntity(id);
+    } catch (err) {}
+    return kSees(npc, p, marks, now) ? p : null;
 }
 
-function kGoPoint(npc, i) {
-    kPut(npc, "path_i", i);
-    kPut(npc, "wait_until", 0);
-    if (PATH.length == 0) return;
-    var p = PATH[i];
-    npc.setHome(p[0], p[1], p[2]);
+// Почему охота кончилась, или null: погасла (сдала, бросила, погибла, вышла), время вышло, оторвалась.
+function kEscaped(npc, q, now) {
+    if (q == null) return "dark";
+    if (now >= kNum(npc, "hunt_until")) return "time";
+    var d = moFlat(q, npc.getX(), npc.getZ());
+    var away = d > LOSE_R || (d > HIDE_MIN && !npc.canSeeEntity(q));
+    kPut(npc, "lost", away ? kNum(npc, "lost") + 10 : 0);
+    return kNum(npc, "lost") >= LOSE_TICKS ? "lost" : null;
 }
 
-function kWalk(npc, now) {
-    if (PATH.length == 0) return;
-    var i = kNum(npc, "path_i") % PATH.length;
-    var p = PATH[i];
-    if (npc.getHomeX() != p[0] || npc.getHomeY() != p[1] || npc.getHomeZ() != p[2]) npc.setHome(p[0], p[1], p[2]);
-    if (moFlat(npc, p[0] + 0.5, p[2] + 0.5) > NEAR_POINT) return;
-    var wait = kNum(npc, "wait_until");
-    if (wait == 0) kPut(npc, "wait_until", now + WAIT_TICKS);
-    else if (now >= wait) kGoPoint(npc, (i + 1) % PATH.length);
+var VANISH_TEXT = {
+    dark: "§2Кигор больше не видит твоего света и рассыпается.",
+    time: "§2Моррслиб зовёт Кигора назад – он рассыпается.",
+    lost: "§2Кигор потерял твой след и рассыпается.",
+    off: "§2Моррслиб закрыл глаз – Кигор рассыпается."
+};
+
+// Рассыпается: добыче — строка и пауза до следующего Кигора, съеденное уходит с ним.
+function kVanish(npc, why) {
+    var w = npc.getWorld(), id = kGet(npc, "hunt", "");
+    var p = null;
+    try {
+        if (id.length > 0) p = w.getEntity(id);
+    } catch (err) {}
+    if (id.length > 0 && why != "off") moHuntCdSet(w, id, p != null ? moShards(p) : 0);
+    if (p != null && p.typeOf(1)) p.message(VANISH_TEXT[why]);
+    kSound(npc, "minecraft:entity.wolf.howl", 1.0, 0.4);
+    w.spawnParticle("happy_villager", npc.getX(), npc.getY() + 2, npc.getZ(), 1.0, 2.0, 1.0, 0, 40);
+    w.spawnParticle("cloud", npc.getX(), npc.getY() + 1, npc.getZ(), 1.0, 1.0, 1.0, 0.02, 20);
+    AbilityAPI.cancel(npc);
+    for (var i = 0; i < ALL_TIMERS.length; i++) npc.getTimers().stop(ALL_TIMERS[i]);
+    try { NpcTurnHelper.unlockFace(npc); } catch (err) {}
+    npc.despawn();
 }
 
-// Ушёл от пути дальше LEASH — бросает цель, идёт к ближайшей точке и лечится, пока не дойдёт.
-function kLeash(npc) {
-    if (PATH.length == 0) return false;
-    var pd = kPathDist(npc);
-    if (kGet(npc, "returning", "0") == "1") {
-        npc.setAttackTarget(null);
-        npc.setHealth(Math.min(npc.getMaxHealth(), npc.getHealth() + npc.getMaxHealth() * REGEN_PCT));
-        if (pd[0] <= BACK_R) kPut(npc, "returning", 0);
-        return true;
-    }
-    if (pd[0] <= LEASH) return false;
-    kPut(npc, "returning", 1);
-    npc.setAttackTarget(null);
-    kGoPoint(npc, pd[1]);
-    npc.say("§2Кигор теряет след и возвращается на тропу.");
-    return true;
+// --- Шаг ---
+
+// Каждый тик — шаг к добыче. Пока идёт приём или его держат на месте — стоит; к алтарю не ступает.
+function kMove(npc) {
+    if (kBusy(npc) || npc.getTimers().has(T_HOLD)) return;
+    var w = npc.getWorld();
+    if (!moRunning(w)) return;
+    var t = kQuarry(npc, w, moMarksRead(w), kNow(npc));
+    if (t == null) return;
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ();
+    var dx = t.getX() - x, dz = t.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
+    if (d <= CHASE_STOP) return;
+    var s = Math.min(CHASE_SPEED, d - CHASE_STOP);
+    var nx = x + dx / d * s, nz = z + dz / d * s;
+    if (moInSanctuary(nx, nz)) return;
+    var g = moGround(w, nx, nz, y, GROUND_UP, GROUND_DOWN);
+    var ny = g == null ? y : Math.max(y - FALL, Math.min(y + RISE, g));
+    kTurn(npc, Combat.computeYaw(dx, dz));
+    Combat.holdInPlace(npc, nx, ny, nz);
+    if (ny < y) Combat.clearFallDistance(npc);
+}
+
+// Поворот к направлению шага не больше TURN_DEG за тик.
+function kTurn(npc, yaw) {
+    var cur = Number(kGet(npc, "face_yaw", String(npc.getRotation())));
+    var diff = ((yaw - cur) % 360 + 540) % 360 - 180;
+    if (diff > TURN_DEG) diff = TURN_DEG;
+    if (diff < -TURN_DEG) diff = -TURN_DEG;
+    kFace(npc, cur + diff);
 }
 
 // --- Общее ---
@@ -208,6 +228,7 @@ function kBusy(npc) {
 // На касте — lockFace, не setRotation: тот шлёт полный ресинк NPC, а yBodyRot ванила клиенту не отдаёт.
 function kFace(npc, yaw) {
     if (yaw == null || isNaN(yaw)) return;
+    kPut(npc, "face_yaw", yaw);
     try {
         NpcTurnHelper.lockFace(npc, yaw);
     } catch (err) {
@@ -254,7 +275,6 @@ function kHold(npc) {
 function kRelease(npc) {
     npc.getTimers().stop(T_HOLD);
     kPut(npc, "hold_mode", "");
-    npc.getAi().setWalkingSpeed(kNum(npc, "base_speed"));
     if (npc.getAi().getRetaliateType() != 0) npc.getAi().setRetaliateType(0);
     try { NpcTurnHelper.unlockFace(npc); } catch (err) { log("kigor unlock: " + err); }
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("kigor turn: " + err); }
@@ -271,9 +291,12 @@ function kSound(npc, sound, volume, pitch) {
     for (var i = 0; i < ps.length; i++) ps[i].playSound(sound, volume, pitch);
 }
 
+// Кого задевают его удары: у алтаря — никого.
 function kPlayersAt(npc, x, z, r) {
     var ps = moPlayers(npc.getWorld()), out = [];
-    for (var i = 0; i < ps.length; i++) if (moFlat(ps[i], x, z) <= r) out.push(ps[i]);
+    for (var i = 0; i < ps.length; i++) {
+        if (moFlat(ps[i], x, z) <= r && !moInSanctuary(ps[i].getX(), ps[i].getZ())) out.push(ps[i]);
+    }
     return out;
 }
 
@@ -539,12 +562,13 @@ function tryCast(npc, ps, marks, t, phase, now) {
     }
 }
 
-// Цели глыб: видимые на BOULDER_MIN…BOULDER_MAX, самые яркие первыми. Поводок их не держит — глыба летит и вслед.
+// Цели глыб: видимые на BOULDER_MIN…BOULDER_MAX, самые яркие первыми; у алтаря — никого.
 function kBoulderAims(npc, ps, marks, now, n) {
     var list = [];
     for (var i = 0; i < ps.length; i++) {
         var d = moFlat(ps[i], npc.getX(), npc.getZ());
         if (d < BOULDER_MIN || d > BOULDER_MAX || !kSees(npc, ps[i], marks, now)) continue;
+        if (moInSanctuary(ps[i].getX(), ps[i].getZ())) continue;
         list.push([moShards(ps[i]), ps[i]]);
     }
     list.sort(function (a, b) { return b[0] - a[0]; });
@@ -557,16 +581,22 @@ function tick(e) {
     var npc = e.npc;
     if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
     var w = npc.getWorld(), now = kNow(npc);
+    npc.setAttackTarget(null);
     if (!moRunning(w)) {
-        npc.setAttackTarget(null);
-        kPut(npc, "run_seen", 0);
-        kPut(npc, "returning", 0);
-        if (PATH.length > 0 && kNum(npc, "path_i") != 0) kGoPoint(npc, 0);
+        kVanish(npc, "off");
         return;
     }
     if (kGet(npc, "run_seen", "0") != "1") {
         kPut(npc, "run_seen", 1);
+        kPut(npc, "hunt_until", now + HUNT_TICKS);
         kSetHp(npc);
+    }
+    var marks = moMarksRead(w);
+    var q = kQuarry(npc, w, marks, now);
+    var why = kEscaped(npc, q, now);
+    if (why != null) {
+        kVanish(npc, why);
+        return;
     }
     var phase = kPhase(npc);
     if (phase > kNum(npc, "phase")) kEnterPhase(npc, phase);
@@ -585,16 +615,8 @@ function tick(e) {
         kPut(npc, "was_busy", 0);
         kPut(npc, "free_at", now + WALK_GAP);
     }
-    if (kLeash(npc)) return;
-    var ps = moPlayers(w), marks = moMarksRead(w);
-    var t = kPick(npc, ps, marks, now);
-    if (t == null) {
-        npc.setAttackTarget(null);
-        kWalk(npc, now);
-        return;
-    }
-    npc.setAttackTarget(t);
-    tryCast(npc, ps, marks, t, phase, now);
+    if (moInSanctuary(q.getX(), q.getZ())) return;
+    tryCast(npc, moPlayers(w), marks, q, phase, now);
 }
 
 function kEnterPhase(npc, phase) {
@@ -616,6 +638,7 @@ function timer(e) {
     else if (id == T_GAZE_BEAM) gazePulse(npc);
     else if (id == T_HOWL) howlHit(npc);
     else if (id == T_RECOVER) kRelease(npc);
+    else if (id == T_MOVE) kMove(npc);
 }
 
 function meleeAttack(e) {
@@ -632,10 +655,15 @@ function damaged(e) {
     e.damage = Math.min(e.damage, CAP) * mul;
 }
 
-// Роняет всё съеденное: горстями, чтобы разлетелось.
+// Роняет всё съеденное: горстями, чтобы разлетелось. Добыче — пауза до следующего Кигора.
 function died(e) {
-    var npc = e.npc;
+    var npc = e.npc, w = npc.getWorld(), id = kGet(npc, "hunt", "");
     AbilityAPI.cancel(npc);
+    if (id.length > 0) {
+        var p = null;
+        try { p = w.getEntity(id); } catch (err) {}
+        moHuntCdSet(w, id, p != null ? moShards(p) : 0);
+    }
     try { NpcTurnHelper.unlockFace(npc); } catch (err) {}
     for (var i = 0; i < ALL_TIMERS.length; i++) npc.getTimers().stop(ALL_TIMERS[i]);
     var n = kNum(npc, "eaten");

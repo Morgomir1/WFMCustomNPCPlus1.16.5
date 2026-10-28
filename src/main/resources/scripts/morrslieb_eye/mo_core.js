@@ -16,13 +16,20 @@ var MO = {
     // Ударивший Кигора светится столько тиков.
     MARK_TICKS: 260,
     // Яркость: с какого числа осколков начинается каждая ступень.
-    TIERS: [1, 5, 12, 25]
+    TIERS: [1, 5, 12, 25],
+    // Алтари [x, y, z]: ближе ALTAR_R Кигор не ступает и никого не бьёт, Око никого там не выдаёт. Впиши по полю.
+    ALTARS: [],
+    ALTAR_R: 15,
+    // Пауза перед следующим Кигором за тем же игроком, в тиках, по ступени яркости 1–4: чем ярче, тем короче.
+    HUNT_PAUSE: [1200, 1000, 800, 600]
 };
 
 // Данные мира: ход ивента — в постоянных (переживает рестарт), метки ударов и сигнал воя — во временных.
 var MO_RUN = "mo_running", MO_MARKS = "mo_marks", MO_HOWL = "mo_howl";
 // Кого Око уже видело на поле с осколками, и кого не поймал logout (рестарт) — снять при входе.
 var MO_CARRIERS = "mo_carriers", MO_WIPE = "mo_wipe";
+// Пауза охоты по игрокам: uuid:до какого тика.
+var MO_HUNT_CD = "mo_hunt_cd";
 var MO_LOGGED = {};
 
 function moNow(world) { return Number(world.getTotalTime()); }
@@ -280,6 +287,58 @@ function logout(e) {
     p.message(text);
     var ps = moPlayers(w);
     for (var i = 0; i < ps.length; i++) if (String(ps[i].getUUID()) != id) ps[i].message(text);
+}
+
+// --- Охота ---
+
+function moInSanctuary(x, z) {
+    for (var i = 0; i < MO.ALTARS.length; i++) {
+        var a = MO.ALTARS[i], dx = x - (a[0] + 0.5), dz = z - (a[2] + 0.5);
+        if (dx * dx + dz * dz <= MO.ALTAR_R * MO.ALTAR_R) return true;
+    }
+    return false;
+}
+
+function moHuntCdRead(world) {
+    var d = world.getStoreddata(), out = {};
+    if (!d.has(MO_HUNT_CD)) return out;
+    var parts = String(d.get(MO_HUNT_CD)).split(";");
+    for (var i = 0; i < parts.length; i++) {
+        var kv = parts[i].split(":");
+        if (kv.length == 2) out[kv[0]] = Number(kv[1]);
+    }
+    return out;
+}
+
+// Пауза для игрока после охоты; длина — по числу его осколков сейчас.
+function moHuntCdSet(world, id, shards) {
+    var now = moNow(world), cds = moHuntCdRead(world), parts = [];
+    var t = Math.max(1, moTier(shards));
+    cds[id] = now + MO.HUNT_PAUSE[Math.min(t, MO.HUNT_PAUSE.length) - 1];
+    for (var k in cds) if (cds[k] > now) parts.push(k + ":" + cds[k]);
+    world.getStoreddata().put(MO_HUNT_CD, parts.join(";"));
+}
+
+// --- Земля ---
+
+// Сквозь это Кигор проходит, землёй это не считается. Воздух — по isAir: в «stairs» тоже есть «air».
+var MO_PASS = /leaves|_log$|_wood$|stem$|hyphae|water|lava|^minecraft:grass$|tall_grass|fern|flower|sapling|vine|bush|roots|mushroom$|sugar_cane|bamboo|kelp|seagrass|lily|torch|button|lever|rail|carpet|snow$|fence|wall$|pane|bars|door|sign|banner|web|tulip|orchid|allium|bluet|daisy|poppy|dandelion|lilac|peony/;
+
+function moSolid(b) {
+    if (b == null || b.isAir()) return false;
+    return !MO_PASS.test(String(b.getName()));
+}
+
+// Верх первого сверху твёрдого блока, над которым не твёрдое, от y + up до y − down; null — нет такого.
+function moGround(world, x, z, y, up, down) {
+    var bx = Math.floor(x), bz = Math.floor(z), top = Math.floor(y) + up;
+    var above = moSolid(world.getBlock(bx, top + 1, bz));
+    for (var by = top; by >= Math.floor(y) - down; by--) {
+        var solid = moSolid(world.getBlock(bx, by, bz));
+        if (solid && !above) return by + 1;
+        above = solid;
+    }
+    return null;
 }
 
 // --- Свечение ---

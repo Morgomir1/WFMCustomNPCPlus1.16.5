@@ -1,5 +1,7 @@
-// eye.js — Око Моррслиба, ведущий ивента. Невидимый неуязвимый NPC в центре поля; вторым файлом после mo_core.js.
-// Ведёт волны тайников, вскрытие и свечение несущих осколки. Ивент включён, пока его не выключат.
+// eye.js — Око Моррслиба, ведущий ивента. Вторым файлом после mo_core.js в двух местах: у невидимого неуязвимого NPC
+// в центре поля и в скрипте игрока (вкладка Player). Ведёт волны тайников, вскрытие и свечение несущих осколки.
+// Ход ивента — шаг раз в 10 тиков; шаг делает первый, кто дотикал в мире ивента: Око или любой игрок. Поэтому чанк Ока
+// держать загруженным не нужно: он нужен, только когда по Оку жмут. Ивент включён, пока его не выключат.
 // ПКМ по Оку в креативе переключает ивент: вкл/выкл. Сам он не кончается, идёт пока не выключат.
 // Шифт + ПКМ в креативе — стак осколков (для сделок алтаря).
 // Ход ивента лежит в данных мира: после рестарта Око продолжает с того же места.
@@ -34,13 +36,14 @@ var CACHE_SHARDS = 3, OPEN_R = 2.0, OPEN_TICKS = 80;
 var GLOBAL_CHAT = 0;
 
 var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", T_OPEN = "mo_open_", T_SUMMONS = "mo_summons";
+// В каком мире идёт ивент и когда там был последний шаг. Данные мира в CustomNPCs общие на все измерения.
+var D_WORLD = "mo_world", T_BEAT = "mo_beat:";
 
-function eData(npc) { return npc.getWorld().getStoreddata(); }
-function eGet(npc, k, def) { var d = eData(npc); return d.has(k) ? String(d.get(k)) : def; }
-function ePut(npc, k, v) { eData(npc).put(k, String(v)); }
+function eGet(w, k, def) { var d = w.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
+function ePut(w, k, v) { w.getStoreddata().put(k, String(v)); }
 
-function eLit(npc) {
-    var s = eGet(npc, D_LIT, "");
+function eLit(w) {
+    var s = eGet(w, D_LIT, "");
     var out = [];
     if (s.length == 0) return out;
     var parts = s.split(",");
@@ -48,19 +51,21 @@ function eLit(npc) {
     return out;
 }
 
-function eSetLit(npc, lit) { ePut(npc, D_LIT, lit.join(",")); }
+function eSetLit(w, lit) { ePut(w, D_LIT, lit.join(",")); }
 
 function eTell(ps, text) { for (var i = 0; i < ps.length; i++) ps[i].message(text); }
 function eBroadcast(w, text) { if (GLOBAL_CHAT == 1) w.broadcast(text); }
 function eSound(ps, sound, volume, pitch) { for (var i = 0; i < ps.length; i++) ps[i].playSound(sound, volume, pitch); }
 
+// События приходят и от NPC Ока (есть e.npc), и от скрипта игрока (только e.player).
 function init(e) {
-    var npc = e.npc;
-    eClearOpening(npc);
+    if (e.npc == null) return;   // вход игрока вскрытия не сбрасывает
+    eClearOpening(e.npc.getWorld());
 }
 
 function interact(e) {
-    var p = e.player, npc = e.npc;
+    if (e.npc == null) return;   // ПКМ игрока по чему угодно — не наше
+    var p = e.player, w = e.npc.getWorld();
     if (p.getGamemode() != 1) return;
     e.setCanceled(true);
     if (p.isSneaking()) {
@@ -68,54 +73,68 @@ function interact(e) {
         p.message("§7Стак осколков — для сделок алтаря.");
         return;
     }
-    if (moRunning(npc.getWorld())) {
-        eStop(npc, "§7[Око Моррслиб] Ивент остановлен.");
+    if (moRunning(w)) {
+        eStop(w, "§7[Око Моррслиб] Ивент остановлен.");
         if (GLOBAL_CHAT != 1) p.message("§7[Око Моррслиб] Ивент остановлен. Глобальный чат молчит.");
     } else {
-        eStart(npc);
+        eStart(w);
         if (GLOBAL_CHAT != 1) p.message("§7[Око Моррслиб] Ивент запущен. Глобальный чат молчит.");
     }
 }
 
-function eStart(npc) {
-    var w = npc.getWorld(), now = moNow(w);
-    ePut(npc, MO_RUN, 1);
-    ePut(npc, D_WAVE, now + FIRST_WAVE);
-    eSetLit(npc, []);
-    eClearOpening(npc);
+function eStart(w) {
+    var now = moNow(w);
+    ePut(w, MO_RUN, 1);
+    ePut(w, D_WORLD, String(w.getName()));
+    ePut(w, D_WAVE, now + FIRST_WAVE);
+    eSetLit(w, []);
+    eClearOpening(w);
     eBroadcast(w, "§a[Око Моррслиб] §fМоррслиб открыл глаз. Собирайте осколки и сдавайте у алтаря, пока глаз открыт.");
     if (CACHES.length == 0) log("morrslieb: впиши CACHES — без тайников ивенту нечего раздавать");
 }
 
-function eStop(npc, text) {
-    ePut(npc, MO_RUN, 0);
-    ePut(npc, MO_CARRIERS, "");
-    eSetLit(npc, []);
-    eClearOpening(npc);
-    npc.getTempdata().remove(T_SUMMONS);
-    eBroadcast(npc.getWorld(), text);
+function eStop(w, text) {
+    ePut(w, MO_RUN, 0);
+    ePut(w, MO_CARRIERS, "");
+    eSetLit(w, []);
+    eClearOpening(w);
+    w.getTempdata().remove(T_SUMMONS);
+    eBroadcast(w, text);
 }
 
 function tick(e) {
-    var npc = e.npc, w = npc.getWorld();
+    eBeat(e.npc != null ? e.npc.getWorld() : e.player.getWorld());
+}
+
+// Шаг не чаще раза в 10 тиков на мир: кто первым дотикал — Око или игрок, — тот и шагает. Пока ивент идёт,
+// шагают только в его мире: игрок в Незере не должен вести тайники Незера.
+function eBeat(w) {
+    var name = String(w.getName());
+    if (moRunning(w) && name != eGet(w, D_WORLD, name)) return;
+    var td = w.getTempdata(), key = T_BEAT + name, now = moNow(w);
+    var last = td.has(key) ? Number(td.get(key)) : -1;
+    if (last >= 0 && now >= last && now - last < 10) return;
+    td.put(key, String(now));
+    eStep(w, now);
+}
+
+function eStep(w, now) {
     var online = eOnline(w);
-    eWipe(npc, online);
+    eWipe(w, online);
     if (!moRunning(w)) return;
-    var now = moNow(w);
     var ps = moPlayers(w);
-    if (now >= Number(eGet(npc, D_WAVE, "0"))) eWave(npc, ps, now);
+    if (now >= Number(eGet(w, D_WAVE, "0"))) eWave(w, ps, now);
     var counts = eGlowAll(w, ps, now);
-    eTrack(npc, ps, counts, online);
-    eHunt(npc, ps, counts, now);
-    eCaches(npc, ps, now);
+    eTrack(w, ps, counts, online);
+    eHunt(w, ps, counts, now);
+    eCaches(w, ps, now);
 }
 
 // --- Охота ---
 
 // Самых ярких несущих, за кем никто не идёт, у кого нет паузы и кто не у алтаря, Око выдаёт Кигору.
-function eHunt(npc, ps, counts, now) {
-    var w = npc.getWorld();
-    var summons = eSummonsDue(npc, now);
+function eHunt(w, ps, counts, now) {
+    var summons = eSummonsDue(w, now);
     var kigors = eKigors(w), cds = moHuntCdRead(w);
     var carriers = [];
     for (var i = 0; i < ps.length; i++) {
@@ -134,7 +153,7 @@ function eHunt(npc, ps, counts, now) {
         p.message("§2Моррслиб видит твой свет. За тобой идёт Кигор.");
         p.playSound("minecraft:entity.wolf.howl", 1.0, 0.5);
     }
-    npc.getTempdata().put(T_SUMMONS, eSummonsText(summons));
+    w.getTempdata().put(T_SUMMONS, eSummonsText(summons));
 }
 
 // Охотящиеся Кигоры: заготовку для клонера (без добычи) Око не считает.
@@ -178,8 +197,8 @@ function eSummonPoint(w, p) {
 }
 
 // Вызовы: наступившие — Кигор встаёт; остальным — столб. Возвращает оставшиеся.
-function eSummonsDue(npc, now) {
-    var w = npc.getWorld(), td = npc.getTempdata(), left = [];
+function eSummonsDue(w, now) {
+    var td = w.getTempdata(), left = [];
     var parts = td.has(T_SUMMONS) ? String(td.get(T_SUMMONS)).split(";") : [];
     for (var i = 0; i < parts.length; i++) {
         var v = parts[i].split(":");
@@ -231,9 +250,9 @@ function eSummonsText(summons) {
 }
 
 // Волна: загораются до WAVE_SIZE тёмных тайников; Кигор, если жив, воет (сигнал через данные мира).
-function eWave(npc, ps, now) {
-    ePut(npc, D_WAVE, now + WAVE_EVERY);
-    var lit = eLit(npc), dark = [];
+function eWave(w, ps, now) {
+    ePut(w, D_WAVE, now + WAVE_EVERY);
+    var lit = eLit(w), dark = [];
     for (var i = 0; i < CACHES.length; i++) if (lit.indexOf(i) < 0) dark.push(i);
     var n = 0;
     while (dark.length > 0 && n < WAVE_SIZE) {
@@ -243,8 +262,8 @@ function eWave(npc, ps, now) {
         n++;
     }
     if (n == 0) return;
-    eSetLit(npc, lit);
-    npc.getWorld().getTempdata().put(MO_HOWL, String(now));
+    eSetLit(w, lit);
+    w.getTempdata().put(MO_HOWL, String(now));
     eTell(ps, "§a[Око Моррслиб] §fМоррслиб восходит: загорелись новые тайники.");
     eSound(ps, "minecraft:block.beacon.activate", 1.0, 0.6);
 }
@@ -268,8 +287,7 @@ function eOnline(w) {
 
 // Несущие: кто был на поле с осколками и пока их не лишился, где бы ни был.
 // Пропал без logout (рестарт) — в список на потерю при входе. Обычный выход снимает сам logout.
-function eTrack(npc, ps, counts, online) {
-    var w = npc.getWorld();
+function eTrack(w, ps, counts, online) {
     var prev = moCsv(w, MO_CARRIERS), wipe = moCsv(w, MO_WIPE), next = [];
     for (var i = 0; i < prev.length; i++) {
         var id = prev[i], p = online[id];
@@ -283,14 +301,14 @@ function eTrack(npc, ps, counts, online) {
         var uid = String(ps[k].getUUID());
         if (counts[uid] > 0 && next.indexOf(uid) < 0) next.push(uid);
     }
-    ePut(npc, MO_CARRIERS, next.join(","));
-    ePut(npc, MO_WIPE, wipe.join(","));
+    ePut(w, MO_CARRIERS, next.join(","));
+    ePut(w, MO_WIPE, wipe.join(","));
 }
 
 // Рестарт не вызывает logout, поэтому осколки ещё при игроке. При входе Око их забирает, на землю не кладёт:
 // игрок уже стоит на этом месте и сразу подобрал бы кучу.
-function eWipe(npc, online) {
-    var wipe = moCsv(npc.getWorld(), MO_WIPE);
+function eWipe(w, online) {
+    var wipe = moCsv(w, MO_WIPE);
     if (wipe.length == 0) return;
     var left = [];
     for (var i = 0; i < wipe.length; i++) {
@@ -302,24 +320,24 @@ function eWipe(npc, online) {
         var n = moTakeAllShards(p);
         if (n > 0) p.message("§cСервер оборвал выход с осколками Моррслиба – они пропали, а не выпали. Потеряно: " + n + ".");
     }
-    ePut(npc, MO_WIPE, left.join(","));
+    ePut(w, MO_WIPE, left.join(","));
 }
 
 // Свет горящих тайников и вскрытие: кто ближе OPEN_R, тот вскрывает; ушёл или получил урон — сначала.
 // У каждого тайника своё вскрытие: несколько тайников можно вскрывать разом.
-function eCaches(npc, ps, now) {
-    var w = npc.getWorld(), lit = eLit(npc);
+function eCaches(w, ps, now) {
+    var lit = eLit(w);
     for (var i = 0; i < lit.length; i++) {
         var c = CACHES[lit[i]];
         if (c == null) continue;
         w.spawnParticle("happy_villager", c[0] + 0.5, c[1] + 1.5, c[2] + 0.5, 0.2, 1.2, 0.2, 0, 6);
         w.spawnParticle("end_rod", c[0] + 0.5, c[1] + 3, c[2] + 0.5, 0.05, 2, 0.05, 0.01, 2);
-        eOpening(npc, ps, lit[i], c, now);
+        eOpening(w, ps, lit[i], c, now);
     }
 }
 
-function eOpening(npc, ps, idx, c, now) {
-    var td = npc.getTempdata(), key = T_OPEN + idx;
+function eOpening(w, ps, idx, c, now) {
+    var td = w.getTempdata(), key = T_OPEN + idx;
     if (td.has(key)) {
         var o = String(td.get(key)).split(":");   // uuid:с какого тика:здоровье
         var who = null;
@@ -331,10 +349,10 @@ function eOpening(npc, ps, idx, c, now) {
             who.message("§cВскрытие сорвано.");
         } else if (now - Number(o[1]) >= OPEN_TICKS) {
             td.remove(key);
-            eOpen(npc, ps, who, idx);
+            eOpen(w, ps, who, idx);
             return;
         } else {
-            npc.getWorld().spawnParticle("happy_villager", c[0] + 0.5, c[1] + 1.0, c[2] + 0.5, 0.6, 0.4, 0.6, 0, 8);
+            w.spawnParticle("happy_villager", c[0] + 0.5, c[1] + 1.0, c[2] + 0.5, 0.6, 0.4, 0.6, 0, 8);
             return;
         }
     }
@@ -344,8 +362,8 @@ function eOpening(npc, ps, idx, c, now) {
     p.message("§aВскрываешь тайник… Стой рядом и не получай урона.");
 }
 
-function eClearOpening(npc) {
-    var td = npc.getTempdata();
+function eClearOpening(w) {
+    var td = w.getTempdata();
     for (var i = 0; i < CACHES.length; i++) td.remove(T_OPEN + i);
 }
 
@@ -364,12 +382,12 @@ function eNearest(ps, c) {
     return best;
 }
 
-function eOpen(npc, ps, p, idx) {
-    var lit = eLit(npc);
+function eOpen(w, ps, p, idx) {
+    var lit = eLit(w);
     lit.splice(lit.indexOf(idx), 1);
-    eSetLit(npc, lit);
+    eSetLit(w, lit);
     moGive(p, CACHE_SHARDS);
-    var c = CACHES[idx], w = npc.getWorld();
+    var c = CACHES[idx];
     w.spawnParticle("happy_villager", c[0] + 0.5, c[1] + 4, c[2] + 0.5, 0.4, 4, 0.4, 0, 60);
     w.spawnParticle("end_rod", c[0] + 0.5, c[1] + 6, c[2] + 0.5, 0.2, 6, 0.2, 0.02, 30);
     eSound(ps, "minecraft:block.beacon.power_select", 1.0, 1.4);

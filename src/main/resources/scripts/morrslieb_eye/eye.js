@@ -1,19 +1,18 @@
 // eye.js — Око Моррслиба, ведущий ивента. Невидимый неуязвимый NPC в центре поля; вторым файлом после mo_core.js.
-// Ведёт время ивента, волны тайников, вскрытие тайников и свечение несущих осколки.
-// Запуск и остановка — ПКМ по Оку в креативе. Шифт + ПКМ в креативе — стак осколков (для сделок алтаря).
+// Ведёт волны тайников, вскрытие и свечение несущих осколки. Ивент включён, пока его не выключат.
+// ПКМ по Оку в креативе переключает ивент: вкл/выкл. Сам он не кончается, идёт пока не выключат.
+// Шифт + ПКМ в креативе — стак осколков (для сделок алтаря).
 // Ход ивента лежит в данных мира: после рестарта Око продолжает с того же места.
 // Кто был на поле с осколками и вышел, роняет их на месте выхода (скрипт игрока, logout в mo_core.js), из мешка тоже.
 // Рестарт logout не вызывает: таких Око при следующем входе лишает осколков, на землю они уже не попадут.
 
 // Тайники: блок [x, y, z] каждого. Сам тайник на поле — декорация строителя; скрипт ведёт только его свет.
 var CACHES = [];
-var EVENT_MIN = 40;
 var FIRST_WAVE = 200, WAVE_EVERY = 3600, WAVE_SIZE = 4;
 // Вскрыть: стоять ближе OPEN_R столько тиков; урон сбивает.
 var CACHE_SHARDS = 3, OPEN_R = 2.0, OPEN_TICKS = 80;
-var WARN_MIN = [10, 5, 1];
 
-var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", D_WARNED = "mo_warned", T_OPEN = "mo_open_";
+var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", T_OPEN = "mo_open_";
 
 function eData(npc) { return npc.getWorld().getStoreddata(); }
 function eGet(npc, k, def) { var d = eData(npc); return d.has(k) ? String(d.get(k)) : def; }
@@ -54,12 +53,10 @@ function interact(e) {
 function eStart(npc) {
     var w = npc.getWorld(), now = moNow(w);
     ePut(npc, MO_RUN, 1);
-    ePut(npc, MO_END, now + EVENT_MIN * 1200);
     ePut(npc, D_WAVE, now + FIRST_WAVE);
-    ePut(npc, D_WARNED, "");
     eSetLit(npc, []);
     eClearOpening(npc);
-    w.broadcast("§a[Око Моррслиб] §fМоррслиб открыл глаз. Ивент идёт " + EVENT_MIN + " минут: собирайте осколки и сдавайте у алтаря.");
+    w.broadcast("§a[Око Моррслиб] §fМоррслиб открыл глаз. Собирайте осколки и сдавайте у алтаря, пока глаз открыт.");
     if (CACHES.length == 0) log("morrslieb: впиши CACHES — без тайников ивенту нечего раздавать");
 }
 
@@ -77,28 +74,11 @@ function tick(e) {
     eWipe(npc, online);
     if (!moRunning(w)) return;
     var now = moNow(w);
-    var end = Number(eGet(npc, MO_END, "0"));
-    if (now >= end) {
-        eStop(npc, "§a[Око Моррслиб] §fМоррслиб закрыл глаз. Ивент окончен; осколки сдаются у алтаря, пока он стоит.");
-        return;
-    }
     var ps = moPlayers(w);
-    eWarn(npc, ps, end - now);
     if (now >= Number(eGet(npc, D_WAVE, "0"))) eWave(npc, ps, now);
     var counts = eGlowAll(w, ps, now);
     eTrack(npc, ps, counts, online);
     eCaches(npc, ps, now);
-}
-
-function eWarn(npc, ps, left) {
-    var warned = eGet(npc, D_WARNED, "");
-    for (var i = 0; i < WARN_MIN.length; i++) {
-        var m = WARN_MIN[i], key = "," + m + ",";
-        if (left > m * 1200 || warned.indexOf(key) >= 0) continue;
-        warned += key;
-        eTell(ps, "§a[Око Моррслиб] §fДо конца ивента " + m + (m == 1 ? " минута." : " минут."));
-    }
-    ePut(npc, D_WARNED, warned);
 }
 
 // Волна: загораются до WAVE_SIZE тёмных тайников; Кигор, если жив, воет (сигнал через данные мира).

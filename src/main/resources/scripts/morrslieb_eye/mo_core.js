@@ -20,7 +20,7 @@ var MO = {
 };
 
 // Данные мира: ход ивента — в постоянных (переживает рестарт), метки ударов и сигнал воя — во временных.
-var MO_RUN = "mo_running", MO_END = "mo_end_at", MO_MARKS = "mo_marks", MO_HOWL = "mo_howl";
+var MO_RUN = "mo_running", MO_MARKS = "mo_marks", MO_HOWL = "mo_howl";
 // Кого Око уже видело на поле с осколками, и кого не поймал logout (рестарт) — снять при входе.
 var MO_CARRIERS = "mo_carriers", MO_WIPE = "mo_wipe";
 var MO_LOGGED = {};

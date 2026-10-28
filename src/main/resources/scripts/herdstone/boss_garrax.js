@@ -91,7 +91,7 @@ var CAST_TIMERS = [T_COMBO, T_SPIN_END, T_QUAKE, T_QUAKE_STEP, T_DASH_END, T_QUI
 // Клипы GeckoLib-модели Гарракса, как у Горгона: время от начала клипа совпадает с таймерами приёмов.
 // Что в каждом – herdstone_garrax_animations.md в корне репозитория.
 // Пока клипов нет в модели — держи false: вместо них взмахи рук (клип Attack из окна модели).
-var GARRAX_NEW_ANIMS = false;
+var GARRAX_NEW_ANIMS = true;
 var ANIM_COMBO = "attack_combo";            // 2.30s: удары 0.60 и 1.00, накрест 1.70
 var ANIM_SPIN = "spin_start";               // 1.00s, дальше ANIM_SPIN_LOOP до конца вихря
 var ANIM_SPIN_LOOP = "spin_loop";           // 0.50s; саму модель крутит мод, 42° за тик
@@ -111,7 +111,7 @@ function init(e) {
     if (hsGet(npc, "base_speed", "") == "") hsPut(npc, "base_speed", npc.getAi().getWalkingSpeed());
     npc.getAi().setWalkingSpeed(hsNum(npc, "base_speed"));
     npc.getAi().setRetaliateType(0);
-    npc.getDisplay().setSize(10);
+    npc.getDisplay().setSize(6);
     npc.getStats().setResistance(3, 2.0);   // отбрасывание: 2 = не сдвигается
     var keys = ["started", "rage", "dizzy_until", "unarmed_until", "combo_step"];
     for (var i = 0; i < keys.length; i++) hsPut(npc, keys[i], 0);

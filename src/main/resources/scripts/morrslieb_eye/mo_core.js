@@ -18,6 +18,10 @@ var MO = {
     MARK_TICKS: 260,
     // С какого числа осколков игрока берут в цели: за ним вызывают Кигора, на него переключается Кигор.
     HUNT_MIN: 3,
+    // Убив игрока с осколками, Кигор забирает их себе, лечится на EAT_HEAL здоровья за осколок
+    // и ещё SATED_TICKS не рассыпается, даже если целей нет: его можно убить и вернуть всё.
+    EAT_HEAL: 0.01,
+    SATED_TICKS: 600,
     // Яркость: с какого числа осколков начинается каждая ступень.
     TIERS: [1, 5, 12, 25],
     // Алтари [x, y, z]: ближе ALTAR_R Кигор не ступает и никого не бьёт, Око никого там не выдаёт. Впиши по полю.
@@ -299,10 +303,25 @@ function logout(e) {
     for (var i = 0; i < ps.length; i++) if (String(ps[i].getUUID()) != id) ps[i].message(text);
 }
 
+// Осколки убитого — на счёт Кигора («eaten» в его данных): выпадут, когда его убьют. Возвращает, сколько забрал.
+function moKigorLoot(k, p) {
+    var n = moTakeShards(p, 1e9);
+    if (n <= 0) return 0;
+    var w = p.getWorld(), d = k.getStoreddata();
+    d.put("eaten", String(Number(d.has("eaten") ? d.get("eaten") : 0) + n));
+    d.put("sated_until", String(moNow(w) + MO.SATED_TICKS));
+    k.setHealth(Math.min(k.getMaxHealth(), k.getHealth() + k.getMaxHealth() * MO.EAT_HEAL * n));
+    moCsvRemove(w, MO_CARRIERS, String(p.getUUID()));
+    p.message("§2Кигор забрал твои осколки: " + n + ".");
+    return n;
+}
+
 // Смерть во время ивента: осколки рассыпаются там, где игрок погиб, из мешков и шалкеров тоже — и там, где вещи
 // при смерти не выпадают. Событие приходит раньше выпадения вещей: из инвентаря их уже сняли, второй раз не выпадут.
 // Оператору и носящему символ богов мод сохраняет весь инвентарь ещё до этого события и отдаёт при возрождении —
 // тогда осколков здесь уже нет: точка гибели записывается в MO_FALLEN, и Око отнимет их у возрождённого (eFallen).
+// Убил охотящийся Кигор — осколки уходят ему. Удары самого Кигора (kStrike) забирают их до гибели: их урон без
+// источника, а убийца здесь виден только у рывка.
 // В контейнере Кигора своё died перекрывает это; у Ока (NPC) e.player нет.
 function died(e) {
     var p = e.player;
@@ -312,6 +331,8 @@ function died(e) {
     var id = String(p.getUUID());
     var tracked = moCsvHas(w, MO_CARRIERS, id);
     if (!tracked && moFlat(p, MO.FIELD[0], MO.FIELD[2]) > MO.FIELD_R) return;
+    var killer = e.source;
+    if (killer != null && killer.typeOf(2) && killer.getStoreddata().has("hunt") && moKigorLoot(killer, p) > 0) return;
     var n = moDropAllShards(p);
     if (n <= 0) {
         if (tracked) moFallenAdd(w, id, String(w.getName()), p.getX(), p.getY(), p.getZ());

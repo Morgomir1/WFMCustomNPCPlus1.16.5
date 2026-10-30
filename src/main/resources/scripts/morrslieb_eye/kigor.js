@@ -13,10 +13,9 @@
 // Взгляд Ока (засвечивает и тянет к нему всех в круге GAZE_R, кого видит; следом — удар оземь по притянутым, после него
 // 3 секунды урон по нему ×1,5). Бьёт широко и очень сильно.
 // Вой — по сигналу Ока, когда загораются тайники.
-// Пожиратель душ: ударив несущего, вырывает часть осколков из инвентаря и лечится; съеденное копится,
-// убитый роняет всё, рассыпавшийся уносит с собой.
-// Вырвав у своей добычи последний осколок, не рассыпается ещё SATED_TICKS: ограбленного он столько же видит, а погибла
-// или ушла далеко — идёт к ближайшему, кого видит. За это время его можно убить и вернуть съеденное.
+// Пожиратель душ: удары осколков не отнимают, но убитый им игрок отдаёт ему все (moKigorLoot); съеденное копится,
+// убитый Кигор роняет всё, рассыпавшийся уносит с собой. Убив игрока с осколками, ещё MO.SATED_TICKS не рассыпается,
+// даже если целей нет: за это время его можно убить и вернуть съеденное.
 // Снаряды почти не берут его (PROJECTILE_TAKEN), огонь не берёт совсем.
 // Без добычи (поставлен руками, чтобы настроить и сохранить в клонер) стоит и ничего не делает. Ивент выключили —
 // охотник рассыпается. Съеденное роняет только убитый.
@@ -41,10 +40,6 @@ var LOSE_R = 32, HIDE_MIN = 16, LOSE_TICKS = 120;
 var CHASE_SPEED = 0.37, CHASE_STOP = 3;
 // Земля под шагом — от GROUND_UP выше ног до GROUND_DOWN ниже; за тик не выше RISE и не ниже FALL.
 var GROUND_UP = 12, GROUND_DOWN = 16, RISE = 0.6, FALL = 1.2;
-// Пожиратель душ: доля осколков с удара (не меньше одного) и лечение за осколок — доля здоровья.
-var EAT_PART = 0.25, EAT_HEAL = 0.01;
-// Сколько тиков он остаётся, вырвав у добычи последний осколок.
-var SATED_TICKS = 600;
 var RED = 0xC0FF0000 | 0, GREEN = 0xC040FF40 | 0;
 var STUN_ID = "wfm:stun";
 
@@ -135,7 +130,7 @@ function kSees(npc, p, marks, now) {
     return moMarked(marks, p, now) || moShards(p) > 0;
 }
 
-// Кого он берёт в цели. Добычу держит и с меньшим числом осколков: первый же удар мог оставить ей меньше порога.
+// Кого он берёт в цели. Добычу держит и с меньшим числом осколков: бросить один из трёх мало, чтобы он отстал.
 function kTargetable(npc, p, marks, now) {
     if (!kSees(npc, p, marks, now)) return false;
     return moMarked(marks, p, now) || moShards(p) >= MO.HUNT_MIN || String(p.getUUID()) == kGet(npc, "hunt", "");
@@ -366,35 +361,18 @@ function kPlayersAt(npc, x, z, r) {
     return out;
 }
 
-// Удар — доля здоровья, броня не решает. Сначала Пожиратель душ: вырывает осколки и лечится.
+// Удар — доля здоровья, броня не решает. Смертельный сначала забирает осколки: при самой гибели мод уже снял бы
+// инвентарь у оператора и носящего символ богов.
 function kStrike(npc, p, pct) {
-    kEat(npc, p);
     var dmg = p.getMaxHealth() * pct;
     if (p.getHealth() - dmg < 1) {
+        moKigorLoot(npc, p);
         p.setHealth(1);
         Combat.dealPureDamage(p, 100, true);
         return;
     }
     p.setHealth(p.getHealth() - dmg);
     Combat.dealPureDamage(p, 0.01, true);
-}
-
-function kEat(npc, p) {
-    var n = moShards(p);
-    if (n <= 0) return;
-    var taken = moTakeShards(p, Math.max(1, Math.ceil(n * EAT_PART)));
-    if (taken <= 0) return;
-    kPut(npc, "eaten", kNum(npc, "eaten") + taken);
-    npc.setHealth(Math.min(npc.getMaxHealth(), npc.getHealth() + npc.getMaxHealth() * EAT_HEAL * taken));
-    p.message("§2Кигор вырывает из тебя осколков: " + taken + ".");
-    if (taken >= n && String(p.getUUID()) == kGet(npc, "hunt", "")) kSated(npc, p);
-}
-
-// Добыча ограблена дочиста: ещё SATED_TICKS он не рассыпается и видит её, хоть света на ней больше нет.
-function kSated(npc, p) {
-    kPut(npc, "sated_until", kNow(npc) + SATED_TICKS);
-    moMark(npc.getWorld(), p, SATED_TICKS);
-    p.message("§2Кигор вырвал весь твой свет, но ещё чует тебя.");
 }
 
 function kPush(p, ox, oz, power) {
@@ -768,7 +746,7 @@ function damaged(e) {
     e.damage = Math.min(dmg, CAP) * mul;
 }
 
-// Роняет всё съеденное: горстями, чтобы разлетелось. Добыче — пауза до следующего Кигора.
+// Роняет всё, что забрал у убитых: горстями, чтобы разлетелось. Добыче — пауза до следующего Кигора.
 function died(e) {
     var npc = e.npc, w = npc.getWorld(), id = kGet(npc, "hunt", "");
     AbilityAPI.cancel(npc);

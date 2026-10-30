@@ -1,6 +1,7 @@
 // portal.js — портал ивента «Око Моррслиба». Отдельный NPC, не Око и не Кигор:
 // в его скрипт кладётся только этот файл. Оку и Кигору его не подключать: interact и tick затрут их функции.
 // ПКМ: через DELAY_TICKS (30 секунд) игрок встаёт в случайную точку из POINTS.
+// Пока ждёт, в чат пишется, сколько секунд осталось до переноса в локацию.
 // Кулдаун свой у каждого игрока, COOLDOWN_TICKS (5 минут) с момента ПКМ. Лежит в данных мира,
 // поэтому несколько таких NPC делят один кулдаун и он не сбрасывается выходом.
 // Очередь переноса — на этом NPC. Чанк NPC должен быть загружен, иначе 30 секунд не оттикают.
@@ -9,12 +10,20 @@ var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 
 // Куда кидать. Координаты ног: x/z по центру блока — n+0.5. Пустой список портал не открывает.
 var POINTS = [
-    [-484069, 80, -37125]
+    [-484009, 80, -37116],
+    [-484155, 88, -37037],
+    [-484155, 88, -37200],
+    [-484155, 88, -37037],
+    [-484068, 83, -36788]
 ];
 
 // 30 секунд ожидания, 5 минут кулдауна. Тик = 1/20 секунды.
 var DELAY_TICKS = 600;
 var COOLDOWN_TICKS = 6000;
+// Сколько осталось — в чат: каждые TELL_EVERY секунд, последние TELL_LAST — каждую секунду.
+// TELL_EVERY = 1 пишет каждую секунду.
+var TELL_EVERY = 5;
+var TELL_LAST = 5;
 
 var TELEPORT_SOUND = "minecraft:entity.enderman.teleport";
 var QUEUE_KEY = "mo_portal_q";
@@ -50,10 +59,11 @@ function interact(e) {
         return;
     }
 
-    queue.push({ id: id, due: now + DELAY_TICKS });
+    var waitSec = secondsLeft(now + DELAY_TICKS, now);
+    queue.push({ id: id, due: now + DELAY_TICKS, told: waitSec });
     writeQueue(e.npc, queue);
     putCd(world, id, now + COOLDOWN_TICKS, now);
-    player.message("§aОко Моррслиба смотрит на тебя. Через 30 секунд оно перенесёт тебя.");
+    player.message("§aОко Моррслиба смотрит на тебя. До переноса в локацию " + waitSec + " с.");
     try { player.playSound("minecraft:block.portal.trigger", 0.6, 1.2); } catch (err) {}
 }
 
@@ -71,6 +81,12 @@ function tick(e) {
     for (i = 0; i < queue.length; i++) {
         var row = queue[i];
         if (now < row.due) {
+            var sec = secondsLeft(row.due, now);
+            if (row.told != sec && shouldTell(sec)) {
+                tellPlayer(world, row.id, "§aДо переноса в локацию осталось " + sec + " с.");
+                row.told = sec;
+                changed = true;
+            }
             keep.push(row);
             continue;
         }
@@ -105,6 +121,20 @@ function secondsLeft(until, now) {
     return sec < 1 ? 1 : sec;
 }
 
+function shouldTell(sec) {
+    if (sec <= TELL_LAST) return true;
+    if (TELL_EVERY <= 1) return true;
+    return sec % TELL_EVERY == 0;
+}
+
+function tellPlayer(world, id, text) {
+    var player = null;
+    try { player = world.getEntity(id); } catch (err) { return; }
+    if (player == null || !player.isAlive()) return;
+    if (typeof player.getType == "function" && player.getType() != 1) return;
+    try { player.message(text); } catch (eMsg) {}
+}
+
 function findRow(queue, id) {
     var i;
     for (i = 0; i < queue.length; i++) if (queue[i].id == id) return queue[i];
@@ -114,13 +144,24 @@ function findRow(queue, id) {
 function readQueue(npc) {
     var data = npc.getStoreddata();
     var raw = data.has(QUEUE_KEY) ? String(data.get(QUEUE_KEY)) : "";
-    return parseRows(raw);
+    var out = [];
+    if (raw == null || raw.length == 0) return out;
+    var parts = String(raw).split(";");
+    var i;
+    for (i = 0; i < parts.length; i++) {
+        var bits = parts[i].split(":");
+        if (bits.length < 2) continue;
+        var due = parseInt(bits[1], 10);
+        var told = bits.length >= 3 ? parseInt(bits[2], 10) : -1;
+        if (bits[0].length > 0 && !isNaN(due)) out.push({ id: bits[0], due: due, told: isNaN(told) ? -1 : told });
+    }
+    return out;
 }
 
 function writeQueue(npc, queue) {
     var parts = [];
     var i;
-    for (i = 0; i < queue.length; i++) parts.push(queue[i].id + ":" + queue[i].due);
+    for (i = 0; i < queue.length; i++) parts.push(queue[i].id + ":" + queue[i].due + ":" + queue[i].told);
     npc.getStoreddata().put(QUEUE_KEY, parts.join(";"));
 }
 

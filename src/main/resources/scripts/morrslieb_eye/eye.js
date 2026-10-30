@@ -128,11 +128,13 @@ function eBeat(w) {
 }
 
 function eStep(w, now) {
+    moSafeScan(w);
     moSafeRead(w);
     var online = eOnline(w);
     eWipe(w, online);
     eFallen(w, online, now);
     if (!moRunning(w)) return;
+    eSafeRings(w);
     var ps = moPlayers(w);
     if (now >= Number(eGet(w, D_WAVE, "0"))) eWave(w, ps, now);
     var counts = eGlowAll(w, ps, now);
@@ -140,6 +142,17 @@ function eStep(w, now) {
     eReady(w, ps, counts);
     eHunt(w, ps, counts, now);
     eCaches(w, ps, now);
+}
+
+// Граница сейф-зоны видна: кольцо зелёных искр на земле вокруг телепорта.
+function eSafeRings(w) {
+    for (var i = 0; i < MO_SAFE_POINTS.length; i++) {
+        var s = MO_SAFE_POINTS[i];
+        for (var k = 0; k < 24; k++) {
+            var a = k / 24 * Math.PI * 2;
+            w.spawnParticle("happy_villager", s[0] + Math.cos(a) * MO.SAFE_R, s[2] + 0.5, s[1] + Math.sin(a) * MO.SAFE_R, 0.1, 0.1, 0.1, 0, 1);
+        }
+    }
 }
 
 // --- Охота ---

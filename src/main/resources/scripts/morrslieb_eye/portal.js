@@ -71,9 +71,22 @@ function interact(e) {
     try { player.playSound("minecraft:block.portal.trigger", 0.6, 1.2); } catch (err) {}
 }
 
+// Сейф-зона вокруг портала: запись та же, что moSafeMark в mo_core.js, ядро этому скрипту не подключается.
+function markSafe(npc) {
+    var d = npc.getWorld().getTempdata(), id = String(npc.getUUID());
+    var entry = id + ":" + npc.getX().toFixed(1) + ":" + npc.getZ().toFixed(1);
+    var s = d.has("mo_safe") ? String(d.get("mo_safe")) : "", parts = s.length > 0 ? s.split(";") : [], next = [entry];
+    for (var i = 0; i < parts.length; i++) {
+        if (parts[i] == entry) return;
+        if (parts[i].split(":")[0] != id) next.push(parts[i]);
+    }
+    d.put("mo_safe", next.join(";"));
+}
+
 function tick(e) {
     if (e.npc == null) return;
     var npc = e.npc;
+    markSafe(npc);
     var world = npc.getWorld();
     var now = Number(world.getTotalTime());
     var queue = readQueue(npc);

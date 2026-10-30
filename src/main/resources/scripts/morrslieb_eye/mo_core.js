@@ -34,6 +34,9 @@ var MO = {
     // Алтари [x, y, z]: ближе ALTAR_R Кигор не ступает и никого не бьёт, Око никого там не выдаёт. Впиши по полю.
     ALTARS: [],
     ALTAR_R: 15,
+    // Сейф-зона вокруг телепортов: NPC с exit.js и portal.js сами отмечают свою точку. Ближе SAFE_R Кигор не ступает
+    // и никого не бьёт, Око никого там не выдаёт: иначе удар срывал бы 30 секунд выхода и с поля было бы не уйти.
+    SAFE_R: 6,
     // Пауза перед следующим Кигором за тем же игроком, в тиках, по ступени яркости 1–4: чем ярче, тем короче.
     HUNT_PAUSE: [1800, 1400, 1000, 600]
 };
@@ -47,6 +50,8 @@ var MO_FALLEN = "mo_fallen";
 // Пауза охоты по игрокам: uuid:до какого тика.
 var MO_HUNT_CD = "mo_hunt_cd";
 var MO_LOGGED = {};
+// Точки телепортов в данных мира: «uuid:x:z;…». Вторая строка — их копия в этом контейнере, обновляется раз в шаг.
+var MO_SAFE = "mo_safe", MO_SAFE_POINTS = [];
 
 function moNow(world) { return Number(world.getTotalTime()); }
 function moFlat(e, x, z) { var dx = e.getX() - x, dz = e.getZ() - z; return Math.sqrt(dx * dx + dz * dz); }
@@ -368,7 +373,33 @@ function moInSanctuary(x, z) {
         var a = MO.ALTARS[i], dx = x - (a[0] + 0.5), dz = z - (a[2] + 0.5);
         if (dx * dx + dz * dz <= MO.ALTAR_R * MO.ALTAR_R) return true;
     }
+    for (var j = 0; j < MO_SAFE_POINTS.length; j++) {
+        var s = MO_SAFE_POINTS[j], sx = x - s[0], sz = z - s[1];
+        if (sx * sx + sz * sz <= MO.SAFE_R * MO.SAFE_R) return true;
+    }
     return false;
+}
+
+// Телепорт отмечает себя: с тика NPC, запись меняется, только если он новый или его передвинули.
+function moSafeMark(npc) {
+    var d = npc.getWorld().getTempdata(), id = String(npc.getUUID());
+    var entry = id + ":" + npc.getX().toFixed(1) + ":" + npc.getZ().toFixed(1);
+    var s = d.has(MO_SAFE) ? String(d.get(MO_SAFE)) : "", parts = s.length > 0 ? s.split(";") : [], next = [entry];
+    for (var i = 0; i < parts.length; i++) {
+        if (parts[i] == entry) return;
+        if (parts[i].split(":")[0] != id) next.push(parts[i]);
+    }
+    d.put(MO_SAFE, next.join(";"));
+}
+
+function moSafeRead(world) {
+    var d = world.getTempdata(), s = d.has(MO_SAFE) ? String(d.get(MO_SAFE)) : "";
+    var parts = s.length > 0 ? s.split(";") : [], out = [];
+    for (var i = 0; i < parts.length; i++) {
+        var v = parts[i].split(":");
+        out.push([Number(v[1]), Number(v[2])]);
+    }
+    MO_SAFE_POINTS = out;
 }
 
 function moHuntCdRead(world) {

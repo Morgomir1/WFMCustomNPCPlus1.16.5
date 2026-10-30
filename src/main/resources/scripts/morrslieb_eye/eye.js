@@ -128,6 +128,7 @@ function eBeat(w) {
 }
 
 function eStep(w, now) {
+    moSafeRead(w);
     var online = eOnline(w);
     eWipe(w, online);
     eFallen(w, online, now);

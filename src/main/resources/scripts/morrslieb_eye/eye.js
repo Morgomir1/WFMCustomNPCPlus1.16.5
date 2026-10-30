@@ -16,6 +16,8 @@ var KIGOR_TAB = 1, KIGOR_NAME = "Кигор";
 var MAX_KIGORS = 4, GROUP_R = 20;
 // Столб в SUMMON_MIN–SUMMON_MAX блоках от игрока, через SUMMON_WARN тиков там встаёт Кигор.
 var SUMMON_MIN = 12, SUMMON_MAX = 16, SUMMON_WARN = 40;
+// Первый осколок: Кигора вызывают не раньше чем через HUNT_DELAY тиков, игрок успевает отойти от тайника.
+var HUNT_DELAY = 600;
 
 // Тайники: блок [x, y, z] каждого. Сам тайник на поле — декорация строителя; скрипт ведёт только его свет.
 var CACHES = [
@@ -300,7 +302,10 @@ function eTrack(w, ps, counts, online) {
     }
     for (var k = 0; k < ps.length; k++) {
         var uid = String(ps[k].getUUID());
-        if (counts[uid] > 0 && next.indexOf(uid) < 0) next.push(uid);
+        if (counts[uid] > 0 && next.indexOf(uid) < 0) {
+            next.push(uid);
+            moHuntCdHold(w, uid, HUNT_DELAY);
+        }
     }
     ePut(w, MO_CARRIERS, next.join(","));
     ePut(w, MO_WIPE, wipe.join(","));

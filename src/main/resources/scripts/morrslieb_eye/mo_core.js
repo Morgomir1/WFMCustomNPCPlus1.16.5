@@ -354,9 +354,21 @@ function moHuntCdRead(world) {
 
 // Пауза для игрока после охоты; длина — по числу его осколков сейчас.
 function moHuntCdSet(world, id, shards) {
-    var now = moNow(world), cds = moHuntCdRead(world), parts = [];
+    var now = moNow(world), cds = moHuntCdRead(world);
     var t = Math.max(1, moTier(shards));
     cds[id] = now + MO.HUNT_PAUSE[Math.min(t, MO.HUNT_PAUSE.length) - 1];
+    moHuntCdWrite(world, cds, now);
+}
+
+// Нового Кигора не раньше чем через ticks; идущую паузу не сокращает.
+function moHuntCdHold(world, id, ticks) {
+    var now = moNow(world), cds = moHuntCdRead(world);
+    if (!(cds[id] >= now + ticks)) cds[id] = now + ticks;
+    moHuntCdWrite(world, cds, now);
+}
+
+function moHuntCdWrite(world, cds, now) {
+    var parts = [];
     for (var k in cds) if (cds[k] > now) parts.push(k + ":" + cds[k]);
     world.getStoreddata().put(MO_HUNT_CD, parts.join(";"));
 }

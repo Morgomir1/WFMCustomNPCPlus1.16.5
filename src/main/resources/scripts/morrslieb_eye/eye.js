@@ -33,7 +33,7 @@ var FIRST_WAVE = 200, WAVE_EVERY = 2400, WAVE_SIZE = 4;
 // Вскрыть: стоять ближе OPEN_R столько тиков; урон сбивает.
 var CACHE_SHARDS = 1, OPEN_R = 2.0, OPEN_TICKS = 80;
 // Старт и конец ивента в глобальный чат. 0 — молчать (тест). Перед боевым ивентом поставь 1.
-var GLOBAL_CHAT = 0;
+var GLOBAL_CHAT = 1;
 
 var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", T_OPEN = "mo_open_", T_SUMMONS = "mo_summons";
 // В каком мире идёт ивент и когда там был последний шаг. Данные мира в CustomNPCs общие на все измерения.

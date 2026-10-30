@@ -6,7 +6,8 @@
 // и стены, по земле вверх и вниз; поворачивается плавно, TURN_DEG за тик. Возврат домой выключен: он переносил NPC.
 // От него уходят: сдать осколки у алтаря (ближе MO.ALTAR_R он не ступает и не бьёт) или бросить их — тёмного он
 // не видит; оторваться — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN LOSE_TICKS подряд; пережить
-// HUNT_TICKS. Тогда он рассыпается, а Око не шлёт за этим игроком нового до паузы MO.HUNT_PAUSE.
+// HUNT_TICKS; добыча ушла в креатив или наблюдатели — сразу. Тогда он рассыпается, а Око не шлёт за этим
+// игроком нового до паузы MO.HUNT_PAUSE.
 // Приёмы, все с самого начала, фаз нет: удар кулаком, топот вокруг себя, глыбы залпом до VOLLEY целей, рывок рогами,
 // Взгляд Ока (засвечивает и тянет к нему всех в круге GAZE_R, кого видит; следом — удар оземь по притянутым, после него
 // 3 секунды урон по нему ×1,5). Бьёт широко и очень сильно.
@@ -138,6 +139,17 @@ function target(e) {
 
 // --- Охота ---
 
+// Добыча в креативе или наблюдателе: Кигор её больше не видит и сразу рассыпается.
+function kGmHidden(npc) {
+    var id = kGet(npc, "hunt", "");
+    if (id.length == 0) return false;
+    var p = null;
+    try { p = npc.getWorld().getEntity(id); } catch (err) {}
+    if (p == null || !p.typeOf(1)) return false;
+    var mode = p.getGamemode();
+    return mode == 1 || mode == 3;
+}
+
 // Его добыча, пока светится; иначе null.
 function kQuarry(npc, w, marks, now) {
     var id = kGet(npc, "hunt", "");
@@ -163,11 +175,14 @@ var VANISH_TEXT = {
     dark: "§2Кигор больше не видит твоего света и рассыпается.",
     time: "§2Моррслиб зовёт Кигора назад – он рассыпается.",
     lost: "§2Кигор потерял твой след и рассыпается.",
-    off: "§2Моррслиб закрыл глаз – Кигор рассыпается."
+    off: "§2Моррслиб закрыл глаз – Кигор рассыпается.",
+    gm: "§2Кигор не видит тебя и рассыпается."
 };
 
 // Рассыпается: добыче — строка и пауза до следующего Кигора, съеденное уходит с ним.
 function kVanish(npc, why) {
+    if (kGet(npc, "gone", "0") == "1") return;
+    kPut(npc, "gone", 1);
     var w = npc.getWorld(), id = kGet(npc, "hunt", "");
     var p = null;
     try {
@@ -624,6 +639,7 @@ function tick(e) {
     npc.setAttackTarget(null);
     // Без добычи — заготовка для клонера: её ставят руками, чтобы настроить и сохранить. Стоит и ничего не делает.
     if (kGet(npc, "hunt", "").length == 0) return;
+    if (kGmHidden(npc)) { kVanish(npc, "gm"); return; }
     if (!moRunning(w)) {
         kVanish(npc, "off");
         return;
@@ -661,6 +677,7 @@ function tick(e) {
 function timer(e) {
     var npc = e.npc;
     if (!npc.isAlive()) return;
+    if (kGmHidden(npc)) { kVanish(npc, "gm"); return; }
     var id = e.id;
     if (id == T_HOLD) kHold(npc);
     else if (id == T_PUNCH) punchHit(npc);

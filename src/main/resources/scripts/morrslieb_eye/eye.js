@@ -16,6 +16,8 @@ var KIGOR_TAB = 1, KIGOR_NAME = "Кигор";
 var MAX_KIGORS = 4, GROUP_R = 20;
 // Столб в SUMMON_MIN–SUMMON_MAX блоках от игрока, через SUMMON_WARN тиков там встаёт Кигор.
 var SUMMON_MIN = 12, SUMMON_MAX = 16, SUMMON_WARN = 40;
+// Ближе SUMMON_CLEAR блоков к точке высадки портала и к любому NPC (выход, портал, алтарь) он не появляется.
+var SUMMON_CLEAR = 3;
 // Дошёл до MO.HUNT_MIN осколков: Кигора вызывают не раньше чем через HUNT_DELAY тиков, игрок успевает отойти от тайника.
 var HUNT_DELAY = 600;
 
@@ -210,9 +212,17 @@ function eSummonPoint(w, p) {
         var x = p.getX() + Math.cos(a) * d, z = p.getZ() + Math.sin(a) * d;
         if (moInSanctuary(x, z)) continue;
         var g = moGround(w, x, z, p.getY(), 8, 12);
-        if (g != null) return [x, g, z];
+        if (g != null && eSummonClear(w, x, g, z)) return [x, g, z];
     }
     return null;
+}
+
+function eSummonClear(w, x, y, z) {
+    for (var i = 0; i < MO.TELEPORTS.length; i++) {
+        var t = MO.TELEPORTS[i], dx = x - (t[0] + 0.5), dz = z - (t[2] + 0.5);
+        if (dx * dx + dz * dz <= SUMMON_CLEAR * SUMMON_CLEAR) return false;
+    }
+    return w.getNearbyEntities(NpcAPI.getIPos(x, y, z), SUMMON_CLEAR, 2).length == 0;
 }
 
 // Вызовы: наступившие — Кигор встаёт; остальным — столб. Возвращает оставшиеся.

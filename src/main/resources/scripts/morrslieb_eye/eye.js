@@ -33,7 +33,7 @@ var CACHES = [
 // Волна: первая через FIRST_WAVE тиков после запуска, дальше раз в WAVE_EVERY (2 минуты) зажигает до WAVE_SIZE погасших.
 var FIRST_WAVE = 200, WAVE_EVERY = 2400, WAVE_SIZE = 4;
 // Вскрыть: стоять ближе OPEN_R столько тиков; урон сбивает.
-var CACHE_MIN = 1, CACHE_MAX = 3, OPEN_R = 2.0, OPEN_TICKS = 80;
+var CACHE_MIN = 1, CACHE_MAX = 2, OPEN_R = 2.0, OPEN_TICKS = 80;
 // Старт и конец ивента в глобальный чат. 0 — молчать (тест). Перед боевым ивентом поставь 1.
 var GLOBAL_CHAT = 1;
 

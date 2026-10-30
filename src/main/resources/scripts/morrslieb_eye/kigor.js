@@ -13,6 +13,9 @@
 // 3 секунды урон по нему ×1,5). Бьёт широко и очень сильно.
 // Вой — по сигналу Ока, когда загораются тайники.
 // Пожиратель душ: ударив несущего, вырывает часть осколков из инвентаря и лечится; убитый роняет всё съеденное.
+// Вырвав у своей добычи последний осколок, не рассыпается ещё SATED_TICKS: ограбленного он столько же видит, а погибла
+// или ушла далеко — идёт к ближайшему, кого видит. За это время его можно убить и вернуть съеденное.
+// Снаряды почти не берут его (PROJECTILE_TAKEN), огонь не берёт совсем.
 // Без добычи (поставлен руками, чтобы настроить и сохранить в клонер) стоит и ничего не делает. Ивент выключили —
 // охотник рассыпается. Съеденное роняет только убитый.
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
@@ -24,6 +27,10 @@ var NpcTurnHelper = Java.type("noppes.npcs.ai.NpcTurnHelper");
 // Здоровье при появлении: охотник живёт до полутора минут, убивать его не обязательно.
 var BASE_HP = 1500, HP_PER_PLAYER = 75, HP_MAX = 5000;
 var CAP = 20, OPEN_MUL = 1.5;
+// Сколько урона проходит от снарядов: стрелы, пули, метательное.
+var PROJECTILE_TAKEN = 0.05;
+// Виды урона огнём. Огонь мода — свои виды, неуязвимость NPC к огню их не закрывает.
+var FIRE_HITS = { inFire: 1, onFire: 1, lava: 1, hotFloor: 1, "wfm.burning_legion": 1, "wfm.artifact_fire": 1 };
 var SIGHT_R = 48;
 // Охота: HUNT_TICKS гонится; оторвался — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN — LOSE_TICKS подряд.
 var HUNT_TICKS = 1800, LOSE_R = 32, HIDE_MIN = 16, LOSE_TICKS = 120;
@@ -34,6 +41,8 @@ var CHASE_SPEED = 0.37, CHASE_STOP = 3;
 var GROUND_UP = 12, GROUND_DOWN = 16, RISE = 0.6, FALL = 1.2;
 // Пожиратель душ: доля осколков с удара (не меньше одного) и лечение за осколок — доля здоровья.
 var EAT_PART = 0.25, EAT_HEAL = 0.01;
+// Сколько тиков он остаётся, вырвав у добычи последний осколок.
+var SATED_TICKS = 600;
 var RED = 0xC0FF0000 | 0, GREEN = 0xC040FF40 | 0;
 var STUN_ID = "wfm:stun";
 
@@ -101,8 +110,9 @@ function init(e) {
     npc.getAi().setMovingType(0);
     npc.getAi().setReturnsHome(false);
     npc.getAi().setWalkingSpeed(0);
+    npc.getStats().setImmune(3, true);
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("kigor turn: " + err); }
-    var keys = ["eye_open_until", "free_at", "was_busy", "eaten", "lost", "run_seen"];
+    var keys = ["eye_open_until", "free_at", "was_busy", "eaten", "lost", "run_seen", "sated_until"];
     for (var i = 0; i < keys.length; i++) kPut(npc, keys[i], 0);
     kPut(npc, "face_yaw", npc.getRotation());
     kPut(npc, "howl_seen", kHowlSignal(npc));
@@ -161,6 +171,20 @@ function kQuarry(npc, w, marks, now) {
     return kSees(npc, p, marks, now) ? p : null;
 }
 
+// За кем он идёт сейчас: за добычей. Пока сыт — за ней, если она рядом, иначе за ближайшим, кого видит: ограбленный
+// мог погибнуть или возродиться на другом конце мира.
+function kPrey(npc, w, marks, now) {
+    var q = kQuarry(npc, w, marks, now);
+    if (now >= kNum(npc, "sated_until")) return q;
+    if (q != null && moFlat(q, npc.getX(), npc.getZ()) <= LOSE_R) return q;
+    var lit = kGlowing(npc, moPlayers(w), marks, now, SIGHT_R), best = null, bd = 1e9;
+    for (var i = 0; i < lit.length; i++) {
+        var d = moFlat(lit[i], npc.getX(), npc.getZ());
+        if (d < bd) { bd = d; best = lit[i]; }
+    }
+    return best;
+}
+
 // Почему охота кончилась, или null: погасла (сдала, бросила, погибла, вышла), время вышло, оторвалась.
 function kEscaped(npc, q, now) {
     if (q == null) return "dark";
@@ -206,7 +230,7 @@ function kMove(npc) {
     if (kBusy(npc) || npc.getTimers().has(T_HOLD)) return;
     var w = npc.getWorld();
     if (!moRunning(w)) return;
-    var t = kQuarry(npc, w, moMarksRead(w), kNow(npc));
+    var t = kPrey(npc, w, moMarksRead(w), kNow(npc));
     if (t == null) return;
     var x = npc.getX(), y = npc.getY(), z = npc.getZ();
     var dx = t.getX() - x, dz = t.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
@@ -350,6 +374,14 @@ function kEat(npc, p) {
     kPut(npc, "eaten", kNum(npc, "eaten") + taken);
     npc.setHealth(Math.min(npc.getMaxHealth(), npc.getHealth() + npc.getMaxHealth() * EAT_HEAL * taken));
     p.message("§2Кигор вырывает из тебя осколков: " + taken + ".");
+    if (taken >= n && String(p.getUUID()) == kGet(npc, "hunt", "")) kSated(npc, p);
+}
+
+// Добыча ограблена дочиста: ещё SATED_TICKS он не рассыпается и видит её, хоть света на ней больше нет.
+function kSated(npc, p) {
+    kPut(npc, "sated_until", kNow(npc) + SATED_TICKS);
+    moMark(npc.getWorld(), p, SATED_TICKS);
+    p.message("§2Кигор вырвал весь твой свет, но ещё чует тебя.");
 }
 
 function kPush(p, ox, oz, power) {
@@ -637,6 +669,7 @@ function tick(e) {
     if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
     var w = npc.getWorld(), now = kNow(npc);
     npc.setAttackTarget(null);
+    if (npc.isBurning()) npc.extinguish();
     // Без добычи — заготовка для клонера: её ставят руками, чтобы настроить и сохранить. Стоит и ничего не делает.
     if (kGet(npc, "hunt", "").length == 0) return;
     if (kGmHidden(npc)) { kVanish(npc, "gm"); return; }
@@ -650,8 +683,7 @@ function tick(e) {
         kSetHp(npc);
     }
     var marks = moMarksRead(w);
-    var q = kQuarry(npc, w, marks, now);
-    var why = kEscaped(npc, q, now);
+    var why = now < kNum(npc, "sated_until") ? null : kEscaped(npc, kQuarry(npc, w, marks, now), now);
     if (why != null) {
         kVanish(npc, why);
         return;
@@ -670,8 +702,9 @@ function tick(e) {
         kPut(npc, "was_busy", 0);
         kPut(npc, "free_at", now + WALK_GAP);
     }
-    if (moInSanctuary(q.getX(), q.getZ())) return;
-    tryCast(npc, moPlayers(w), marks, q, now);
+    var t = kPrey(npc, w, marks, now);
+    if (t == null || moInSanctuary(t.getX(), t.getZ())) return;
+    tryCast(npc, moPlayers(w), marks, t, now);
 }
 
 function timer(e) {
@@ -696,14 +729,23 @@ function meleeAttack(e) {
     e.setCanceled(true);
 }
 
-// Вне ивента неуязвим. Ударивший игрок светится MO.MARK_TICKS; урон за удар не больше CAP, при открытом Оке ×1,5.
+// Снаряд: помечен снарядом или ударило не то, что им бросило. Пули и копья мода снарядами не помечены.
+function kByProjectile(ds) {
+    if (ds.isProjectile()) return true;
+    var hit = ds.getImmediateSource(), from = ds.getTrueSource();
+    return hit != null && from != null && String(hit.getUUID()) != String(from.getUUID());
+}
+
+// Вне ивента неуязвим, огонь не берёт. Ударивший игрок светится MO.MARK_TICKS; от снаряда проходит PROJECTILE_TAKEN;
+// урон за удар не больше CAP, при открытом Оке ×1,5.
 function damaged(e) {
     var npc = e.npc, w = npc.getWorld();
-    if (!moRunning(w)) { e.setCanceled(true); return; }
+    if (!moRunning(w) || FIRE_HITS[String(e.damageSource.getType())]) { e.setCanceled(true); return; }
     var src = e.source;
     if (src != null && src.typeOf(1)) moMark(w, src, MO.MARK_TICKS);
     var mul = kNow(npc) < kNum(npc, "eye_open_until") ? OPEN_MUL : 1;
-    e.damage = Math.min(e.damage, CAP) * mul;
+    var dmg = kByProjectile(e.damageSource) ? e.damage * PROJECTILE_TAKEN : e.damage;
+    e.damage = Math.min(dmg, CAP) * mul;
 }
 
 // Роняет всё съеденное: горстями, чтобы разлетелось. Добыче — пауза до следующего Кигора.

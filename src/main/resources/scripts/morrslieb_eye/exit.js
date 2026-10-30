@@ -2,10 +2,9 @@
 // в его скрипт — mo_core.js, затем этот файл. Оку, Кигору, порталу и скрипту игрока его не подключать:
 // interact и tick затрут их функции, а тики игроков перестанут вести ивент.
 // ПКМ в зоне поля: через DELAY_TICKS (30 секунд) игрок встаёт в точку EXIT.
-// Пока ждёт, в чат пишется, сколько секунд осталось. Вышел из зоны раньше — перенос отменяется.
+// Пока ждёт, в чат пишется, сколько секунд осталось. Шаг, прыжок, урон или выход из зоны срывают перенос.
+// Поворот на месте — нет. Кулдауна нет: сорвался или уже вышел — можно нажать снова.
 // В конце, уже на точке, забирается SHARD_PERCENT процентов осколков. 0 — не забирать.
-// Кулдаун свой у каждого игрока, COOLDOWN_TICKS (5 минут) с момента ПКМ. Лежит в данных мира,
-// поэтому несколько таких NPC делят один кулдаун и он не сбрасывается выходом. С кулдауном портала не связан.
 // Очередь переноса — на этом NPC. Чанк NPC должен быть загружен, иначе 30 секунд не оттикают.
 
 var NpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
@@ -17,20 +16,20 @@ var EXIT = [2, 65, 4];
 var ZONE = [];
 var ZONE_R = 0;
 
-// 30 секунд ожидания, 5 минут кулдауна. Тик = 1/20 секунды.
+// 30 секунд ожидания. Тик = 1/20 секунды. Кулдауна нет.
 var DELAY_TICKS = 600;
-var COOLDOWN_TICKS = 6000;
 // Сколько осталось — в чат: каждые TELL_EVERY секунд, последние TELL_LAST — каждую секунду.
 // TELL_EVERY = 1 пишет каждую секунду.
 var TELL_EVERY = 5;
 var TELL_LAST = 5;
+// Дальше этого от точки ПКМ — уже движение. Поворот головы точку не меняет.
+var MOVE_R = 0.3;
 // Доля осколков в конце переноса, 0–100. 0 — не забирать.
 // Дробь отбрасывается: 30% от 4 осколков — 1. Считаются инвентарь, мешки и шалкеры, как свет на поле.
 var SHARD_PERCENT = 0;
 
 var TELEPORT_SOUND = "minecraft:entity.enderman.teleport";
 var QUEUE_KEY = "mo_exit_q";
-var CD_KEY = "mo_exit_cd";
 var EXIT_LOGGED = false;
 
 function interact(e) {
@@ -62,17 +61,12 @@ function interact(e) {
         return;
     }
 
-    var until = cdUntil(world, id);
-    if (until > now) {
-        player.message("§7Око отвернулось. Подожди ещё " + secondsLeft(until, now) + " с.");
-        return;
-    }
-
     var waitSec = secondsLeft(now + DELAY_TICKS, now);
-    queue.push({ id: id, due: now + DELAY_TICKS, told: waitSec });
+    var row = { id: id, due: now + DELAY_TICKS, told: waitSec };
+    stamp(row, player);
+    queue.push(row);
     writeQueue(e.npc, queue);
-    putCd(world, id, now + COOLDOWN_TICKS, now);
-    var text = "§aОко Моррслиба закрывает глаз. До выхода из зоны " + waitSec + " с.";
+    var text = "§aОко Моррслиба закрывает глаз. До выхода из зоны " + waitSec + " с. Не двигайся и не получай урон.";
     if (Number(SHARD_PERCENT) > 0) text += " В конце заберёт " + SHARD_PERCENT + "% осколков.";
     player.message(text);
     try { player.playSound("minecraft:block.portal.trigger", 0.6, 1.2); } catch (err) {}
@@ -91,13 +85,20 @@ function tick(e) {
     var i;
     for (i = 0; i < queue.length; i++) {
         var row = queue[i];
+        var player = findPlayer(world, row.id);
+        var why = channelFate(player, row);
+        if (why == "hurt" || why == "move") {
+            changed = true;
+            breakTell(player, why);
+            continue;
+        }
+        if (why == "update") changed = true;
+        if (player != null && player.isAlive() && !inEventZone(player)) {
+            changed = true;
+            try { player.message("§7Ты вышел из зоны ивента — перенос отменён."); } catch (err) {}
+            continue;
+        }
         if (now < row.due) {
-            var player = playerById(world, row.id);
-            if (player != null && !inEventZone(player)) {
-                changed = true;
-                try { player.message("§7Ты вышел из зоны ивента — перенос отменён."); } catch (err) {}
-                continue;
-            }
             var sec = secondsLeft(row.due, now);
             if (row.told != sec && shouldTell(sec)) {
                 if (player != null) try { player.message("§aДо выхода из зоны осталось " + sec + " с."); } catch (err2) {}
@@ -113,7 +114,7 @@ function tick(e) {
     if (changed) writeQueue(npc, keep);
 }
 
-// Игрок ушёл из мира, уже мёртв или вышел из зоны — перенос сгорает, кулдаун с ПКМ остаётся.
+// Игрок ушёл из мира, уже мёртв или вышел из зоны — перенос сгорает. Нажать можно сразу снова.
 function sendPlayer(world, id) {
     if (EXIT == null || EXIT.length < 3) return;
     var player = playerById(world, id);
@@ -180,11 +181,70 @@ function exitLog(text) {
 }
 
 function playerById(world, id) {
+    var player = findPlayer(world, id);
+    if (player == null || !player.isAlive()) return null;
+    return player;
+}
+
+function findPlayer(world, id) {
     var player = null;
     try { player = world.getEntity(id); } catch (err) { return null; }
-    if (player == null || !player.isAlive()) return null;
+    if (player == null) return null;
     if (typeof player.getType == "function" && player.getType() != 1) return null;
     return player;
+}
+
+function stamp(row, player) {
+    var v = vitals(player);
+    row.x = player.getX();
+    row.y = player.getY();
+    row.z = player.getZ();
+    row.hp = v.hp;
+    row.abs = v.abs;
+    row.iframe = v.iframe;
+}
+
+function vitals(player) {
+    var hp = Number(player.getHealth());
+    var abs = 0;
+    var iframe = 0;
+    try {
+        var mc = player.getMCEntity();
+        if (mc != null) {
+            abs = Number(mc.getAbsorptionAmount());
+            iframe = Number(mc.invulnerableTime);
+        }
+    } catch (err) {}
+    if (isNaN(hp)) hp = 0;
+    if (isNaN(abs)) abs = 0;
+    if (isNaN(iframe)) iframe = 0;
+    return { hp: hp, abs: abs, iframe: iframe };
+}
+
+function channelFate(player, row) {
+    if (player == null) return null;
+    if (!player.isAlive()) return "hurt";
+    if (row.x == null) {
+        stamp(row, player);
+        return "update";
+    }
+    var v = vitals(player);
+    if (v.hp < row.hp - 0.05 || v.iframe > row.iframe) return "hurt";
+    if (v.abs < row.abs - 0.05 && v.iframe > 0) return "hurt";
+    var dx = player.getX() - row.x, dy = player.getY() - row.y, dz = player.getZ() - row.z;
+    if (dx * dx + dy * dy + dz * dz > MOVE_R * MOVE_R) return "move";
+    var updated = false;
+    if (v.hp > row.hp) { row.hp = v.hp; updated = true; }
+    if (v.abs > row.abs) { row.abs = v.abs; updated = true; }
+    if (v.iframe != row.iframe) { row.iframe = v.iframe; updated = true; }
+    return updated ? "update" : null;
+}
+
+function breakTell(player, why) {
+    if (player == null) return;
+    try {
+        player.message(why == "hurt" ? "§cПеренос сорван: ты получил урон." : "§cПеренос сорван: ты сдвинулся.");
+    } catch (err) {}
 }
 
 function secondsLeft(until, now) {
@@ -216,7 +276,18 @@ function readQueue(npc) {
         if (bits.length < 2) continue;
         var due = parseInt(bits[1], 10);
         var told = bits.length >= 3 ? parseInt(bits[2], 10) : -1;
-        if (bits[0].length > 0 && !isNaN(due)) out.push({ id: bits[0], due: due, told: isNaN(told) ? -1 : told });
+        if (bits[0].length == 0 || isNaN(due)) continue;
+        var row = { id: bits[0], due: due, told: isNaN(told) ? -1 : told, x: null };
+        if (bits.length >= 9) {
+            row.x = parseFloat(bits[3]);
+            row.y = parseFloat(bits[4]);
+            row.z = parseFloat(bits[5]);
+            row.hp = parseFloat(bits[6]);
+            row.abs = parseFloat(bits[7]);
+            row.iframe = parseInt(bits[8], 10);
+            if (isNaN(row.x) || isNaN(row.hp) || isNaN(row.iframe)) row.x = null;
+        }
+        out.push(row);
     }
     return out;
 }
@@ -224,51 +295,14 @@ function readQueue(npc) {
 function writeQueue(npc, queue) {
     var parts = [];
     var i;
-    for (i = 0; i < queue.length; i++) parts.push(queue[i].id + ":" + queue[i].due + ":" + queue[i].told);
+    for (i = 0; i < queue.length; i++) parts.push(queueText(queue[i]));
     npc.getStoreddata().put(QUEUE_KEY, parts.join(";"));
 }
 
-function cdUntil(world, id) {
-    var map = readCd(world);
-    return map[id] == null ? 0 : map[id];
+function queueText(row) {
+    var text = row.id + ":" + row.due + ":" + row.told;
+    if (row.x == null) return text;
+    return text + ":" + row.x.toFixed(2) + ":" + row.y.toFixed(2) + ":" + row.z.toFixed(2)
+        + ":" + row.hp.toFixed(2) + ":" + row.abs.toFixed(2) + ":" + row.iframe;
 }
 
-function putCd(world, id, until, now) {
-    var map = readCd(world);
-    map[id] = until;
-    var parts = [];
-    var key;
-    for (key in map) {
-        if (!map.hasOwnProperty(key)) continue;
-        if (map[key] <= now) continue;
-        parts.push(key + ":" + map[key]);
-    }
-    world.getStoreddata().put(CD_KEY, parts.join(";"));
-}
-
-function readCd(world) {
-    var data = world.getStoreddata();
-    var raw = data.has(CD_KEY) ? String(data.get(CD_KEY)) : "";
-    var rows = parseRows(raw);
-    var map = {};
-    var i;
-    for (i = 0; i < rows.length; i++) map[rows[i].id] = rows[i].due;
-    return map;
-}
-
-// Строка «uuid:число;…». У uuid дефисы, число после последнего двоеточия.
-function parseRows(raw) {
-    var out = [];
-    if (raw == null || raw.length == 0) return out;
-    var parts = String(raw).split(";");
-    var i;
-    for (i = 0; i < parts.length; i++) {
-        var row = parts[i];
-        var colon = row.lastIndexOf(":");
-        if (colon <= 0) continue;
-        var id = row.substring(0, colon);
-        var due = parseInt(row.substring(colon + 1), 10);
-        if (id.length > 0 && !isNaN(due)) out.push({ id: id, due: due });
-    }
-    return out;
-}

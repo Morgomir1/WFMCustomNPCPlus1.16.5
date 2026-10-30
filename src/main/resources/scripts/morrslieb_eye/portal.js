@@ -2,7 +2,8 @@
 // в его скрипт кладётся только этот файл. Оку и Кигору его не подключать: interact и tick затрут их функции.
 // ПКМ: через DELAY_TICKS (30 секунд) игрок встаёт в случайную точку из POINTS.
 // Пока ждёт, в чат пишется, сколько секунд осталось до переноса в локацию.
-// Кулдаун свой у каждого игрока, COOLDOWN_TICKS (5 минут) с момента ПКМ. Лежит в данных мира,
+// Шаг, прыжок или урон срывают перенос. Поворот на месте — нет. Сорвался — кулдауна нет, можно нажать снова.
+// Кулдаун свой у каждого игрока, COOLDOWN_TICKS (5 минут) с момента переноса, не с ПКМ. Лежит в данных мира,
 // поэтому несколько таких NPC делят один кулдаун и он не сбрасывается выходом.
 // Очередь переноса — на этом NPC. Чанк NPC должен быть загружен, иначе 30 секунд не оттикают.
 
@@ -17,13 +18,15 @@ var POINTS = [
     [-484068, 83, -36788]
 ];
 
-// 30 секунд ожидания, 5 минут кулдауна. Тик = 1/20 секунды.
+// 30 секунд ожидания. Кулдаун 5 минут — только после удачного переноса. Тик = 1/20 секунды.
 var DELAY_TICKS = 600;
-var COOLDOWN_TICKS = 6000;
+var COOLDOWN_TICKS = 6000*3;
 // Сколько осталось — в чат: каждые TELL_EVERY секунд, последние TELL_LAST — каждую секунду.
 // TELL_EVERY = 1 пишет каждую секунду.
 var TELL_EVERY = 5;
 var TELL_LAST = 5;
+// Дальше этого от точки ПКМ — уже движение. Поворот головы точку не меняет.
+var MOVE_R = 0.3;
 
 var TELEPORT_SOUND = "minecraft:entity.enderman.teleport";
 var QUEUE_KEY = "mo_portal_q";
@@ -60,10 +63,11 @@ function interact(e) {
     }
 
     var waitSec = secondsLeft(now + DELAY_TICKS, now);
-    queue.push({ id: id, due: now + DELAY_TICKS, told: waitSec });
+    var row = { id: id, due: now + DELAY_TICKS, told: waitSec };
+    stamp(row, player);
+    queue.push(row);
     writeQueue(e.npc, queue);
-    putCd(world, id, now + COOLDOWN_TICKS, now);
-    player.message("§aОко Моррслиба смотрит на тебя. До переноса в локацию " + waitSec + " с.");
+    player.message("§aОко Моррслиба смотрит на тебя. До переноса в локацию " + waitSec + " с. Не двигайся и не получай урон.");
     try { player.playSound("minecraft:block.portal.trigger", 0.6, 1.2); } catch (err) {}
 }
 
@@ -80,6 +84,14 @@ function tick(e) {
     var i;
     for (i = 0; i < queue.length; i++) {
         var row = queue[i];
+        var player = findPlayer(world, row.id);
+        var why = channelFate(player, row);
+        if (why == "hurt" || why == "move") {
+            changed = true;
+            breakTell(player, why);
+            continue;
+        }
+        if (why == "update") changed = true;
         if (now < row.due) {
             var sec = secondsLeft(row.due, now);
             if (row.told != sec && shouldTell(sec)) {
@@ -96,7 +108,7 @@ function tick(e) {
     if (changed) writeQueue(npc, keep);
 }
 
-// Игрок ушёл из мира или уже мёртв — перенос сгорает, кулдаун с ПКМ остаётся.
+// Игрок ушёл из мира или уже мёртв — перенос сгорает, кулдаун не ставится.
 function sendPlayer(world, id) {
     if (POINTS.length == 0) return;
     var player = null;
@@ -110,6 +122,8 @@ function sendPlayer(world, id) {
         world.playSoundAt(NpcAPI.getIPos(player.getX(), player.getY(), player.getZ()), TELEPORT_SOUND, 1.0, 1.0);
     } catch (eSnd) {}
     player.setPosition(x, y, z);
+    var now = Number(world.getTotalTime());
+    putCd(world, id, now + COOLDOWN_TICKS, now);
     try {
         world.playSoundAt(NpcAPI.getIPos(x, y, z), TELEPORT_SOUND, 1.0, 1.0);
     } catch (eSnd2) {}
@@ -128,11 +142,74 @@ function shouldTell(sec) {
 }
 
 function tellPlayer(world, id, text) {
-    var player = null;
-    try { player = world.getEntity(id); } catch (err) { return; }
+    var player = findPlayer(world, id);
     if (player == null || !player.isAlive()) return;
-    if (typeof player.getType == "function" && player.getType() != 1) return;
     try { player.message(text); } catch (eMsg) {}
+}
+
+function findPlayer(world, id) {
+    var player = null;
+    try { player = world.getEntity(id); } catch (err) { return null; }
+    if (player == null) return null;
+    if (typeof player.getType == "function" && player.getType() != 1) return null;
+    return player;
+}
+
+// Точка и жизни на момент ПКМ. Урон — падение жизней или поглощения, либо новые кадры неуязвимости.
+function stamp(row, player) {
+    var v = vitals(player);
+    row.x = player.getX();
+    row.y = player.getY();
+    row.z = player.getZ();
+    row.hp = v.hp;
+    row.abs = v.abs;
+    row.iframe = v.iframe;
+}
+
+function vitals(player) {
+    var hp = Number(player.getHealth());
+    var abs = 0;
+    var iframe = 0;
+    try {
+        var mc = player.getMCEntity();
+        if (mc != null) {
+            abs = Number(mc.getAbsorptionAmount());
+            iframe = Number(mc.invulnerableTime);
+        }
+    } catch (err) {}
+    if (isNaN(hp)) hp = 0;
+    if (isNaN(abs)) abs = 0;
+    if (isNaN(iframe)) iframe = 0;
+    return { hp: hp, abs: abs, iframe: iframe };
+}
+
+// null — всё тихо. "update" — записать новые жизни. "move" / "hurt" — снять с очереди.
+function channelFate(player, row) {
+    if (player == null) return null;
+    if (!player.isAlive()) return "hurt";
+    if (row.x == null) {
+        stamp(row, player);
+        return "update";
+    }
+    var v = vitals(player);
+    // Поглощение само спадает, когда кончается эффект. Урон — это удар: жизни упали, кадры
+    // неуязвимости выросли, или поглощение снял удар, у которого кадры ещё висят.
+    if (v.hp < row.hp - 0.05 || v.iframe > row.iframe) return "hurt";
+    if (v.abs < row.abs - 0.05 && v.iframe > 0) return "hurt";
+    var dx = player.getX() - row.x, dy = player.getY() - row.y, dz = player.getZ() - row.z;
+    if (dx * dx + dy * dy + dz * dz > MOVE_R * MOVE_R) return "move";
+    var updated = false;
+    if (v.hp > row.hp) { row.hp = v.hp; updated = true; }
+    if (v.abs > row.abs) { row.abs = v.abs; updated = true; }
+    if (v.iframe != row.iframe) { row.iframe = v.iframe; updated = true; }
+    return updated ? "update" : null;
+}
+
+function breakTell(player, why) {
+    if (player == null) return;
+    try {
+        player.message(why == "hurt" ? "§cПеренос сорван: ты получил урон." : "§cПеренос сорван: ты сдвинулся.");
+    } catch (err) {}
 }
 
 function findRow(queue, id) {
@@ -153,7 +230,18 @@ function readQueue(npc) {
         if (bits.length < 2) continue;
         var due = parseInt(bits[1], 10);
         var told = bits.length >= 3 ? parseInt(bits[2], 10) : -1;
-        if (bits[0].length > 0 && !isNaN(due)) out.push({ id: bits[0], due: due, told: isNaN(told) ? -1 : told });
+        if (bits[0].length == 0 || isNaN(due)) continue;
+        var row = { id: bits[0], due: due, told: isNaN(told) ? -1 : told, x: null };
+        if (bits.length >= 9) {
+            row.x = parseFloat(bits[3]);
+            row.y = parseFloat(bits[4]);
+            row.z = parseFloat(bits[5]);
+            row.hp = parseFloat(bits[6]);
+            row.abs = parseFloat(bits[7]);
+            row.iframe = parseInt(bits[8], 10);
+            if (isNaN(row.x) || isNaN(row.hp) || isNaN(row.iframe)) row.x = null;
+        }
+        out.push(row);
     }
     return out;
 }
@@ -161,8 +249,15 @@ function readQueue(npc) {
 function writeQueue(npc, queue) {
     var parts = [];
     var i;
-    for (i = 0; i < queue.length; i++) parts.push(queue[i].id + ":" + queue[i].due + ":" + queue[i].told);
+    for (i = 0; i < queue.length; i++) parts.push(queueText(queue[i]));
     npc.getStoreddata().put(QUEUE_KEY, parts.join(";"));
+}
+
+function queueText(row) {
+    var text = row.id + ":" + row.due + ":" + row.told;
+    if (row.x == null) return text;
+    return text + ":" + row.x.toFixed(2) + ":" + row.y.toFixed(2) + ":" + row.z.toFixed(2)
+        + ":" + row.hp.toFixed(2) + ":" + row.abs.toFixed(2) + ":" + row.iframe;
 }
 
 function cdUntil(world, id) {

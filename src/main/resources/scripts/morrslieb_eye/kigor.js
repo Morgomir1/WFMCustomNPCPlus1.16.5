@@ -1,6 +1,7 @@
 // kigor.js — Кигор, сайгор ивента «Око Моррслиб». В контейнере скрипта вторым после mo_core.js.
 // Видит только свет: несущих осколки Моррслиба и ударивших его (метка на MO.MARK_TICKS). Тёмных не замечает —
 // событие target отменяет такую цель, кого бы ни выбрал мод; задевают их только удары по площади.
+// В цели берёт от MO.HUNT_MIN осколков и ударивших его; свою добычу держит, пока на ней есть хоть один.
 // Охотник: Око вызывает его клоном за несущим осколки и пишет в storeddata «hunt» его UUID. Гонится только за ним —
 // других светящихся бьёт заодно. Шаги ведёт скрипт, не поиск пути мода: прямо к цели, сквозь деревья, заборы
 // и стены, по земле вверх и вниз; поворачивается плавно, TURN_DEG за тик. Возврат домой выключен: он переносил NPC.
@@ -62,7 +63,7 @@ var ANIM_DASH = "attack_ram";
 var ANIM_HOWL = "attack_roar";
 var ANIM_GAZE = "attack_gaze";
 
-// Области приёмов — прежние ×1,15: дальность и длина удара, радиусы топота, глыбы, рывка и взгляда, ширина рывка.
+// Области приёмов — прежние ×1,15: дальность и длина удара, радиусы топота, глыбы и рывка, ширина рывка.
 var PUNCH_RANGE = 9.2, PUNCH_LEN = 10.4, PUNCH_HALF = 80, PUNCH_WARN = 12, PUNCH_PCT = 0.45, PUNCH_CD = 40, PUNCH_PUSH = 2;
 var PUNCH_RECOVER = 13;
 var STOMP_R = 11.5, STOMP_WARN = 25, STOMP_PCT = 0.45, STOMP_CD = 200, STOMP_PUSH = 3;
@@ -71,7 +72,7 @@ var BOULDER_MIN = 8, BOULDER_MAX = 40, BOULDER_R = 6.9, BOULDER_WARN = 30, BOULD
 var BOULDER_CD = 160, VOLLEY = 3, THROW_ROOT = 25;
 var DASH_MIN = 6, DASH_MAX = 20, DASH_CHARGE = 28, DASH_ACTIVE = 8, DASH_W = 3.45, DASH_DMG = 16.0;
 var DASH_PATH_R = 2.1, DASH_HIT_R = 6.9, DASH_PCT = 0.55, DASH_CD = 240, DASH_RECOVER = 10, DASH_PUSH = 2;
-var GAZE_R = 23, GAZE_WARN = 20, GAZE_TICKS = 40, GAZE_PULSE = 5, GAZE_OPEN = 60, GAZE_CD = 400;
+var GAZE_R = 20, GAZE_WARN = 20, GAZE_TICKS = 40, GAZE_PULSE = 5, GAZE_OPEN = 60, GAZE_CD = 400;
 // Взгляд тянет к нему всех в круге GAZE_R, кого он видит: толчок GAZE_PULL за каждый пульс, пока игрок дальше GAZE_HOLD.
 var GAZE_SLOW = 3, GAZE_PULL = 2, GAZE_HOLD = 5;
 // Удар оземь следом за взглядом: замах начинается за SLAM_LEAD тиков до конца притяжения, удар — через SLAM_WARN
@@ -134,18 +135,24 @@ function kSees(npc, p, marks, now) {
     return moMarked(marks, p, now) || moShards(p) > 0;
 }
 
+// Кого он берёт в цели. Добычу держит и с меньшим числом осколков: первый же удар мог оставить ей меньше порога.
+function kTargetable(npc, p, marks, now) {
+    if (!kSees(npc, p, marks, now)) return false;
+    return moMarked(marks, p, now) || moShards(p) >= MO.HUNT_MIN || String(p.getUUID()) == kGet(npc, "hunt", "");
+}
+
 function kGlowing(npc, ps, marks, now, r) {
     var out = [];
     for (var i = 0; i < ps.length; i++) {
         var d = moFlat(ps[i], npc.getX(), npc.getZ());
-        if (d <= r && kSees(npc, ps[i], marks, now)) out.push(ps[i]);
+        if (d <= r && kTargetable(npc, ps[i], marks, now)) out.push(ps[i]);
     }
     return out;
 }
 
 function target(e) {
     var w = e.npc.getWorld();
-    if (!moRunning(w) || !kSees(e.npc, e.entity, moMarksRead(w), moNow(w))) e.setCanceled(true);
+    if (!moRunning(w) || !kTargetable(e.npc, e.entity, moMarksRead(w), moNow(w))) e.setCanceled(true);
 }
 
 // --- Охота ---
@@ -660,7 +667,7 @@ function kBoulderAims(npc, ps, marks, now, n) {
     var list = [];
     for (var i = 0; i < ps.length; i++) {
         var d = moFlat(ps[i], npc.getX(), npc.getZ());
-        if (d < BOULDER_MIN || d > BOULDER_MAX || !kSees(npc, ps[i], marks, now)) continue;
+        if (d < BOULDER_MIN || d > BOULDER_MAX || !kTargetable(npc, ps[i], marks, now)) continue;
         if (moInSanctuary(ps[i].getX(), ps[i].getZ())) continue;
         list.push([moShards(ps[i]), ps[i]]);
     }

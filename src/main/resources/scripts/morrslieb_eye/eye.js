@@ -16,7 +16,7 @@ var KIGOR_TAB = 1, KIGOR_NAME = "Кигор";
 var MAX_KIGORS = 4, GROUP_R = 20;
 // Столб в SUMMON_MIN–SUMMON_MAX блоках от игрока, через SUMMON_WARN тиков там встаёт Кигор.
 var SUMMON_MIN = 12, SUMMON_MAX = 16, SUMMON_WARN = 40;
-// Первый осколок: Кигора вызывают не раньше чем через HUNT_DELAY тиков, игрок успевает отойти от тайника.
+// Дошёл до MO.HUNT_MIN осколков: Кигора вызывают не раньше чем через HUNT_DELAY тиков, игрок успевает отойти от тайника.
 var HUNT_DELAY = 600;
 
 // Тайники: блок [x, y, z] каждого. Сам тайник на поле — декорация строителя; скрипт ведёт только его свет.
@@ -40,6 +40,8 @@ var GLOBAL_CHAT = 1;
 var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", T_OPEN = "mo_open_", T_SUMMONS = "mo_summons";
 // В каком мире идёт ивент и когда там был последний шаг. Данные мира в CustomNPCs общие на все измерения.
 var D_WORLD = "mo_world", T_BEAT = "mo_beat:";
+// Кто на прошлом шаге был на поле с MO.HUNT_MIN осколков: новый в этом списке получает HUNT_DELAY.
+var D_READY = "mo_ready";
 
 function eGet(w, k, def) { var d = w.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
 function ePut(w, k, v) { w.getStoreddata().put(k, String(v)); }
@@ -98,6 +100,7 @@ function eStart(w) {
 function eStop(w, text) {
     ePut(w, MO_RUN, 0);
     ePut(w, MO_CARRIERS, "");
+    ePut(w, D_READY, "");
     eSetLit(w, []);
     eClearOpening(w);
     w.getTempdata().remove(T_SUMMONS);
@@ -129,11 +132,24 @@ function eStep(w, now) {
     if (now >= Number(eGet(w, D_WAVE, "0"))) eWave(w, ps, now);
     var counts = eGlowAll(w, ps, now);
     eTrack(w, ps, counts, online);
+    eReady(w, ps, counts);
     eHunt(w, ps, counts, now);
     eCaches(w, ps, now);
 }
 
 // --- Охота ---
+
+// Новые на пороге получают задержку. Упал ниже порога и набрал снова — новая задержка, идущую паузу она не сокращает.
+function eReady(w, ps, counts) {
+    var prev = moCsv(w, D_READY), next = [];
+    for (var i = 0; i < ps.length; i++) {
+        var id = String(ps[i].getUUID());
+        if (!(counts[id] >= MO.HUNT_MIN)) continue;
+        next.push(id);
+        if (prev.indexOf(id) < 0) moHuntCdHold(w, id, HUNT_DELAY);
+    }
+    ePut(w, D_READY, next.join(","));
+}
 
 // Самых ярких несущих, за кем никто не идёт, у кого нет паузы и кто не у алтаря, Око выдаёт Кигору.
 function eHunt(w, ps, counts, now) {
@@ -142,7 +158,7 @@ function eHunt(w, ps, counts, now) {
     var carriers = [];
     for (var i = 0; i < ps.length; i++) {
         var n = counts[String(ps[i].getUUID())] || 0;
-        if (n > 0) carriers.push([n, ps[i]]);
+        if (n >= MO.HUNT_MIN) carriers.push([n, ps[i]]);
     }
     carriers.sort(function (a, b) { return b[0] - a[0]; });
     for (var k = 0; k < carriers.length && kigors.length + summons.length < MAX_KIGORS; k++) {
@@ -302,10 +318,7 @@ function eTrack(w, ps, counts, online) {
     }
     for (var k = 0; k < ps.length; k++) {
         var uid = String(ps[k].getUUID());
-        if (counts[uid] > 0 && next.indexOf(uid) < 0) {
-            next.push(uid);
-            moHuntCdHold(w, uid, HUNT_DELAY);
-        }
+        if (counts[uid] > 0 && next.indexOf(uid) < 0) next.push(uid);
     }
     ePut(w, MO_CARRIERS, next.join(","));
     ePut(w, MO_WIPE, wipe.join(","));

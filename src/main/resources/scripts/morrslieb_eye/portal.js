@@ -20,7 +20,7 @@ var POINTS = [
 
 // 30 секунд ожидания. Кулдаун 5 минут — только после удачного переноса. Тик = 1/20 секунды.
 var DELAY_TICKS = 600;
-var COOLDOWN_TICKS = 6000*3;
+var COOLDOWN_TICKS = 6000;
 // Сколько осталось — в чат: каждые TELL_EVERY секунд, последние TELL_LAST — каждую секунду.
 // TELL_EVERY = 1 пишет каждую секунду.
 var TELL_EVERY = 5;

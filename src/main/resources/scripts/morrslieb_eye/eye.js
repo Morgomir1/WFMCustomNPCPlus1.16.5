@@ -16,6 +16,10 @@ var KIGOR_TAB = 1, KIGOR_NAME = "Кигор";
 var MAX_KIGORS = 4, GROUP_R = 20;
 // Столб в SUMMON_MIN–SUMMON_MAX блоках от игрока, через SUMMON_WARN тиков там встаёт Кигор.
 var SUMMON_MIN = 12, SUMMON_MAX = 16, SUMMON_WARN = 40;
+// Ближе SUMMON_CLEAR блоков к точке высадки портала и к любому NPC (выход, портал, алтарь) он не появляется.
+var SUMMON_CLEAR = 3;
+// Ближе SUMMON_APART к живому Кигору и к столбу другого вызова новый не появляется.
+var SUMMON_APART = 12;
 // Дошёл до MO.HUNT_MIN осколков: Кигора вызывают не раньше чем через HUNT_DELAY тиков, игрок успевает отойти от тайника.
 var HUNT_DELAY = 600;
 
@@ -164,7 +168,7 @@ function eHunt(w, ps, counts, now) {
     for (var k = 0; k < carriers.length && kigors.length + summons.length < MAX_KIGORS; k++) {
         var p = carriers[k][1], id = String(p.getUUID());
         if (cds[id] > now || moInSanctuary(p.getX(), p.getZ()) || eCovered(p, ps, kigors, summons)) continue;
-        var at = eSummonPoint(w, p);
+        var at = eSummonPoint(w, p, kigors, summons);
         if (at == null) continue;
         var s = { id: id, x: at[0], y: at[1], z: at[2], at: now + SUMMON_WARN };
         summons.push(s);
@@ -175,13 +179,14 @@ function eHunt(w, ps, counts, now) {
     w.getTempdata().put(T_SUMMONS, eSummonsText(summons));
 }
 
-// Охотящиеся Кигоры: заготовку для клонера (без добычи) Око не считает.
+// Охотящиеся Кигоры: заготовку для клонера (без добычи) Око не считает. Узнаёт по данным охоты, а не по имени:
+// имя в игре может отличаться от имени в клонере, и тогда Око вызывало бы второго за тем же игроком.
 function eKigors(w) {
     var f = MO.FIELD, out = [];
     var list = w.getNearbyEntities(NpcAPI.getIPos(f[0], f[1], f[2]), MO.FIELD_R, 2);
     for (var i = 0; i < list.length; i++) {
         var k = list[i];
-        if (k.isAlive() && String(k.getName()) == KIGOR_NAME && k.getStoreddata().has("hunt")) out.push(k);
+        if (k.isAlive() && k.getStoreddata().has("hunt")) out.push(k);
     }
     return out;
 }
@@ -204,20 +209,43 @@ function eCovered(p, ps, kigors, summons) {
 }
 
 // Точка на земле в SUMMON_MIN–SUMMON_MAX от игрока, не у алтаря; восемь попыток.
-function eSummonPoint(w, p) {
+function eSummonPoint(w, p, kigors, summons) {
     for (var i = 0; i < 8; i++) {
         var a = Math.random() * Math.PI * 2, d = SUMMON_MIN + Math.random() * (SUMMON_MAX - SUMMON_MIN);
         var x = p.getX() + Math.cos(a) * d, z = p.getZ() + Math.sin(a) * d;
         if (moInSanctuary(x, z)) continue;
         var g = moGround(w, x, z, p.getY(), 8, 12);
-        if (g != null) return [x, g, z];
+        if (g != null && eSummonClear(w, x, g, z) && eSummonApart(x, z, kigors, summons)) return [x, g, z];
     }
     return null;
 }
 
+function eSummonClear(w, x, y, z) {
+    for (var i = 0; i < MO.TELEPORTS.length; i++) {
+        var t = MO.TELEPORTS[i], dx = x - (t[0] + 0.5), dz = z - (t[2] + 0.5);
+        if (dx * dx + dz * dz <= SUMMON_CLEAR * SUMMON_CLEAR) return false;
+    }
+    return w.getNearbyEntities(NpcAPI.getIPos(x, y, z), SUMMON_CLEAR, 2).length == 0;
+}
+
+function eSummonApart(x, z, kigors, summons) {
+    var r = SUMMON_APART * SUMMON_APART;
+    for (var i = 0; i < kigors.length; i++) {
+        var kx = kigors[i].getX() - x, kz = kigors[i].getZ() - z;
+        if (kx * kx + kz * kz <= r) return false;
+    }
+    for (var j = 0; j < summons.length; j++) {
+        var sx = summons[j].x - x, sz = summons[j].z - z;
+        if (sx * sx + sz * sz <= r) return false;
+    }
+    return true;
+}
+
 // Вызовы: наступившие — Кигор встаёт; остальным — столб. Возвращает оставшиеся.
+// Список записывается до появления: сбой дальше по шагу не должен повторить вызов на том же месте.
+// К столбу подошёл другой Кигор — вызов снимается, игрока Око выдаст заново.
 function eSummonsDue(w, now) {
-    var td = w.getTempdata(), left = [];
+    var td = w.getTempdata(), left = [], due = [];
     var parts = td.has(T_SUMMONS) ? String(td.get(T_SUMMONS)).split(";") : [];
     for (var i = 0; i < parts.length; i++) {
         var v = parts[i].split(":");
@@ -228,7 +256,11 @@ function eSummonsDue(w, now) {
             left.push(s);
             continue;
         }
-        eSpawnKigor(w, s);
+        due.push(s);
+    }
+    td.put(T_SUMMONS, eSummonsText(left));
+    for (var j = 0; j < due.length; j++) {
+        if (eSummonApart(due[j].x, due[j].z, eKigors(w), [])) eSpawnKigor(w, due[j]);
     }
     return left;
 }

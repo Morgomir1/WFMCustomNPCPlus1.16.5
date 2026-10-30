@@ -33,7 +33,7 @@ var CACHES = [
 // Волна: первая через FIRST_WAVE тиков после запуска, дальше раз в WAVE_EVERY (2 минуты) зажигает до WAVE_SIZE погасших.
 var FIRST_WAVE = 200, WAVE_EVERY = 2400, WAVE_SIZE = 4;
 // Вскрыть: стоять ближе OPEN_R столько тиков; урон сбивает.
-var CACHE_SHARDS = 1, OPEN_R = 2.0, OPEN_TICKS = 80;
+var CACHE_MIN = 1, CACHE_MAX = 3, OPEN_R = 2.0, OPEN_TICKS = 80;
 // Старт и конец ивента в глобальный чат. 0 — молчать (тест). Перед боевым ивентом поставь 1.
 var GLOBAL_CHAT = 1;
 
@@ -448,11 +448,12 @@ function eOpen(w, ps, p, idx) {
     var lit = eLit(w);
     lit.splice(lit.indexOf(idx), 1);
     eSetLit(w, lit);
-    moGive(p, CACHE_SHARDS);
+    var shards = CACHE_MIN + Math.floor(Math.random() * (CACHE_MAX - CACHE_MIN + 1));
+    moGive(p, shards);
     var c = CACHES[idx];
     w.spawnParticle("happy_villager", c[0] + 0.5, c[1] + 4, c[2] + 0.5, 0.4, 4, 0.4, 0, 60);
     w.spawnParticle("end_rod", c[0] + 0.5, c[1] + 6, c[2] + 0.5, 0.2, 6, 0.2, 0.02, 30);
     eSound(ps, "minecraft:block.beacon.power_select", 1.0, 1.4);
-    p.message("§aТайник вскрыт: +" + CACHE_SHARDS + " " + eShardWord(CACHE_SHARDS) + " Моррслиба.");
+    p.message("§aТайник вскрыт: +" + shards + " " + eShardWord(shards) + " Моррслиба.");
     eTell(ps, "§a[Око Моррслиб] §fКто-то вскрыл тайник – над ним столб света.");
 }

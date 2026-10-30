@@ -5,7 +5,7 @@
 // Охотник: Око вызывает его клоном за несущим осколки и пишет в storeddata «hunt» его UUID. Гонится только за ним —
 // других светящихся бьёт заодно. Шаги ведёт скрипт, не поиск пути мода: прямо к цели, сквозь деревья, заборы
 // и стены, по земле вверх и вниз; поворачивается плавно, TURN_DEG за тик. Возврат домой выключен: он переносил NPC.
-// От него уходят: сдать осколки у алтаря (ближе MO.ALTAR_R он не ступает и не бьёт) или бросить их — тёмного он
+// От него уходят: сдать осколки у алтаря (ближе MO.ALTAR_R он не ступает и не бьёт; у телепортов так же в MO.SAFE_R) или бросить их — тёмного он
 // не видит; оторваться — дальше LOSE_R или вне прямой видимости дальше HIDE_MIN LOSE_TICKS подряд. Срока у охоты нет:
 // потеряв добычу, он идёт за ближайшим, кого видит, и рассыпается, только когда целей не осталось; добыча ушла
 // в креатив или наблюдатели — сразу. За ушедшим от него игроком Око не шлёт нового до паузы MO.HUNT_PAUSE.
@@ -99,6 +99,7 @@ function init(e) {
     if (!npc.isAlive()) return;
     npc.getTimers().clear();
     AbilityAPI.cancel(npc);
+    moSafeRead(npc.getWorld());
     try { NpcTurnHelper.unlockFace(npc); } catch (err) {}
     // Цель дальше дальности агрессии мод бросает; тёмных отсекает событие target.
     npc.getStats().setAggroRange(SIGHT_R);
@@ -245,7 +246,7 @@ function kMove(npc) {
     if (d <= CHASE_STOP) return;
     var s = Math.min(CHASE_SPEED, d - CHASE_STOP);
     var nx = x + dx / d * s, nz = z + dz / d * s;
-    if (moInSanctuary(nx, nz)) return;
+    if (moInSanctuary(nx, nz) && !moInSanctuary(x, z)) return;
     var g = moGround(w, nx, nz, y, GROUND_UP, GROUND_DOWN);
     var ny = g == null ? y : Math.max(y - FALL, Math.min(y + RISE, g));
     kTurn(npc, Combat.computeYaw(dx, dz));
@@ -629,7 +630,7 @@ function tryCast(npc, ps, marks, t, now) {
                 return;
             }
         }
-        if (now >= kNum(npc, "dash_at") && d >= DASH_MIN && d <= DASH_MAX) {
+        if (now >= kNum(npc, "dash_at") && d >= DASH_MIN && d <= DASH_MAX && kDashClear(npc, t)) {
             kPut(npc, "dash_at", now + DASH_CD);
             if (startDash(npc, t)) return;
         }
@@ -638,6 +639,15 @@ function tryCast(npc, ps, marks, t, now) {
         kPut(npc, "punch_at", now + PUNCH_CD);
         startPunch(npc, t);
     }
+}
+
+// Рывок летит прямо и бьёт по пути: сквозь сейф-зону его не пускать.
+function kDashClear(npc, t) {
+    var x = npc.getX(), z = npc.getZ(), dx = t.getX() - x, dz = t.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
+    for (var s = 2; s < d + 2; s += 2) {
+        if (moInSanctuary(x + dx / d * s, z + dz / d * s)) return false;
+    }
+    return true;
 }
 
 // Цели глыб: видимые на BOULDER_MIN…BOULDER_MAX, самые яркие первыми; у алтаря — никого.
@@ -659,6 +669,7 @@ function tick(e) {
     var npc = e.npc;
     if (!npc.isAlive()) { AbilityAPI.cancel(npc); return; }
     var w = npc.getWorld(), now = kNow(npc);
+    moSafeRead(w);
     npc.setAttackTarget(null);
     if (npc.isBurning()) npc.extinguish();
     // Без добычи — заготовка для клонера: её ставят руками, чтобы настроить и сохранить. Стоит и ничего не делает.

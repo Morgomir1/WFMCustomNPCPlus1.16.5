@@ -75,6 +75,7 @@ function interact(e) {
 function tick(e) {
     if (e.npc == null) return;
     var npc = e.npc;
+    moSafeMark(npc);
     var world = npc.getWorld();
     var now = Number(world.getTotalTime());
     var queue = readQueue(npc);

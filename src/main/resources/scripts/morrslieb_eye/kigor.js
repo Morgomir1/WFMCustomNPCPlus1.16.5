@@ -747,13 +747,17 @@ function kByProjectile(ds) {
     return hit != null && from != null && String(hit.getUUID()) != String(from.getUUID());
 }
 
-// Вне ивента неуязвим, огонь не берёт. Ударивший игрок светится MO.MARK_TICKS; от снаряда проходит PROJECTILE_TAKEN;
-// урон за удар не больше CAP, при открытом Оке ×1,5.
+// Вне ивента неуязвим, огонь не берёт, из сейф-зоны не ранить: он туда не бьёт, и зона стала бы укрытием для стрельбы.
+// Ударивший игрок светится MO.MARK_TICKS; от снаряда проходит PROJECTILE_TAKEN; урон за удар не больше CAP,
+// при открытом Оке ×1,5.
 function damaged(e) {
     var npc = e.npc, w = npc.getWorld();
     if (!moRunning(w) || FIRE_HITS[String(e.damageSource.getType())]) { e.setCanceled(true); return; }
     var src = e.source;
-    if (src != null && src.typeOf(1)) moMark(w, src, MO.MARK_TICKS);
+    if (src != null && src.typeOf(1)) {
+        if (moInSanctuary(src.getX(), src.getZ())) { e.setCanceled(true); return; }
+        moMark(w, src, MO.MARK_TICKS);
+    }
     var mul = kNow(npc) < kNum(npc, "eye_open_until") ? OPEN_MUL : 1;
     var dmg = kByProjectile(e.damageSource) ? e.damage * PROJECTILE_TAKEN : e.damage;
     e.damage = Math.min(dmg, CAP) * mul;

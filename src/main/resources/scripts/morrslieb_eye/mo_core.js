@@ -34,9 +34,11 @@ var MO = {
     // Алтари [x, y, z]: ближе ALTAR_R Кигор не ступает и никого не бьёт, Око никого там не выдаёт. Впиши по полю.
     ALTARS: [],
     ALTAR_R: 15,
-    // Сейф-зона вокруг телепортов: NPC с exit.js и portal.js сами отмечают свою точку. Ближе SAFE_R Кигор не ступает
-    // и никого не бьёт, Око никого там не выдаёт: иначе удар срывал бы 30 секунд выхода и с поля было бы не уйти.
+    // Сейф-зона вокруг телепортов: NPC с exit.js и portal.js сами отмечают свою точку, остальных Око находит по SAFE_NAME
+    // в имени. Ближе SAFE_R Кигор не ступает и никого не бьёт, Око никого там не выдаёт: иначе удар срывал бы
+    // 30 секунд выхода и с поля было бы не уйти.
     SAFE_R: 6,
+    SAFE_NAME: "телепорт",
     // Пауза перед следующим Кигором за тем же игроком, в тиках, по ступени яркости 1–4: чем ярче, тем короче.
     HUNT_PAUSE: [1800, 1400, 1000, 600]
 };
@@ -50,7 +52,7 @@ var MO_FALLEN = "mo_fallen";
 // Пауза охоты по игрокам: uuid:до какого тика.
 var MO_HUNT_CD = "mo_hunt_cd";
 var MO_LOGGED = {};
-// Точки телепортов в данных мира: «uuid:x:z;…». Вторая строка — их копия в этом контейнере, обновляется раз в шаг.
+// Точки телепортов в данных мира: «uuid:x:y:z;…». Вторая строка — их копия в этом контейнере, обновляется раз в шаг.
 var MO_SAFE = "mo_safe", MO_SAFE_POINTS = [];
 
 function moNow(world) { return Number(world.getTotalTime()); }
@@ -383,7 +385,7 @@ function moInSanctuary(x, z) {
 // Телепорт отмечает себя: с тика NPC, запись меняется, только если он новый или его передвинули.
 function moSafeMark(npc) {
     var d = npc.getWorld().getTempdata(), id = String(npc.getUUID());
-    var entry = id + ":" + npc.getX().toFixed(1) + ":" + npc.getZ().toFixed(1);
+    var entry = id + ":" + npc.getX().toFixed(1) + ":" + npc.getY().toFixed(1) + ":" + npc.getZ().toFixed(1);
     var s = d.has(MO_SAFE) ? String(d.get(MO_SAFE)) : "", parts = s.length > 0 ? s.split(";") : [], next = [entry];
     for (var i = 0; i < parts.length; i++) {
         if (parts[i] == entry) return;
@@ -392,12 +394,20 @@ function moSafeMark(npc) {
     d.put(MO_SAFE, next.join(";"));
 }
 
+// NPC на поле с SAFE_NAME в имени — тоже телепорт, какой бы скрипт на нём ни стоял.
+function moSafeScan(world) {
+    var f = MO.FIELD, list = world.getNearbyEntities(NpcAPI.getIPos(f[0], f[1], f[2]), MO.FIELD_R, 2);
+    for (var i = 0; i < list.length; i++) {
+        if (String(list[i].getName()).toLowerCase().indexOf(MO.SAFE_NAME) >= 0) moSafeMark(list[i]);
+    }
+}
+
 function moSafeRead(world) {
     var d = world.getTempdata(), s = d.has(MO_SAFE) ? String(d.get(MO_SAFE)) : "";
     var parts = s.length > 0 ? s.split(";") : [], out = [];
     for (var i = 0; i < parts.length; i++) {
         var v = parts[i].split(":");
-        out.push([Number(v[1]), Number(v[2])]);
+        out.push([Number(v[1]), Number(v[3]), Number(v[2])]);
     }
     MO_SAFE_POINTS = out;
 }

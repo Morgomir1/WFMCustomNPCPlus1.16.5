@@ -133,7 +133,7 @@ function kSees(npc, p, marks, now) {
 
 // Кого он берёт в цели. Добычу держит и с меньшим числом осколков: бросить один из трёх мало, чтобы он отстал.
 function kTargetable(npc, p, marks, now) {
-    if (!kSees(npc, p, marks, now)) return false;
+    if (!kSees(npc, p, marks, now) || moInSanctuary(p.getX(), p.getZ())) return false;
     return moMarked(marks, p, now) || moShards(p) >= MO.HUNT_MIN || String(p.getUUID()) == kGet(npc, "hunt", "");
 }
 
@@ -175,7 +175,9 @@ function kQuarry(npc, w, marks, now) {
     return kSees(npc, p, marks, now) ? p : null;
 }
 
+// Кто в сейф-зоне или у алтаря, тот вне досягаемости: шагнул туда — через LOSE_TICKS Кигор потерял след.
 function kInReach(npc, p) {
+    if (moInSanctuary(p.getX(), p.getZ())) return false;
     var d = moFlat(p, npc.getX(), npc.getZ());
     return d <= LOSE_R && (d <= HIDE_MIN || npc.canSeeEntity(p));
 }
@@ -240,7 +242,7 @@ function kMove(npc) {
     var w = npc.getWorld();
     if (!moRunning(w)) return;
     var t = kPrey(npc, w, moMarksRead(w), kNow(npc));
-    if (t == null) return;
+    if (t == null || moInSanctuary(t.getX(), t.getZ())) return;
     var x = npc.getX(), y = npc.getY(), z = npc.getZ();
     var dx = t.getX() - x, dz = t.getZ() - z, d = Math.sqrt(dx * dx + dz * dz);
     if (d <= CHASE_STOP) return;

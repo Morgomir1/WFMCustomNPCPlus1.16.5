@@ -9,6 +9,7 @@
 // Рестарт logout не вызывает: таких Око при следующем входе лишает осколков, на землю они уже не попадут.
 // Охота: за несущим осколки Око вызывает Кигора клоном из клонера — сначала столб света рядом с игроком, потом он.
 // Кигор не бродит по полю (иначе держать загруженными все чанки арены): живёт, пока гонится, и рассыпается.
+// Стадо: стоянки, сторожа горящих тайников и нюхачи — тоже клоны, Око ставит их рядом с игроками, руками их не расставляют.
 
 // Кигор — клон из клонера: вкладка KIGOR_TAB, имя KIGOR_NAME. На поле его не ставить, Око вызывает его само.
 var KIGOR_TAB = 1, KIGOR_NAME = "Кигор";
@@ -42,11 +43,43 @@ var CACHE_MIN = 1, CACHE_MAX = 2, OPEN_R = 2.0, OPEN_TICKS = 80;
 // Старт и конец ивента в глобальный чат. 0 — молчать (тест). Перед боевым ивентом поставь 1.
 var GLOBAL_CHAT = 1;
 
+// Стадо: зверолюды поля, herd.js. Клоны с вкладки HERD_TAB, имена — HERD_CLONES. Нет клона — одна строка в журнал, ивент идёт.
+// HERD_ON = 0 — стада нет.
+var HERD_ON = 1, HERD_TAB = 1;
+var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Гор-сторож", sniffer: "Унгор" };
+// Шаг стада раз в HERD_STEP тиков. Игрок ближе HERD_NEAR будит стоянку, но если кто-то ближе HERD_CLEAR, она не встаёт: на глазах никто не появляется.
+var HERD_STEP = 40, HERD_NEAR = 48, HERD_CLEAR = 20;
+// Стоянки между тайниками: x, z, вид, сколько; y — с земли. От телепортов и тайников дальше 40.
+var CAMPS = [
+    [-484169, -36811, "ungor", 4],
+    [-483988, -36861, "tuskgor", 3],
+    [-484295, -36942, "ungor", 4],
+    [-484184, -36987, "ungor", 4],
+    [-483900, -37036, "ungor", 4],
+    [-484264, -37075, "tuskgor", 3],
+    [-483852, -37115, "ungor", 4],
+    [-484337, -37151, "ungor", 4],
+    [-484226, -37196, "ungor", 4],
+    [-483900, -37197, "tuskgor", 3],
+    [-484149, -37271, "tuskgor", 3],
+    [-484223, -37347, "tuskgor", 3],
+    [-483999, -37349, "ungor", 4]
+];
+// Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут).
+var CAMP_SPREAD = 6, CAMP_EVERY = 6000;
+// Горящий тайник сторожит один гор в GUARD_MIN–GUARD_MAX от него; убитый сменяется не раньше чем через GUARD_EVERY (2 минуты).
+var GUARD_MIN = 3, GUARD_MAX = 5, GUARD_EVERY = 2400;
+// Нюхачи идут на свет: от SNIFF_SHARDS осколков, на всё поле до SNIFF_MAX, встают в SNIFF_MIN_R–SNIFF_MAX_R от игрока,
+// за одним игроком не чаще раза в SNIFF_PAUSE (3 минуты).
+var SNIFF_SHARDS = 1, SNIFF_MAX = 3, SNIFF_MIN_R = 24, SNIFF_MAX_R = 32, SNIFF_PAUSE = 3600;
+
 var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", T_OPEN = "mo_open_", T_SUMMONS = "mo_summons";
 // В каком мире идёт ивент и когда там был последний шаг. Данные мира в CustomNPCs общие на все измерения.
 var D_WORLD = "mo_world", T_BEAT = "mo_beat:";
 // Кто на прошлом шаге был на поле с MO.HUNT_MIN осколков: новый в этом списке получает HUNT_DELAY.
 var D_READY = "mo_ready";
+// Стадо: когда следующий шаг и паузы стоянок, тайников и нюхачей: «ключ:до какого тика;…».
+var T_HERD_AT = "mo_herd_at", T_HERD = "mo_herd";
 
 function eGet(w, k, def) { var d = w.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
 function ePut(w, k, v) { w.getStoreddata().put(k, String(v)); }
@@ -98,6 +131,7 @@ function eStart(w) {
     ePut(w, D_WAVE, now + FIRST_WAVE);
     eSetLit(w, []);
     eClearOpening(w);
+    w.getTempdata().remove(T_HERD);
     eBroadcast(w, "§a[Око Моррслиб] §fМоррслиб открыл глаз. Собирайте осколки и сдавайте у алтаря, пока глаз открыт.");
     if (CACHES.length == 0) log("morrslieb: впиши CACHES — без тайников ивенту нечего раздавать");
 }
@@ -142,6 +176,12 @@ function eStep(w, now) {
     eTrack(w, ps, counts, online);
     eReady(w, ps, counts);
     eHunt(w, ps, counts, now);
+    // Сбой стада не должен останавливать ивент: упавший скрипт Ока и игроков до перезагрузки не встанет.
+    try {
+        eHerd(w, ps, counts, now);
+    } catch (err) {
+        moLogOnce("herd", "стадо не встало: " + err);
+    }
     eCaches(w, ps, now);
 }
 
@@ -313,6 +353,133 @@ function eSummonsText(summons) {
         parts.push(s.id + ":" + s.x.toFixed(2) + ":" + s.y.toFixed(2) + ":" + s.z.toFixed(2) + ":" + s.at);
     }
     return parts.join(";");
+}
+
+// --- Стадо ---
+
+// Раз в HERD_STEP: стоянки рядом с игроками, сторожа горящих тайников, нюхачи на свет.
+function eHerd(w, ps, counts, now) {
+    var td = w.getTempdata();
+    if (HERD_ON != 1 || ps.length == 0 || (td.has(T_HERD_AT) && now < Number(td.get(T_HERD_AT)))) return;
+    td.put(T_HERD_AT, String(now + HERD_STEP));
+    var held = eHerdHeld(w), cds = eHerdCds(w);
+    for (var i = 0; i < CAMPS.length; i++) {
+        var c = CAMPS[i];
+        eWake(w, ps, held, cds, now, "c" + i, c[0], c[1], c[2], c[3], 0, CAMP_SPREAD, CAMP_EVERY);
+    }
+    var lit = eLit(w);
+    for (var j = 0; j < lit.length; j++) {
+        var cache = CACHES[lit[j]];
+        if (cache != null) eWake(w, ps, held, cds, now, "g" + lit[j], cache[0] + 0.5, cache[2] + 0.5, "gor", 1, GUARD_MIN, GUARD_MAX, GUARD_EVERY);
+    }
+    eSniff(w, ps, counts, held, cds, now);
+    eHerdCdsWrite(w, cds, now);
+}
+
+// Сколько живых у какой точки: стоянка и тайник заняты, пока жив хоть один их клон.
+function eHerdHeld(w) {
+    var f = MO.FIELD, out = {};
+    var list = w.getNearbyEntities(NpcAPI.getIPos(f[0], f[1], f[2]), MO.FIELD_R, 2);
+    for (var i = 0; i < list.length; i++) {
+        var d = list[i].getStoreddata();
+        if (!list[i].isAlive() || !d.has("herd_camp")) continue;
+        var key = String(d.get("herd_camp"));
+        out[key] = (out[key] || 0) + 1;
+    }
+    return out;
+}
+
+function eHerdCds(w) {
+    var td = w.getTempdata(), out = {};
+    var parts = td.has(T_HERD) ? String(td.get(T_HERD)).split(";") : [];
+    for (var i = 0; i < parts.length; i++) {
+        var kv = parts[i].split(":");
+        if (kv.length == 2) out[kv[0]] = Number(kv[1]);
+    }
+    return out;
+}
+
+function eHerdCdsWrite(w, cds, now) {
+    var parts = [];
+    for (var k in cds) if (cds[k] > now) parts.push(k + ":" + cds[k]);
+    w.getTempdata().put(T_HERD, parts.join(";"));
+}
+
+// Ближайший игрок к точке, если он ближе HERD_NEAR, а ближе HERD_CLEAR никого нет: иначе null.
+function eHerdWitness(ps, x, z) {
+    var best = null, bd = HERD_NEAR;
+    for (var i = 0; i < ps.length; i++) {
+        var d = moFlat(ps[i], x, z);
+        if (d < HERD_CLEAR) return null;
+        if (d <= bd) { bd = d; best = ps[i]; }
+    }
+    return best;
+}
+
+// Будит точку: n клонов вида kind в rmin–rmax от неё. Пауза пишется до появления: без клона в клонере попытка
+// не повторяется каждый шаг. Точка занята или отдыхает — ничего.
+function eWake(w, ps, held, cds, now, key, x, z, kind, n, rmin, rmax, rest) {
+    if (held[key] > 0 || cds[key] > now) return;
+    var p = eHerdWitness(ps, x, z);
+    if (p == null) return;
+    cds[key] = now + rest;
+    for (var i = 0; i < n; i++) {
+        var at = eHerdPoint(w, x, z, p.getY(), rmin, rmax);
+        if (at != null) eHerdSpawn(w, kind, at, key, null);
+    }
+}
+
+// Нюхачи: за самым ярким, у кого нет паузы и кто не в сейф-зоне, пока на поле их меньше SNIFF_MAX.
+function eSniff(w, ps, counts, held, cds, now) {
+    var left = SNIFF_MAX - (held.sniffer || 0), lit = [];
+    for (var i = 0; i < ps.length; i++) {
+        var n = counts[String(ps[i].getUUID())] || 0;
+        if (n >= SNIFF_SHARDS) lit.push([n, ps[i]]);
+    }
+    lit.sort(function (a, b) { return b[0] - a[0]; });
+    for (var k = 0; k < lit.length && left > 0; k++) {
+        var p = lit[k][1], id = String(p.getUUID());
+        if (cds["s" + id] > now || moInSanctuary(p.getX(), p.getZ())) continue;
+        var at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), SNIFF_MIN_R, SNIFF_MAX_R);
+        if (at == null) continue;
+        cds["s" + id] = now + SNIFF_PAUSE;
+        eHerdSpawn(w, "sniffer", at, "sniffer", id);
+        left--;
+    }
+}
+
+// Точка на суше в rmin–rmax от (x, z), не в сейф-зоне; шесть попыток.
+function eHerdPoint(w, x, z, y, rmin, rmax) {
+    for (var i = 0; i < 6; i++) {
+        var a = Math.random() * Math.PI * 2, d = rmin + Math.random() * (rmax - rmin);
+        var px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
+        if (moInSanctuary(px, pz)) continue;
+        var g = moGround(w, px, pz, y, 8, 12);
+        if (g != null && !/water|lava/.test(String(w.getBlock(Math.floor(px), g, Math.floor(pz)).getName()))) return [px, g, pz];
+    }
+    return null;
+}
+
+function eHerdSpawn(w, kind, at, key, prey) {
+    var k = null;
+    try {
+        k = w.spawnClone(at[0], at[1], at[2], HERD_TAB, HERD_CLONES[kind]);
+    } catch (err) {
+        moLogOnce("herd_" + kind, "клон стада не встал – проверь HERD_TAB и HERD_CLONES: " + err);
+    }
+    if (k == null) return;
+    var d = k.getStoreddata();
+    d.put("herd", kind);
+    d.put("herd_camp", key);
+    if (prey != null) d.put("herd_prey", prey);
+    // Как у Кигора: клон не встаёт после смерти, стоянку поднимет Око.
+    try {
+        var mc = k.getMCEntity();
+        mc.stats.spawnCycle = 3;
+        mc.stats.respawnTime = 0;
+    } catch (err) {
+        moLogOnce("herd_respawn", "у клона стада не выключено возрождение: " + err);
+    }
 }
 
 // Волна: загораются до WAVE_SIZE тёмных тайников; Кигор, если жив, воет (сигнал через данные мира).

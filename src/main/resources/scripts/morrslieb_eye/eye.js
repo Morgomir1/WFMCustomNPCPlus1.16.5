@@ -111,8 +111,8 @@ var EV_RITUALS = [[-484069, -37448], [-484068, -36808], [-484189, -37118]];
 var EV_RIT_TICKS = 3600, EV_RIT_SHAMANS = 3, EV_RIT_GUARD = ["gor", 2, "ungor", 4], EV_RIT_WAVE = 600, EV_RIT_ADDS = ["ungor", 2, "tuskgor", 1];
 var EV_RIT_SHARDS = 20, EV_RIT_R = 64, EV_RIT_KIGORS = 2, EV_RIT_MARK = 1200;
 var T_EV = "mo_ev", T_EV_AT = "mo_ev_at", T_EV_END = "mo_ev_end", T_EV_KILLS = "mo_ev_kills";
-// Брюннер (brunner.js и связка thief.js): за самым ярким от THIEF_MIN осколков, по одному на поле, встаёт в THIEF_NEAR–THIEF_FAR от него.
-// Цель ему — как от посредника: ник и номер охоты в данных клона.
+// Брюннер (thief.js): за самым ярким от THIEF_MIN осколков, по одному на поле, встаёт в THIEF_NEAR–THIEF_FAR от него.
+// Цель ему — UUID игрока в данных клона.
 // На всё поле не чаще раза в THIEF_EVERY, за одним игроком — раз в THIEF_REST. THIEF_ON = 0 выключает.
 var THIEF_ON = 1, THIEF_TAB = 2, THIEF_NAME = "Брюннер", THIEF_MIN = 25, THIEF_NEAR = 24, THIEF_FAR = 32;
 var THIEF_EVERY = 6000, THIEF_REST = 12000, T_THIEF_AT = "mo_thief_at", T_THIEF_CD = "mo_thief_cd";
@@ -648,8 +648,6 @@ function eThief(w, ps, counts, now) {
     if (k == null) return;
     var who = String(best.getUUID()), d = k.getStoreddata();
     d.put("thief_prey", who);
-    d.put("brunner_target", String(best.getName()));
-    d.put("brunner_hunt", "mo#" + now);
     d.put("last_x", String(best.getX()));
     d.put("last_y", String(best.getY()));
     d.put("last_z", String(best.getZ()));

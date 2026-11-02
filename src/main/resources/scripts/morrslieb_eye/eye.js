@@ -96,6 +96,9 @@ var PATROL_EVERY = 3600, PATROL_REST = 6000, PATROL_MIN = 25, PATROL_FAR = 35, P
 var EV_ON = 1, EV_EVERY = 12000, EV_PICK = ["fall", "fall", "fall", "fall", "fall", "caravan", "caravan", "caravan", "ritual", "ritual"];
 // Падение осколка: в EV_FALL_MIN–EV_FALL_FAR от случайного игрока, со стражей. Стража мертва и кто-то ближе EV_TAKE — осколок разбит.
 var EV_FALL_MIN = 60, EV_FALL_FAR = 110, EV_FALL_TICKS = 3600, EV_FALL_SHARDS = 8, EV_TAKE = 4, EV_FALL_GUARD = ["ungor", 2, "gor", 1];
+// И не дальше EV_FALL_CAMP от какой-нибудь стоянки: стоянки расставлены по всей карте, а её край — высокие горы. Без этого
+// у игрока на краю осколок со стражей падал в сотне блоков за горами, куда не дойти.
+var EV_FALL_CAMP = 50;
 // Места событий — [x, z], как у стоянок: землю под ними событие ищет от высоты игрока, на EV_GROUND вверх и вниз.
 var EV_GROUND = 24;
 // Караван: вьючный бивнегор с охраной идёт по маршруту [x, z, x, z] через поле, с ближнего к игроку конца; с него падает добыча. Дошёл — ушёл.
@@ -554,12 +557,28 @@ function eHunters(w, ps, counts, held, cds, now, kind, h) {
 function eHerdPoint(w, x, z, y, rmin, rmax) {
     for (var i = 0; i < 6; i++) {
         var a = Math.random() * Math.PI * 2, d = rmin + Math.random() * (rmax - rmin);
-        var px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
-        if (moInSanctuary(px, pz)) continue;
-        var g = moGround(w, px, pz, y, 8, 12);
-        if (g != null && !/water|lava/.test(String(w.getBlock(Math.floor(px), g, Math.floor(pz)).getName()))) return [px, g, pz];
+        var at = eLand(w, x + Math.cos(a) * d, z + Math.sin(a) * d, y);
+        if (at != null) return at;
     }
     return null;
+}
+
+// Суша в (x, z) у высоты y: не в сейф-зоне, не на воде и не на лаве. null — нет.
+function eLand(w, x, z, y) {
+    if (moInSanctuary(x, z)) return null;
+    var g = moGround(w, x, z, y, 8, 12);
+    if (g == null || /water|lava/.test(String(w.getBlock(Math.floor(x), g, Math.floor(z)).getName()))) return null;
+    return [x, g, z];
+}
+
+// Рядом со стоянкой — значит, на карте. Без списка стоянок края карты не знать, тогда годится любая точка.
+function eNearCamp(x, z, r) {
+    if (CAMPS.length == 0) return true;
+    for (var i = 0; i < CAMPS.length; i++) {
+        var dx = x - CAMPS[i][0], dz = z - CAMPS[i][1];
+        if (dx * dx + dz * dz <= r * r) return true;
+    }
+    return false;
 }
 
 function ePatrol(w, ps, held, cds, now) {
@@ -674,8 +693,20 @@ function eEvStep(w, ps, ev, now) {
     else eRitualStep(w, ps, ev, now);
 }
 
+// Место падения: EV_FALL_MIN–EV_FALL_FAR от игрока и рядом со стоянкой; попыток больше, чем у стада, — часть кольца за горами.
+function eFallPoint(w, p) {
+    for (var i = 0; i < 24; i++) {
+        var a = Math.random() * Math.PI * 2, d = EV_FALL_MIN + Math.random() * (EV_FALL_FAR - EV_FALL_MIN);
+        var x = p.getX() + Math.cos(a) * d, z = p.getZ() + Math.sin(a) * d;
+        if (!eNearCamp(x, z, EV_FALL_CAMP)) continue;
+        var at = eLand(w, x, z, p.getY());
+        if (at != null) return at;
+    }
+    return null;
+}
+
 function eFallBegin(w, ps, p, now) {
-    var at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), EV_FALL_MIN, EV_FALL_FAR);
+    var at = eFallPoint(w, p);
     if (at == null) return false;
     var ev = { kind: "fall", x: at[0], y: at[1], z: at[2], until: now + EV_FALL_TICKS, wave: 0 };
     eEvWrite(w.getTempdata(), ev);

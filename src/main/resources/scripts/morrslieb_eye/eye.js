@@ -10,7 +10,7 @@
 // Рестарт logout не вызывает: таких Око при следующем входе лишает осколков, на землю они уже не попадут.
 // Охота: за несущим осколки Око вызывает Кигора клоном из клонера — сначала столб света рядом с игроком, потом он.
 // Кигор не бродит по полю (иначе держать загруженными все чанки арены): живёт, пока гонится, и рассыпается.
-// Стадо: стоянки, сторожа горящих тайников и нюхачи — тоже клоны, Око ставит их рядом с игроками, руками их не расставляют.
+// Стадо: стоянки, сторожа горящих тайников, охотники на свет и шаман — тоже клоны, Око ставит их рядом с игроками, руками их не расставляют.
 
 // Кигор — клон из клонера: вкладка KIGOR_TAB, имя KIGOR_NAME. На поле его не ставить, Око вызывает его само.
 var KIGOR_TAB = 1, KIGOR_NAME = "Кигор";
@@ -47,7 +47,8 @@ var GLOBAL_CHAT = 1;
 // Стадо: зверолюды поля, herd.js. Клоны с вкладки HERD_TAB, имена — HERD_CLONES. Нет клона — одна строка в журнал, ивент идёт.
 // HERD_ON = 0 — стада нет.
 var HERD_ON = 1, HERD_TAB = 1;
-var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Гор-сторож", sniffer: "Унгор" };
+var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Гор-сторож", sniffer: "Унгор", centigor: "Центигор-загонщик",
+    harpy: "Гарпия", shaman: "Бра-шаман" };
 // Шаг стада раз в HERD_STEP тиков. Игрок ближе HERD_NEAR будит стоянку, но если кто-то ближе HERD_CLEAR, она не встаёт: на глазах никто не появляется.
 var HERD_STEP = 40, HERD_NEAR = 48, HERD_CLEAR = 20;
 // Стоянки между тайниками: x, z, вид, сколько; y — с земли. От телепортов и тайников дальше 40.
@@ -64,15 +65,22 @@ var CAMPS = [
     [-483900, -37197, "tuskgor", 3],
     [-484149, -37271, "tuskgor", 3],
     [-484223, -37347, "tuskgor", 3],
-    [-483999, -37349, "ungor", 4]
+    [-483999, -37349, "ungor", 4],
+    [-484002, -37198, "harpy", 3],
+    [-484002, -37037, "harpy", 3],
+    [-484060, -37300, "harpy", 3]
 ];
 // Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут).
 var CAMP_SPREAD = 6, CAMP_EVERY = 6000;
 // Горящий тайник сторожит один гор в GUARD_MIN–GUARD_MAX от него; убитый сменяется не раньше чем через GUARD_EVERY (2 минуты).
 var GUARD_MIN = 3, GUARD_MAX = 5, GUARD_EVERY = 2400;
-// Нюхачи идут на свет: от SNIFF_SHARDS осколков, на всё поле до SNIFF_MAX, встают в SNIFF_MIN_R–SNIFF_MAX_R от игрока,
-// за одним игроком не чаще раза в SNIFF_PAUSE (3 минуты).
-var SNIFF_SHARDS = 1, SNIFF_MAX = 3, SNIFF_MIN_R = 24, SNIFF_MAX_R = 32, SNIFF_PAUSE = 3600;
+// Охотники идут на свет: от shards осколков, на всё поле до max, встают в min–far от игрока, за одним игроком не чаще раза в pause.
+var HUNTERS = {
+    sniffer: { shards: 1, max: 3, min: 24, far: 32, pause: 3600 },
+    centigor: { shards: 5, max: 2, min: 32, far: 40, pause: 6000 }
+};
+// Шаман редкий: один на всё поле, встаёт на одной из этих стоянок (номера в CAMPS), убитый сменяется не раньше чем через SHAMAN_EVERY (15 минут).
+var SHAMAN_CAMPS = [1, 5, 9, 11], SHAMAN_EVERY = 18000;
 
 // Товары магазина — обычные предметы с меткой, а не скриптовый предмет CustomNPCs: тот заново пишет скрипт при каждой
 // сверке инвентаря и иногда слетает в пустой. Сменишь предмет или метку — положи в сделку алтаря новый (Шифт + ПКМ по Оку).
@@ -387,7 +395,7 @@ function eSummonsText(summons) {
 
 // --- Стадо ---
 
-// Раз в HERD_STEP: стоянки рядом с игроками, сторожа горящих тайников, нюхачи на свет.
+// Раз в HERD_STEP: стоянки рядом с игроками, шаман, сторожа горящих тайников, охотники на свет.
 function eHerd(w, ps, counts, now) {
     var td = w.getTempdata();
     if (HERD_ON != 1 || ps.length == 0 || (td.has(T_HERD_AT) && now < Number(td.get(T_HERD_AT)))) return;
@@ -397,12 +405,16 @@ function eHerd(w, ps, counts, now) {
         var c = CAMPS[i];
         eWake(w, ps, held, cds, now, "c" + i, c[0], c[1], c[2], c[3], 0, CAMP_SPREAD, CAMP_EVERY);
     }
+    for (var s = 0; s < SHAMAN_CAMPS.length; s++) {
+        var sc = CAMPS[SHAMAN_CAMPS[s]];
+        if (sc != null) eWake(w, ps, held, cds, now, "shaman", sc[0], sc[1], "shaman", 1, 0, CAMP_SPREAD, SHAMAN_EVERY);
+    }
     var lit = eLit(w);
     for (var j = 0; j < lit.length; j++) {
         var cache = CACHES[lit[j]];
         if (cache != null) eWake(w, ps, held, cds, now, "g" + lit[j], cache[0] + 0.5, cache[2] + 0.5, "gor", 1, GUARD_MIN, GUARD_MAX, GUARD_EVERY);
     }
-    eSniff(w, ps, counts, held, cds, now);
+    for (var kind in HUNTERS) eHunters(w, ps, counts, held, cds, now, kind, HUNTERS[kind]);
     eHerdCdsWrite(w, cds, now);
 }
 
@@ -462,21 +474,21 @@ function eWake(w, ps, held, cds, now, key, x, z, kind, n, rmin, rmax, rest) {
     }
 }
 
-// Нюхачи: за самым ярким, у кого нет паузы и кто не в сейф-зоне, пока на поле их меньше SNIFF_MAX.
-function eSniff(w, ps, counts, held, cds, now) {
-    var left = SNIFF_MAX - (held.sniffer || 0), lit = [];
+// Охотники этого вида: за самым ярким, у кого нет паузы и кто не в сейф-зоне, пока на поле их меньше max.
+function eHunters(w, ps, counts, held, cds, now, kind, h) {
+    var left = h.max - (held[kind] || 0), lit = [];
     for (var i = 0; i < ps.length; i++) {
         var n = counts[String(ps[i].getUUID())] || 0;
-        if (n >= SNIFF_SHARDS) lit.push([n, ps[i]]);
+        if (n >= h.shards) lit.push([n, ps[i]]);
     }
     lit.sort(function (a, b) { return b[0] - a[0]; });
     for (var k = 0; k < lit.length && left > 0; k++) {
-        var p = lit[k][1], id = String(p.getUUID());
-        if (cds["s" + id] > now || moInSanctuary(p.getX(), p.getZ())) continue;
-        var at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), SNIFF_MIN_R, SNIFF_MAX_R);
+        var p = lit[k][1], id = String(p.getUUID()), key = kind + "_" + id;
+        if (cds[key] > now || moInSanctuary(p.getX(), p.getZ())) continue;
+        var at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), h.min, h.far);
         if (at == null) continue;
-        cds["s" + id] = now + SNIFF_PAUSE;
-        eHerdSpawn(w, "sniffer", at, "sniffer", id);
+        cds[key] = now + h.pause;
+        eHerdSpawn(w, kind, at, kind, id);
         left--;
     }
 }

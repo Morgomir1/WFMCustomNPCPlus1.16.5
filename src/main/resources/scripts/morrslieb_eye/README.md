@@ -39,7 +39,7 @@
   `HUNT_DELAY` – сколько тиков Кигора не вызывают после того, как игрок набрал `MO.HUNT_MIN` осколков.
   Стадо: `HERD_ON` – 0 выключает его; `HERD_TAB` и `HERD_CLONES` – вкладка и имена клонов; `CAMPS` – стоянки `[x, z, вид, сколько, вид, сколько…]`;
   `HERD_NEAR`, `HERD_CLEAR` – игрок ближе первого будит стоянку, а если кто-то ближе второго, она не встаёт; `CAMP_EVERY`, `GUARD_EVERY` – сколько
-  тиков стоянка и сторож тайника отдыхают; охотники на свет – `HUNTERS`; шаман – `SHAMAN_CAMPS`, `SHAMAN_EVERY`.
+  тиков стоянка и сторож тайника отдыхают; охотники на свет – `HUNTERS`; случайные встречи – `PATROLS`, `PATROL_EVERY`, `PATROL_MAX` (0 выключает); шаман – `SHAMAN_CAMPS`, `SHAMAN_EVERY`.
   Товары: `GOODS` – предмет, метка, имя и описание; рог – `HORN_R`, `HORN_SEC`, `HORN_POWER`, `HORN_PAUSE`; хмель – `ALE_SIPS`, `ALE_FOOD`, `ALE_PAUSE`.
 - `kigor.js`: урон снарядами – `PROJECTILE_TAKEN` (0,05 – защита 95%), огонь не берёт; здоровье – `BASE_HP`, `HP_PER_PLAYER`, `HP_MAX`; погоня – `CHASE_SPEED` (бегущий игрок – около 0,28
   за тик); потеря следа – `LOSE_R`, `HIDE_MIN`, `LOSE_TICKS`; срока у охоты нет; `REWARD_EVERY` – как часто на всё поле падает награда (12000 = 10 минут).

@@ -47,7 +47,7 @@ var GLOBAL_CHAT = 1;
 // Стадо: зверолюды поля, herd.js. Клоны с вкладки HERD_TAB, имена — HERD_CLONES. Нет клона — одна строка в журнал, ивент идёт.
 // HERD_ON = 0 — стада нет.
 var HERD_ON = 1, HERD_TAB = 2;
-var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Гор-сторож", sniffer: "Унгор", centigor: "Центигор-загонщик",
+var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Гор-сторож", sniffer: "Унгор", pack: "Бивнегор", centigor: "Центигор-загонщик",
     harpy: "Гарпия", shaman: "Бра-шаман" };
 // Шаг стада раз в HERD_STEP тиков. Игрок ближе HERD_NEAR будит стоянку, но если кто-то ближе HERD_CLEAR, она не встаёт: на глазах никто не появляется.
 var HERD_STEP = 40, HERD_NEAR = 48, HERD_CLEAR = 20;
@@ -92,6 +92,25 @@ var HUNTERS = {
 // от него, и идёт прямо на него, как охотник, только без света. На одного игрока не чаще раза в PATROL_REST, на поле не больше PATROL_MAX отрядов.
 var PATROLS = [["ungor", 3], ["ungor", 2, "gor", 1], ["harpy", 2]];
 var PATROL_EVERY = 3600, PATROL_REST = 6000, PATROL_MIN = 25, PATROL_FAR = 35, PATROL_MAX = 3;
+// Случайные события поля: по одному за раз, раз в EV_EVERY с разбросом 20%, первое через половину срока. EV_ON = 0 выключает.
+var EV_ON = 1, EV_EVERY = 12000, EV_PICK = ["fall", "fall", "fall", "fall", "fall", "caravan", "caravan", "caravan", "ritual", "ritual"];
+// Падение осколка: в EV_FALL_MIN–EV_FALL_FAR от случайного игрока, со стражей. Стража мертва и кто-то ближе EV_TAKE — осколок разбит.
+var EV_FALL_MIN = 60, EV_FALL_FAR = 110, EV_FALL_TICKS = 3600, EV_FALL_SHARDS = 8, EV_TAKE = 4, EV_FALL_GUARD = ["ungor", 2, "gor", 1];
+// Места событий — [x, z], как у стоянок: землю под ними событие ищет от высоты игрока, на EV_GROUND вверх и вниз.
+var EV_GROUND = 24;
+// Караван: вьючный бивнегор с охраной идёт по маршруту [x, z, x, z] через поле, с ближнего к игроку конца; с него падает добыча. Дошёл — ушёл.
+var EV_ROUTES = [
+    [-484242, -36846, -484241, -37393],
+    [-484068, -36808, -484069, -37448],
+    [-483894, -36951, -484298, -37303]
+];
+var EV_CARAVAN_TICKS = 7200, EV_CARAVAN_GUARD = ["ungor", 3, "gor", 1];
+// Ритуал: EV_RIT_SHAMANS шаманов с охраной на ближнем к игроку месте [x, z], подмога каждые EV_RIT_WAVE, если рядом есть игрок. Все шаманы убиты до срока — EV_RIT_SHARDS осколков.
+// Не успели — Кигоры выходят на ближайших в EV_RIT_R и видят их EV_RIT_MARK тиков.
+var EV_RITUALS = [[-484069, -37448], [-484068, -36808], [-484189, -37118]];
+var EV_RIT_TICKS = 3600, EV_RIT_SHAMANS = 3, EV_RIT_GUARD = ["gor", 2, "ungor", 4], EV_RIT_WAVE = 600, EV_RIT_ADDS = ["ungor", 2, "tuskgor", 1];
+var EV_RIT_SHARDS = 20, EV_RIT_R = 64, EV_RIT_KIGORS = 2, EV_RIT_MARK = 1200;
+var T_EV = "mo_ev", T_EV_AT = "mo_ev_at", T_EV_END = "mo_ev_end", T_EV_KILLS = "mo_ev_kills";
 // Шаман редкий: один на всё поле, встаёт на одной из этих стоянок (номера в CAMPS), убитый сменяется не раньше чем через SHAMAN_EVERY (15 минут).
 var SHAMAN_CAMPS = [1, 5, 9, 11], SHAMAN_EVERY = 18000;
 
@@ -186,6 +205,8 @@ function eStart(w) {
     eSetLit(w, []);
     eClearOpening(w);
     w.getTempdata().remove(T_HERD);
+    eEvClose(w.getTempdata());
+    w.getTempdata().remove(T_EV_AT);
     eBroadcast(w, "§a[Око Моррслиб] §fМоррслиб открыл глаз. Собирайте осколки и сдавайте у алтаря, пока глаз открыт.");
     if (CACHES.length == 0) log("morrslieb: впиши CACHES — без тайников ивенту нечего раздавать");
 }
@@ -242,6 +263,11 @@ function eStep(w, now) {
         eHerd(w, ps, counts, now);
     } catch (err) {
         moLogOnce("herd", "стадо не встало: " + err);
+    }
+    try {
+        eEvents(w, ps, now);
+    } catch (err) {
+        moLogOnce("events", "событие поля не сработало: " + err);
     }
     eCaches(w, ps, now);
 }
@@ -560,7 +586,7 @@ function eHerdSpawn(w, kind, at, key, prey) {
     } catch (err) {
         moLogOnce("herd_" + kind, "клон стада не встал – проверь HERD_TAB и HERD_CLONES: " + err);
     }
-    if (k == null) return;
+    if (k == null) return null;
     var d = k.getStoreddata();
     d.put("herd", kind);
     d.put("herd_camp", key);
@@ -572,6 +598,200 @@ function eHerdSpawn(w, kind, at, key, prey) {
         mc.stats.respawnTime = 0;
     } catch (err) {
         moLogOnce("herd_respawn", "у клона стада не выключено возрождение: " + err);
+    }
+    return k;
+}
+
+// --- Случайные события ---
+
+function eEvRead(td) {
+    if (!td.has(T_EV)) return null;
+    var v = String(td.get(T_EV)).split(":");
+    return { kind: v[0], x: Number(v[1]), y: Number(v[2]), z: Number(v[3]), until: Number(v[4]), wave: Number(v[5]) };
+}
+
+function eEvWrite(td, ev) { td.put(T_EV, [ev.kind, ev.x, ev.y, ev.z, ev.until, ev.wave].join(":")); }
+
+function eEvClose(td) {
+    td.remove(T_EV);
+    td.remove(T_EV_END);
+    td.remove(T_EV_KILLS);
+}
+
+function eEvNear(ev) { return (Math.round(ev.x / 10) * 10) + ", " + (Math.round(ev.z / 10) * 10); }
+
+function eEvents(w, ps, now) {
+    if (EV_ON != 1) return;
+    var td = w.getTempdata();
+    if (!td.has(T_EV_AT)) {
+        td.put(T_EV_AT, String(now + EV_EVERY / 2));
+        return;
+    }
+    var ev = eEvRead(td);
+    if (ev != null) {
+        eEvStep(w, ps, ev, now);
+        return;
+    }
+    if (now < Number(td.get(T_EV_AT)) || ps.length == 0) return;
+    var begun = eEvBegin(w, ps, EV_PICK[Math.floor(Math.random() * EV_PICK.length)], now);
+    td.put(T_EV_AT, String(now + (begun ? Math.round(EV_EVERY * (0.8 + Math.random() * 0.4)) : 1200)));
+}
+
+// Начать событие около случайного игрока вне зоны. False — не вышло, Око попробует снова через минуту.
+function eEvBegin(w, ps, kind, now) {
+    var free = [];
+    for (var i = 0; i < ps.length; i++) if (!moInSanctuary(ps[i].getX(), ps[i].getZ())) free.push(ps[i]);
+    if (free.length == 0) return false;
+    var p = free[Math.floor(Math.random() * free.length)];
+    eEvClose(w.getTempdata());
+    if (kind == "fall") return eFallBegin(w, p, now);
+    if (kind == "caravan") return eCaravanBegin(w, p, now);
+    return eRitualBegin(w, p, now);
+}
+
+// Отряд события: живёт до конца события; to — куда идти, "x,z".
+function eEvSquad(w, ev, parts, rmin, rmax, key, to) {
+    for (var i = 0; i < parts.length; i += 2) {
+        for (var n = 0; n < parts[i + 1]; n++) {
+            var at = eHerdPoint(w, ev.x, ev.z, ev.y, rmin, rmax), k = at == null ? null : eHerdSpawn(w, parts[i], at, key, null);
+            if (k == null) continue;
+            k.getStoreddata().put("herd_until", String(ev.until));
+            if (to != null) k.getStoreddata().put("herd_to", to);
+        }
+    }
+}
+
+function eEvStep(w, ps, ev, now) {
+    if (ev.kind == "fall") eFallStep(w, ps, ev, now);
+    else if (ev.kind == "caravan") eCaravanStep(w, ev, now);
+    else eRitualStep(w, ps, ev, now);
+}
+
+function eFallBegin(w, p, now) {
+    var at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), EV_FALL_MIN, EV_FALL_FAR);
+    if (at == null) return false;
+    var ev = { kind: "fall", x: at[0], y: at[1], z: at[2], until: now + EV_FALL_TICKS, wave: 0 };
+    eEvWrite(w.getTempdata(), ev);
+    eEvSquad(w, ev, EV_FALL_GUARD, 3, 6, "ev_fall", null);
+    w.spawnParticle("explosion", ev.x, ev.y + 1, ev.z, 1.0, 0.5, 1.0, 0, 6);
+    eBroadcast(w, "§a[Око Моррслиб] §fС неба упал осколок Моррслиба, около " + eEvNear(ev) + ". Его сторожат.");
+    return true;
+}
+
+function eFallStep(w, ps, ev, now) {
+    eColumn(w, ev);
+    var td = w.getTempdata();
+    if (now >= ev.until) {
+        eEvClose(td);
+        eBroadcast(w, "§a[Око Моррслиб] §fУпавший осколок погас.");
+        return;
+    }
+    if (eHerdHeld(w).ev_fall > 0) return;
+    for (var i = 0; i < ps.length; i++) {
+        if (moFlat(ps[i], ev.x, ev.z) > EV_TAKE) continue;
+        moScatter(w, ev.x, ev.y, ev.z, EV_FALL_SHARDS);
+        eEvClose(td);
+        eBroadcast(w, "§a[Око Моррслиб] §f" + ps[i].getName() + " разбил упавший осколок.");
+        return;
+    }
+}
+
+function eCaravanBegin(w, p, now) {
+    var best = null, bd = 1e9;
+    for (var i = 0; i < EV_ROUTES.length; i++) {
+        var r = EV_ROUTES[i];
+        for (var s = 0; s <= 2; s += 2) {
+            var d = moFlat(p, r[s], r[s + 1]);
+            if (d < bd) {
+                bd = d;
+                best = s == 0 ? r : [r[2], r[3], r[0], r[1]];
+            }
+        }
+    }
+    var y = best == null ? null : moGround(w, best[0], best[1], p.getY(), EV_GROUND, EV_GROUND);
+    if (y == null) return false;
+    var ev = { kind: "caravan", x: best[0], y: y, z: best[1], until: now + EV_CARAVAN_TICKS, wave: 0 };
+    var to = best[2] + "," + best[3];
+    eEvWrite(w.getTempdata(), ev);
+    eEvSquad(w, ev, ["pack", 1], 0, 2, "ev_caravan", to);
+    eEvSquad(w, ev, EV_CARAVAN_GUARD, 2, 5, "ev_caravan", to);
+    eBroadcast(w, "§a[Око Моррслиб] §fЧерез поле идёт караван зверолюдов с добычей. Вышел около " + eEvNear(ev) + ".");
+    return true;
+}
+
+// Конец каравана пишет сам вьючный: его чанк может быть далеко от Ока.
+function eCaravanStep(w, ev, now) {
+    var td = w.getTempdata(), end = td.has(T_EV_END) ? String(td.get(T_EV_END)) : "";
+    if (end == "killed") {
+        eEvClose(td);
+        eBroadcast(w, "§a[Око Моррслиб] §fКараван разбит, добыча на земле.");
+    } else if (end == "left" || now >= ev.until) {
+        eEvClose(td);
+        eBroadcast(w, "§a[Око Моррслиб] §fКараван ушёл с добычей.");
+    }
+}
+
+function eRitualBegin(w, p, now) {
+    var best = null, bd = 1e9;
+    for (var i = 0; i < EV_RITUALS.length; i++) {
+        var d = moFlat(p, EV_RITUALS[i][0], EV_RITUALS[i][1]);
+        if (d < bd) {
+            bd = d;
+            best = EV_RITUALS[i];
+        }
+    }
+    var y = best == null ? null : moGround(w, best[0], best[1], p.getY(), EV_GROUND, EV_GROUND);
+    if (y == null) return false;
+    var ev = { kind: "ritual", x: best[0], y: y, z: best[1], until: now + EV_RIT_TICKS, wave: now + EV_RIT_WAVE };
+    eEvWrite(w.getTempdata(), ev);
+    eEvSquad(w, ev, ["shaman", EV_RIT_SHAMANS], 3, 6, "ev_ritual", null);
+    eEvSquad(w, ev, EV_RIT_GUARD, 5, 9, "ev_ritual", null);
+    eBroadcast(w, "§c[Око Моррслиб] §fШаманы начали ритуал около " + eEvNear(ev) + ". Убейте всех троих за " + Math.round(EV_RIT_TICKS / 1200) + " мин., или придут Кигоры.");
+    return true;
+}
+
+function eRitualStep(w, ps, ev, now) {
+    eColumn(w, ev);
+    var td = w.getTempdata(), kills = td.has(T_EV_KILLS) ? Number(td.get(T_EV_KILLS)) : 0;
+    if (kills >= EV_RIT_SHAMANS) {
+        moScatter(w, ev.x, ev.y, ev.z, EV_RIT_SHARDS);
+        eEvClose(td);
+        eBroadcast(w, "§a[Око Моррслиб] §fРитуал сорван, в круге рассыпаны осколки.");
+        return;
+    }
+    if (now >= ev.until) {
+        eEvClose(td);
+        eRitualFail(w, ps, ev);
+        return;
+    }
+    if (now < ev.wave) return;
+    ev.wave = now + EV_RIT_WAVE;
+    eEvWrite(td, ev);
+    // Подмога — только к тем, кто пришёл: без игроков рядом чанк не грузится, и клоны копились бы там до конца.
+    for (var i = 0; i < ps.length; i++) {
+        if (moFlat(ps[i], ev.x, ev.z) > HERD_NEAR) continue;
+        eEvSquad(w, ev, EV_RIT_ADDS, 5, 9, "ev_ritual", null);
+        return;
+    }
+}
+
+// Ритуал завершён: Кигоры выходят на ближайших к кругу и видят их и без света.
+function eRitualFail(w, ps, ev) {
+    eBroadcast(w, "§c[Око Моррслиб] §fРитуал завершён. Моррслиб прислал Кигоров.");
+    var near = [];
+    for (var i = 0; i < ps.length; i++) {
+        var d = moFlat(ps[i], ev.x, ev.z);
+        if (d <= EV_RIT_R && !moInSanctuary(ps[i].getX(), ps[i].getZ())) near.push([d, ps[i]]);
+    }
+    near.sort(function (a, b) { return a[0] - b[0]; });
+    for (var k = 0; k < near.length && k < EV_RIT_KIGORS; k++) {
+        var p = near[k][1], kigors = eKigors(w);
+        if (kigors.length >= MAX_KIGORS) return;
+        var at = eSummonPoint(w, p, kigors, []);
+        if (at == null) continue;
+        moMark(w, p, EV_RIT_MARK);
+        eSpawnKigor(w, { id: String(p.getUUID()), x: at[0], y: at[1], z: at[2] });
+        p.message("§cМоррслиб прислал за тобой Кигора.");
     }
 }
 

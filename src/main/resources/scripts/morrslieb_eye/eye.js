@@ -51,34 +51,42 @@ var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Го
     harpy: "Гарпия", shaman: "Бра-шаман" };
 // Шаг стада раз в HERD_STEP тиков. Игрок ближе HERD_NEAR будит стоянку, но если кто-то ближе HERD_CLEAR, она не встаёт: на глазах никто не появляется.
 var HERD_STEP = 40, HERD_NEAR = 48, HERD_CLEAR = 20;
-// Стоянки: x, z, затем пары «вид, сколько»; y — с земли. Первые 14 — места, отмеченные Антоном, остальные в промежутках между ними.
+// Стоянки: x, z, затем уровень 1–3 или пары «вид, сколько»; y — с земли. Стоянка с уровнем при каждом пробуждении берёт
+// случайный отряд своего уровня из CAMP_SQUADS, так что одно место — не всегда одна и та же драка; с парами состав один всегда.
+// Первые 14 — места, отмеченные Антоном, остальные в промежутках между ними.
 // Вокруг точки сейф-зона телепорта и CAMP_SPREAD не должны сходиться.
 var CAMPS = [
-    [-484290, -37203, "ungor", 3, "tuskgor", 1],
-    [-484189, -37118, "tuskgor", 2, "gor", 1, "ungor", 2],
-    [-484298, -37303, "ungor", 3, "gor", 1],
-    [-483937, -37265, "ungor", 2, "harpy", 2],
-    [-484056, -37232, "harpy", 3, "ungor", 1],
-    [-484241, -37393, "tuskgor", 2, "gor", 1, "ungor", 2],
-    [-483957, -37052, "ungor", 3, "tuskgor", 1],
-    [-483894, -36951, "gor", 1, "ungor", 3],
-    [-484056, -37027, "harpy", 3],
-    [-484069, -37448, "gor", 2, "ungor", 2],
-    [-484118, -36947, "tuskgor", 2, "ungor", 2],
-    [-484242, -36846, "tuskgor", 2, "gor", 1, "ungor", 2],
-    [-484277, -37025, "harpy", 3, "ungor", 1],
-    [-484068, -36808, "ungor", 4],
-    [-484062, -37340, "tuskgor", 2, "harpy", 1],
-    [-483947, -37158, "ungor", 3, "harpy", 1],
-    [-484259, -36935, "gor", 1, "tuskgor", 1, "ungor", 2],
-    [-484283, -37114, "tuskgor", 3],
-    [-484155, -36827, "ungor", 2, "harpy", 2],
-    [-484197, -36986, "gor", 2, "ungor", 1],
-    [-484093, -36877, "ungor", 4],
-    [-483975, -36989, "tuskgor", 1, "ungor", 3],
-    [-483996, -37248, "harpy", 3],
-    [-484170, -37290, "gor", 1, "tuskgor", 2, "ungor", 1]
+    [-484290, -37203, 1],
+    [-484189, -37118, 3],
+    [-484298, -37303, 2],
+    [-483937, -37265, 1],
+    [-484056, -37232, 2],
+    [-484241, -37393, 3],
+    [-483957, -37052, 1],
+    [-483894, -36951, 2],
+    [-484056, -37027, 1],
+    [-484069, -37448, 3],
+    [-484118, -36947, 2],
+    [-484242, -36846, 3],
+    [-484277, -37025, 2],
+    [-484068, -36808, 1],
+    [-484062, -37340, 2],
+    [-483947, -37158, 1],
+    [-484259, -36935, 3],
+    [-484283, -37114, 2],
+    [-484155, -36827, 1],
+    [-484197, -36986, 2],
+    [-484093, -36877, 1],
+    [-483975, -36989, 1],
+    [-483996, -37248, 1],
+    [-484170, -37290, 3]
 ];
+// Отряды стоянок по уровням: 1 — лёгкие, 2 — средние, 3 — тяжёлые. Составы — те, что раньше стояли на стоянках постоянно.
+var CAMP_SQUADS = {
+    1: [["ungor", 4], ["ungor", 3, "tuskgor", 1], ["ungor", 3, "harpy", 1], ["ungor", 2, "harpy", 2], ["harpy", 3]],
+    2: [["harpy", 3, "ungor", 1], ["gor", 1, "ungor", 3], ["tuskgor", 2, "ungor", 2], ["tuskgor", 2, "harpy", 1], ["gor", 2, "ungor", 1], ["tuskgor", 3]],
+    3: [["gor", 2, "ungor", 2], ["gor", 1, "tuskgor", 1, "ungor", 2], ["gor", 1, "tuskgor", 2, "ungor", 1], ["tuskgor", 2, "gor", 1, "ungor", 2]]
+};
 // Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут) после гибели последнего из неё.
 var CAMP_SPREAD = 6, CAMP_EVERY = 6000;
 // Горящий тайник сторожит один гор в GUARD_MIN–GUARD_MAX от него; убитый сменяется не раньше чем через GUARD_EVERY (2 минуты).
@@ -96,6 +104,9 @@ var PATROL_EVERY = 3600, PATROL_REST = 6000, PATROL_MIN = 25, PATROL_FAR = 35, P
 var EV_ON = 1, EV_EVERY = 12000, EV_PICK = ["fall", "fall", "fall", "fall", "fall", "caravan", "caravan", "caravan", "ritual", "ritual"];
 // Падение осколка: в EV_FALL_MIN–EV_FALL_FAR от случайного игрока, со стражей. Стража мертва и кто-то ближе EV_TAKE — осколок разбит.
 var EV_FALL_MIN = 60, EV_FALL_FAR = 110, EV_FALL_TICKS = 3600, EV_FALL_SHARDS = 8, EV_TAKE = 4, EV_FALL_GUARD = ["ungor", 2, "gor", 1];
+// И не дальше EV_FALL_CAMP от какой-нибудь стоянки: стоянки расставлены по всей карте, а её край — высокие горы. Без этого
+// у игрока на краю осколок со стражей падал в сотне блоков за горами, куда не дойти.
+var EV_FALL_CAMP = 50;
 // Места событий — [x, z], как у стоянок: землю под ними событие ищет от высоты игрока, на EV_GROUND вверх и вниз.
 var EV_GROUND = 24;
 // Караван: вьючный бивнегор с охраной идёт по маршруту [x, z, x, z] через поле, с ближнего к игроку конца; с него падает добыча. Дошёл — ушёл.
@@ -452,7 +463,7 @@ function eHerd(w, ps, counts, now) {
     var held = eHerdHeld(w), cds = eHerdCds(w);
     for (var i = 0; i < CAMPS.length; i++) {
         var c = CAMPS[i];
-        eWake(w, ps, held, cds, now, "c" + i, c[0], c[1], c.slice(2), 0, CAMP_SPREAD, CAMP_EVERY);
+        eWake(w, ps, held, cds, now, "c" + i, c[0], c[1], eCampSquad(c), 0, CAMP_SPREAD, CAMP_EVERY);
     }
     for (var s = 0; s < SHAMAN_CAMPS.length; s++) {
         var sc = CAMPS[SHAMAN_CAMPS[s]];
@@ -466,6 +477,13 @@ function eHerd(w, ps, counts, now) {
     for (var kind in HUNTERS) eHunters(w, ps, counts, held, cds, now, kind, HUNTERS[kind]);
     ePatrol(w, ps, held, cds, now);
     eHerdCdsWrite(w, cds, now);
+}
+
+// Отряд стоянки: случайный из её уровня или её собственные пары «вид, сколько».
+function eCampSquad(c) {
+    if (typeof c[2] != "number") return c.slice(2);
+    var pool = CAMP_SQUADS[c[2]] || [];
+    return pool.length == 0 ? [] : pool[Math.floor(Math.random() * pool.length)];
 }
 
 // Сколько живых у какой точки: стоянка и тайник заняты, пока жив хоть один их клон.
@@ -554,12 +572,28 @@ function eHunters(w, ps, counts, held, cds, now, kind, h) {
 function eHerdPoint(w, x, z, y, rmin, rmax) {
     for (var i = 0; i < 6; i++) {
         var a = Math.random() * Math.PI * 2, d = rmin + Math.random() * (rmax - rmin);
-        var px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
-        if (moInSanctuary(px, pz)) continue;
-        var g = moGround(w, px, pz, y, 8, 12);
-        if (g != null && !/water|lava/.test(String(w.getBlock(Math.floor(px), g, Math.floor(pz)).getName()))) return [px, g, pz];
+        var at = eLand(w, x + Math.cos(a) * d, z + Math.sin(a) * d, y);
+        if (at != null) return at;
     }
     return null;
+}
+
+// Суша в (x, z) у высоты y: не в сейф-зоне, не на воде и не на лаве. null — нет.
+function eLand(w, x, z, y) {
+    if (moInSanctuary(x, z)) return null;
+    var g = moGround(w, x, z, y, 8, 12);
+    if (g == null || /water|lava/.test(String(w.getBlock(Math.floor(x), g, Math.floor(z)).getName()))) return null;
+    return [x, g, z];
+}
+
+// Рядом со стоянкой — значит, на карте. Без списка стоянок края карты не знать, тогда годится любая точка.
+function eNearCamp(x, z, r) {
+    if (CAMPS.length == 0) return true;
+    for (var i = 0; i < CAMPS.length; i++) {
+        var dx = x - CAMPS[i][0], dz = z - CAMPS[i][1];
+        if (dx * dx + dz * dz <= r * r) return true;
+    }
+    return false;
 }
 
 function ePatrol(w, ps, held, cds, now) {
@@ -674,8 +708,20 @@ function eEvStep(w, ps, ev, now) {
     else eRitualStep(w, ps, ev, now);
 }
 
+// Место падения: EV_FALL_MIN–EV_FALL_FAR от игрока и рядом со стоянкой; попыток больше, чем у стада, — часть кольца за горами.
+function eFallPoint(w, p) {
+    for (var i = 0; i < 24; i++) {
+        var a = Math.random() * Math.PI * 2, d = EV_FALL_MIN + Math.random() * (EV_FALL_FAR - EV_FALL_MIN);
+        var x = p.getX() + Math.cos(a) * d, z = p.getZ() + Math.sin(a) * d;
+        if (!eNearCamp(x, z, EV_FALL_CAMP)) continue;
+        var at = eLand(w, x, z, p.getY());
+        if (at != null) return at;
+    }
+    return null;
+}
+
 function eFallBegin(w, ps, p, now) {
-    var at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), EV_FALL_MIN, EV_FALL_FAR);
+    var at = eFallPoint(w, p);
     if (at == null) return false;
     var ev = { kind: "fall", x: at[0], y: at[1], z: at[2], until: now + EV_FALL_TICKS, wave: 0 };
     eEvWrite(w.getTempdata(), ev);

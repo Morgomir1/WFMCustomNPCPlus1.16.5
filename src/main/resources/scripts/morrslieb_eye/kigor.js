@@ -44,6 +44,9 @@ var LOSE_R = 32, HIDE_MIN = 16, LOSE_TICKS = 120;
 // Пока его бьют, он не рассыпается: FIGHT_HOLD после удара игрока идёт к ближайшему светящемуся ближе FIGHT_R, хоть и не видит его.
 // Иначе в лесу стволы рвали видимость, и он пропадал посреди боя вместе со съеденным.
 var FIGHT_HOLD = 200, FIGHT_R = 48;
+// У сейф-зоны его не держат: простоял ближе ZONE_NEAR к её краю ZONE_LEAVE тиков подряд — рассыпается, кто бы его ни бил.
+// Иначе у выхода его бьют с края зоны, прячутся за край, и бой не кончается.
+var ZONE_NEAR = 4, ZONE_LEAVE = 160;
 // Шаг за тик в погоне: бегущий игрок — около 0,28, под «Скоростью II» — около 0,34. 0,37 — 7,4 блока в секунду.
 // Встаёт в CHASE_STOP от цели.
 var CHASE_SPEED = 0.37, CHASE_STOP = 3;
@@ -119,7 +122,7 @@ function init(e) {
     npc.getAi().setWalkingSpeed(0);
     npc.getStats().setImmune(3, true);
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("kigor turn: " + err); }
-    var keys = ["eye_open_until", "free_at", "was_busy", "lost", "run_seen", "sated_until", "fight_until"];
+    var keys = ["eye_open_until", "free_at", "was_busy", "lost", "run_seen", "sated_until", "fight_until", "zone_since"];
     for (var i = 0; i < keys.length; i++) kPut(npc, keys[i], 0);
     kPut(npc, "face_yaw", npc.getRotation());
     kPut(npc, "howl_seen", kHowlSignal(npc));
@@ -220,7 +223,8 @@ var VANISH_TEXT = {
     dark: "§2Кигор больше не видит твоего света и рассыпается.",
     lost: "§2Кигор потерял твой след и рассыпается.",
     off: "§2Моррслиб закрыл глаз – Кигор рассыпается.",
-    gm: "§2Кигор не видит тебя и рассыпается."
+    gm: "§2Кигор не видит тебя и рассыпается.",
+    zone: "§2Кигору надоело стоять у портала, он рассыпается."
 };
 
 // Рассыпается: добыче — строка и пауза до следующего Кигора, съеденное уходит с ним.
@@ -694,6 +698,13 @@ function tick(e) {
         kPut(npc, "run_seen", 1);
         kSetHp(npc);
     }
+    if (moInSanctuary(npc.getX(), npc.getZ(), ZONE_NEAR)) {
+        if (kNum(npc, "zone_since") == 0) kPut(npc, "zone_since", now);
+        else if (now - kNum(npc, "zone_since") >= ZONE_LEAVE) {
+            kVanish(npc, "zone");
+            return;
+        }
+    } else if (kNum(npc, "zone_since") != 0) kPut(npc, "zone_since", 0);
     var marks = moMarksRead(w);
     var held = now < kNum(npc, "sated_until") || now < kNum(npc, "fight_until");
     var t = kPrey(npc, w, marks, now);

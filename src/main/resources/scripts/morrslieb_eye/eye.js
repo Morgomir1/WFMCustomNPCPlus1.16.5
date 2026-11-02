@@ -104,6 +104,9 @@ var GOODS = {
 // Рог: союзникам в HORN_R и себе скорость и сила на HORN_SEC секунд. Откат HORN_PAUSE (5 минут) ложится на всех, кто получил
 // бафф: иначе пачка с пятью рогами дула бы по очереди и не снимала его.
 var HORN_R = 5, HORN_SEC = 60, HORN_POWER = 0, HORN_PAUSE = 6000;
+// В рог дуют HORN_BLOW тиков: скрипт видит один клик, дальше ведёт тик игрока, раз в 10 тиков, как перенос в exit.js. Идти можно, урон срывает,
+// откат при этом не тратится. Кто рядом, считается в конце.
+var HORN_BLOW = 60, T_BLOW = "mo_blow_at", T_BLOW_HP = "mo_blow_hp";
 // Хмель: ALE_SIPS глотков в мехе, каждый ALE_FOOD сытости, не чаще раза в ALE_PAUSE (10 секунд). Здоровья не даёт.
 var ALE_SIPS = 8, ALE_FOOD = 6, ALE_PAUSE = 200, ALE_LEFT = "MorrsliebSips", FOOD_MAX = 20;
 // Титул за знак.
@@ -194,6 +197,13 @@ function eStop(w, text) {
 }
 
 function tick(e) {
+    if (e.npc == null) {
+        try {
+            eBlowStep(e.player);
+        } catch (err) {
+            moLogOnce("goods", "товар не сработал: " + err);
+        }
+    }
     eBeat(e.npc != null ? e.npc.getWorld() : e.player.getWorld());
 }
 
@@ -577,11 +587,35 @@ function eAlly(p, q) {
 }
 
 function eBlow(p) {
-    var w = p.getWorld(), now = moNow(w), d = w.getStoreddata(), cds = eStampsRead(d, D_HORN), id = String(p.getUUID());
+    var w = p.getWorld(), now = moNow(w), cds = eStampsRead(w.getStoreddata(), D_HORN), id = String(p.getUUID()), td = p.getTempdata();
+    if (td.has(T_BLOW)) return;
     if (cds[id] > now) {
         p.message("§7Рог молчит ещё " + Math.ceil((cds[id] - now) / 20) + " с.");
         return;
     }
+    td.put(T_BLOW, String(now + HORN_BLOW));
+    td.put(T_BLOW_HP, String(p.getHealth()));
+    p.message("§2Рог звучит " + HORN_BLOW / 20 + " с. Урон его сорвёт.");
+    w.playSoundAt(NpcAPI.getIPos(p.getX(), p.getY(), p.getZ()), "minecraft:event.raid.horn", 2.0, 1.2);
+}
+
+function eBlowStep(p) {
+    var td = p.getTempdata();
+    if (!td.has(T_BLOW)) return;
+    var hp = Number(p.getHealth());
+    if (!p.isAlive() || hp < Number(td.get(T_BLOW_HP))) {
+        td.remove(T_BLOW);
+        p.message("§7Рог смолк: ты получил урон.");
+        return;
+    }
+    td.put(T_BLOW_HP, String(hp));
+    if (moNow(p.getWorld()) < Number(td.get(T_BLOW))) return;
+    td.remove(T_BLOW);
+    eHornBuff(p);
+}
+
+function eHornBuff(p) {
+    var w = p.getWorld(), now = moNow(w), d = w.getStoreddata(), cds = eStampsRead(d, D_HORN);
     var x = p.getX(), y = p.getY(), z = p.getZ();
     var near = w.getNearbyEntities(NpcAPI.getIPos(x, y, z), HORN_R, 1);
     for (var i = 0; i < near.length; i++) {
@@ -593,7 +627,6 @@ function eBlow(p) {
         q.message("§2Рог Моррслиба: скорость и сила на " + HORN_SEC + " с.");
     }
     eStampsWrite(d, D_HORN, cds, now);
-    w.playSoundAt(NpcAPI.getIPos(x, y, z), "minecraft:event.raid.horn", 2.0, 1.2);
     w.spawnParticle("happy_villager", x, y + 1, z, 2.0, 1.0, 2.0, 0, 40);
 }
 

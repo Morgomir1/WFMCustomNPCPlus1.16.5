@@ -103,7 +103,7 @@ var GOODS = {
 };
 // Рог: союзникам в HORN_R и себе скорость и сила на HORN_SEC секунд. Откат HORN_PAUSE (5 минут) ложится на всех, кто получил
 // бафф: иначе пачка с пятью рогами дула бы по очереди и не снимала его.
-var HORN_R = 16, HORN_SEC = 15, HORN_POWER = 0, HORN_PAUSE = 6000;
+var HORN_R = 5, HORN_SEC = 60, HORN_POWER = 0, HORN_PAUSE = 6000;
 // Хмель: ALE_SIPS глотков в мехе, каждый ALE_FOOD сытости, не чаще раза в ALE_PAUSE (10 секунд). Здоровья не даёт.
 var ALE_SIPS = 8, ALE_FOOD = 6, ALE_PAUSE = 200, ALE_LEFT = "MorrsliebSips", FOOD_MAX = 20;
 // Титул за знак.

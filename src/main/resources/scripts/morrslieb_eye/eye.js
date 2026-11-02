@@ -111,6 +111,11 @@ var EV_RITUALS = [[-484069, -37448], [-484068, -36808], [-484189, -37118]];
 var EV_RIT_TICKS = 3600, EV_RIT_SHAMANS = 3, EV_RIT_GUARD = ["gor", 2, "ungor", 4], EV_RIT_WAVE = 600, EV_RIT_ADDS = ["ungor", 2, "tuskgor", 1];
 var EV_RIT_SHARDS = 20, EV_RIT_R = 64, EV_RIT_KIGORS = 2, EV_RIT_MARK = 1200;
 var T_EV = "mo_ev", T_EV_AT = "mo_ev_at", T_EV_END = "mo_ev_end", T_EV_KILLS = "mo_ev_kills";
+// Брюннер (thief.js): за самым ярким от THIEF_MIN осколков, по одному на поле, встаёт в THIEF_NEAR–THIEF_FAR от него.
+// Цель ему — UUID игрока в данных клона.
+// На всё поле не чаще раза в THIEF_EVERY, за одним игроком — раз в THIEF_REST. THIEF_ON = 0 выключает.
+var THIEF_ON = 1, THIEF_TAB = 2, THIEF_NAME = "Брюннер", THIEF_MIN = 25, THIEF_NEAR = 24, THIEF_FAR = 32;
+var THIEF_EVERY = 6000, THIEF_REST = 12000, T_THIEF_AT = "mo_thief_at", T_THIEF_CD = "mo_thief_cd";
 // Шаман редкий: один на всё поле, встаёт на одной из этих стоянок (номера в CAMPS), убитый сменяется не раньше чем через SHAMAN_EVERY (15 минут).
 var SHAMAN_CAMPS = [1, 5, 9, 11], SHAMAN_EVERY = 18000;
 
@@ -268,6 +273,11 @@ function eStep(w, now) {
         eEvents(w, ps, now);
     } catch (err) {
         moLogOnce("events", "событие поля не сработало: " + err);
+    }
+    try {
+        eThief(w, ps, counts, now);
+    } catch (err) {
+        moLogOnce("thief_step", "Брюннер не вызван: " + err);
     }
     eCaches(w, ps, now);
 }
@@ -600,6 +610,58 @@ function eHerdSpawn(w, kind, at, key, prey) {
         moLogOnce("herd_respawn", "у клона стада не выключено возрождение: " + err);
     }
     return k;
+}
+
+// --- Брюннер ---
+
+function eThieves(w) {
+    var f = MO.FIELD, out = [];
+    var list = w.getNearbyEntities(NpcAPI.getIPos(f[0], f[1], f[2]), MO.FIELD_R, 2);
+    for (var i = 0; i < list.length; i++) if (list[i].isAlive() && list[i].getStoreddata().has("thief_prey")) out.push(list[i]);
+    return out;
+}
+
+// Вызов: самый яркий, у кого нет паузы и кто не в сейф-зоне. Пауза на поле пишется до появления: без клона
+// в клонере попытка не повторяется каждый шаг.
+function eThief(w, ps, counts, now) {
+    var td = w.getTempdata();
+    if (THIEF_ON != 1 || ps.length == 0 || (td.has(T_THIEF_AT) && now < Number(td.get(T_THIEF_AT)))) return;
+    if (eThieves(w).length > 0) return;
+    var cds = eStampsRead(td, T_THIEF_CD), best = null, bn = THIEF_MIN - 1;
+    for (var i = 0; i < ps.length; i++) {
+        var id = String(ps[i].getUUID()), n = counts[id] || 0;
+        if (n > bn && !(cds[id] > now) && !moInSanctuary(ps[i].getX(), ps[i].getZ())) {
+            bn = n;
+            best = ps[i];
+        }
+    }
+    if (best == null) return;
+    var at = eHerdPoint(w, best.getX(), best.getZ(), best.getY(), THIEF_NEAR, THIEF_FAR);
+    if (at == null) return;
+    td.put(T_THIEF_AT, String(now + THIEF_EVERY));
+    var k = null;
+    try {
+        k = w.spawnClone(at[0], at[1], at[2], THIEF_TAB, THIEF_NAME);
+    } catch (err) {
+        moLogOnce("thief", "Брюннер не вызван – проверь THIEF_TAB и THIEF_NAME: " + err);
+    }
+    if (k == null) return;
+    var who = String(best.getUUID()), d = k.getStoreddata();
+    d.put("thief_prey", who);
+    d.put("last_x", String(best.getX()));
+    d.put("last_y", String(best.getY()));
+    d.put("last_z", String(best.getZ()));
+    try {
+        var mc = k.getMCEntity();
+        mc.stats.spawnCycle = 3;
+        mc.stats.respawnTime = 0;
+    } catch (err) {
+        moLogOnce("thief_respawn", "у клона Брюннера не выключено возрождение: " + err);
+    }
+    cds[who] = now + THIEF_REST;
+    eStampsWrite(td, T_THIEF_CD, cds, now);
+    best.message("§cЗа твоими осколками пришёл Брюннер, охотник за головами.");
+    eTell(ps, "§c[Око Моррслиб] §fБрюннер вышел на охоту за осколками " + best.getName() + ".");
 }
 
 // --- Случайные события ---

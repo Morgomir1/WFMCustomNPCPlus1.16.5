@@ -32,6 +32,8 @@ var HERD = {
     shaman: { hp: 130, melee: 3, aggro: 14, speed: 4, wander: 3, casts: [SHAMAN_CURSE] }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200;
+// Поводок: обитатель дальше HERD_LEASH от дома бросает цель и идёт домой, иначе игрок уводит стоянку через всё поле.
+var HERD_LEASH = 32;
 // Шаман: раз в SHAMAN_EVERY тиков лечит стадо в SHAMAN_R на SHAMAN_HEAL здоровья, пока дерётся.
 var SHAMAN_EVERY = 120, SHAMAN_R = 10, SHAMAN_HEAL = 0.12;
 
@@ -50,6 +52,7 @@ function hSetup(npc, kind) {
     ai.setReturnsHome(kind.wander > 0);
     var id = hsFactionId(HS.FACTION_HERD);
     if (id >= 0) npc.setFaction(id);
+    else moLogOnce("herd_faction", "нет фракции " + HS.FACTION_HERD + ": стадо осталось в фракции клона");
     if (kind.name != null) npc.getDisplay().setName(kind.name);
 }
 
@@ -108,7 +111,9 @@ function hsMobExtra(npc) {
     if (kind.hunter == 1) hHunt(npc, w, hsNow(npc));
     if (id == "shaman") hShaman(npc, w, hsNow(npc));
     var t = npc.getAttackTarget();
-    if (t != null && t.typeOf(1) && moInSanctuary(t.getX(), t.getZ())) npc.setAttackTarget(null);
+    if (t == null) return;
+    var astray = kind.hunter != 1 && hsFlat(npc, npc.getHomeX(), npc.getHomeZ()) > HERD_LEASH;
+    if (astray || (t.typeOf(1) && moInSanctuary(t.getX(), t.getZ()))) npc.setAttackTarget(null);
 }
 
 function hInZone(e) {

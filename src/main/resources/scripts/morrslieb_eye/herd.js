@@ -33,7 +33,7 @@ var HERD = {
     harpy: { hp: 65, melee: 5, aggro: 10, speed: 7, wander: 12, fly: 1 },
     shaman: { hp: 165, melee: 4, aggro: 14, speed: 4, wander: 3, cast: SHAMAN_CURSE }
 };
-var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200;
+var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200, HUNT_AGGRO = 64;
 // Поводок: обитатель дальше HERD_LEASH от дома бросает цель и идёт домой, иначе игрок уводит стоянку через всё поле.
 var HERD_LEASH = 32;
 // Шаман: раз в SHAMAN_EVERY тиков лечит стадо в SHAMAN_R на SHAMAN_HEAL здоровья, пока дерётся.
@@ -62,19 +62,22 @@ function hFactionId(name) {
     return -1;
 }
 
+// Случайная встреча: обычный вид, но идёт на своего игрока, как охотник, и свет ему не нужен. Ключ ставит Око.
+function hPatrol(npc) { return hGet(npc, "herd_camp", "").indexOf("pt_") == 0; }
+
 function hSetup(npc, kind) {
-    var st = npc.getStats(), ai = npc.getAi();
+    var st = npc.getStats(), ai = npc.getAi(), patrol = hPatrol(npc), wander = patrol ? 0 : kind.wander;
     // Сама она ИИ не пересобирает: это делает setMovingType ниже.
     ai.setNavigationType(kind.fly == 1 ? 1 : 0);
     st.setMaxHealth(kind.hp);
     npc.setHealth(kind.hp);
     st.getMelee().setStrength(kind.melee);
-    st.setAggroRange(kind.aggro);
+    st.setAggroRange(patrol ? HUNT_AGGRO : kind.aggro);
     ai.setRetaliateType(0);
     ai.setWalkingSpeed(kind.speed);
-    ai.setMovingType(kind.wander > 0 ? 1 : 0);
-    if (kind.wander > 0) ai.setWanderingRange(kind.wander);
-    ai.setReturnsHome(kind.wander > 0);
+    ai.setMovingType(wander > 0 ? 1 : 0);
+    if (wander > 0) ai.setWanderingRange(wander);
+    ai.setReturnsHome(wander > 0);
     var id = hFactionId(HERD_FACTION);
     if (id >= 0) npc.setFaction(id);
     else moLogOnce("herd_faction", "нет фракции " + HERD_FACTION + ": стадо осталось в фракции клона");
@@ -86,7 +89,7 @@ function hHunt(npc, w, now) {
     var id = hGet(npc, "herd_prey", ""), p = null;
     try { p = w.getEntity(id); } catch (err) {}
     var ok = p != null && p.isAlive() && !moInSanctuary(p.getX(), p.getZ())
-        && moFlat(p, npc.getX(), npc.getZ()) <= HUNT_LOSE && moShards(p) > 0;
+        && moFlat(p, npc.getX(), npc.getZ()) <= HUNT_LOSE && (hPatrol(npc) || moShards(p) > 0);
     if (ok) {
         hPut(npc, "herd_lost", 0);
         var t = npc.getAttackTarget();
@@ -191,11 +194,12 @@ function tick(e) {
         hSetup(npc, kind);
     }
     var now = moNow(w);
-    if (kind.hunter == 1) hHunt(npc, w, now);
+    var hunts = kind.hunter == 1 || hPatrol(npc);
+    if (hunts) hHunt(npc, w, now);
     if (id == "shaman") hShaman(npc, w, now);
     var t = npc.getAttackTarget();
     if (t == null) return;
-    var astray = kind.hunter != 1 && moFlat(npc, npc.getHomeX(), npc.getHomeZ()) > HERD_LEASH;
+    var astray = !hunts && moFlat(npc, npc.getHomeX(), npc.getHomeZ()) > HERD_LEASH;
     if (astray || (t.typeOf(1) && moInSanctuary(t.getX(), t.getZ()))) npc.setAttackTarget(null);
     else hCast(npc, kind.cast, t, now);
 }

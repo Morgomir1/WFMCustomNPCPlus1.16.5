@@ -88,6 +88,10 @@ var HUNTERS = {
     sniffer: { shards: 1, max: 3, min: 24, far: 32, pause: 3600 },
     centigor: { shards: 5, max: 2, min: 32, far: 40, pause: 6000 }
 };
+// Случайные встречи: раз в PATROL_EVERY, с разбросом от половины до полутора, на случайного игрока вне зоны выходит отряд из PATROLS, в PATROL_MIN–PATROL_FAR
+// от него, и идёт прямо на него, как охотник, только без света. На одного игрока не чаще раза в PATROL_REST, на поле не больше PATROL_MAX отрядов.
+var PATROLS = [["ungor", 3], ["ungor", 2, "gor", 1], ["harpy", 2]];
+var PATROL_EVERY = 3600, PATROL_REST = 6000, PATROL_MIN = 25, PATROL_FAR = 35, PATROL_MAX = 3;
 // Шаман редкий: один на всё поле, встаёт на одной из этих стоянок (номера в CAMPS), убитый сменяется не раньше чем через SHAMAN_EVERY (15 минут).
 var SHAMAN_CAMPS = [1, 5, 9, 11], SHAMAN_EVERY = 18000;
 
@@ -434,6 +438,7 @@ function eHerd(w, ps, counts, now) {
         if (cache != null) eWake(w, ps, held, cds, now, "g" + lit[j], cache[0] + 0.5, cache[2] + 0.5, ["gor", 1], GUARD_MIN, GUARD_MAX, GUARD_EVERY);
     }
     for (var kind in HUNTERS) eHunters(w, ps, counts, held, cds, now, kind, HUNTERS[kind]);
+    ePatrol(w, ps, held, cds, now);
     eHerdCdsWrite(w, cds, now);
 }
 
@@ -524,6 +529,28 @@ function eHerdPoint(w, x, z, y, rmin, rmax) {
         if (g != null && !/water|lava/.test(String(w.getBlock(Math.floor(px), g, Math.floor(pz)).getName()))) return [px, g, pz];
     }
     return null;
+}
+
+function ePatrol(w, ps, held, cds, now) {
+    if (cds.patrol > now) return;
+    cds.patrol = now + Math.round(PATROL_EVERY * (0.5 + Math.random()));
+    var squads = 0, free = [];
+    for (var k in held) if (k.indexOf("pt_") == 0) squads++;
+    if (squads >= PATROL_MAX) return;
+    for (var i = 0; i < ps.length; i++) {
+        if (!(cds["pt_" + ps[i].getUUID()] > now) && !moInSanctuary(ps[i].getX(), ps[i].getZ())) free.push(ps[i]);
+    }
+    if (free.length == 0) return;
+    var p = free[Math.floor(Math.random() * free.length)], at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), PATROL_MIN, PATROL_FAR);
+    if (at == null || eHerdWitness(ps, at[0], at[2]) == null) return;
+    var id = String(p.getUUID()), key = "pt_" + id, squad = PATROLS[Math.floor(Math.random() * PATROLS.length)];
+    cds[key] = now + PATROL_REST;
+    for (var s = 0; s < squad.length; s += 2) {
+        for (var n = 0; n < squad[s + 1]; n++) {
+            var q = eHerdPoint(w, at[0], at[2], at[1], 0, 3);
+            if (q != null) eHerdSpawn(w, squad[s], q, key, id);
+        }
+    }
 }
 
 function eHerdSpawn(w, kind, at, key, prey) {

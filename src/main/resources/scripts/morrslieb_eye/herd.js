@@ -25,13 +25,13 @@ var SHAMAN_CURSE = { ability: "grasping_dead", cd: 200, min: 2, max: 16, shape: 
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
 // fly — летает, slow — на сколько секунд замедляет ударом.
 var HERD = {
-    ungor: { hp: 75, melee: 5, aggro: 10, speed: 5, wander: 8 },
-    tuskgor: { hp: 150, melee: 7, aggro: 8, speed: 5, wander: 10, cast: TUSK_CHARGE },
-    gor: { hp: 200, melee: 8, aggro: 12, speed: 5, wander: 3, cast: GOR_SPIN },
+    ungor: { hp: 75, melee: 5, aggro: 16, speed: 5, wander: 8 },
+    tuskgor: { hp: 150, melee: 7, aggro: 14, speed: 5, wander: 10, cast: TUSK_CHARGE },
+    gor: { hp: 200, melee: 8, aggro: 18, speed: 5, wander: 3, cast: GOR_SPIN },
     sniffer: { hp: 50, melee: 4, aggro: 64, speed: 6, wander: 0, hunter: 1, name: "Унгор-нюхач" },
     centigor: { hp: 140, melee: 7, aggro: 64, speed: 8, wander: 0, cast: CENT_CHARGE, hunter: 1, slow: 2 },
-    harpy: { hp: 65, melee: 5, aggro: 10, speed: 7, wander: 12, fly: 1 },
-    shaman: { hp: 165, melee: 4, aggro: 14, speed: 4, wander: 3, cast: SHAMAN_CURSE }
+    harpy: { hp: 65, melee: 5, aggro: 16, speed: 7, wander: 12, fly: 1 },
+    shaman: { hp: 165, melee: 4, aggro: 20, speed: 4, wander: 3, cast: SHAMAN_CURSE }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200, HUNT_AGGRO = 64;
 // Поводок: обитатель дальше HERD_LEASH от дома бросает цель и идёт домой, иначе игрок уводит стоянку через всё поле.

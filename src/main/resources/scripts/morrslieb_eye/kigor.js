@@ -787,20 +787,14 @@ function kDealt(npc, p, dmg) {
     kPut(npc, "dealt", parts.join(";"));
 }
 
-// Титул — через достижение: один раз на игрока это даёт само достижение. Класс мода берётся здесь, а не в начале
-// файла: без него на сервере не должен падать весь скрипт Кигора. Вышедший из игры титула не получает.
+// Титул — через достижение: один раз на игрока это даёт само достижение. Вышедший из игры титула не получает.
 function kTitles(npc, w) {
     var dealt = kDealtRead(npc), need = npc.getMaxHealth() * TITLE_SHARE;
     for (var id in dealt) {
         if (dealt[id] < need) continue;
         var p = null;
         try { p = w.getEntity(id); } catch (err) {}
-        if (p == null || !p.typeOf(1)) continue;
-        try {
-            if (!Java.type("wfm.common.advancements.ScriptAdvancements").grant(p.getMCEntity(), TITLE_ADV)) moLogOnce("title_adv", "нет достижения " + TITLE_ADV);
-        } catch (err) {
-            moLogOnce("title", "титул за Кигора не выдан: " + err);
-        }
+        if (p != null && p.typeOf(1)) moGrant(p, TITLE_ADV);
     }
 }
 

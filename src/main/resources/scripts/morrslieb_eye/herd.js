@@ -33,19 +33,20 @@ var GOR_THROW = { ability: "axe_throw", cd: 180, min: 6, max: 16, shape: "none",
     params: function () { return AbilityAPI.params("chargeTicks", 12, "maxRange", 16.0, "hitRadius", 1.4, "outboundTicks", 14, "holdTicks", 2, "returnTicks", 10, "arcHeight", 0.4, "damagePercent", 0.1, "effectDuration", 30, "effectAmplifier", 0); } };
 var CENT_THROW = { ability: "axe_throw", cd: 220, min: 6, max: 16, shape: "none",
     params: function () { return AbilityAPI.params("chargeTicks", 12, "maxRange", 16.0, "hitRadius", 1.4, "outboundTicks", 14, "holdTicks", 2, "returnTicks", 10, "arcHeight", 0.4, "damagePercent", 0.08, "effectDuration", 30, "effectAmplifier", 0); } };
-var HARPY_DIVE = { ability: "vampire_pounce", cd: 200, min: 4, max: 14, shape: "none",
-    params: function () { return AbilityAPI.params("chargeTicks", 12, "activeTicks", 9, "damage", 4.0, "knockback", 0.8, "landRadius", 2.2, "arcHeight", 4.0, "lifeStealPerHit", 0.0); } };
+var HARPY_DIVE = { ability: "vampire_pounce", cd: 100, min: 4, max: 14, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 12, "activeTicks", 9, "damage", 6.0, "knockback", 0.8, "landRadius", 2.8, "arcHeight", 4.0, "lifeStealPerHit", 0.0); } };
 
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
-// fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
+// range — дальность удара: CustomNPCs меряет её от ног до ног, по умолчанию 2, и игрок с мечом перебивал стадо издалека;
+// delay — тиков между ударами, по умолчанию 20. fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
 var HERD = {
-    ungor: { hp: 75, melee: 5, aggro: 16, speed: 5, wander: 8, casts: [UNGOR_THRUST] },
-    tuskgor: { hp: 150, melee: 7, aggro: 14, speed: 5, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
-    gor: { hp: 200, melee: 8, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW] },
-    sniffer: { hp: 50, melee: 4, aggro: 64, speed: 6, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
-    centigor: { hp: 140, melee: 7, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
-    harpy: { hp: 65, melee: 5, aggro: 16, speed: 7, wander: 12, casts: [HARPY_DIVE], fly: 1 },
-    shaman: { hp: 165, melee: 4, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_CURSE] },
+    ungor: { hp: 75, melee: 5, range: 3, aggro: 16, speed: 5, wander: 8, casts: [UNGOR_THRUST] },
+    tuskgor: { hp: 150, melee: 7, range: 4, aggro: 14, speed: 5, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
+    gor: { hp: 200, melee: 8, range: 4, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW] },
+    sniffer: { hp: 50, melee: 4, range: 3, aggro: 64, speed: 6, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
+    centigor: { hp: 140, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
+    harpy: { hp: 110, melee: 8, range: 4, delay: 14, aggro: 16, speed: 7, wander: 12, casts: [HARPY_DIVE], fly: 1 },
+    shaman: { hp: 165, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_CURSE] },
     pack: { hp: 300, melee: 5, aggro: 1, speed: 5, wander: 0, loot: 10, name: "Вьючный бивнегор" }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200, HUNT_AGGRO = 64;
@@ -87,6 +88,8 @@ function hSetup(npc, kind) {
     st.setMaxHealth(kind.hp);
     npc.setHealth(kind.hp);
     st.getMelee().setStrength(kind.melee);
+    if (kind.range > 0) st.getMelee().setRange(kind.range);
+    if (kind.delay > 0) st.getMelee().setDelay(kind.delay);
     st.setAggroRange(patrol ? HUNT_AGGRO : kind.aggro);
     ai.setRetaliateType(0);
     ai.setWalkingSpeed(kind.speed);

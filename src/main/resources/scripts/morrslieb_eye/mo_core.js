@@ -382,14 +382,16 @@ function moFallenLand(w, x, y, z) {
 
 // --- Охота ---
 
-function moInSanctuary(x, z) {
+// extra — на сколько блоков шире зоны смотреть, по умолчанию 0.
+function moInSanctuary(x, z, extra) {
+    var e = extra || 0, ar = MO.ALTAR_R + e, sr = MO.SAFE_R + e;
     for (var i = 0; i < MO.ALTARS.length; i++) {
         var a = MO.ALTARS[i], dx = x - (a[0] + 0.5), dz = z - (a[2] + 0.5);
-        if (dx * dx + dz * dz <= MO.ALTAR_R * MO.ALTAR_R) return true;
+        if (dx * dx + dz * dz <= ar * ar) return true;
     }
     for (var j = 0; j < MO_SAFE_POINTS.length; j++) {
         var s = MO_SAFE_POINTS[j], sx = x - s[0], sz = z - s[1];
-        if (sx * sx + sz * sz <= MO.SAFE_R * MO.SAFE_R) return true;
+        if (sx * sx + sz * sz <= sr * sr) return true;
     }
     return false;
 }

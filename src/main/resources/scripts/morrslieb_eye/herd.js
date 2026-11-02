@@ -36,17 +36,29 @@ var CENT_THROW = { ability: "axe_throw", cd: 220, min: 6, max: 16, shape: "none"
 var HARPY_DIVE = { ability: "vampire_pounce", cd: 100, min: 4, max: 14, shape: "none",
     params: function () { return AbilityAPI.params("chargeTicks", 12, "activeTicks", 9, "damage", 6.0, "knockback", 0.8, "landRadius", 2.8, "arcHeight", 4.0, "lifeStealPerHit", 0.0); } };
 
+// Бра-шаман держит дистанцию и колдует: подошедшего вплотную отталкивает и сам отскакивает, проклинает, бросает лужу порчи,
+// между ними — сгусток душ раз в 3 секунды. Сгусток бьёт обычным уроном через броню, лужа — магией, пока в ней стоят.
+var SHAMAN_REPULSE = { ability: "df_repulse", cd: 200, min: 0, max: 3, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 16, "radius", 3.5, "knockback", 1.6, "knockbackY", 0.4); } };
+var SHAMAN_RETREAT = { ability: "retreat_dash", cd: 160, min: 0, max: 4, shape: "none",
+    params: function () { return AbilityAPI.params("distance", 7.0, "chargeTicks", 5, "activeTicks", 6); } };
+var SHAMAN_POOL = { ability: "crimson_blob", cd: 240, min: 5, max: 18, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 20, "maxRange", 18.0, "landRadius", 2.5, "damage", 2.0, "damageInterval", 20, "zoneTicks", 120,
+        "effectId", "minecraft:poison", "effectDuration", 60, "effectAmplifier", 0, "zoneColor", 0xC0408020 | 0); } };
+var SHAMAN_BOLT = { ability: "ghost_soul_bolt", cd: 60, min: 4, max: 20, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 16, "maxRange", 20.0, "damage", 5.0, "knockback", 0.8, "knockbackY", 0.3, "hitRadius", 1.4, "landRadius", 2.0); } };
+
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
 // range — дальность удара: CustomNPCs меряет её от ног до ног, по умолчанию 2, и игрок с мечом перебивал стадо издалека;
 // delay — тиков между ударами, по умолчанию 20. fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
 var HERD = {
-    ungor: { hp: 75, melee: 5, range: 3, aggro: 16, speed: 5, wander: 8, casts: [UNGOR_THRUST] },
-    tuskgor: { hp: 150, melee: 7, range: 4, aggro: 14, speed: 5, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
+    ungor: { hp: 75, melee: 5, range: 3, aggro: 16, speed: 6, wander: 8, casts: [UNGOR_THRUST] },
+    tuskgor: { hp: 150, melee: 7, range: 4, aggro: 14, speed: 6, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
     gor: { hp: 200, melee: 8, range: 4, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW] },
-    sniffer: { hp: 50, melee: 4, range: 3, aggro: 64, speed: 6, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
+    sniffer: { hp: 50, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
     centigor: { hp: 140, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
-    harpy: { hp: 110, melee: 8, range: 4, delay: 14, aggro: 16, speed: 7, wander: 12, casts: [HARPY_DIVE], fly: 1 },
-    shaman: { hp: 165, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_CURSE] },
+    harpy: { hp: 110, melee: 8, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1 },
+    shaman: { hp: 165, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_REPULSE, SHAMAN_RETREAT, SHAMAN_CURSE, SHAMAN_POOL, SHAMAN_BOLT] },
     pack: { hp: 300, melee: 5, aggro: 1, speed: 5, wander: 0, loot: 10, name: "Вьючный бивнегор" }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200, HUNT_AGGRO = 64;
@@ -57,6 +69,10 @@ var SHAMAN_EVERY = 120, SHAMAN_R = 10, SHAMAN_HEAL = 0.12;
 // Имя из Global → Factions, буква в букву.
 var HERD_FACTION = "Враждебные", HERD_RED = 0xC0FF3030 | 0;
 var T_HIT = 1, T_WALK = 2, WALK_STEP = 0.3;
+// От дальнего боя и взрывов стадо получает RANGED_TAKEN урона. Резист в окне NPC тут не годится: CustomNPCs считает дальним
+// только стрелы и брошенное, а пули и копья мода снарядами не помечены. Добавочный урон чар стрелкового оружия идёт
+// от самого игрока, его узнаём по типу.
+var RANGED_TAKEN = 0.25, RANGED_TYPES = { "wfm.splitting_shot": 1, "wfm.trap_bolt": 1 };
 
 function hGet(npc, k, def) { var d = npc.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
 function hNum(npc, k) { return Number(hGet(npc, k, "0")); }
@@ -303,5 +319,17 @@ function meleeAttack(e) {
 }
 
 function damaged(e) {
-    if (hInZone(e.source)) e.setCanceled(true);
+    if (hInZone(e.source)) {
+        e.setCanceled(true);
+        return;
+    }
+    if (hRangedOrBlast(e.damageSource)) e.damage = e.damage * RANGED_TAKEN;
+}
+
+// Снаряд, как у Кигора: помечен снарядом или ударило не то, что им бросило. Взрыв — по типу урона.
+function hRangedOrBlast(ds) {
+    var type = String(ds.getType());
+    if (ds.isProjectile() || RANGED_TYPES[type] || type.indexOf("explosion") == 0) return true;
+    var hit = ds.getImmediateSource(), from = ds.getTrueSource();
+    return hit != null && from != null && String(hit.getUUID()) != String(from.getUUID());
 }

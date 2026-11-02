@@ -46,7 +46,7 @@ var GLOBAL_CHAT = 1;
 
 // Стадо: зверолюды поля, herd.js. Клоны с вкладки HERD_TAB, имена — HERD_CLONES. Нет клона — одна строка в журнал, ивент идёт.
 // HERD_ON = 0 — стада нет.
-var HERD_ON = 1, HERD_TAB = 1;
+var HERD_ON = 1, HERD_TAB = 2;
 var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Гор-сторож", sniffer: "Унгор", centigor: "Центигор-загонщик",
     harpy: "Гарпия", shaman: "Бра-шаман" };
 // Шаг стада раз в HERD_STEP тиков. Игрок ближе HERD_NEAR будит стоянку, но если кто-то ближе HERD_CLEAR, она не встаёт: на глазах никто не появляется.

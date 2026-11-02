@@ -22,16 +22,18 @@ var CENT_CHARGE = { ability: "dash", cd: 200, min: 5, max: 14, shape: "line", le
 var SHAMAN_CURSE = { ability: "grasping_dead", cd: 200, min: 2, max: 16, shape: "target", size: 3, hitAt: 40, pct: 0.18,
     params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 3.0, "effectType", "slowness", "effectAmplifier", 1); } };
 
+// hit — доля здоровья игрока за удар мимо брони, как у Кигора, только у него 45% раз в 2 секунды, а здесь удар в секунду. Кадры неуязвимости
+// остаются: сколько мобов ни бей, проходит два удара в секунду, и вся стоянка в упор бьёт примерно как один Кигор. melee — только по неигрокам.
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
 // fly — летает, slow — на сколько секунд замедляет ударом.
 var HERD = {
-    ungor: { hp: 75, melee: 5, aggro: 10, speed: 5, wander: 8 },
-    tuskgor: { hp: 150, melee: 7, aggro: 8, speed: 5, wander: 10, cast: TUSK_CHARGE },
-    gor: { hp: 200, melee: 8, aggro: 12, speed: 5, wander: 3, cast: GOR_SPIN },
-    sniffer: { hp: 50, melee: 4, aggro: 64, speed: 6, wander: 0, hunter: 1, name: "Унгор-нюхач" },
-    centigor: { hp: 140, melee: 7, aggro: 64, speed: 8, wander: 0, cast: CENT_CHARGE, hunter: 1, slow: 2 },
-    harpy: { hp: 65, melee: 5, aggro: 10, speed: 7, wander: 12, fly: 1 },
-    shaman: { hp: 165, melee: 4, aggro: 14, speed: 4, wander: 3, cast: SHAMAN_CURSE }
+    ungor: { hp: 75, melee: 5, hit: 0.06, aggro: 10, speed: 5, wander: 8 },
+    tuskgor: { hp: 150, melee: 7, hit: 0.08, aggro: 8, speed: 5, wander: 10, cast: TUSK_CHARGE },
+    gor: { hp: 200, melee: 8, hit: 0.1, aggro: 12, speed: 5, wander: 3, cast: GOR_SPIN },
+    sniffer: { hp: 50, melee: 4, hit: 0.05, aggro: 64, speed: 6, wander: 0, hunter: 1, name: "Унгор-нюхач" },
+    centigor: { hp: 140, melee: 7, hit: 0.09, aggro: 64, speed: 8, wander: 0, cast: CENT_CHARGE, hunter: 1, slow: 2 },
+    harpy: { hp: 65, melee: 5, hit: 0.06, aggro: 10, speed: 7, wander: 12, fly: 1 },
+    shaman: { hp: 165, melee: 4, hit: 0.05, aggro: 14, speed: 4, wander: 3, cast: SHAMAN_CURSE }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200;
 // Поводок: обитатель дальше HERD_LEASH от дома бросает цель и идёт домой, иначе игрок уводит стоянку через всё поле.
@@ -232,7 +234,10 @@ function meleeAttack(e) {
         return;
     }
     var kind = HERD[hGet(e.npc, "herd", "")];
-    if (kind != null && kind.slow > 0 && e.target != null && e.target.typeOf(1)) e.target.addPotionEffect(2, kind.slow, 0, false);
+    if (kind == null || e.target == null || !e.target.typeOf(1)) return;
+    e.setCanceled(true);
+    Combat.dealPureDamage(e.target, e.target.getMaxHealth() * kind.hit, false);
+    if (kind.slow > 0) e.target.addPotionEffect(2, kind.slow, 0, false);
 }
 
 function damaged(e) {

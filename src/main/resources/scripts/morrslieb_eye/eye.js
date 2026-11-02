@@ -79,7 +79,7 @@ var CAMPS = [
     [-483996, -37248, "harpy", 3],
     [-484170, -37290, "gor", 1, "tuskgor", 2, "ungor", 1]
 ];
-// Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут).
+// Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут) после гибели последнего из неё.
 var CAMP_SPREAD = 6, CAMP_EVERY = 6000;
 // Горящий тайник сторожит один гор в GUARD_MIN–GUARD_MAX от него; убитый сменяется не раньше чем через GUARD_EVERY (2 минуты).
 var GUARD_MIN = 3, GUARD_MAX = 5, GUARD_EVERY = 2400;
@@ -512,9 +512,14 @@ function eHerdWitness(ps, x, z) {
 }
 
 // Будит точку: клоны по парам parts, «вид, сколько», в rmin–rmax от неё. Пауза пишется до появления: без клона в клонере попытка
-// не повторяется каждый шаг. Точка занята или отдыхает — ничего.
+// не повторяется каждый шаг. Пока жив хоть один из точки, пауза тянется, так что отдых считается от гибели последнего,
+// а не от появления: после долгой драки точка иначе вставала снова через шаг. Точка занята или отдыхает — ничего.
 function eWake(w, ps, held, cds, now, key, x, z, parts, rmin, rmax, rest) {
-    if (held[key] > 0 || cds[key] > now) return;
+    if (held[key] > 0) {
+        cds[key] = Math.max(cds[key] || 0, now + rest);
+        return;
+    }
+    if (cds[key] > now) return;
     var p = eHerdWitness(ps, x, z);
     if (p == null) return;
     cds[key] = now + rest;

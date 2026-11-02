@@ -13,25 +13,25 @@ var Combat = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
 
 // Рывок бивнегора и центигора: полоса, задетым доля здоровья. Вращение гора: круг вокруг него. Проклятие шамана: круг на цели.
 var TUSK_CHARGE = { ability: "dash", cd: 160, min: 4, max: 12, shape: "line", len: 10, size: 1.5, hitAt: 34, pct: 0.12,
-    params: function () { return AbilityAPI.params("chargeTicks", 28, "distance", 10.0, "damage", 4.0); } };
+    params: function () { return AbilityAPI.params("chargeTicks", 28, "distance", 10.0, "damage", 5.0); } };
 var GOR_SPIN = { ability: "weapon_spin", cd: 140, min: 0, max: 4, shape: "self", size: 3.5, hitAt: 40, pct: 0.15,
-    params: function () { return AbilityAPI.params("chargeTicks", 16, "activeTicks", 24, "radius", 3.5, "damagePerTick", 1.5); } };
+    params: function () { return AbilityAPI.params("chargeTicks", 16, "activeTicks", 24, "radius", 3.5, "damagePerTick", 2.0); } };
 
 var CENT_CHARGE = { ability: "dash", cd: 200, min: 5, max: 14, shape: "line", len: 12, size: 1.5, hitAt: 34, pct: 0.15,
-    params: function () { return AbilityAPI.params("chargeTicks", 28, "distance", 12.0, "damage", 5.0); } };
+    params: function () { return AbilityAPI.params("chargeTicks", 28, "distance", 12.0, "damage", 6.0); } };
 var SHAMAN_CURSE = { ability: "grasping_dead", cd: 200, min: 2, max: 16, shape: "target", size: 3, hitAt: 40, pct: 0.18,
     params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 3.0, "effectType", "slowness", "effectAmplifier", 1); } };
 
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
 // fly — летает, slow — на сколько секунд замедляет ударом.
 var HERD = {
-    ungor: { hp: 60, melee: 4, aggro: 10, speed: 5, wander: 8 },
-    tuskgor: { hp: 120, melee: 6, aggro: 8, speed: 5, wander: 10, cast: TUSK_CHARGE },
-    gor: { hp: 160, melee: 7, aggro: 12, speed: 5, wander: 3, cast: GOR_SPIN },
-    sniffer: { hp: 40, melee: 3, aggro: 64, speed: 6, wander: 0, hunter: 1, name: "Унгор-нюхач" },
-    centigor: { hp: 110, melee: 6, aggro: 64, speed: 8, wander: 0, cast: CENT_CHARGE, hunter: 1, slow: 2 },
-    harpy: { hp: 50, melee: 4, aggro: 10, speed: 7, wander: 12, fly: 1 },
-    shaman: { hp: 130, melee: 3, aggro: 14, speed: 4, wander: 3, cast: SHAMAN_CURSE }
+    ungor: { hp: 75, melee: 5, aggro: 10, speed: 5, wander: 8 },
+    tuskgor: { hp: 150, melee: 7, aggro: 8, speed: 5, wander: 10, cast: TUSK_CHARGE },
+    gor: { hp: 200, melee: 8, aggro: 12, speed: 5, wander: 3, cast: GOR_SPIN },
+    sniffer: { hp: 50, melee: 4, aggro: 64, speed: 6, wander: 0, hunter: 1, name: "Унгор-нюхач" },
+    centigor: { hp: 140, melee: 7, aggro: 64, speed: 8, wander: 0, cast: CENT_CHARGE, hunter: 1, slow: 2 },
+    harpy: { hp: 65, melee: 5, aggro: 10, speed: 7, wander: 12, fly: 1 },
+    shaman: { hp: 165, melee: 4, aggro: 14, speed: 4, wander: 3, cast: SHAMAN_CURSE }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200;
 // Поводок: обитатель дальше HERD_LEASH от дома бросает цель и идёт домой, иначе игрок уводит стоянку через всё поле.

@@ -603,6 +603,7 @@ function eHerdSpawn(w, kind, at, key, prey) {
 }
 
 // --- Случайные события ---
+// Объявления — тем, кто на поле, как у тайников: глобальный чат остаётся за стартом и концом ивента.
 
 function eEvRead(td) {
     if (!td.has(T_EV)) return null;
@@ -644,9 +645,9 @@ function eEvBegin(w, ps, kind, now) {
     if (free.length == 0) return false;
     var p = free[Math.floor(Math.random() * free.length)];
     eEvClose(w.getTempdata());
-    if (kind == "fall") return eFallBegin(w, p, now);
-    if (kind == "caravan") return eCaravanBegin(w, p, now);
-    return eRitualBegin(w, p, now);
+    if (kind == "fall") return eFallBegin(w, ps, p, now);
+    if (kind == "caravan") return eCaravanBegin(w, ps, p, now);
+    return eRitualBegin(w, ps, p, now);
 }
 
 // Отряд события: живёт до конца события; to — куда идти, "x,z".
@@ -663,18 +664,18 @@ function eEvSquad(w, ev, parts, rmin, rmax, key, to) {
 
 function eEvStep(w, ps, ev, now) {
     if (ev.kind == "fall") eFallStep(w, ps, ev, now);
-    else if (ev.kind == "caravan") eCaravanStep(w, ev, now);
+    else if (ev.kind == "caravan") eCaravanStep(w, ps, ev, now);
     else eRitualStep(w, ps, ev, now);
 }
 
-function eFallBegin(w, p, now) {
+function eFallBegin(w, ps, p, now) {
     var at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), EV_FALL_MIN, EV_FALL_FAR);
     if (at == null) return false;
     var ev = { kind: "fall", x: at[0], y: at[1], z: at[2], until: now + EV_FALL_TICKS, wave: 0 };
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, EV_FALL_GUARD, 3, 6, "ev_fall", null);
     w.spawnParticle("explosion", ev.x, ev.y + 1, ev.z, 1.0, 0.5, 1.0, 0, 6);
-    eBroadcast(w, "§a[Око Моррслиб] §fС неба упал осколок Моррслиба, около " + eEvNear(ev) + ". Его сторожат.");
+    eTell(ps, "§a[Око Моррслиб] §fС неба упал осколок Моррслиба, около " + eEvNear(ev) + ". Его сторожат.");
     return true;
 }
 
@@ -683,7 +684,7 @@ function eFallStep(w, ps, ev, now) {
     var td = w.getTempdata();
     if (now >= ev.until) {
         eEvClose(td);
-        eBroadcast(w, "§a[Око Моррслиб] §fУпавший осколок погас.");
+        eTell(ps, "§a[Око Моррслиб] §fУпавший осколок погас.");
         return;
     }
     if (eHerdHeld(w).ev_fall > 0) return;
@@ -691,12 +692,12 @@ function eFallStep(w, ps, ev, now) {
         if (moFlat(ps[i], ev.x, ev.z) > EV_TAKE) continue;
         moScatter(w, ev.x, ev.y, ev.z, EV_FALL_SHARDS);
         eEvClose(td);
-        eBroadcast(w, "§a[Око Моррслиб] §f" + ps[i].getName() + " разбил упавший осколок.");
+        eTell(ps, "§a[Око Моррслиб] §f" + ps[i].getName() + " разбил упавший осколок.");
         return;
     }
 }
 
-function eCaravanBegin(w, p, now) {
+function eCaravanBegin(w, ps, p, now) {
     var best = null, bd = 1e9;
     for (var i = 0; i < EV_ROUTES.length; i++) {
         var r = EV_ROUTES[i];
@@ -715,23 +716,23 @@ function eCaravanBegin(w, p, now) {
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, ["pack", 1], 0, 2, "ev_caravan", to);
     eEvSquad(w, ev, EV_CARAVAN_GUARD, 2, 5, "ev_caravan", to);
-    eBroadcast(w, "§a[Око Моррслиб] §fЧерез поле идёт караван зверолюдов с добычей. Вышел около " + eEvNear(ev) + ".");
+    eTell(ps, "§a[Око Моррслиб] §fЧерез поле идёт караван зверолюдов с добычей. Вышел около " + eEvNear(ev) + ".");
     return true;
 }
 
 // Конец каравана пишет сам вьючный: его чанк может быть далеко от Ока.
-function eCaravanStep(w, ev, now) {
+function eCaravanStep(w, ps, ev, now) {
     var td = w.getTempdata(), end = td.has(T_EV_END) ? String(td.get(T_EV_END)) : "";
     if (end == "killed") {
         eEvClose(td);
-        eBroadcast(w, "§a[Око Моррслиб] §fКараван разбит, добыча на земле.");
+        eTell(ps, "§a[Око Моррслиб] §fКараван разбит, добыча на земле.");
     } else if (end == "left" || now >= ev.until) {
         eEvClose(td);
-        eBroadcast(w, "§a[Око Моррслиб] §fКараван ушёл с добычей.");
+        eTell(ps, "§a[Око Моррслиб] §fКараван ушёл с добычей.");
     }
 }
 
-function eRitualBegin(w, p, now) {
+function eRitualBegin(w, ps, p, now) {
     var best = null, bd = 1e9;
     for (var i = 0; i < EV_RITUALS.length; i++) {
         var d = moFlat(p, EV_RITUALS[i][0], EV_RITUALS[i][1]);
@@ -746,7 +747,7 @@ function eRitualBegin(w, p, now) {
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, ["shaman", EV_RIT_SHAMANS], 3, 6, "ev_ritual", null);
     eEvSquad(w, ev, EV_RIT_GUARD, 5, 9, "ev_ritual", null);
-    eBroadcast(w, "§c[Око Моррслиб] §fШаманы начали ритуал около " + eEvNear(ev) + ". Убейте всех троих за " + Math.round(EV_RIT_TICKS / 1200) + " мин., или придут Кигоры.");
+    eTell(ps, "§c[Око Моррслиб] §fШаманы начали ритуал около " + eEvNear(ev) + ". Убейте всех троих за " + Math.round(EV_RIT_TICKS / 1200) + " мин., или придут Кигоры.");
     return true;
 }
 
@@ -756,7 +757,7 @@ function eRitualStep(w, ps, ev, now) {
     if (kills >= EV_RIT_SHAMANS) {
         moScatter(w, ev.x, ev.y, ev.z, EV_RIT_SHARDS);
         eEvClose(td);
-        eBroadcast(w, "§a[Око Моррслиб] §fРитуал сорван, в круге рассыпаны осколки.");
+        eTell(ps, "§a[Око Моррслиб] §fРитуал сорван, в круге рассыпаны осколки.");
         return;
     }
     if (now >= ev.until) {
@@ -777,7 +778,7 @@ function eRitualStep(w, ps, ev, now) {
 
 // Ритуал завершён: Кигоры выходят на ближайших к кругу и видят их и без света.
 function eRitualFail(w, ps, ev) {
-    eBroadcast(w, "§c[Око Моррслиб] §fРитуал завершён. Моррслиб прислал Кигоров.");
+    eTell(ps, "§c[Око Моррслиб] §fРитуал завершён. Моррслиб прислал Кигоров.");
     var near = [];
     for (var i = 0; i < ps.length; i++) {
         var d = moFlat(ps[i], ev.x, ev.z);

@@ -51,22 +51,33 @@ var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Го
     harpy: "Гарпия", shaman: "Бра-шаман" };
 // Шаг стада раз в HERD_STEP тиков. Игрок ближе HERD_NEAR будит стоянку, но если кто-то ближе HERD_CLEAR, она не встаёт: на глазах никто не появляется.
 var HERD_STEP = 40, HERD_NEAR = 48, HERD_CLEAR = 20;
-// Стоянки на местах поля, отмеченных Антоном: x, z, вид, сколько; y — с земли. Вокруг точки сейф-зона телепорта и CAMP_SPREAD не должны сходиться.
+// Стоянки: x, z, затем пары «вид, сколько»; y — с земли. Первые 14 — места, отмеченные Антоном, остальные в промежутках между ними.
+// Вокруг точки сейф-зона телепорта и CAMP_SPREAD не должны сходиться.
 var CAMPS = [
-    [-484290, -37203, "ungor", 4],
-    [-484189, -37118, "tuskgor", 3],
-    [-484298, -37303, "ungor", 4],
-    [-483937, -37265, "ungor", 4],
-    [-484056, -37232, "harpy", 3],
-    [-484241, -37393, "tuskgor", 3],
-    [-483957, -37052, "ungor", 4],
-    [-483894, -36951, "ungor", 4],
+    [-484290, -37203, "ungor", 3, "tuskgor", 1],
+    [-484189, -37118, "tuskgor", 2, "gor", 1, "ungor", 2],
+    [-484298, -37303, "ungor", 3, "gor", 1],
+    [-483937, -37265, "ungor", 2, "harpy", 2],
+    [-484056, -37232, "harpy", 3, "ungor", 1],
+    [-484241, -37393, "tuskgor", 2, "gor", 1, "ungor", 2],
+    [-483957, -37052, "ungor", 3, "tuskgor", 1],
+    [-483894, -36951, "gor", 1, "ungor", 3],
     [-484056, -37027, "harpy", 3],
-    [-484069, -37448, "tuskgor", 3],
-    [-484118, -36947, "ungor", 4],
-    [-484242, -36846, "tuskgor", 3],
-    [-484277, -37025, "harpy", 3],
-    [-484068, -36808, "ungor", 4]
+    [-484069, -37448, "gor", 2, "ungor", 2],
+    [-484118, -36947, "tuskgor", 2, "ungor", 2],
+    [-484242, -36846, "tuskgor", 2, "gor", 1, "ungor", 2],
+    [-484277, -37025, "harpy", 3, "ungor", 1],
+    [-484068, -36808, "ungor", 4],
+    [-484062, -37340, "tuskgor", 2, "harpy", 1],
+    [-483947, -37158, "ungor", 3, "harpy", 1],
+    [-484259, -36935, "gor", 1, "tuskgor", 1, "ungor", 2],
+    [-484283, -37114, "tuskgor", 3],
+    [-484155, -36827, "ungor", 2, "harpy", 2],
+    [-484197, -36986, "gor", 2, "ungor", 1],
+    [-484093, -36877, "ungor", 4],
+    [-483975, -36989, "tuskgor", 1, "ungor", 3],
+    [-483996, -37248, "harpy", 3],
+    [-484170, -37290, "gor", 1, "tuskgor", 2, "ungor", 1]
 ];
 // Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут).
 var CAMP_SPREAD = 6, CAMP_EVERY = 6000;
@@ -401,16 +412,16 @@ function eHerd(w, ps, counts, now) {
     var held = eHerdHeld(w), cds = eHerdCds(w);
     for (var i = 0; i < CAMPS.length; i++) {
         var c = CAMPS[i];
-        eWake(w, ps, held, cds, now, "c" + i, c[0], c[1], c[2], c[3], 0, CAMP_SPREAD, CAMP_EVERY);
+        eWake(w, ps, held, cds, now, "c" + i, c[0], c[1], c.slice(2), 0, CAMP_SPREAD, CAMP_EVERY);
     }
     for (var s = 0; s < SHAMAN_CAMPS.length; s++) {
         var sc = CAMPS[SHAMAN_CAMPS[s]];
-        if (sc != null) eWake(w, ps, held, cds, now, "shaman", sc[0], sc[1], "shaman", 1, 0, CAMP_SPREAD, SHAMAN_EVERY);
+        if (sc != null) eWake(w, ps, held, cds, now, "shaman", sc[0], sc[1], ["shaman", 1], 0, CAMP_SPREAD, SHAMAN_EVERY);
     }
     var lit = eLit(w);
     for (var j = 0; j < lit.length; j++) {
         var cache = CACHES[lit[j]];
-        if (cache != null) eWake(w, ps, held, cds, now, "g" + lit[j], cache[0] + 0.5, cache[2] + 0.5, "gor", 1, GUARD_MIN, GUARD_MAX, GUARD_EVERY);
+        if (cache != null) eWake(w, ps, held, cds, now, "g" + lit[j], cache[0] + 0.5, cache[2] + 0.5, ["gor", 1], GUARD_MIN, GUARD_MAX, GUARD_EVERY);
     }
     for (var kind in HUNTERS) eHunters(w, ps, counts, held, cds, now, kind, HUNTERS[kind]);
     eHerdCdsWrite(w, cds, now);
@@ -459,16 +470,18 @@ function eHerdWitness(ps, x, z) {
     return best;
 }
 
-// Будит точку: n клонов вида kind в rmin–rmax от неё. Пауза пишется до появления: без клона в клонере попытка
+// Будит точку: клоны по парам parts, «вид, сколько», в rmin–rmax от неё. Пауза пишется до появления: без клона в клонере попытка
 // не повторяется каждый шаг. Точка занята или отдыхает — ничего.
-function eWake(w, ps, held, cds, now, key, x, z, kind, n, rmin, rmax, rest) {
+function eWake(w, ps, held, cds, now, key, x, z, parts, rmin, rmax, rest) {
     if (held[key] > 0 || cds[key] > now) return;
     var p = eHerdWitness(ps, x, z);
     if (p == null) return;
     cds[key] = now + rest;
-    for (var i = 0; i < n; i++) {
-        var at = eHerdPoint(w, x, z, p.getY(), rmin, rmax);
-        if (at != null) eHerdSpawn(w, kind, at, key, null);
+    for (var i = 0; i < parts.length; i += 2) {
+        for (var n = 0; n < parts[i + 1]; n++) {
+            var at = eHerdPoint(w, x, z, p.getY(), rmin, rmax);
+            if (at != null) eHerdSpawn(w, parts[i], at, key, null);
+        }
     }
 }
 

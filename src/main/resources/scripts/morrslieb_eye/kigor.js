@@ -34,6 +34,8 @@ var CAP = 20, OPEN_MUL = 1.5;
 var PROJECTILE_TAKEN = 0.05;
 // Таблица дропа падает раз в 10 минут на всё поле. Предел на игрока рос бы с размером пачки, а Кигор приходит сам.
 var REWARD_EVERY = 12000, D_REWARD = "mo_reward_at";
+// Титул «Выколовший Око» получают все, кто снял с него не меньше TITLE_SHARE здоровья.
+var TITLE_SHARE = 0.05, TITLE_ADV = "wfm:bosses/eye_piercer";
 // Виды урона огнём. Огонь мода — свои виды, неуязвимость NPC к огню их не закрывает.
 var FIRE_HITS = { inFire: 1, onFire: 1, lava: 1, hotFloor: 1, "wfm.burning_legion": 1, "wfm.artifact_fire": 1 };
 var SIGHT_R = 48;
@@ -765,6 +767,41 @@ function damaged(e) {
     var mul = kNow(npc) < kNum(npc, "eye_open_until") ? OPEN_MUL : 1;
     var dmg = kByProjectile(e.damageSource) ? e.damage * PROJECTILE_TAKEN : e.damage;
     e.damage = Math.min(dmg, CAP) * mul;
+    if (src != null && src.typeOf(1)) kDealt(npc, src, e.damage);
+}
+
+// Сколько снял с него каждый игрок: «uuid:урон;…».
+function kDealtRead(npc) {
+    var out = {}, parts = kGet(npc, "dealt", "").split(";");
+    for (var i = 0; i < parts.length; i++) {
+        var kv = parts[i].split(":");
+        if (kv.length == 2) out[kv[0]] = Number(kv[1]);
+    }
+    return out;
+}
+
+function kDealt(npc, p, dmg) {
+    var dealt = kDealtRead(npc), id = String(p.getUUID()), parts = [];
+    dealt[id] = (dealt[id] || 0) + dmg;
+    for (var k in dealt) parts.push(k + ":" + dealt[k].toFixed(1));
+    kPut(npc, "dealt", parts.join(";"));
+}
+
+// Титул — через достижение: один раз на игрока это даёт само достижение. Класс мода берётся здесь, а не в начале
+// файла: без него на сервере не должен падать весь скрипт Кигора. Вышедший из игры титула не получает.
+function kTitles(npc, w) {
+    var dealt = kDealtRead(npc), need = npc.getMaxHealth() * TITLE_SHARE;
+    for (var id in dealt) {
+        if (dealt[id] < need) continue;
+        var p = null;
+        try { p = w.getEntity(id); } catch (err) {}
+        if (p == null || !p.typeOf(1)) continue;
+        try {
+            if (!Java.type("wfm.common.advancements.ScriptAdvancements").grant(p.getMCEntity(), TITLE_ADV)) moLogOnce("title_adv", "нет достижения " + TITLE_ADV);
+        } catch (err) {
+            moLogOnce("title", "титул за Кигора не выдан: " + err);
+        }
+    }
 }
 
 // Таблица дропа к этому событию уже брошена, а на землю ещё не выпала: droppedItems = null её отменяет.
@@ -799,6 +836,7 @@ function died(e) {
         moSpill(w, npc.getX(), npc.getY(), npc.getZ(), moMakeShards(w, k));
         n -= k;
     }
+    kTitles(npc, w);
     var wait = kReward(e, w);
     npc.say("§2Кигор падает. Съеденный свет Моррслиба рассыпается по земле.");
     if (wait > 0) npc.say("§7Награды с него нет: Моррслиб отдаст следующую через " + wait + " мин.");

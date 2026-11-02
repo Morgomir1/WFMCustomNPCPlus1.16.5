@@ -22,11 +22,13 @@ var CENT_CHARGE = { ability: "dash", cd: 200, min: 5, max: 14, shape: "line", le
 var SHAMAN_CURSE = { ability: "grasping_dead", cd: 200, min: 2, max: 16, shape: "target", size: 3, hitAt: 40, pct: 0.18,
     params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 3.0, "effectType", "slowness", "effectAmplifier", 1); } };
 
-// Приёмы без своей фигуры: всё делает способность, shape "none". Выпад унгора, сеть нюхача, топот бивнегора, бросок топора, пике гарпии.
+// Приёмы без своей фигуры: всё делает способность, shape "none". Сеть падает со звуком верёвки, а не всплеском поплавка;
+// старый JAR CustomNPCs этот параметр пропускает строкой в журнале. Выпад унгора, сеть нюхача, топот бивнегора, бросок топора, пике гарпии.
 var UNGOR_THRUST = { ability: "stake_thrust", cd: 120, min: 1, max: 4, shape: "none",
     params: function () { return AbilityAPI.params("distance", 3.5, "chargeTicks", 8, "activeTicks", 4, "damage", 3.0, "knockback", 0.6, "hitRadius", 1.1); } };
 var SNIFFER_NET = { ability: "net_throw", cd: 400, min: 5, max: 14, shape: "none",
-    params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 2.5, "effectDuration", 30, "effectAmplifier", 2); } };
+    params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 2.5, "effectDuration", 30, "effectAmplifier", 2,
+        "landSound", "minecraft:entity.leash_knot.place"); } };
 var TUSK_STOMP = { ability: "jump_slam", cd: 240, min: 3, max: 9, shape: "none",
     params: function () { return AbilityAPI.params("chargeTicks", 14, "activeTicks", 9, "damage", 4.0, "knockback", 1.2, "landRadius", 3.0, "arcHeight", 3.0, "maxRange", 10.0); } };
 var GOR_THROW = { ability: "axe_throw", cd: 180, min: 6, max: 16, shape: "none",

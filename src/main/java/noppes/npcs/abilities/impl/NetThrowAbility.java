@@ -18,6 +18,8 @@ public final class NetThrowAbility implements CnpcAbility {
     public static final String ID = "net_throw";
     private static final String FALLBACK_PROJ = "minecraft:lead";
     private static final String WFM_NET_ITEM = "wfm:dwarf_ranger_net";
+    /** Landing sound when the script passes no {@code landSound}; kept for the scripts that already use the net. */
+    private static final String DEFAULT_LAND_SOUND = "minecraft:entity.fishing_bobber.splash";
 
     @Override
     public String getId() {
@@ -52,7 +54,8 @@ public final class NetThrowAbility implements CnpcAbility {
                 AbilityParamKeys.TELEGRAPH,
                 AbilityParamKeys.TELEGRAPH_COLOR,
                 AbilityParamKeys.SUMMON_COUNT,
-                AbilityParamKeys.SPREAD_RADIUS);
+                AbilityParamKeys.SPREAD_RADIUS,
+                AbilityParamKeys.LAND_SOUND);
     }
 
     @Override
@@ -230,17 +233,14 @@ public final class NetThrowAbility implements CnpcAbility {
         final double radius = ctx.params.getDouble(AbilityParamKeys.RADIUS, 3.5);
         final int duration = ctx.params.getInt(AbilityParamKeys.EFFECT_DURATION, 60);
         final int amplifier = ctx.params.getInt(AbilityParamKeys.EFFECT_AMPLIFIER, 3);
+        final String landSound = ctx.params.getString(AbilityParamKeys.LAND_SOUND, DEFAULT_LAND_SOUND);
 
         for (final double[] m : active.markers) {
             final double x = m[0];
             final double y = m[1];
             final double z = m[2];
             AbilityVfx.spawnNetTrail(ctx.world, x, y + 0.5, z);
-            ctx.world.playSoundAt(
-                    NpcAPI.Instance().getIPos(x, y, z),
-                    "minecraft:entity.fishing_bobber.splash",
-                    1.0F,
-                    1.0F);
+            ctx.world.playSoundAt(NpcAPI.Instance().getIPos(x, y, z), landSound, 1.0F, 1.0F);
 
             final int ensnared = WfmIntegration.ensnareAroundPoint(ctx.npc, x, y, z, radius, duration);
             if (ensnared < 0) {

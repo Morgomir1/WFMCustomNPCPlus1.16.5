@@ -79,7 +79,7 @@ var CAMPS = [
     [-483996, -37248, "harpy", 3],
     [-484170, -37290, "gor", 1, "tuskgor", 2, "ungor", 1]
 ];
-// Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут).
+// Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут) после гибели последнего из неё.
 var CAMP_SPREAD = 6, CAMP_EVERY = 6000;
 // Горящий тайник сторожит один гор в GUARD_MIN–GUARD_MAX от него; убитый сменяется не раньше чем через GUARD_EVERY (2 минуты).
 var GUARD_MIN = 3, GUARD_MAX = 5, GUARD_EVERY = 2400;
@@ -111,11 +111,6 @@ var EV_RITUALS = [[-484069, -37448], [-484068, -36808], [-484189, -37118]];
 var EV_RIT_TICKS = 3600, EV_RIT_SHAMANS = 3, EV_RIT_GUARD = ["gor", 2, "ungor", 4], EV_RIT_WAVE = 600, EV_RIT_ADDS = ["ungor", 2, "tuskgor", 1];
 var EV_RIT_SHARDS = 20, EV_RIT_R = 64, EV_RIT_KIGORS = 2, EV_RIT_MARK = 1200;
 var T_EV = "mo_ev", T_EV_AT = "mo_ev_at", T_EV_END = "mo_ev_end", T_EV_KILLS = "mo_ev_kills";
-// Брюннер (thief.js): за самым ярким от THIEF_MIN осколков, по одному на поле, встаёт в THIEF_NEAR–THIEF_FAR от него.
-// Цель ему — UUID игрока в данных клона.
-// На всё поле не чаще раза в THIEF_EVERY, за одним игроком — раз в THIEF_REST. THIEF_ON = 0 выключает.
-var THIEF_ON = 1, THIEF_TAB = 2, THIEF_NAME = "Брюннер", THIEF_MIN = 25, THIEF_NEAR = 24, THIEF_FAR = 32;
-var THIEF_EVERY = 6000, THIEF_REST = 12000, T_THIEF_AT = "mo_thief_at", T_THIEF_CD = "mo_thief_cd";
 // Шаман редкий: один на всё поле, встаёт на одной из этих стоянок (номера в CAMPS), убитый сменяется не раньше чем через SHAMAN_EVERY (15 минут).
 var SHAMAN_CAMPS = [1, 5, 9, 11], SHAMAN_EVERY = 18000;
 
@@ -273,11 +268,6 @@ function eStep(w, now) {
         eEvents(w, ps, now);
     } catch (err) {
         moLogOnce("events", "событие поля не сработало: " + err);
-    }
-    try {
-        eThief(w, ps, counts, now);
-    } catch (err) {
-        moLogOnce("thief_step", "Брюннер не вызван: " + err);
     }
     eCaches(w, ps, now);
 }
@@ -522,9 +512,14 @@ function eHerdWitness(ps, x, z) {
 }
 
 // Будит точку: клоны по парам parts, «вид, сколько», в rmin–rmax от неё. Пауза пишется до появления: без клона в клонере попытка
-// не повторяется каждый шаг. Точка занята или отдыхает — ничего.
+// не повторяется каждый шаг. Пока жив хоть один из точки, пауза тянется, так что отдых считается от гибели последнего,
+// а не от появления: после долгой драки точка иначе вставала снова через шаг. Точка занята или отдыхает — ничего.
 function eWake(w, ps, held, cds, now, key, x, z, parts, rmin, rmax, rest) {
-    if (held[key] > 0 || cds[key] > now) return;
+    if (held[key] > 0) {
+        cds[key] = Math.max(cds[key] || 0, now + rest);
+        return;
+    }
+    if (cds[key] > now) return;
     var p = eHerdWitness(ps, x, z);
     if (p == null) return;
     cds[key] = now + rest;
@@ -612,58 +607,6 @@ function eHerdSpawn(w, kind, at, key, prey) {
     return k;
 }
 
-// --- Брюннер ---
-
-function eThieves(w) {
-    var f = MO.FIELD, out = [];
-    var list = w.getNearbyEntities(NpcAPI.getIPos(f[0], f[1], f[2]), MO.FIELD_R, 2);
-    for (var i = 0; i < list.length; i++) if (list[i].isAlive() && list[i].getStoreddata().has("thief_prey")) out.push(list[i]);
-    return out;
-}
-
-// Вызов: самый яркий, у кого нет паузы и кто не в сейф-зоне. Пауза на поле пишется до появления: без клона
-// в клонере попытка не повторяется каждый шаг.
-function eThief(w, ps, counts, now) {
-    var td = w.getTempdata();
-    if (THIEF_ON != 1 || ps.length == 0 || (td.has(T_THIEF_AT) && now < Number(td.get(T_THIEF_AT)))) return;
-    if (eThieves(w).length > 0) return;
-    var cds = eStampsRead(td, T_THIEF_CD), best = null, bn = THIEF_MIN - 1;
-    for (var i = 0; i < ps.length; i++) {
-        var id = String(ps[i].getUUID()), n = counts[id] || 0;
-        if (n > bn && !(cds[id] > now) && !moInSanctuary(ps[i].getX(), ps[i].getZ())) {
-            bn = n;
-            best = ps[i];
-        }
-    }
-    if (best == null) return;
-    var at = eHerdPoint(w, best.getX(), best.getZ(), best.getY(), THIEF_NEAR, THIEF_FAR);
-    if (at == null) return;
-    td.put(T_THIEF_AT, String(now + THIEF_EVERY));
-    var k = null;
-    try {
-        k = w.spawnClone(at[0], at[1], at[2], THIEF_TAB, THIEF_NAME);
-    } catch (err) {
-        moLogOnce("thief", "Брюннер не вызван – проверь THIEF_TAB и THIEF_NAME: " + err);
-    }
-    if (k == null) return;
-    var who = String(best.getUUID()), d = k.getStoreddata();
-    d.put("thief_prey", who);
-    d.put("last_x", String(best.getX()));
-    d.put("last_y", String(best.getY()));
-    d.put("last_z", String(best.getZ()));
-    try {
-        var mc = k.getMCEntity();
-        mc.stats.spawnCycle = 3;
-        mc.stats.respawnTime = 0;
-    } catch (err) {
-        moLogOnce("thief_respawn", "у клона Брюннера не выключено возрождение: " + err);
-    }
-    cds[who] = now + THIEF_REST;
-    eStampsWrite(td, T_THIEF_CD, cds, now);
-    best.message("§cЗа твоими осколками пришёл Брюннер, охотник за головами.");
-    eTell(ps, "§c[Око Моррслиб] §fБрюннер вышел на охоту за осколками " + best.getName() + ".");
-}
-
 // --- Случайные события ---
 // Объявления — тем, кто на поле, как у тайников: глобальный чат остаётся за стартом и концом ивента.
 
@@ -681,7 +624,8 @@ function eEvClose(td) {
     td.remove(T_EV_KILLS);
 }
 
-function eEvNear(ev) { return (Math.round(ev.x / 10) * 10) + ", " + (Math.round(ev.z / 10) * 10); }
+// Точное место события, как его показывают F3 и миникарта: округлённое "около" искали в нескольких блоках от точки.
+function eEvAt(ev) { return Math.floor(ev.x) + ", " + Math.floor(ev.y) + ", " + Math.floor(ev.z); }
 
 function eEvents(w, ps, now) {
     if (EV_ON != 1) return;
@@ -737,7 +681,7 @@ function eFallBegin(w, ps, p, now) {
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, EV_FALL_GUARD, 3, 6, "ev_fall", null);
     w.spawnParticle("explosion", ev.x, ev.y + 1, ev.z, 1.0, 0.5, 1.0, 0, 6);
-    eTell(ps, "§a[Око Моррслиб] §fС неба упал осколок Моррслиба, около " + eEvNear(ev) + ". Его сторожат.");
+    eTell(ps, "§a[Око Моррслиб] §fС неба упал осколок Моррслиба в точке " + eEvAt(ev) + ". Его сторожат.");
     return true;
 }
 
@@ -778,7 +722,7 @@ function eCaravanBegin(w, ps, p, now) {
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, ["pack", 1], 0, 2, "ev_caravan", to);
     eEvSquad(w, ev, EV_CARAVAN_GUARD, 2, 5, "ev_caravan", to);
-    eTell(ps, "§a[Око Моррслиб] §fЧерез поле идёт караван зверолюдов с добычей. Вышел около " + eEvNear(ev) + ".");
+    eTell(ps, "§a[Око Моррслиб] §fЧерез поле идёт караван зверолюдов с добычей. Вышел из точки " + eEvAt(ev) + ".");
     return true;
 }
 
@@ -809,7 +753,7 @@ function eRitualBegin(w, ps, p, now) {
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, ["shaman", EV_RIT_SHAMANS], 3, 6, "ev_ritual", null);
     eEvSquad(w, ev, EV_RIT_GUARD, 5, 9, "ev_ritual", null);
-    eTell(ps, "§c[Око Моррслиб] §fШаманы начали ритуал около " + eEvNear(ev) + ". Убейте всех троих за " + Math.round(EV_RIT_TICKS / 1200) + " мин., или придут Кигоры.");
+    eTell(ps, "§c[Око Моррслиб] §fШаманы начали ритуал в точке " + eEvAt(ev) + ". Убейте всех троих за " + Math.round(EV_RIT_TICKS / 1200) + " мин., или придут Кигоры.");
     return true;
 }
 

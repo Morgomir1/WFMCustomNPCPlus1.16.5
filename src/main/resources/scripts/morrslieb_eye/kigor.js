@@ -41,6 +41,9 @@ var FIRE_HITS = { inFire: 1, onFire: 1, lava: 1, hotFloor: 1, "wfm.burning_legio
 var SIGHT_R = 48;
 // Цель в досягаемости — ближе LOSE_R и на виду дальше HIDE_MIN. Вышла из неё на LOSE_TICKS подряд, других нет — след потерян.
 var LOSE_R = 32, HIDE_MIN = 16, LOSE_TICKS = 120;
+// Пока его бьют, он не рассыпается: FIGHT_HOLD после удара игрока идёт к ближайшему светящемуся ближе FIGHT_R, хоть и не видит его.
+// Иначе в лесу стволы рвали видимость, и он пропадал посреди боя вместе со съеденным.
+var FIGHT_HOLD = 200, FIGHT_R = 48;
 // Шаг за тик в погоне: бегущий игрок — около 0,28, под «Скоростью II» — около 0,34. 0,37 — 7,4 блока в секунду.
 // Встаёт в CHASE_STOP от цели.
 var CHASE_SPEED = 0.37, CHASE_STOP = 3;
@@ -116,7 +119,7 @@ function init(e) {
     npc.getAi().setWalkingSpeed(0);
     npc.getStats().setImmune(3, true);
     try { NpcTurnHelper.apply(npc, TURN_DEG); } catch (err) { log("kigor turn: " + err); }
-    var keys = ["eye_open_until", "free_at", "was_busy", "lost", "run_seen", "sated_until"];
+    var keys = ["eye_open_until", "free_at", "was_busy", "lost", "run_seen", "sated_until", "fight_until"];
     for (var i = 0; i < keys.length; i++) kPut(npc, keys[i], 0);
     kPut(npc, "face_yaw", npc.getRotation());
     kPut(npc, "howl_seen", kHowlSignal(npc));
@@ -192,12 +195,12 @@ function kInReach(npc, p) {
 // Null — целей нет. Пока сыт, вдаль не уходит: ограбленный мог возродиться на другом конце мира.
 function kPrey(npc, w, marks, now) {
     if (kGet(npc, "hunt", "").length == 0) return null;
-    var q = kQuarry(npc, w, marks, now);
+    var q = kQuarry(npc, w, marks, now), fought = now < kNum(npc, "fight_until");
     if (q != null && kInReach(npc, q)) return q;
-    var lit = kGlowing(npc, moPlayers(w), marks, now, LOSE_R), best = null, bd = 1e9;
+    var lit = kGlowing(npc, moPlayers(w), marks, now, fought ? FIGHT_R : LOSE_R), best = null, bd = 1e9;
     for (var i = 0; i < lit.length; i++) {
         var d = moFlat(lit[i], npc.getX(), npc.getZ());
-        if (d < bd && kInReach(npc, lit[i])) { bd = d; best = lit[i]; }
+        if (d < bd && (fought || kInReach(npc, lit[i]))) { bd = d; best = lit[i]; }
     }
     if (best != null) return best;
     return now < kNum(npc, "sated_until") ? null : q;
@@ -692,15 +695,15 @@ function tick(e) {
         kSetHp(npc);
     }
     var marks = moMarksRead(w);
-    var sated = now < kNum(npc, "sated_until");
+    var held = now < kNum(npc, "sated_until") || now < kNum(npc, "fight_until");
     var t = kPrey(npc, w, marks, now);
-    if (t == null && !sated) {
+    if (t == null && !held) {
         kVanish(npc, "dark");
         return;
     }
     if (t != null) {
         if (String(t.getUUID()) != kGet(npc, "hunt", "")) kRetarget(npc, w, t);
-        kPut(npc, "lost", kInReach(npc, t) ? 0 : kNum(npc, "lost") + 10);
+        kPut(npc, "lost", kInReach(npc, t) || now < kNum(npc, "fight_until") ? 0 : kNum(npc, "lost") + 10);
         if (kNum(npc, "lost") >= LOSE_TICKS) {
             kVanish(npc, "lost");
             return;
@@ -763,6 +766,7 @@ function damaged(e) {
     if (src != null && src.typeOf(1)) {
         if (moInSanctuary(src.getX(), src.getZ())) { e.setCanceled(true); return; }
         moMark(w, src, MO.MARK_TICKS);
+        kPut(npc, "fight_until", kNow(npc) + FIGHT_HOLD);
     }
     var mul = kNow(npc) < kNum(npc, "eye_open_until") ? OPEN_MUL : 1;
     var dmg = kByProjectile(e.damageSource) ? e.damage * PROJECTILE_TAKEN : e.damage;

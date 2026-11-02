@@ -29,7 +29,7 @@ var NpcTurnHelper = Java.type("noppes.npcs.ai.NpcTurnHelper");
 
 // Здоровье при появлении.
 var BASE_HP = 1500, HP_PER_PLAYER = 75, HP_MAX = 5000;
-var CAP = 20, OPEN_MUL = 1.5;
+var CAP = 25, OPEN_MUL = 1.5;
 // Сколько урона проходит от снарядов: стрелы, пули, метательное.
 var PROJECTILE_TAKEN = 0.05;
 // Таблица дропа падает раз в 10 минут на всё поле. Предел на игрока рос бы с размером пачки, а Кигор приходит сам.
@@ -71,7 +71,7 @@ var ANIM_HOWL = "attack_roar";
 var ANIM_GAZE = "attack_gaze";
 
 // Области приёмов — прежние ×1,15: дальность и длина удара, радиусы топота, глыбы и рывка, ширина рывка.
-var PUNCH_RANGE = 9.2, PUNCH_LEN = 10.4, PUNCH_HALF = 80, PUNCH_WARN = 12, PUNCH_PCT = 0.45, PUNCH_CD = 40, PUNCH_PUSH = 2;
+var PUNCH_RANGE = 9.2, PUNCH_LEN = 10.4, PUNCH_HALF = 80, PUNCH_WARN = 12, PUNCH_PCT = 0.3, PUNCH_CD = 60, PUNCH_PUSH = 2;
 var PUNCH_RECOVER = 13;
 var STOMP_R = 11.5, STOMP_WARN = 25, STOMP_PCT = 0.45, STOMP_CD = 200, STOMP_PUSH = 3;
 var STOMP_RECOVER = 10;

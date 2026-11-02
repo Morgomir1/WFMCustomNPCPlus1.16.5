@@ -3,12 +3,14 @@
 // Ход ивента — шаг раз в 10 тиков; шаг делает первый, кто дотикал в мире ивента: Око или любой игрок. Поэтому чанк Ока
 // держать загруженным не нужно: он нужен, только когда по Оку жмут. Ивент включён, пока его не выключат.
 // ПКМ по Оку в креативе переключает ивент: вкл/выкл. Сам он не кончается, идёт пока не выключат.
-// Шифт + ПКМ в креативе — стак осколков (для сделок алтаря).
+// Шифт + ПКМ в креативе — стак осколков и по одному товару магазина (для сделок алтаря).
+// Товары магазина срабатывают по ПКМ из скрипта игрока, поэтому после конца ивента вкладка Player должна остаться.
 // Ход ивента лежит в данных мира: после рестарта Око продолжает с того же места.
 // Кто был на поле с осколками и вышел, роняет их на месте выхода (скрипт игрока, logout в mo_core.js), из мешка тоже.
 // Рестарт logout не вызывает: таких Око при следующем входе лишает осколков, на землю они уже не попадут.
 // Охота: за несущим осколки Око вызывает Кигора клоном из клонера — сначала столб света рядом с игроком, потом он.
 // Кигор не бродит по полю (иначе держать загруженными все чанки арены): живёт, пока гонится, и рассыпается.
+// Стадо: стоянки, сторожа горящих тайников, охотники на свет и шаман — тоже клоны, Око ставит их рядом с игроками, руками их не расставляют.
 
 // Кигор — клон из клонера: вкладка KIGOR_TAB, имя KIGOR_NAME. На поле его не ставить, Око вызывает его само.
 var KIGOR_TAB = 1, KIGOR_NAME = "Кигор";
@@ -42,11 +44,71 @@ var CACHE_MIN = 1, CACHE_MAX = 2, OPEN_R = 2.0, OPEN_TICKS = 80;
 // Старт и конец ивента в глобальный чат. 0 — молчать (тест). Перед боевым ивентом поставь 1.
 var GLOBAL_CHAT = 1;
 
+// Стадо: зверолюды поля, herd.js. Клоны с вкладки HERD_TAB, имена — HERD_CLONES. Нет клона — одна строка в журнал, ивент идёт.
+// HERD_ON = 0 — стада нет.
+var HERD_ON = 1, HERD_TAB = 1;
+var HERD_CLONES = { ungor: "Унгор", tuskgor: "Бивнегор", gor: "Гор-сторож", sniffer: "Унгор", centigor: "Центигор-загонщик",
+    harpy: "Гарпия", shaman: "Бра-шаман" };
+// Шаг стада раз в HERD_STEP тиков. Игрок ближе HERD_NEAR будит стоянку, но если кто-то ближе HERD_CLEAR, она не встаёт: на глазах никто не появляется.
+var HERD_STEP = 40, HERD_NEAR = 48, HERD_CLEAR = 20;
+// Стоянки между тайниками: x, z, вид, сколько; y — с земли. От телепортов и тайников дальше 40.
+var CAMPS = [
+    [-484169, -36811, "ungor", 4],
+    [-483988, -36861, "tuskgor", 3],
+    [-484295, -36942, "ungor", 4],
+    [-484184, -36987, "ungor", 4],
+    [-483900, -37036, "ungor", 4],
+    [-484264, -37075, "tuskgor", 3],
+    [-483852, -37115, "ungor", 4],
+    [-484337, -37151, "ungor", 4],
+    [-484226, -37196, "ungor", 4],
+    [-483900, -37197, "tuskgor", 3],
+    [-484149, -37271, "tuskgor", 3],
+    [-484223, -37347, "tuskgor", 3],
+    [-483999, -37349, "ungor", 4],
+    [-484002, -37198, "harpy", 3],
+    [-484002, -37037, "harpy", 3],
+    [-484060, -37300, "harpy", 3]
+];
+// Стоянка разбросана на CAMP_SPREAD от точки; перебитая встаёт не раньше чем через CAMP_EVERY (5 минут).
+var CAMP_SPREAD = 6, CAMP_EVERY = 6000;
+// Горящий тайник сторожит один гор в GUARD_MIN–GUARD_MAX от него; убитый сменяется не раньше чем через GUARD_EVERY (2 минуты).
+var GUARD_MIN = 3, GUARD_MAX = 5, GUARD_EVERY = 2400;
+// Охотники идут на свет: от shards осколков, на всё поле до max, встают в min–far от игрока, за одним игроком не чаще раза в pause.
+var HUNTERS = {
+    sniffer: { shards: 1, max: 3, min: 24, far: 32, pause: 3600 },
+    centigor: { shards: 5, max: 2, min: 32, far: 40, pause: 6000 }
+};
+// Шаман редкий: один на всё поле, встаёт на одной из этих стоянок (номера в CAMPS), убитый сменяется не раньше чем через SHAMAN_EVERY (15 минут).
+var SHAMAN_CAMPS = [1, 5, 9, 11], SHAMAN_EVERY = 18000;
+
+// Товары магазина — обычные предметы с меткой, а не скриптовый предмет CustomNPCs: тот заново пишет скрипт при каждой
+// сверке инвентаря и иногда слетает в пустой. Сменишь предмет или метку — положи в сделку алтаря новый (Шифт + ПКМ по Оку).
+var GOODS = {
+    horn: { id: "wfm:minotaur_horn", tag: "MorrsliebHorn", name: "§2Рог Моррслиба",
+        lore: ["§7ПКМ: тебе и союзникам рядом скорость и сила.", "§7Откат 5 минут."] },
+    ale: { id: "wfm:waterskin", tag: "MorrsliebAle", name: "§6Хмель Кигора",
+        lore: ["§7ПКМ: глоток утоляет голод."] },
+    sign: { id: "minecraft:paper", tag: "MorrsliebChild", name: "§aЗнак Дитя Моррслиба",
+        lore: ["§7ПКМ: титул \"Дитя Моррслиба\".", "§7Сгорает при использовании."] }
+};
+// Рог: союзникам в HORN_R и себе скорость и сила на HORN_SEC секунд. Откат HORN_PAUSE (5 минут) ложится на всех, кто получил
+// бафф: иначе пачка с пятью рогами дула бы по очереди и не снимала его.
+var HORN_R = 16, HORN_SEC = 15, HORN_POWER = 0, HORN_PAUSE = 6000;
+// Хмель: ALE_SIPS глотков в мехе, каждый ALE_FOOD сытости, не чаще раза в ALE_PAUSE (10 секунд). Здоровья не даёт.
+var ALE_SIPS = 8, ALE_FOOD = 6, ALE_PAUSE = 200, ALE_LEFT = "MorrsliebSips", FOOD_MAX = 20;
+// Титул за знак.
+var SIGN_ADV = "wfm:bosses/child_of_morrslieb";
+
 var D_LIT = "mo_lit", D_WAVE = "mo_wave_at", T_OPEN = "mo_open_", T_SUMMONS = "mo_summons";
 // В каком мире идёт ивент и когда там был последний шаг. Данные мира в CustomNPCs общие на все измерения.
 var D_WORLD = "mo_world", T_BEAT = "mo_beat:";
 // Кто на прошлом шаге был на поле с MO.HUNT_MIN осколков: новый в этом списке получает HUNT_DELAY.
 var D_READY = "mo_ready";
+// Стадо: когда следующий шаг и паузы стоянок, тайников и нюхачей: «ключ:до какого тика;…».
+var T_HERD_AT = "mo_herd_at", T_HERD = "mo_herd";
+// Товары: откат рога у каждого игрока, глотка хмеля у каждого игрока: «uuid:до какого тика;…».
+var D_HORN = "mo_horn_cd", T_ALE = "mo_ale_cd";
 
 function eGet(w, k, def) { var d = w.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
 function ePut(w, k, v) { w.getStoreddata().put(k, String(v)); }
@@ -73,13 +135,22 @@ function init(e) {
 }
 
 function interact(e) {
-    if (e.npc == null) return;   // ПКМ игрока по чему угодно — не наше
+    // ПКМ игрока, не по Оку. Скрипт игрока один на всех: сбой здесь не должен его останавливать.
+    if (e.npc == null) {
+        try {
+            eUseGood(e);
+        } catch (err) {
+            moLogOnce("goods", "товар не сработал: " + err);
+        }
+        return;
+    }
     var p = e.player, w = e.npc.getWorld();
     if (p.getGamemode() != 1) return;
     e.setCanceled(true);
     if (p.isSneaking()) {
         moGive(p, 64);
-        p.message("§7Стак осколков — для сделок алтаря.");
+        for (var key in GOODS) p.giveItem(eMakeGood(w, GOODS[key]));
+        p.message("§7Стак осколков и товары магазина — для сделок алтаря.");
         return;
     }
     if (moRunning(w)) {
@@ -98,6 +169,7 @@ function eStart(w) {
     ePut(w, D_WAVE, now + FIRST_WAVE);
     eSetLit(w, []);
     eClearOpening(w);
+    w.getTempdata().remove(T_HERD);
     eBroadcast(w, "§a[Око Моррслиб] §fМоррслиб открыл глаз. Собирайте осколки и сдавайте у алтаря, пока глаз открыт.");
     if (CACHES.length == 0) log("morrslieb: впиши CACHES — без тайников ивенту нечего раздавать");
 }
@@ -142,6 +214,12 @@ function eStep(w, now) {
     eTrack(w, ps, counts, online);
     eReady(w, ps, counts);
     eHunt(w, ps, counts, now);
+    // Сбой стада не должен останавливать ивент: упавший скрипт Ока и игроков до перезагрузки не встанет.
+    try {
+        eHerd(w, ps, counts, now);
+    } catch (err) {
+        moLogOnce("herd", "стадо не встало: " + err);
+    }
     eCaches(w, ps, now);
 }
 
@@ -313,6 +391,242 @@ function eSummonsText(summons) {
         parts.push(s.id + ":" + s.x.toFixed(2) + ":" + s.y.toFixed(2) + ":" + s.z.toFixed(2) + ":" + s.at);
     }
     return parts.join(";");
+}
+
+// --- Стадо ---
+
+// Раз в HERD_STEP: стоянки рядом с игроками, шаман, сторожа горящих тайников, охотники на свет.
+function eHerd(w, ps, counts, now) {
+    var td = w.getTempdata();
+    if (HERD_ON != 1 || ps.length == 0 || (td.has(T_HERD_AT) && now < Number(td.get(T_HERD_AT)))) return;
+    td.put(T_HERD_AT, String(now + HERD_STEP));
+    var held = eHerdHeld(w), cds = eHerdCds(w);
+    for (var i = 0; i < CAMPS.length; i++) {
+        var c = CAMPS[i];
+        eWake(w, ps, held, cds, now, "c" + i, c[0], c[1], c[2], c[3], 0, CAMP_SPREAD, CAMP_EVERY);
+    }
+    for (var s = 0; s < SHAMAN_CAMPS.length; s++) {
+        var sc = CAMPS[SHAMAN_CAMPS[s]];
+        if (sc != null) eWake(w, ps, held, cds, now, "shaman", sc[0], sc[1], "shaman", 1, 0, CAMP_SPREAD, SHAMAN_EVERY);
+    }
+    var lit = eLit(w);
+    for (var j = 0; j < lit.length; j++) {
+        var cache = CACHES[lit[j]];
+        if (cache != null) eWake(w, ps, held, cds, now, "g" + lit[j], cache[0] + 0.5, cache[2] + 0.5, "gor", 1, GUARD_MIN, GUARD_MAX, GUARD_EVERY);
+    }
+    for (var kind in HUNTERS) eHunters(w, ps, counts, held, cds, now, kind, HUNTERS[kind]);
+    eHerdCdsWrite(w, cds, now);
+}
+
+// Сколько живых у какой точки: стоянка и тайник заняты, пока жив хоть один их клон.
+function eHerdHeld(w) {
+    var f = MO.FIELD, out = {};
+    var list = w.getNearbyEntities(NpcAPI.getIPos(f[0], f[1], f[2]), MO.FIELD_R, 2);
+    for (var i = 0; i < list.length; i++) {
+        var d = list[i].getStoreddata();
+        if (!list[i].isAlive() || !d.has("herd_camp")) continue;
+        var key = String(d.get("herd_camp"));
+        out[key] = (out[key] || 0) + 1;
+    }
+    return out;
+}
+
+// Сроки в данных: «ключ:до какого тика;…». Прошедшие при записи выпадают.
+function eStampsRead(d, key) {
+    var out = {}, parts = d.has(key) ? String(d.get(key)).split(";") : [];
+    for (var i = 0; i < parts.length; i++) {
+        var kv = parts[i].split(":");
+        if (kv.length == 2) out[kv[0]] = Number(kv[1]);
+    }
+    return out;
+}
+
+function eStampsWrite(d, key, stamps, now) {
+    var parts = [];
+    for (var k in stamps) if (stamps[k] > now) parts.push(k + ":" + stamps[k]);
+    d.put(key, parts.join(";"));
+}
+
+function eHerdCds(w) { return eStampsRead(w.getTempdata(), T_HERD); }
+function eHerdCdsWrite(w, cds, now) { eStampsWrite(w.getTempdata(), T_HERD, cds, now); }
+
+// Ближайший игрок к точке, если он ближе HERD_NEAR, а ближе HERD_CLEAR никого нет: иначе null.
+function eHerdWitness(ps, x, z) {
+    var best = null, bd = HERD_NEAR;
+    for (var i = 0; i < ps.length; i++) {
+        var d = moFlat(ps[i], x, z);
+        if (d < HERD_CLEAR) return null;
+        if (d <= bd) { bd = d; best = ps[i]; }
+    }
+    return best;
+}
+
+// Будит точку: n клонов вида kind в rmin–rmax от неё. Пауза пишется до появления: без клона в клонере попытка
+// не повторяется каждый шаг. Точка занята или отдыхает — ничего.
+function eWake(w, ps, held, cds, now, key, x, z, kind, n, rmin, rmax, rest) {
+    if (held[key] > 0 || cds[key] > now) return;
+    var p = eHerdWitness(ps, x, z);
+    if (p == null) return;
+    cds[key] = now + rest;
+    for (var i = 0; i < n; i++) {
+        var at = eHerdPoint(w, x, z, p.getY(), rmin, rmax);
+        if (at != null) eHerdSpawn(w, kind, at, key, null);
+    }
+}
+
+// Охотники этого вида: за самым ярким, у кого нет паузы и кто не в сейф-зоне, пока на поле их меньше max.
+function eHunters(w, ps, counts, held, cds, now, kind, h) {
+    var left = h.max - (held[kind] || 0), lit = [];
+    for (var i = 0; i < ps.length; i++) {
+        var n = counts[String(ps[i].getUUID())] || 0;
+        if (n >= h.shards) lit.push([n, ps[i]]);
+    }
+    lit.sort(function (a, b) { return b[0] - a[0]; });
+    for (var k = 0; k < lit.length && left > 0; k++) {
+        var p = lit[k][1], id = String(p.getUUID()), key = kind + "_" + id;
+        if (cds[key] > now || moInSanctuary(p.getX(), p.getZ())) continue;
+        var at = eHerdPoint(w, p.getX(), p.getZ(), p.getY(), h.min, h.far);
+        if (at == null) continue;
+        cds[key] = now + h.pause;
+        eHerdSpawn(w, kind, at, kind, id);
+        left--;
+    }
+}
+
+// Точка на суше в rmin–rmax от (x, z), не в сейф-зоне; шесть попыток.
+function eHerdPoint(w, x, z, y, rmin, rmax) {
+    for (var i = 0; i < 6; i++) {
+        var a = Math.random() * Math.PI * 2, d = rmin + Math.random() * (rmax - rmin);
+        var px = x + Math.cos(a) * d, pz = z + Math.sin(a) * d;
+        if (moInSanctuary(px, pz)) continue;
+        var g = moGround(w, px, pz, y, 8, 12);
+        if (g != null && !/water|lava/.test(String(w.getBlock(Math.floor(px), g, Math.floor(pz)).getName()))) return [px, g, pz];
+    }
+    return null;
+}
+
+function eHerdSpawn(w, kind, at, key, prey) {
+    var k = null;
+    try {
+        k = w.spawnClone(at[0], at[1], at[2], HERD_TAB, HERD_CLONES[kind]);
+    } catch (err) {
+        moLogOnce("herd_" + kind, "клон стада не встал – проверь HERD_TAB и HERD_CLONES: " + err);
+    }
+    if (k == null) return;
+    var d = k.getStoreddata();
+    d.put("herd", kind);
+    d.put("herd_camp", key);
+    if (prey != null) d.put("herd_prey", prey);
+    // Как у Кигора: клон не встаёт после смерти, стоянку поднимет Око.
+    try {
+        var mc = k.getMCEntity();
+        mc.stats.spawnCycle = 3;
+        mc.stats.respawnTime = 0;
+    } catch (err) {
+        moLogOnce("herd_respawn", "у клона стада не выключено возрождение: " + err);
+    }
+}
+
+// --- Товары магазина ---
+
+function eMakeGood(w, good) {
+    var it = w.createItem(good.id, 1);
+    it.setCustomName(good.name);
+    it.setLore(good.lore);
+    it.getNbt().setBoolean(good.tag, true);
+    return it;
+}
+
+// ПКМ по воздуху и по блоку; по сущности — нет: это торговец, игрок или NPC. Сработавший предмет отменяет своё обычное действие.
+function eUseGood(e) {
+    var p = e.player, it = p.getMainhandItem();
+    if (e.type == 1 || it == null || it.isEmpty() || !it.hasNbt()) return;
+    var nbt = it.getNbt();
+    if (nbt.getBoolean(GOODS.horn.tag)) {
+        e.setCanceled(true);
+        eBlow(p);
+    } else if (nbt.getBoolean(GOODS.ale.tag)) {
+        e.setCanceled(true);
+        eSip(p, it);
+    } else if (nbt.getBoolean(GOODS.sign.tag)) {
+        e.setCanceled(true);
+        eSign(p, it);
+    }
+}
+
+// Союзник — по правилу WFM: то же братство или та же сторона. Класса нет — рог даёт только самому.
+function eAlly(p, q) {
+    if (String(p.getUUID()) == String(q.getUUID())) return true;
+    try {
+        return Java.type("wfm.common.artifact.ability.ArtifactAbilityCombat").isAllyPlayer(p.getMCEntity(), q.getMCEntity());
+    } catch (err) {
+        moLogOnce("ally", "союзники рога не определены: " + err);
+        return false;
+    }
+}
+
+function eBlow(p) {
+    var w = p.getWorld(), now = moNow(w), d = w.getStoreddata(), cds = eStampsRead(d, D_HORN), id = String(p.getUUID());
+    if (cds[id] > now) {
+        p.message("§7Рог молчит ещё " + Math.ceil((cds[id] - now) / 20) + " с.");
+        return;
+    }
+    var x = p.getX(), y = p.getY(), z = p.getZ();
+    var near = w.getNearbyEntities(NpcAPI.getIPos(x, y, z), HORN_R, 1);
+    for (var i = 0; i < near.length; i++) {
+        var q = near[i], qid = String(q.getUUID());
+        if (!q.isAlive() || q.getGamemode() == 3 || moFlat(q, x, z) > HORN_R || cds[qid] > now || !eAlly(p, q)) continue;
+        q.addPotionEffect(1, HORN_SEC, HORN_POWER, false);
+        q.addPotionEffect(5, HORN_SEC, HORN_POWER, false);
+        cds[qid] = now + HORN_PAUSE;
+        q.message("§2Рог Моррслиба: скорость и сила на " + HORN_SEC + " с.");
+    }
+    eStampsWrite(d, D_HORN, cds, now);
+    w.playSoundAt(NpcAPI.getIPos(x, y, z), "minecraft:event.raid.horn", 2.0, 1.2);
+    w.spawnParticle("happy_villager", x, y + 1, z, 2.0, 1.0, 2.0, 0, 40);
+}
+
+function eSip(p, it) {
+    var w = p.getWorld(), now = moNow(w), td = w.getTempdata(), cds = eStampsRead(td, T_ALE), id = String(p.getUUID());
+    if (p.getHunger() >= FOOD_MAX || cds[id] > now) return;
+    p.setHunger(Math.min(FOOD_MAX, p.getHunger() + ALE_FOOD));
+    cds[id] = now + ALE_PAUSE;
+    eStampsWrite(td, T_ALE, cds, now);
+    var nbt = it.getNbt(), left = (nbt.has(ALE_LEFT) ? nbt.getInteger(ALE_LEFT) : ALE_SIPS) - 1;
+    // Глотки считаются на один мех: из стопки он выходит отдельным предметом, остальные остаются полными.
+    if (it.getStackSize() > 1) {
+        var one = it.copy();
+        it.setStackSize(it.getStackSize() - 1);
+        if (left > 0) {
+            one.setStackSize(1);
+            eAleMark(one, left);
+            if (!p.giveItem(one)) moSpill(w, p.getX(), p.getY(), p.getZ(), one);
+        }
+    } else if (left > 0) {
+        eAleMark(it, left);
+    } else {
+        it.setStackSize(0);
+    }
+    p.updatePlayerInventory();
+    w.playSoundAt(NpcAPI.getIPos(p.getX(), p.getY(), p.getZ()), "minecraft:entity.generic.drink", 1.0, 0.8);
+}
+
+function eAleMark(it, left) {
+    it.getNbt().setInteger(ALE_LEFT, left);
+    it.setLore(GOODS.ale.lore.concat(["§7Глотков: " + left + " из " + ALE_SIPS + "."]));
+}
+
+// Знак сгорает только тогда, когда титул выдан: иначе на старом JAR мода он пропал бы даром. Передавать его незачем:
+// титул получает тот, кто использовал.
+function eSign(p, it) {
+    if (p.hasAdvancement(SIGN_ADV)) {
+        p.message("§7Этот титул у тебя уже есть.");
+        return;
+    }
+    if (!moGrant(p, SIGN_ADV)) return;
+    it.setStackSize(it.getStackSize() - 1);
+    p.updatePlayerInventory();
+    p.message("§aТитул \"Дитя Моррслиба\" открыт: выбери его в меню титулов.");
 }
 
 // Волна: загораются до WAVE_SIZE тёмных тайников; Кигор, если жив, воет (сигнал через данные мира).

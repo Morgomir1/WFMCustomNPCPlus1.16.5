@@ -16,6 +16,8 @@
 // Пожиратель душ: удары осколков не отнимают, но убитый им игрок отдаёт ему все (moKigorLoot); съеденное копится,
 // убитый Кигор роняет всё, рассыпавшийся уносит с собой. Убив игрока с осколками, ещё MO.SATED_TICKS не рассыпается,
 // даже если целей нет: за это время его можно убить и вернуть съеденное.
+// Награда за убийство — таблица дропа клона, настраивается в игре: падает с одного Кигора на всё поле раз в REWARD_EVERY,
+// остальные роняют только съеденное.
 // Снаряды почти не берут его (PROJECTILE_TAKEN), огонь не берёт совсем.
 // Без добычи (поставлен руками, чтобы настроить и сохранить в клонер) стоит и ничего не делает. Ивент выключили —
 // охотник рассыпается. Съеденное роняет только убитый.
@@ -30,6 +32,10 @@ var BASE_HP = 1500, HP_PER_PLAYER = 75, HP_MAX = 5000;
 var CAP = 20, OPEN_MUL = 1.5;
 // Сколько урона проходит от снарядов: стрелы, пули, метательное.
 var PROJECTILE_TAKEN = 0.05;
+// Таблица дропа падает раз в 10 минут на всё поле. Предел на игрока рос бы с размером пачки, а Кигор приходит сам.
+var REWARD_EVERY = 12000, D_REWARD = "mo_reward_at";
+// Титул «Выколовший Око» получают все, кто снял с него не меньше TITLE_SHARE здоровья.
+var TITLE_SHARE = 0.05, TITLE_ADV = "wfm:bosses/eye_piercer";
 // Виды урона огнём. Огонь мода — свои виды, неуязвимость NPC к огню их не закрывает.
 var FIRE_HITS = { inFire: 1, onFire: 1, lava: 1, hotFloor: 1, "wfm.burning_legion": 1, "wfm.artifact_fire": 1 };
 var SIGHT_R = 48;
@@ -761,6 +767,49 @@ function damaged(e) {
     var mul = kNow(npc) < kNum(npc, "eye_open_until") ? OPEN_MUL : 1;
     var dmg = kByProjectile(e.damageSource) ? e.damage * PROJECTILE_TAKEN : e.damage;
     e.damage = Math.min(dmg, CAP) * mul;
+    if (src != null && src.typeOf(1)) kDealt(npc, src, e.damage);
+}
+
+// Сколько снял с него каждый игрок: «uuid:урон;…».
+function kDealtRead(npc) {
+    var out = {}, parts = kGet(npc, "dealt", "").split(";");
+    for (var i = 0; i < parts.length; i++) {
+        var kv = parts[i].split(":");
+        if (kv.length == 2) out[kv[0]] = Number(kv[1]);
+    }
+    return out;
+}
+
+function kDealt(npc, p, dmg) {
+    var dealt = kDealtRead(npc), id = String(p.getUUID()), parts = [];
+    dealt[id] = (dealt[id] || 0) + dmg;
+    for (var k in dealt) parts.push(k + ":" + dealt[k].toFixed(1));
+    kPut(npc, "dealt", parts.join(";"));
+}
+
+// Титул — через достижение: один раз на игрока это даёт само достижение. Вышедший из игры титула не получает.
+function kTitles(npc, w) {
+    var dealt = kDealtRead(npc), need = npc.getMaxHealth() * TITLE_SHARE;
+    for (var id in dealt) {
+        if (dealt[id] < need) continue;
+        var p = null;
+        try { p = w.getEntity(id); } catch (err) {}
+        if (p != null && p.typeOf(1)) moGrant(p, TITLE_ADV);
+    }
+}
+
+// Таблица дропа к этому событию уже брошена, а на землю ещё не выпала: droppedItems = null её отменяет.
+// Возвращает, через сколько минут следующая награда; 0 — эта выпала. Пустой бросок предела не тратит.
+function kReward(e, w) {
+    var d = w.getStoreddata(), now = moNow(w);
+    var at = d.has(D_REWARD) ? Number(d.get(D_REWARD)) : 0;
+    if (now < at) {
+        e.droppedItems = null;
+        e.expDropped = 0;
+        return Math.ceil((at - now) / 1200);
+    }
+    if (e.droppedItems != null && e.droppedItems.length > 0) d.put(D_REWARD, String(now + REWARD_EVERY));
+    return 0;
 }
 
 // Роняет всё, что забрал у убитых: горстями, чтобы разлетелось. Добыче — пауза до следующего Кигора.
@@ -781,5 +830,8 @@ function died(e) {
         moSpill(w, npc.getX(), npc.getY(), npc.getZ(), moMakeShards(w, k));
         n -= k;
     }
+    kTitles(npc, w);
+    var wait = kReward(e, w);
     npc.say("§2Кигор падает. Съеденный свет Моррслиба рассыпается по земле.");
+    if (wait > 0) npc.say("§7Награды с него нет: Моррслиб отдаст следующую через " + wait + " мин.");
 }

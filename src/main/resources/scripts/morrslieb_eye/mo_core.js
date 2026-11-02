@@ -83,6 +83,18 @@ function moPlayers(world) {
     return out;
 }
 
+// Достижение через класс мода: у API скриптов выдачи нет, а команде нужны включённые командные блоки. Класс берётся здесь,
+// а не в начале файла: без него на сервере скрипт не должен падать. Возвращает, выдано ли.
+function moGrant(p, id) {
+    try {
+        if (Java.type("wfm.common.advancements.ScriptAdvancements").grant(p.getMCEntity(), id)) return true;
+        moLogOnce("adv", "нет достижения " + id);
+    } catch (err) {
+        moLogOnce("adv", "достижение не выдано: " + err);
+    }
+    return false;
+}
+
 // --- Осколки ---
 
 function moIsShard(item) {

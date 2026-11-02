@@ -624,7 +624,8 @@ function eEvClose(td) {
     td.remove(T_EV_KILLS);
 }
 
-function eEvNear(ev) { return (Math.round(ev.x / 10) * 10) + ", " + (Math.round(ev.z / 10) * 10); }
+// Точное место события, как его показывают F3 и миникарта: округлённое "около" искали в нескольких блоках от точки.
+function eEvAt(ev) { return Math.floor(ev.x) + ", " + Math.floor(ev.y) + ", " + Math.floor(ev.z); }
 
 function eEvents(w, ps, now) {
     if (EV_ON != 1) return;
@@ -680,7 +681,7 @@ function eFallBegin(w, ps, p, now) {
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, EV_FALL_GUARD, 3, 6, "ev_fall", null);
     w.spawnParticle("explosion", ev.x, ev.y + 1, ev.z, 1.0, 0.5, 1.0, 0, 6);
-    eTell(ps, "§a[Око Моррслиб] §fС неба упал осколок Моррслиба, около " + eEvNear(ev) + ". Его сторожат.");
+    eTell(ps, "§a[Око Моррслиб] §fС неба упал осколок Моррслиба в точке " + eEvAt(ev) + ". Его сторожат.");
     return true;
 }
 
@@ -721,7 +722,7 @@ function eCaravanBegin(w, ps, p, now) {
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, ["pack", 1], 0, 2, "ev_caravan", to);
     eEvSquad(w, ev, EV_CARAVAN_GUARD, 2, 5, "ev_caravan", to);
-    eTell(ps, "§a[Око Моррслиб] §fЧерез поле идёт караван зверолюдов с добычей. Вышел около " + eEvNear(ev) + ".");
+    eTell(ps, "§a[Око Моррслиб] §fЧерез поле идёт караван зверолюдов с добычей. Вышел из точки " + eEvAt(ev) + ".");
     return true;
 }
 
@@ -752,7 +753,7 @@ function eRitualBegin(w, ps, p, now) {
     eEvWrite(w.getTempdata(), ev);
     eEvSquad(w, ev, ["shaman", EV_RIT_SHAMANS], 3, 6, "ev_ritual", null);
     eEvSquad(w, ev, EV_RIT_GUARD, 5, 9, "ev_ritual", null);
-    eTell(ps, "§c[Око Моррслиб] §fШаманы начали ритуал около " + eEvNear(ev) + ". Убейте всех троих за " + Math.round(EV_RIT_TICKS / 1200) + " мин., или придут Кигоры.");
+    eTell(ps, "§c[Око Моррслиб] §fШаманы начали ритуал в точке " + eEvAt(ev) + ". Убейте всех троих за " + Math.round(EV_RIT_TICKS / 1200) + " мин., или придут Кигоры.");
     return true;
 }
 

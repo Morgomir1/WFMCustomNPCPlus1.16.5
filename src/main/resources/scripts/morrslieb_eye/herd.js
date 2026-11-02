@@ -22,16 +22,31 @@ var CENT_CHARGE = { ability: "dash", cd: 200, min: 5, max: 14, shape: "line", le
 var SHAMAN_CURSE = { ability: "grasping_dead", cd: 200, min: 2, max: 16, shape: "target", size: 3, hitAt: 40, pct: 0.18,
     params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 3.0, "effectType", "slowness", "effectAmplifier", 1); } };
 
+// Приёмы без своей фигуры: всё делает способность, shape "none". Выпад унгора, сеть нюхача, топот бивнегора, бросок топора, пике гарпии.
+var UNGOR_THRUST = { ability: "stake_thrust", cd: 120, min: 1, max: 4, shape: "none",
+    params: function () { return AbilityAPI.params("distance", 3.5, "chargeTicks", 8, "activeTicks", 4, "damage", 3.0, "knockback", 0.6, "hitRadius", 1.1); } };
+var SNIFFER_NET = { ability: "net_throw", cd: 400, min: 5, max: 14, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 20, "radius", 2.5, "effectDuration", 30, "effectAmplifier", 2); } };
+var TUSK_STOMP = { ability: "jump_slam", cd: 240, min: 3, max: 9, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 14, "activeTicks", 9, "damage", 4.0, "knockback", 1.2, "landRadius", 3.0, "arcHeight", 3.0, "maxRange", 10.0); } };
+var GOR_THROW = { ability: "axe_throw", cd: 180, min: 6, max: 16, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 12, "maxRange", 16.0, "hitRadius", 1.4, "outboundTicks", 14, "holdTicks", 2, "returnTicks", 10, "arcHeight", 0.4, "damagePercent", 0.1, "effectDuration", 30, "effectAmplifier", 0); } };
+var CENT_THROW = { ability: "axe_throw", cd: 220, min: 6, max: 16, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 12, "maxRange", 16.0, "hitRadius", 1.4, "outboundTicks", 14, "holdTicks", 2, "returnTicks", 10, "arcHeight", 0.4, "damagePercent", 0.08, "effectDuration", 30, "effectAmplifier", 0); } };
+var HARPY_DIVE = { ability: "vampire_pounce", cd: 200, min: 4, max: 14, shape: "none",
+    params: function () { return AbilityAPI.params("chargeTicks", 12, "activeTicks", 9, "damage", 4.0, "knockback", 0.8, "landRadius", 2.2, "arcHeight", 4.0, "lifeStealPerHit", 0.0); } };
+
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
-// fly — летает, slow — на сколько секунд замедляет ударом.
+// fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
 var HERD = {
-    ungor: { hp: 75, melee: 5, aggro: 16, speed: 5, wander: 8 },
-    tuskgor: { hp: 150, melee: 7, aggro: 14, speed: 5, wander: 10, cast: TUSK_CHARGE },
-    gor: { hp: 200, melee: 8, aggro: 18, speed: 5, wander: 3, cast: GOR_SPIN },
-    sniffer: { hp: 50, melee: 4, aggro: 64, speed: 6, wander: 0, hunter: 1, name: "Унгор-нюхач" },
-    centigor: { hp: 140, melee: 7, aggro: 64, speed: 8, wander: 0, cast: CENT_CHARGE, hunter: 1, slow: 2 },
-    harpy: { hp: 65, melee: 5, aggro: 16, speed: 7, wander: 12, fly: 1 },
-    shaman: { hp: 165, melee: 4, aggro: 20, speed: 4, wander: 3, cast: SHAMAN_CURSE }
+    ungor: { hp: 75, melee: 5, aggro: 16, speed: 5, wander: 8, casts: [UNGOR_THRUST] },
+    tuskgor: { hp: 150, melee: 7, aggro: 14, speed: 5, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
+    gor: { hp: 200, melee: 8, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW] },
+    sniffer: { hp: 50, melee: 4, aggro: 64, speed: 6, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
+    centigor: { hp: 140, melee: 7, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
+    harpy: { hp: 65, melee: 5, aggro: 16, speed: 7, wander: 12, casts: [HARPY_DIVE], fly: 1 },
+    shaman: { hp: 165, melee: 4, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_CURSE] },
+    pack: { hp: 300, melee: 5, aggro: 1, speed: 5, wander: 0, loot: 10, name: "Вьючный бивнегор" }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200, HUNT_AGGRO = 64;
 // Поводок: обитатель дальше HERD_LEASH от дома бросает цель и идёт домой, иначе игрок уводит стоянку через всё поле.
@@ -40,7 +55,7 @@ var HERD_LEASH = 32;
 var SHAMAN_EVERY = 120, SHAMAN_R = 10, SHAMAN_HEAL = 0.12;
 // Имя из Global → Factions, буква в букву.
 var HERD_FACTION = "Враждебные", HERD_RED = 0xC0FF3030 | 0;
-var T_HIT = 1;
+var T_HIT = 1, T_WALK = 2, WALK_STEP = 0.3;
 
 function hGet(npc, k, def) { var d = npc.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
 function hNum(npc, k) { return Number(hGet(npc, k, "0")); }
@@ -66,7 +81,7 @@ function hFactionId(name) {
 function hPatrol(npc) { return hGet(npc, "herd_camp", "").indexOf("pt_") == 0; }
 
 function hSetup(npc, kind) {
-    var st = npc.getStats(), ai = npc.getAi(), patrol = hPatrol(npc), wander = patrol ? 0 : kind.wander;
+    var st = npc.getStats(), ai = npc.getAi(), patrol = hPatrol(npc), wander = patrol || hGet(npc, "herd_to", "") != "" ? 0 : kind.wander;
     // Сама она ИИ не пересобирает: это делает setMovingType ниже.
     ai.setNavigationType(kind.fly == 1 ? 1 : 0);
     st.setMaxHealth(kind.hp);
@@ -120,20 +135,43 @@ function hShaman(npc, w, now) {
     w.spawnParticle("happy_villager", npc.getX(), npc.getY() + 1, npc.getZ(), 3, 1, 3, 0, 20);
 }
 
-// Приём вида: откат, расстояние, показ фигуры. Через hitAt таймер бьёт долей здоровья всех, кто в ней.
-function hCast(npc, c, t, now) {
-    if (c == null || !t.isAlive() || now < hNum(npc, "cast_at")) return;
+// Приём вида: первый готовый по откату и расстоянию. Есть фигура — показать её; через hitAt таймер бьёт долей здоровья всех, кто в ней.
+function hCast(npc, casts, t, now) {
+    if (casts == null || !t.isAlive()) return;
     var dist = moFlat(t, npc.getX(), npc.getZ());
-    if (dist < c.min || dist > c.max) return;
-    var yaw = Combat.computeYaw(t.getX() - npc.getX(), t.getZ() - npc.getZ());
-    if (!AbilityAPI.start(npc, c.ability, t, c.params())) return;
-    hPut(npc, "cast_at", now + c.cd);
-    hPut(npc, "hit_yaw", yaw);
-    hPut(npc, "hit_x", c.shape == "target" ? t.getX() : npc.getX());
-    hPut(npc, "hit_z", c.shape == "target" ? t.getZ() : npc.getZ());
-    if (c.shape == "line") TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, c.len, c.size * 2, c.hitAt, HERD_RED);
-    if (c.shape == "target") TelegraphAPI.circle(npc, t.getX(), t.getY(), t.getZ(), c.size, c.hitAt, HERD_RED);
-    npc.getTimers().forceStart(T_HIT, c.hitAt, false);
+    for (var i = 0; i < casts.length; i++) {
+        var c = casts[i];
+        if (now < hNum(npc, "cast_at" + i) || dist < c.min || dist > c.max) continue;
+        var yaw = Combat.computeYaw(t.getX() - npc.getX(), t.getZ() - npc.getZ());
+        if (!AbilityAPI.start(npc, c.ability, t, c.params())) continue;
+        hPut(npc, "cast_at" + i, now + c.cd);
+        if (!(c.pct > 0)) return;
+        hPut(npc, "hit_i", i);
+        hPut(npc, "hit_yaw", yaw);
+        hPut(npc, "hit_x", c.shape == "target" ? t.getX() : npc.getX());
+        hPut(npc, "hit_z", c.shape == "target" ? t.getZ() : npc.getZ());
+        if (c.shape == "line") TelegraphAPI.line(npc, npc.getX(), npc.getY(), npc.getZ(), yaw, c.len, c.size * 2, c.hitAt, HERD_RED);
+        if (c.shape == "target") TelegraphAPI.circle(npc, t.getX(), t.getY(), t.getZ(), c.size, c.hitAt, HERD_RED);
+        npc.getTimers().forceStart(T_HIT, c.hitAt, false);
+        return;
+    }
+}
+
+// Шаг по маршруту события: сам, как Кигор, поиск пути мода в лесу не дойдёт. Охрана на бой останавливается, вьючный идёт всегда.
+function hWalk(npc) {
+    var kind = HERD[hGet(npc, "herd", "")], to = hGet(npc, "herd_to", "").split(",");
+    if (kind == null || to.length < 2 || !npc.isAlive() || (kind.loot == null && npc.getAttackTarget() != null)) return;
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ(), dx = Number(to[0]) - x, dz = Number(to[1]) - z, d = Math.sqrt(dx * dx + dz * dz);
+    if (d < 3) {
+        if (kind.loot > 0) npc.getWorld().getTempdata().put("mo_ev_end", "left");
+        npc.despawn();
+        return;
+    }
+    var nx = x + dx / d * WALK_STEP, nz = z + dz / d * WALK_STEP, g = moGround(npc.getWorld(), nx, nz, y, 3, 6);
+    var ny = g == null ? y : Math.max(y - 0.4, Math.min(y + 0.6, g));
+    npc.setRotation(Combat.computeYaw(dx, dz));
+    Combat.holdInPlace(npc, nx, ny, nz);
+    if (ny < y) Combat.clearFallDistance(npc);
 }
 
 function hPlayersAt(npc, x, y, z, r) {
@@ -193,23 +231,34 @@ function tick(e) {
         hPut(npc, "herd_set", 1);
         hSetup(npc, kind);
     }
-    var now = moNow(w);
+    var now = moNow(w), until = hNum(npc, "herd_until"), to = hGet(npc, "herd_to", "");
+    if (until > 0 && now >= until) {
+        npc.despawn();
+        return;
+    }
+    if (to != "" && !npc.getTimers().has(T_WALK)) npc.getTimers().forceStart(T_WALK, 2, true);
+    // Вьючный в бой не вступает: идёт, пока его бьют.
+    if (kind.loot > 0) {
+        if (npc.getAttackTarget() != null) npc.setAttackTarget(null);
+        return;
+    }
     var hunts = kind.hunter == 1 || hPatrol(npc);
     if (hunts) hHunt(npc, w, now);
     if (id == "shaman") hShaman(npc, w, now);
     var t = npc.getAttackTarget();
     if (t == null) return;
-    var astray = !hunts && moFlat(npc, npc.getHomeX(), npc.getHomeZ()) > HERD_LEASH;
+    var astray = !hunts && to == "" && moFlat(npc, npc.getHomeX(), npc.getHomeZ()) > HERD_LEASH;
     if (astray || (t.typeOf(1) && moInSanctuary(t.getX(), t.getZ()))) npc.setAttackTarget(null);
-    else hCast(npc, kind.cast, t, now);
+    else hCast(npc, kind.casts, t, now);
 }
 
 function timer(e) {
+    if (e.id == T_WALK) hWalk(e.npc);
     if (e.id != T_HIT) return;
     var npc = e.npc;
     if (!npc.isAlive()) return;
     var kind = HERD[hGet(npc, "herd", "")];
-    var c = kind == null ? null : kind.cast;
+    var c = kind == null || kind.casts == null ? null : kind.casts[hNum(npc, "hit_i")];
     if (c == null) return;
     var x = hNum(npc, "hit_x"), z = hNum(npc, "hit_z"), yaw = hNum(npc, "hit_yaw");
     if (c.shape == "self") {
@@ -220,6 +269,17 @@ function timer(e) {
     for (var i = 0; i < ps.length; i++) {
         if (c.shape != "line" || hOnLine(ps[i], x, z, yaw, c.len, c.size)) hStrike(ps[i], c.pct);
     }
+}
+
+// Вьючный роняет добычу, убитые шаманы ритуала считаются: чанк с ними может быть далеко от Ока.
+function died(e) {
+    var npc = e.npc, id = hGet(npc, "herd", ""), kind = HERD[id], td = npc.getWorld().getTempdata();
+    if (kind == null) return;
+    if (kind.loot > 0) {
+        moScatter(npc.getWorld(), npc.getX(), npc.getY(), npc.getZ(), kind.loot);
+        td.put("mo_ev_end", "killed");
+    }
+    if (id == "shaman" && hGet(npc, "herd_camp", "") == "ev_ritual") td.put("mo_ev_kills", String(Number(td.has("mo_ev_kills") ? td.get("mo_ev_kills") : 0) + 1));
 }
 
 function hInZone(e) {

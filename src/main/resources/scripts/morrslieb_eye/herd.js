@@ -54,14 +54,14 @@ var SHAMAN_BOLT = { ability: "ghost_soul_bolt", cd: 60, min: 4, max: 20, shape: 
 // range — дальность удара: CustomNPCs меряет её от ног до ног, по умолчанию 2, и игрок с мечом перебивал стадо издалека;
 // delay — тиков между ударами, по умолчанию 20. fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
 var HERD = {
-    ungor: { hp: 75, melee: 5, range: 3, aggro: 16, speed: 6, wander: 8, casts: [UNGOR_THRUST] },
-    tuskgor: { hp: 150, melee: 7, range: 4, aggro: 14, speed: 6, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
-    gor: { hp: 200, melee: 8, range: 3, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW] },
-    sniffer: { hp: 50, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
-    centigor: { hp: 140, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
-    harpy: { hp: 110, melee: 6, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1 },
-    shaman: { hp: 165, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_REPULSE, SHAMAN_RETREAT, SHAMAN_CURSE, SHAMAN_POOL, SHAMAN_BOLT] },
-    pack: { hp: 300, melee: 5, aggro: 1, speed: 5, wander: 0, loot: 10, name: "Вьючный бивнегор" }
+    ungor: { hp: 55, melee: 5, range: 3, aggro: 16, speed: 6, wander: 8, casts: [UNGOR_THRUST] },
+    tuskgor: { hp: 110, melee: 7, range: 4, aggro: 14, speed: 6, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
+    gor: { hp: 140, melee: 8, range: 3, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW] },
+    sniffer: { hp: 40, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
+    centigor: { hp: 100, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
+    harpy: { hp: 80, melee: 6, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1 },
+    shaman: { hp: 130, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_REPULSE, SHAMAN_RETREAT, SHAMAN_CURSE, SHAMAN_POOL, SHAMAN_BOLT] },
+    pack: { hp: 250, melee: 5, aggro: 1, speed: 5, wander: 0, loot: 10, name: "Вьючный бивнегор" }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200, HUNT_AGGRO = 64;
 // Поводок: обитатель дальше HERD_LEASH от дома бросает цель и идёт домой, иначе игрок уводит стоянку через всё поле.

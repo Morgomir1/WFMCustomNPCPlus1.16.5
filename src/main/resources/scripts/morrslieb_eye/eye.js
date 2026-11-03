@@ -111,13 +111,14 @@ var EV_FALL_CAMP = 50, EV_FALL_TICKS = 3600, EV_FALL_SHARDS = 8, EV_TAKE = 4, EV
 // Места событий — [x, z], как у стоянок: землю под ними событие ищет от высоты игрока, на EV_GROUND вверх и вниз.
 var EV_GROUND = 24;
 // Караван: вьючный бивнегор с охраной идёт по случайному маршруту [x, z, x, z] через поле, со случайного конца; с него падает добыча. Дошёл — ушёл.
-// Пока его никто не видел, он идёт по времени, EV_CARAVAN_SPEED блока за тик, и встаёт там, где оказался, когда подходит игрок.
+// Он ждёт у начала маршрута, пока не подойдёт игрок, и только тогда трогается; за EV_CARAVAN_TICKS никто не пришёл — ушёл.
+// EV_CARAVAN_SPEED — шаг вьючного за тик (WALK_STEP в herd.js раз в 3 тика): тронувшемуся хватает срока на весь маршрут и EV_CARAVAN_SPARE сверху.
 var EV_ROUTES = [
     [-484242, -36846, -484241, -37393],
     [-484068, -36808, -484069, -37448],
     [-483894, -36951, -484298, -37303]
 ];
-var EV_CARAVAN_TICKS = 7200, EV_CARAVAN_GUARD = ["ungor", 3, "gor", 1], EV_CARAVAN_SPEED = 0.1;
+var EV_CARAVAN_TICKS = 7200, EV_CARAVAN_GUARD = ["ungor", 3, "gor", 1], EV_CARAVAN_SPEED = 0.1, EV_CARAVAN_SPARE = 1200;
 // Ритуал: EV_RIT_SHAMANS шаманов с охраной на случайном месте [x, z], подмога каждые EV_RIT_WAVE, если рядом есть игрок. Все шаманы убиты до срока — EV_RIT_SHARDS осколков.
 // Не успели — Кигоры выходят на ближайших в EV_RIT_R и видят их EV_RIT_MARK тиков.
 var EV_RITUALS = [[-484069, -37448], [-484068, -36808], [-484189, -37118]];
@@ -755,7 +756,7 @@ function eEvSquad(w, ev, parts, rmin, rmax, key, to) {
 
 // Тело события встаёт, когда к месту подходит игрок ближе HERD_NEAR. Земли от его высоты не видно — встанет, когда подойдёт ближе.
 function eEvWake(w, ps, ev, now) {
-    var at = ev.kind == "caravan" ? eCaravanAt(ev, now) : [ev.x, ev.z], p = null;
+    var at = [ev.x, ev.z], p = null;
     for (var i = 0; i < ps.length && p == null; i++) if (moFlat(ps[i], at[0], at[1]) <= HERD_NEAR) p = ps[i];
     if (p == null) return;
     var land = null;
@@ -774,7 +775,7 @@ function eEvWake(w, ps, ev, now) {
         return;
     }
     if (ev.kind == "fall") eFallWake(w, ev);
-    else if (ev.kind == "caravan") eCaravanWake(w, ev);
+    else if (ev.kind == "caravan") eCaravanWake(w, ev, now);
     else if (ev.kind == "ritual") eRitualWake(w, ev, now);
     eEvWrite(w.getTempdata(), ev);
 }
@@ -831,7 +832,7 @@ function eFallStep(w, ps, ev, now) {
     }
 }
 
-// Караван: случайный маршрут, случайный конец.
+// Караван: случайный маршрут, случайный конец. Ждёт у начала: туда и бегут по объявлению.
 function eCaravanBegin(w, ps, now) {
     if (EV_ROUTES.length == 0) return false;
     var r = EV_ROUTES[Math.floor(Math.random() * EV_ROUTES.length)], back = Math.random() < 0.5;
@@ -839,32 +840,28 @@ function eCaravanBegin(w, ps, now) {
     ev.tx = back ? r[0] : r[2];
     ev.tz = back ? r[1] : r[3];
     eEvWrite(w.getTempdata(), ev);
-    eEvAnnounce(w, ps, "§a[Око Моррслиб] §fЧерез поле идёт караван зверолюдов с добычей: от " + eEvAt(ev) + " к " + eEvAt({ x: ev.tx, z: ev.tz }) + ".");
+    eEvAnnounce(w, ps, "§a[Око Моррслиб] §fКараван зверолюдов с добычей собирается в точке " + eEvAt(ev) + " и пойдёт к " + eEvAt({ x: ev.tx, z: ev.tz }) + ".");
     return true;
 }
 
-// Где караван по времени, пока его никто не видел: от начала маршрута к концу, EV_CARAVAN_SPEED блока за тик. Третье — дошёл ли.
-function eCaravanAt(ev, now) {
-    var dx = ev.tx - ev.x, dz = ev.tz - ev.z, len = Math.sqrt(dx * dx + dz * dz), s = EV_CARAVAN_SPEED * (now - ev.t0);
-    if (len < 1 || s >= len) return [ev.tx, ev.tz, true];
-    return [ev.x + dx / len * s, ev.z + dz / len * s, false];
-}
-
-function eCaravanWake(w, ev) {
+// Тронувшемуся каравану срок — на весь маршрут: иначе он пропал бы посреди поля, когда кончится ожидание.
+function eCaravanWake(w, ev, now) {
+    var dx = ev.tx - ev.x, dz = ev.tz - ev.z;
+    ev.until = Math.max(ev.until, now + Math.round(Math.sqrt(dx * dx + dz * dz) / EV_CARAVAN_SPEED) + EV_CARAVAN_SPARE);
     var to = ev.tx + "," + ev.tz;
     eEvSquad(w, ev, ["pack", 1], 0, 2, "ev_caravan", to);
     eEvSquad(w, ev, EV_CARAVAN_GUARD, 2, 5, "ev_caravan", to);
 }
 
-// Конец каравана пишет сам вьючный: его чанк может быть далеко от Ока. Невиденный дошёл по времени — ушёл.
+// Конец каравана пишет сам вьючный: его чанк может быть далеко от Ока.
 function eCaravanStep(w, ps, ev, now) {
     var td = w.getTempdata(), end = td.has(T_EV_END) ? String(td.get(T_EV_END)) : "";
     if (end == "killed") {
         eEvClose(td);
         eNotice(w, ps, "§a[Око Моррслиб] §fКараван разбит, добыча на земле.");
-    } else if (end == "left" || now >= ev.until || (ev.on != 1 && eCaravanAt(ev, now)[2])) {
+    } else if (end == "left" || now >= ev.until) {
         eEvClose(td);
-        eNotice(w, ps, "§a[Око Моррслиб] §fКараван ушёл с добычей.");
+        eNotice(w, ps, "§a[Око Моррслиб] §fКараван ушёл с добычей" + (ev.on != 1 ? ": к нему никто не пришёл." : "."));
     }
 }
 

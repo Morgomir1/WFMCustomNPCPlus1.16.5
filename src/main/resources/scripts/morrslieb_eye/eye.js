@@ -101,7 +101,7 @@ var HUNTERS = {
 var PATROLS = [["ungor", 3], ["ungor", 2, "gor", 1], ["harpy", 2]];
 var PATROL_EVERY = 3600, PATROL_REST = 6000, PATROL_MIN = 25, PATROL_FAR = 35, PATROL_MAX = 3;
 // Случайные события поля: по одному за раз, раз в EV_EVERY с разбросом 20%, первое через половину срока. EV_ON = 0 выключает.
-var EV_ON = 1, EV_EVERY = 12000, EV_PICK = ["fall", "fall", "fall", "fall", "fall", "caravan", "caravan", "caravan", "ritual", "ritual"];
+var EV_ON = 1, EV_EVERY = 12000, EV_PICK = ["fall", "fall", "fall", "fall", "fall", "caravan", "caravan", "caravan", "ritual", "ritual", "vein", "vein"];
 // Падение осколка: в EV_FALL_MIN–EV_FALL_FAR от случайного игрока, со стражей. Стража мертва и кто-то ближе EV_TAKE — осколок разбит.
 var EV_FALL_MIN = 60, EV_FALL_FAR = 110, EV_FALL_TICKS = 3600, EV_FALL_SHARDS = 8, EV_TAKE = 4, EV_FALL_GUARD = ["ungor", 2, "gor", 1];
 // И не дальше EV_FALL_CAMP от какой-нибудь стоянки: стоянки расставлены по всей карте, а её край — высокие горы. Без этого
@@ -122,6 +122,10 @@ var EV_RITUALS = [[-484069, -37448], [-484068, -36808], [-484189, -37118]];
 var EV_RIT_TICKS = 3600, EV_RIT_SHAMANS = 3, EV_RIT_GUARD = ["gor", 2, "ungor", 4], EV_RIT_WAVE = 600, EV_RIT_ADDS = ["ungor", 2, "tuskgor", 1];
 var EV_RIT_SHARDS = 20, EV_RIT_R = 64, EV_RIT_KIGORS = 2, EV_RIT_MARK = 1200;
 var T_EV = "mo_ev", T_EV_AT = "mo_ev_at", T_EV_END = "mo_ev_end", T_EV_KILLS = "mo_ev_kills";
+// Варп-жила: кристалл (клон VEIN_NAME на вкладке HERD_TAB, vein.js) встаёт, как упавший осколок, рядом со стоянкой, с охраной EV_VEIN_GUARD.
+// Прочность, порча, шипы и осколки — в vein.js. Гул созывает EV_VEIN_ADDS, когда прочность падает до долей EV_VEIN_WAVES и рядом есть игрок.
+// Не разбили за EV_VEIN_TICKS — жила взрывается, и Кигоры выходят на ближайших, как после ритуала.
+var VEIN_NAME = "Варп-жила", EV_VEIN_TICKS = 4800, EV_VEIN_GUARD = ["ungor", 2], EV_VEIN_ADDS = ["ungor", 2, "tuskgor", 1], EV_VEIN_WAVES = [0.75, 0.5];
 // Шаман редкий: один на всё поле, встаёт на одной из этих стоянок (номера в CAMPS), убитый сменяется не раньше чем через SHAMAN_EVERY (15 минут).
 var SHAMAN_CAMPS = [1, 5, 9, 11], SHAMAN_EVERY = 18000;
 
@@ -630,15 +634,19 @@ function eHerdSpawn(w, kind, at, key, prey) {
     d.put("herd", kind);
     d.put("herd_camp", key);
     if (prey != null) d.put("herd_prey", prey);
-    // Как у Кигора: клон не встаёт после смерти, стоянку поднимет Око.
+    eNoRespawn(k, "herd_respawn", "стада");
+    return k;
+}
+
+// Как у Кигора: клон не встаёт после смерти, его поднимет Око.
+function eNoRespawn(k, key, what) {
     try {
         var mc = k.getMCEntity();
         mc.stats.spawnCycle = 3;
         mc.stats.respawnTime = 0;
     } catch (err) {
-        moLogOnce("herd_respawn", "у клона стада не выключено возрождение: " + err);
+        moLogOnce(key, "у клона " + what + " не выключено возрождение: " + err);
     }
-    return k;
 }
 
 // --- Случайные события ---
@@ -687,6 +695,7 @@ function eEvBegin(w, ps, kind, now) {
     eEvClose(w.getTempdata());
     if (kind == "fall") return eFallBegin(w, ps, p, now);
     if (kind == "caravan") return eCaravanBegin(w, ps, p, now);
+    if (kind == "vein") return eVeinBegin(w, ps, p, now);
     return eRitualBegin(w, ps, p, now);
 }
 
@@ -705,6 +714,7 @@ function eEvSquad(w, ev, parts, rmin, rmax, key, to) {
 function eEvStep(w, ps, ev, now) {
     if (ev.kind == "fall") eFallStep(w, ps, ev, now);
     else if (ev.kind == "caravan") eCaravanStep(w, ps, ev, now);
+    else if (ev.kind == "vein") eVeinStep(w, ps, ev, now);
     else eRitualStep(w, ps, ev, now);
 }
 
@@ -830,7 +840,12 @@ function eRitualStep(w, ps, ev, now) {
 
 // Ритуал завершён: Кигоры выходят на ближайших к кругу и видят их и без света.
 function eRitualFail(w, ps, ev) {
-    eTell(ps, "§c[Око Моррслиб] §fРитуал завершён. Моррслиб прислал Кигоров.");
+    eKigorsOnNearest(w, ps, ev, "§c[Око Моррслиб] §fРитуал завершён. Моррслиб прислал Кигоров.");
+}
+
+// Кигоры на EV_RIT_KIGORS ближайших к месту события в EV_RIT_R, вне зоны; их видят и без света EV_RIT_MARK тиков.
+function eKigorsOnNearest(w, ps, ev, text) {
+    eTell(ps, text);
     var near = [];
     for (var i = 0; i < ps.length; i++) {
         var d = moFlat(ps[i], ev.x, ev.z);
@@ -846,6 +861,64 @@ function eRitualFail(w, ps, ev) {
         eSpawnKigor(w, { id: String(p.getUUID()), x: at[0], y: at[1], z: at[2] });
         p.message("§cМоррслиб прислал за тобой Кигора.");
     }
+}
+
+// Варп-жила встаёт, как упавший осколок: в EV_FALL_MIN–EV_FALL_FAR от игрока и рядом со стоянкой.
+function eVeinBegin(w, ps, p, now) {
+    var at = eFallPoint(w, p);
+    if (at == null) return false;
+    var k = null;
+    try {
+        k = w.spawnClone(at[0], at[1], at[2], HERD_TAB, VEIN_NAME);
+    } catch (err) {
+        moLogOnce("vein", "варп-жила не встала – проверь HERD_TAB и VEIN_NAME: " + err);
+    }
+    if (k == null) return false;
+    var ev = { kind: "vein", x: at[0], y: at[1], z: at[2], until: now + EV_VEIN_TICKS, wave: 0 };
+    k.getStoreddata().put("vein", "1");
+    k.getStoreddata().put("vein_until", String(ev.until));
+    eNoRespawn(k, "vein_respawn", "варп-жилы");
+    eEvWrite(w.getTempdata(), ev);
+    eEvSquad(w, ev, EV_VEIN_GUARD, 4, 8, "ev_vein", null);
+    eTell(ps, "§c[Око Моррслиб] §fИз земли вышла варп-жила в точке " + eEvAt(ev) + ". Разбейте её за " + Math.round(EV_VEIN_TICKS / 1200) + " мин., пока она не взорвалась.");
+    return true;
+}
+
+function eVein(w, ev) {
+    var list = w.getNearbyEntities(NpcAPI.getIPos(ev.x, ev.y, ev.z), 4, 2);
+    for (var i = 0; i < list.length; i++) if (list[i].isAlive() && list[i].getStoreddata().has("vein")) return list[i];
+    return null;
+}
+
+// Итог пишет сама жила: «broken» — разбита, «burst» — взорвалась. Пока стоит, гул по долям прочности созывает стадо.
+function eVeinStep(w, ps, ev, now) {
+    eColumn(w, ev);
+    var td = w.getTempdata(), end = td.has(T_EV_END) ? String(td.get(T_EV_END)) : "";
+    if (end == "broken") {
+        eEvClose(td);
+        eTell(ps, "§a[Око Моррслиб] §fВарп-жила разбита, её ядро рассыпало осколки.");
+        return;
+    }
+    if (end == "burst") {
+        eEvClose(td);
+        eKigorsOnNearest(w, ps, ev, "§c[Око Моррслиб] §fВарп-жила взорвалась. Моррслиб прислал Кигоров.");
+        return;
+    }
+    var v = eVein(w, ev);
+    // Жилы нет, а итога нет: её чанк давно не грузился или её убрали руками. Срок вышел — событие закрывается тихо.
+    if (v == null) {
+        if (now >= ev.until + 600) eEvClose(td);
+        return;
+    }
+    if (ev.wave >= EV_VEIN_WAVES.length || v.getHealth() > v.getMaxHealth() * EV_VEIN_WAVES[ev.wave]) return;
+    ev.wave++;
+    eEvWrite(td, ev);
+    // Подмога — только к тем, кто пришёл, как у ритуала.
+    var near = [];
+    for (var i = 0; i < ps.length; i++) if (moFlat(ps[i], ev.x, ev.z) <= HERD_NEAR) near.push(ps[i]);
+    if (near.length == 0) return;
+    eEvSquad(w, ev, EV_VEIN_ADDS, 5, 9, "ev_vein", null);
+    eTell(near, "§cГул варп-жилы созвал стадо.");
 }
 
 // --- Товары магазина ---

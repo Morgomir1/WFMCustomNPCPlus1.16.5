@@ -54,14 +54,15 @@ var SHAMAN_BOLT = { ability: "ghost_soul_bolt", cd: 60, min: 4, max: 20, shape: 
 
 // Цепочки гора — шаги из набора приёмов combat/attacks.js, числа поверх набора. Вплотную: рубит, рубит, толкает; изредка
 // после первого удара пауза с зелёным кольцом и прыжок — его сбивают ударом в золотом окне. Или рубит и крутится. Издалека
-// бросает топор и бежит следом рывком. Вращение бьёт, как прежде, долей здоровья в круге в конце.
+// бросает топор и бежит следом рывком. Вращение бьёт, как прежде, долей здоровья в круге в конце. Рубить начинает с 6,5 блока:
+// удар шагает вперёд на 2 и достаёт на 4,5 от новой точки — иначе от гора отходили на шаг и не подпускали (проба 4 ноября).
 var GOR_SLASH = { move: "slash", dmg: 7 };
 var GOR_LEAP = { move: "leap", windup: 28 };
 var GOR_SPIN_STEP = { move: "spin", shape: "circle", reach: 3.5, pct: 0.15, hit: 40 };
 var GOR_CHAINS = [
-    { min: 0, max: 4.5, steps: [GOR_SLASH, GOR_SLASH, "shove"], fork: { after: 1, chance: 0.3, steps: [GOR_LEAP] } },
-    { min: 0, max: 4.5, steps: [GOR_SLASH, GOR_SPIN_STEP] },
-    { min: 5, max: 16, steps: ["throw", "charge"] }
+    { min: 0, max: 6.5, steps: [GOR_SLASH, GOR_SLASH, "shove"], fork: { after: 1, chance: 0.3, steps: [GOR_LEAP] } },
+    { min: 0, max: 6.5, steps: [GOR_SLASH, GOR_SPIN_STEP] },
+    { min: 6.5, max: 16, steps: ["throw", "charge"] }
 ];
 
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,

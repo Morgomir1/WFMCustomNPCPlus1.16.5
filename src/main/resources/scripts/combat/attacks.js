@@ -28,7 +28,9 @@
 // big: 1 — сигнал и у рядового. Способность мода: ability, params (chargeTicks ставит windup), active — сколько она идёт
 // после замаха (по умолчанию params.activeTicks), line: 1 — своя полоса до цели (у способности её нет).
 // Свой удар скрипта: shape "arc" (дуга перед собой: reach, half) или "circle" (круг вокруг: reach), hit — тик удара
-// (по умолчанию windup), dmg — обычный урон через броню, pct — доля здоровья мимо брони, push — отбрасывание.
+// (по умолчанию windup), dmg — обычный урон через броню, pct — доля здоровья мимо брони, push — отбрасывание;
+// lunge — шаг вперёд по направлению замаха в момент удара, до стольких блоков, но не ближе AT_LUNGE_GAP к цели, не в стену
+// и не с обрыва: иначе от замаха уходят шагом назад и моба просто не подпускают. Конус замаха показывает reach + lunge.
 var AtAbility = Java.type("noppes.npcs.abilities.AbilityAPI");
 var AtTelegraph = Java.type("noppes.npcs.telegraph.TelegraphAPI");
 var AtCombat = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
@@ -39,15 +41,15 @@ var AT_GREEN = 0xC040E060 | 0, AT_GOLD = 0xE0FFC830 | 0, AT_RED = 0xC0FF3030 | 0
 // Кольцо прерываемой атаки и кольцо окна вокруг ног моба: внешний и внутренний радиус.
 var AT_RING = [1.6, 1.2], AT_GOLD_RING = [2.2, 1.7];
 var AT_WINDOW = 12, AT_CALM = 10, AT_STUN = 40, AT_STUN_ID = "wfm:stun";
-var AT_REST = [16, 30];
+var AT_REST = [16, 30], AT_LUNGE_GAP = 1.2;
 var AT_WINDOW_SOUND = "minecraft:block.note_block.bell", AT_BREAK_SOUND = "minecraft:block.anvil.land";
 var AT_T_WINDOW = 31, AT_T_STRIKE = 32, AT_T_NEXT = 33;
 var AT_LOGGED = {};
 
 // Общий набор приёмов: числа по умолчанию, моб правит их в своих шагах.
 var AT_MOVES = {
-    // Рубящий: дуга перед собой. Красный конус.
-    slash: { sig: "hard", windup: 14, recover: 6, shape: "arc", reach: 3.5, half: 60, dmg: 6, push: 1 },
+    // Рубящий: дуга перед собой с шагом вперёд. Красный конус.
+    slash: { sig: "hard", windup: 14, recover: 6, shape: "arc", reach: 4.5, half: 60, lunge: 2, dmg: 6, push: 1 },
     // Тычок: короткий выпад вперёд. Красная полоса способности.
     thrust: { sig: "hard", ability: "stake_thrust", windup: 10, recover: 8,
         params: { distance: 3.5, activeTicks: 4, damage: 5.0, knockback: 0.6, hitRadius: 1.1 } },
@@ -228,7 +230,7 @@ function atSignal(npc, m, t, x, y, z, yaw) {
     if (m.ability != null || m.shape == null) return;
     var until = m.hit > 0 ? m.hit : m.windup;
     if (m.shape == "circle") atTg(npc, AtTelegraph.circle(npc, x, y, z, m.reach, until, color));
-    else atTg(npc, AtTelegraph.cone(npc, x, y, z, yaw, m.reach, m.half, until, color));
+    else atTg(npc, AtTelegraph.cone(npc, x, y, z, yaw, m.reach + (m.lunge > 0 ? m.lunge : 0), m.half, until, color));
 }
 
 // Окно открылось: золотое кольцо и вспышка всем рядом, звук — только тому, на кого замах, и только у ранга 2.
@@ -245,6 +247,7 @@ function atWindow(npc, mob, m) {
 // Свой удар скрипта: дуга — от точки и по направлению замаха, круг — вокруг того места, где моб стоит в момент удара.
 function atStrike(npc, m) {
     var arc = m.shape == "arc", w = npc.getWorld();
+    if (m.lunge > 0) atLunge(npc, m);
     var ox = arc ? atNum(npc, "at_x") : npc.getX(), oz = arc ? atNum(npc, "at_z") : npc.getZ(), yaw = atNum(npc, "at_yaw");
     if (m.ability == null) {
         npc.swingMainhand();
@@ -259,6 +262,20 @@ function atStrike(npc, m) {
         if (m.pct > 0) atStrikePct(p, m.pct);
         if (m.push > 0 && p.isAlive()) p.knockback(Math.round(m.push), AtCombat.computeYaw(p.getX() - ox, p.getZ() - oz));
     }
+}
+
+// Шаг вперёд по направлению замаха: к цели, но не вплотную; новая точка — начало дуги.
+function atLunge(npc, m) {
+    var w = npc.getWorld(), t = w.getEntity(atGet(npc, "at_target", ""));
+    if (t == null) return;
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ(), rad = (atNum(npc, "at_yaw") + 90) * Math.PI / 180;
+    var fx = Math.cos(rad), fz = Math.sin(rad), d = Math.min(m.lunge, (t.getX() - x) * fx + (t.getZ() - z) * fz - AT_LUNGE_GAP);
+    if (!(d > 0.2)) return;
+    var nx = x + fx * d, nz = z + fz * d, ny = AtCombat.findGroundY(w, nx, nz, y);
+    if (Math.abs(ny - y) > 1.1 || !AtCombat.canStandAt(w, nx, ny, nz)) return;
+    AtCombat.holdInPlace(npc, nx, ny, nz);
+    atPut(npc, "at_x", nx);
+    atPut(npc, "at_z", nz);
 }
 
 function atPlayersAt(npc, x, y, z, r) {

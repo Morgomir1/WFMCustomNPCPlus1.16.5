@@ -16,7 +16,10 @@
 //
 // Прерывание: удар рукой в золотом окне отменяет приём и цепочку, моб стоит в стане AT_STUN. Засчитывается, только если
 // этот игрок перед тем не бил того же моба AT_CALM тиков: зарядку удара скрипт в момент попадания уже не видит, а так
-// закликивание окна не берёт. Прерываемы только приёмы с sig "open".
+// закликивание окна не берёт. Прерываемы приёмы с sig "open", и это не редкость (замысел Антона 4 ноября): почти все удары
+// вблизи прерываются, но окно маленькое, AT_WINDOW в конце замаха; его ловят по длине зелёного кольца, а не по вспышке.
+// Красные — те, от которых только уходят. Сбитый моб AT_GUARD тиков после стана собран: его приёмы идут красными, без окна,
+// иначе его держали бы в стане вечно.
 //
 // Цепочки: у моба chains — список { min, max, steps, fork, weight }. Следующая выбирается случайно из тех, что подходят
 // по расстоянию до цели (min..max, по горизонтали), та же дважды подряд — только если другой нет. Между цепочками
@@ -26,7 +29,8 @@
 //
 // Приём: sig — "open" или "hard"; area: 1 — по области; windup — замах, тиков до удара; recover — пауза после;
 // big: 1 — сигнал и у рядового. Способность мода: ability, params (chargeTicks ставит windup), active — сколько она идёт
-// после замаха (по умолчанию params.activeTicks), line: 1 — своя полоса до цели (у способности её нет).
+// после замаха (по умолчанию params.activeTicks), line: 1 — своя полоса до цели (у способности её нет); window — своё окно
+// вместо AT_WINDOW.
 // Свой удар скрипта: shape "arc" (дуга перед собой: reach, half) или "circle" (круг вокруг: reach), hit — тик удара
 // (по умолчанию windup), dmg — обычный урон через броню, pct — доля здоровья мимо брони, push — отбрасывание;
 // lunge — шаг вперёд по направлению замаха в момент удара, до стольких блоков, но не ближе AT_LUNGE_GAP к цели, не в стену
@@ -40,7 +44,7 @@ var AtNpcAPI = Java.type("noppes.npcs.api.NpcAPI").Instance();
 var AT_GREEN = 0xC040E060 | 0, AT_GOLD = 0xE0FFC830 | 0, AT_RED = 0xC0FF3030 | 0, AT_PURPLE = 0xB0B050FF | 0;
 // Кольцо прерываемой атаки и кольцо окна вокруг ног моба: внешний и внутренний радиус.
 var AT_RING = [1.6, 1.2], AT_GOLD_RING = [2.2, 1.7];
-var AT_WINDOW = 12, AT_CALM = 10, AT_STUN = 40, AT_STUN_ID = "wfm:stun";
+var AT_WINDOW = 8, AT_CALM = 10, AT_STUN = 40, AT_GUARD = 60, AT_STUN_ID = "wfm:stun";
 var AT_REST = [16, 30], AT_LUNGE_GAP = 1.2;
 var AT_WINDOW_SOUND = "minecraft:block.note_block.bell", AT_BREAK_SOUND = "minecraft:block.anvil.land";
 var AT_T_WINDOW = 31, AT_T_STRIKE = 32, AT_T_NEXT = 33;
@@ -48,13 +52,13 @@ var AT_LOGGED = {};
 
 // Общий набор приёмов: числа по умолчанию, моб правит их в своих шагах.
 var AT_MOVES = {
-    // Рубящий: дуга перед собой с шагом вперёд. Красный конус.
-    slash: { sig: "hard", windup: 14, recover: 6, shape: "arc", reach: 4.5, half: 60, lunge: 2, dmg: 6, push: 1 },
-    // Тычок: короткий выпад вперёд. Красная полоса способности.
-    thrust: { sig: "hard", ability: "stake_thrust", windup: 10, recover: 8,
+    // Рубящий: дуга перед собой с шагом вперёд. Прерывается: зелёное кольцо и зелёный конус.
+    slash: { sig: "open", windup: 14, recover: 6, shape: "arc", reach: 4.5, half: 60, lunge: 2, dmg: 6, push: 1 },
+    // Тычок: короткий выпад вперёд. Прерывается: кольцо и полоса способности зелёные.
+    thrust: { sig: "open", ability: "stake_thrust", windup: 10, recover: 8,
         params: { distance: 3.5, activeTicks: 4, damage: 5.0, knockback: 0.6, hitRadius: 1.1 } },
-    // Толчок: тот же выпад, короче, слабее и с сильным отбрасыванием.
-    shove: { sig: "hard", ability: "stake_thrust", windup: 12, recover: 10,
+    // Толчок: тот же выпад, короче, слабее и с сильным отбрасыванием. Прерывается.
+    shove: { sig: "open", ability: "stake_thrust", windup: 12, recover: 10,
         params: { distance: 2.5, activeTicks: 4, damage: 3.0, knockback: 1.6, hitRadius: 1.3 } },
     // Рывок: по прямой к цели. Красная полоса способности.
     charge: { sig: "hard", ability: "dash", windup: 24, recover: 12,
@@ -134,6 +138,7 @@ function atRestTicks(mob) {
 }
 
 function atShows(mob, m) { return mob.rank >= 1 || m.big == 1; }
+function atWinTicks(m) { return Math.min(m.window > 0 ? m.window : AT_WINDOW, m.windup); }
 function atZoneColor(m) { return m.area == 1 ? AT_PURPLE : m.sig == "open" ? AT_GREEN : AT_RED; }
 
 function atBusy(npc) { return atGet(npc, "at_chain", "-1") != "-1"; }
@@ -183,6 +188,8 @@ function atStep(npc, mob, i) {
     }
     var now = atNow(npc), x = npc.getX(), y = npc.getY(), z = npc.getZ(), yaw = AtCombat.computeYaw(t.getX() - x, t.getZ() - z);
     var show = atShows(mob, m);
+    // Собранный после сбитого приёма бьёт без окна, и знак у него честно красный.
+    if (m.sig == "open" && now < atNum(npc, "at_guard")) m.sig = "hard";
     atPut(npc, "at_step", i);
     atPut(npc, "at_yaw", yaw);
     atPut(npc, "at_x", x);
@@ -198,7 +205,7 @@ function atStep(npc, mob, i) {
     }
     if (show) atSignal(npc, m, t, x, y, z, yaw);
     if (m.sig == "open") {
-        var win = Math.min(AT_WINDOW, m.windup);
+        var win = atWinTicks(m);
         atPut(npc, "at_win_from", now + m.windup - win);
         atPut(npc, "at_win_to", now + m.windup);
         atArm(npc, AT_T_WINDOW, m.windup - win);
@@ -235,8 +242,10 @@ function atSignal(npc, m, t, x, y, z, yaw) {
 
 // Окно открылось: золотое кольцо и вспышка всем рядом, звук — только тому, на кого замах, и только у ранга 2.
 function atWindow(npc, mob, m) {
+    // Окно открыто с того тика, как его видно, даже если таймер сработал на тик раньше расчёта.
+    atPut(npc, "at_win_from", Math.min(atNum(npc, "at_win_from"), atNow(npc)));
     if (!atShows(mob, m)) return;
-    var x = npc.getX(), y = npc.getY(), z = npc.getZ(), w = npc.getWorld(), ticks = Math.min(AT_WINDOW, m.windup);
+    var x = npc.getX(), y = npc.getY(), z = npc.getZ(), w = npc.getWorld(), ticks = atWinTicks(m);
     atTg(npc, AtTelegraph.ring(npc, x, y, z, AT_GOLD_RING[0], AT_GOLD_RING[1], ticks, AT_GOLD));
     w.spawnParticle("flash", x, y + 1.2, z, 0, 0, 0, 0, 1);
     if (mob.rank < 2) return;
@@ -350,6 +359,7 @@ function atInterrupt(npc, p) {
     AtAbility.cancel(npc);
     atEnd(npc, AT_STUN);
     atPut(npc, "at_stun", now + AT_STUN);
+    atPut(npc, "at_guard", now + AT_STUN + AT_GUARD);
     AtCombat.applyNamedEffect(npc, AT_STUN_ID, AT_STUN, 0);
     w.playSoundAt(npc.getPos(), AT_BREAK_SOUND, 0.7, 1.6);
     w.spawnParticle("crit", npc.getX(), npc.getY() + 1.2, npc.getZ(), 0.5, 0.5, 0.5, 0.2, 20);
@@ -387,6 +397,6 @@ function atTimer(e, mob) {
 // Вызывать из init моба: перезагруженный скрипт не помнит замаха — шаг вернуть, скорость отдать.
 function atInit(npc) {
     atUnfreeze(npc);
-    var d = npc.getTempdata(), keys = ["at_chain", "at_fork", "at_step", "at_target", "at_win_from", "at_win_to", "at_rest", "at_stun", "at_tg"];
+    var d = npc.getTempdata(), keys = ["at_chain", "at_fork", "at_step", "at_target", "at_win_from", "at_win_to", "at_rest", "at_stun", "at_guard", "at_tg"];
     for (var i = 0; i < keys.length; i++) d.remove(keys[i]);
 }

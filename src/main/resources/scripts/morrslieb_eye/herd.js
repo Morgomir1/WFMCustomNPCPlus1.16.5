@@ -7,6 +7,8 @@
 // Охотники, нюхач и центигор, идут на свет своей добычи: кто погас, вошёл в зону или ушёл дальше HUNT_LOSE, того они теряют
 // и через HUNT_LOSE_TICKS уходят. Гарпия летает, это настройка навигации NPC. Шаман лечит стадо рядом, а кого заметил, того
 // подсвечивает: такого видит и Кигор.
+// Гор-сторож бьёт цепочками приёмов на общем языке атак (combat/attacks.js, в списке скриптов перед этим файлом): сигналы,
+// золотое окно, в которое его сбивают ударом, передышки. Нет файла у клона — бьёт по-старому, приёмами casts, строка в журнале.
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
 var Combat = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
@@ -50,13 +52,26 @@ var SHAMAN_POOL = { ability: "crimson_blob", cd: 240, min: 5, max: 18, shape: "n
 var SHAMAN_BOLT = { ability: "ghost_soul_bolt", cd: 60, min: 4, max: 20, shape: "none",
     params: function () { return AbilityAPI.params("chargeTicks", 16, "maxRange", 20.0, "damage", 5.0, "knockback", 0.8, "knockbackY", 0.3, "hitRadius", 1.4, "landRadius", 2.0); } };
 
+// Цепочки гора — шаги из набора приёмов combat/attacks.js, числа поверх набора. Вплотную: рубит, рубит, толкает; изредка
+// после первого удара пауза с зелёным кольцом и прыжок — его сбивают ударом в золотом окне. Или рубит и крутится. Издалека
+// бросает топор и бежит следом рывком. Вращение бьёт, как прежде, долей здоровья в круге в конце.
+var GOR_SLASH = { move: "slash", dmg: 7 };
+var GOR_LEAP = { move: "leap", windup: 28 };
+var GOR_SPIN_STEP = { move: "spin", shape: "circle", reach: 3.5, pct: 0.15, hit: 40 };
+var GOR_CHAINS = [
+    { min: 0, max: 4.5, steps: [GOR_SLASH, GOR_SLASH, "shove"], fork: { after: 1, chance: 0.3, steps: [GOR_LEAP] } },
+    { min: 0, max: 4.5, steps: [GOR_SLASH, GOR_SPIN_STEP] },
+    { min: 5, max: 16, steps: ["throw", "charge"] }
+];
+
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
 // range — дальность удара: CustomNPCs меряет её от ног до ног, по умолчанию 2, и игрок с мечом перебивал стадо издалека;
-// delay — тиков между ударами, по умолчанию 20. fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
+// delay — тиков между ударами, по умолчанию 20. chains — цепочки языка атак вместо casts и обычного удара, rank — ранг для сигналов
+// (0 рядовой, 1 элитный, 2 единичный: со звуком окна). fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
 var HERD = {
     ungor: { hp: 55, melee: 5, range: 3, aggro: 16, speed: 6, wander: 8, casts: [UNGOR_THRUST] },
     tuskgor: { hp: 110, melee: 7, range: 4, aggro: 14, speed: 6, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
-    gor: { hp: 140, melee: 8, range: 3, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW] },
+    gor: { hp: 140, melee: 8, range: 3, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW], chains: GOR_CHAINS, rank: 2 },
     sniffer: { hp: 40, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
     centigor: { hp: 100, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
     harpy: { hp: 80, melee: 6, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1 },
@@ -75,6 +90,17 @@ var T_HIT = 1, T_WALK = 2, WALK_STEP = 0.3, WALK_RISE = 0.6, WALK_CLIMB = 32;
 // только стрелы и брошенное, а пули и копья мода снарядами не помечены. Добавочный урон чар стрелкового оружия идёт
 // от самого игрока, его узнаём по типу.
 var RANGED_TAKEN = 0.25, RANGED_TYPES = { "wfm.splitting_shot": 1, "wfm.trap_bolt": 1 };
+
+// Язык атак есть в списке скриптов клона и у вида есть цепочки.
+function hChains(kind) {
+    if (kind == null || kind.chains == null) return false;
+    if (typeof atTick == "function") return true;
+    moLogOnce("herd_attacks", "у клона нет combat/attacks.js: цепочек нет, бьёт по-старому");
+    return false;
+}
+
+// Кого удары языка атак не задевают: сейф-зона и алтарь, как и для всего стада.
+function atSpare(p) { return moInSanctuary(p.getX(), p.getZ()); }
 
 function hGet(npc, k, def) { var d = npc.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
 function hNum(npc, k) { return Number(hGet(npc, k, "0")); }
@@ -238,6 +264,7 @@ function init(e) {
     if (!e.npc.isAlive()) return;
     e.npc.getTimers().clear();
     AbilityAPI.cancel(e.npc);
+    if (typeof atInit == "function") atInit(e.npc);
 }
 
 function tick(e) {
@@ -277,10 +304,12 @@ function tick(e) {
     if (t == null) return;
     var astray = !hunts && to == "" && moFlat(npc, npc.getHomeX(), npc.getHomeZ()) > HERD_LEASH;
     if (astray || (t.typeOf(1) && moInSanctuary(t.getX(), t.getZ()))) npc.setAttackTarget(null);
+    else if (hChains(kind)) atTick(npc, kind, t, now);
     else hCast(npc, kind.casts, t, now);
 }
 
 function timer(e) {
+    if (typeof atTimer == "function" && atTimer(e, HERD[hGet(e.npc, "herd", "")])) return;
     if (e.id == T_WALK) hWalk(e.npc);
     if (e.id != T_HIT) return;
     var npc = e.npc;
@@ -324,6 +353,11 @@ function meleeAttack(e) {
         return;
     }
     var kind = HERD[hGet(e.npc, "herd", "")];
+    // Бьющий цепочками бьёт только ими: обычный удар мода не перебивает его ритм и передышки.
+    if (hChains(kind)) {
+        e.setCanceled(true);
+        return;
+    }
     if (kind != null && kind.slow > 0 && e.target != null && e.target.typeOf(1)) e.target.addPotionEffect(2, kind.slow, 0, false);
 }
 
@@ -332,7 +366,13 @@ function damaged(e) {
         e.setCanceled(true);
         return;
     }
-    if (hRangedOrBlast(e.damageSource)) e.damage = e.damage * RANGED_TAKEN;
+    if (hRangedOrBlast(e.damageSource)) {
+        e.damage = e.damage * RANGED_TAKEN;
+        return;
+    }
+    // Сбить приём можно только ударом рукой.
+    var kind = HERD[hGet(e.npc, "herd", "")];
+    if (hChains(kind)) atDamaged(e, kind);
 }
 
 // Снаряд, как у Кигора: помечен снарядом или ударило не то, что им бросило. Взрыв — по типу урона.

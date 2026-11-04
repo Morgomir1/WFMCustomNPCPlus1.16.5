@@ -329,6 +329,25 @@ function logout(e) {
     for (var i = 0; i < ps.length; i++) if (String(ps[i].getUUID()) != id) ps[i].message(text);
 }
 
+// Запас Ока: съеденное рассыпавшимся Кигором. Лежит в данных мира, следующий Кигор появляется с ним.
+var MO_HOARD = "mo_kigor_hoard";
+
+function moHoard(w) {
+    var d = w.getStoreddata();
+    return d.has(MO_HOARD) ? Number(d.get(MO_HOARD)) || 0 : 0;
+}
+
+function moHoardAdd(w, n) {
+    if (n > 0) w.getStoreddata().put(MO_HOARD, String(moHoard(w) + n));
+}
+
+// Забирает весь запас. Возвращает, сколько было.
+function moHoardTake(w) {
+    var n = moHoard(w);
+    if (n > 0) w.getStoreddata().remove(MO_HOARD);
+    return n;
+}
+
 // Осколки убитого — на счёт Кигора («eaten» в его данных): выпадут, когда его убьют. Возвращает, сколько забрал.
 function moKigorLoot(k, p) {
     var n = moTakeShards(p, 1e9);

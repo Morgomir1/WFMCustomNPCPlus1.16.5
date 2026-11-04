@@ -448,6 +448,12 @@ function eSpawnKigor(w, s) {
     } catch (err) {
         moLogOnce("respawn", "у клона Кигора не выключено возрождение: " + err);
     }
+    // Осколки рассыпавшихся прежде: этот принесёт их и уронит, когда его убьют.
+    var hoard = moHoardTake(w);
+    if (hoard > 0) {
+        k.getStoreddata().put("eaten", String(hoard));
+        eTell(moPlayers(w), "§2Новый Кигор несёт осколки, которые унесли прежние: " + hoard + ".");
+    }
     w.spawnParticle("explosion", s.x, s.y + 1, s.z, 1.0, 0.5, 1.0, 0, 6);
 }
 

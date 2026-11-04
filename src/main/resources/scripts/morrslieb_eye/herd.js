@@ -70,7 +70,7 @@ var HERD_LEASH = 32;
 var SHAMAN_EVERY = 120, SHAMAN_R = 10, SHAMAN_HEAL = 0.12;
 // Имя из Global → Factions, буква в букву.
 var HERD_FACTION = "Враждебные", HERD_RED = 0xC0FF3030 | 0;
-var T_HIT = 1, T_WALK = 2, WALK_STEP = 0.3;
+var T_HIT = 1, T_WALK = 2, WALK_STEP = 0.3, WALK_RISE = 0.6, WALK_CLIMB = 32;
 // От дальнего боя и взрывов стадо получает RANGED_TAKEN урона. Резист в окне NPC тут не годится: CustomNPCs считает дальним
 // только стрелы и брошенное, а пули и копья мода снарядами не помечены. Добавочный урон чар стрелкового оружия идёт
 // от самого игрока, его узнаём по типу.
@@ -179,6 +179,8 @@ function hCast(npc, casts, t, now) {
 }
 
 // Шаг по маршруту события: сам, как Кигор, поиск пути мода в лесу не дойдёт. Охрана на бой останавливается, вьючный идёт всегда.
+// Земля впереди выше, чем он поднимается за шаг, — сперва лезет вверх на месте, а не идёт сквозь склон или гору; с обрыва спускается.
+// Деревья ему не стена (MO_PASS).
 function hWalk(npc) {
     var kind = HERD[hGet(npc, "herd", "")], to = hGet(npc, "herd_to", "").split(",");
     if (kind == null || to.length < 2 || !npc.isAlive() || (kind.loot == null && npc.getAttackTarget() != null)) return;
@@ -188,8 +190,13 @@ function hWalk(npc) {
         npc.despawn();
         return;
     }
-    var nx = x + dx / d * WALK_STEP, nz = z + dz / d * WALK_STEP, g = moGround(npc.getWorld(), nx, nz, y, 3, 6);
-    var ny = g == null ? y : Math.max(y - 0.4, Math.min(y + 0.6, g));
+    var w = npc.getWorld(), nx = x + dx / d * WALK_STEP, nz = z + dz / d * WALK_STEP, g = moGround(w, nx, nz, y, 3, WALK_CLIMB);
+    if (g == null) g = moGround(w, nx, nz, y, WALK_CLIMB, 0);
+    if (g != null && g > y + WALK_RISE) {
+        nx = x;
+        nz = z;
+    }
+    var ny = g == null ? y : Math.max(y - 0.4, Math.min(y + WALK_RISE, g));
     npc.setRotation(Combat.computeYaw(dx, dz));
     Combat.holdInPlace(npc, nx, ny, nz);
     if (ny < y) Combat.clearFallDistance(npc);

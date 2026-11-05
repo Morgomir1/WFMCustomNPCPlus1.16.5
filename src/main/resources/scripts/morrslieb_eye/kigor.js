@@ -53,7 +53,10 @@ var ZONE_NEAR = 4, ZONE_LEAVE = 160;
 var CHASE_SPEED = 0.37, CHASE_STOP = 3;
 // Земля под шагом — от GROUND_UP выше ног до GROUND_DOWN ниже; за тик не выше RISE и не ниже FALL.
 var GROUND_UP = 12, GROUND_DOWN = 16, RISE = 0.6, FALL = 1.2;
-var RED = 0xC0FF0000 | 0, GREEN = 0xC040FF40 | 0;
+// Знаки — палитрой языка атак (combat/attacks.js): красный — не сбить, только уйти (кулак, полоса рывка), фиолетовый — удар
+// по области (топот, глыбы, конец рывка, Взгляд Ока, удар оземь). Сбиваемых приёмов у Кигора нет: от Взгляда убегают, сбивать
+// его незачем (Антон, 5 ноября). Файл языка клону не нужен: стоит он в списке раньше — цвета берутся из него, нет — те же числа.
+var RED = typeof AT_RED == "number" ? AT_RED : 0xC0FF3030 | 0, PURPLE = typeof AT_PURPLE == "number" ? AT_PURPLE : 0xB0B050FF | 0;
 var STUN_ID = "wfm:stun";
 
 var TURN_DEG = 5;
@@ -430,7 +433,7 @@ function punchHit(npc) {
 function startStomp(npc) {
     kFreeze(npc, npc.getRotation());
     kAnim(npc, ANIM_STOMP);
-    TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), STOMP_R, STOMP_WARN, RED);
+    TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), STOMP_R, STOMP_WARN, PURPLE);
     kSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.6);
     kTimer(npc, T_STOMP, STOMP_WARN, false);
 }
@@ -456,7 +459,7 @@ function startBoulders(npc, aims) {
     for (var i = 0; i < aims.length; i++) {
         var a = aims[i];
         pts.push(a.getX().toFixed(2) + ":" + a.getY().toFixed(2) + ":" + a.getZ().toFixed(2));
-        TelegraphAPI.circle(npc, a.getX(), a.getY(), a.getZ(), BOULDER_R, BOULDER_WARN, RED);
+        TelegraphAPI.circle(npc, a.getX(), a.getY(), a.getZ(), BOULDER_R, BOULDER_WARN, PURPLE);
         kArc(npc, a.getX(), a.getY(), a.getZ());
     }
     kPut(npc, "boulders", pts.join(";"));
@@ -517,7 +520,7 @@ function startDash(npc, t) {
     kFaceOnly(npc, yaw);
     kAnim(npc, ANIM_DASH);
     TelegraphAPI.line(npc, x, y, z, yaw, len, DASH_W * 2, DASH_CHARGE, RED);
-    TelegraphAPI.circle(npc, x + Math.cos(rad) * len, y, z + Math.sin(rad) * len, DASH_HIT_R, DASH_CHARGE + DASH_ACTIVE, RED);
+    TelegraphAPI.circle(npc, x + Math.cos(rad) * len, y, z + Math.sin(rad) * len, DASH_HIT_R, DASH_CHARGE + DASH_ACTIVE, PURPLE);
     kSound(npc, "minecraft:entity.ravager.roar", 1.0, 1.2);
     kTimer(npc, T_DASH_END, DASH_CHARGE + DASH_ACTIVE + 2, false);
     return true;
@@ -540,7 +543,7 @@ function startGaze(npc, t) {
     var yaw = kYawTo(npc, t);
     kFreeze(npc, yaw);
     kAnim(npc, ANIM_GAZE);
-    TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), GAZE_R, GAZE_WARN + GAZE_TICKS, GREEN);
+    TelegraphAPI.circle(npc, npc.getX(), npc.getY(), npc.getZ(), GAZE_R, GAZE_WARN + GAZE_TICKS, PURPLE);
     kSound(npc, "minecraft:block.beacon.activate", 1.0, 0.5);
     npc.say("§2Око Кигора раскрывается.");
     kTimer(npc, T_GAZE, GAZE_WARN, false);
@@ -584,7 +587,7 @@ function gazePulse(npc) {
 function startSlam(npc) {
     kPut(npc, "slam_on", 1);
     kAnim(npc, ANIM_STOMP);
-    TelegraphAPI.circle(npc, kNum(npc, "hold_x"), kNum(npc, "hold_y"), kNum(npc, "hold_z"), SLAM_R, SLAM_WARN, RED);
+    TelegraphAPI.circle(npc, kNum(npc, "hold_x"), kNum(npc, "hold_y"), kNum(npc, "hold_z"), SLAM_R, SLAM_WARN, PURPLE);
     kSound(npc, "minecraft:entity.ravager.roar", 1.0, 0.5);
     kTimer(npc, T_SLAM, SLAM_WARN, false);
 }

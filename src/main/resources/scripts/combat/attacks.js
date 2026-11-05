@@ -26,14 +26,18 @@
 // (сеть, рывок: иначе их бросали бы каждую цепочку). Между цепочками
 // передышка rest ([от, до] тиков, по умолчанию AT_REST) — окно игрока. fork — развилка: после шага after с шансом chance
 // цепочка идёт по своим шагам steps; у развилки свой сигнал, обычно прерываемый приём с золотым окном.
-// Шаг — имя приёма из AT_MOVES или { move: имя, ...поля поверх }, params сливаются.
+// Шаг — имя приёма из AT_MOVES или { move: имя, ...поля поверх }, params сливаются. Своего приёма вида в наборе может не быть
+// (заклинания шамана): тогда шаг с ability или shape и есть весь приём.
 //
 // Приём: sig — "open" или "hard"; area: 1 — по области; windup — замах, тиков до удара; recover — пауза после;
-// big: 1 — сигнал и у рядового. Способность мода: ability, params (chargeTicks ставит windup), active — сколько она идёт
+// big: 1 — сигнал и у рядового; quiet: 1 — без знака вовсе (отскок: в нём нет удара, рисовать нечего).
+// Способность мода: ability, params (chargeTicks ставит windup), active — сколько она идёт
 // после замаха (по умолчанию params.activeTicks), line: 1 — своя полоса до цели (у способности её нет); window — своё окно
 // вместо AT_WINDOW.
-// Свой удар скрипта: shape "arc" (дуга перед собой: reach, half), "circle" (круг вокруг: reach) или "line" (полоса от точки
-// замаха по его направлению: reach — длина, width — ширина), hit — тик удара (по умолчанию windup), dmg — обычный удар моба
+// Свой удар скрипта: shape "arc" (дуга перед собой: reach, half), "circle" (круг вокруг: reach), "line" (полоса от точки
+// замаха по его направлению: reach — длина, width — ширина) или "spot" (круг reach там, где цель стояла в начале замаха:
+// успел уйти — не задело), hit — тик удара (по умолчанию windup); бьёт не выше и не ниже reachY (по умолчанию AT_REACH_Y)
+// от моба, а у "spot" — от той точки: летун над головой и игрок на крыше не достают друг друга; dmg — обычный удар моба
 // (броня, щит и отбрасывание, как от удара рукой: AbilityCombatHelper.mobStrike; на старом JAR — урон без источника, его
 // щит не держит), pct — доля здоровья мимо брони, push — отбрасывание сверху, slow — секунд замедления;
 // у приёма способности свой удар рисует свою зону, а зону способности выключает: знак показывает то, что бьёт;
@@ -49,7 +53,7 @@ var AT_GREEN = 0xC040E060 | 0, AT_GOLD = 0xE0FFC830 | 0, AT_RED = 0xC0FF3030 | 0
 // Кольцо прерываемой атаки и кольцо окна вокруг ног моба: внешний и внутренний радиус.
 var AT_RING = [1.6, 1.2], AT_GOLD_RING = [2.2, 1.7];
 var AT_WINDOW = 8, AT_CALM = 10, AT_STUN = 40, AT_GUARD = 60, AT_STUN_ID = "wfm:stun";
-var AT_REST = [16, 30], AT_LUNGE_GAP = 1.2;
+var AT_REST = [16, 30], AT_LUNGE_GAP = 1.2, AT_REACH_Y = 3;
 var AT_WINDOW_SOUND = "minecraft:block.note_block.bell", AT_BREAK_SOUND = "minecraft:block.anvil.land";
 var AT_T_WINDOW = 31, AT_T_STRIKE = 32, AT_T_NEXT = 33;
 var AT_LOGGED = {};
@@ -78,6 +82,9 @@ var AT_MOVES = {
     // Сеть: летит на точку цели и замедляет всех в круге. Фиолетовый круг на месте падения.
     net: { sig: "hard", area: 1, ability: "net_throw", windup: 20, active: 12, recover: 10,
         params: { radius: 2.5, effectDuration: 30, effectAmplifier: 2, landSound: "minecraft:entity.leash_knot.place" } },
+    // Пике с воздуха на точку цели, удар по кругу при приземлении — vampire_pounce. Прерывается, круг приземления фиолетовый.
+    dive: { sig: "open", area: 1, ability: "vampire_pounce", windup: 14, recover: 10,
+        params: { activeTicks: 9, damage: 6.0, knockback: 0.8, landRadius: 2.8, arcHeight: 4.0, lifeStealPerHit: 0.0 } },
     // Бросок топора: летит до цели и возвращается. Своя красная полоса до цели.
     throw: { sig: "hard", ability: "axe_throw", windup: 16, active: 26, recover: 6, line: 1,
         params: { maxRange: 16.0, hitRadius: 1.4, outboundTicks: 14, holdTicks: 2, returnTicks: 10, arcHeight: 0.4,
@@ -98,9 +105,10 @@ function atFlat(e, x, z) { var dx = e.getX() - x, dz = e.getZ() - z; return Math
 // Таймер CustomNPCs с числом N срабатывает на N+1-е обновление; здесь ticks — сколько тиков на самом деле.
 function atArm(npc, id, ticks) { npc.getTimers().forceStart(id, Math.max(0, Math.round(ticks) - 1), false); }
 
-// Приём шага: поля из набора, поверх — поля шага; params сливаются.
+// Приём шага: поля из набора, поверх — поля шага; params сливаются. Своего приёма в наборе нет — шаг и есть приём.
 function atMove(step) {
     var own = typeof step == "string" ? null : step, name = own == null ? step : own.move, base = AT_MOVES[name];
+    if (base == null && own != null && (own.ability != null || own.shape != null)) base = {};
     if (base == null) return null;
     var m = {}, p = {}, k;
     for (k in base) m[k] = base[k];
@@ -144,7 +152,7 @@ function atRestTicks(mob) {
     return r[0] + Math.floor(Math.random() * (r[1] - r[0] + 1));
 }
 
-function atShows(mob, m) { return mob.rank >= 1 || m.big == 1; }
+function atShows(mob, m) { return m.quiet != 1 && (mob.rank >= 1 || m.big == 1); }
 function atWinTicks(m) { return Math.min(m.window > 0 ? m.window : AT_WINDOW, m.windup); }
 function atZoneColor(m) { return m.area == 1 ? AT_PURPLE : m.sig == "open" ? AT_GREEN : AT_RED; }
 
@@ -202,6 +210,9 @@ function atStep(npc, mob, i) {
     atPut(npc, "at_yaw", yaw);
     atPut(npc, "at_x", x);
     atPut(npc, "at_z", z);
+    atPut(npc, "at_tx", t.getX());
+    atPut(npc, "at_ty", t.getY());
+    atPut(npc, "at_tz", t.getZ());
     npc.setRotation(yaw);
     if (m.ability != null) {
         if (!AtAbility.start(npc, m.ability, t, atParams(m, show))) {
@@ -251,6 +262,8 @@ function atSignal(npc, m, t, x, y, z, yaw) {
         atTg(npc, id);
     } else if (m.shape == "line") {
         atTg(npc, AtTelegraph.line(npc, x, y, z, yaw, m.reach, m.width, until, color));
+    } else if (m.shape == "spot") {
+        atTg(npc, AtTelegraph.circle(npc, t.getX(), t.getY(), t.getZ(), m.reach, until, color));
     } else {
         atTg(npc, AtTelegraph.cone(npc, x, y, z, yaw, m.reach + (m.lunge > 0 ? m.lunge : 0), m.half, until, color));
     }
@@ -271,16 +284,21 @@ function atWindow(npc, mob, m) {
 
 // Свой удар скрипта: дуга — от точки и по направлению замаха, круг — вокруг того места, где моб стоит в момент удара.
 function atStrike(npc, m) {
-    var arc = m.shape == "arc", line = m.shape == "line", w = npc.getWorld();
+    var arc = m.shape == "arc", line = m.shape == "line", spot = m.shape == "spot", w = npc.getWorld();
     if (m.lunge > 0) atLunge(npc, m);
     var fixed = arc || line, ox = fixed ? atNum(npc, "at_x") : npc.getX(), oz = fixed ? atNum(npc, "at_z") : npc.getZ();
-    var yaw = atNum(npc, "at_yaw");
+    var oy = npc.getY(), yaw = atNum(npc, "at_yaw");
+    if (spot) {
+        ox = atNum(npc, "at_tx");
+        oy = atNum(npc, "at_ty");
+        oz = atNum(npc, "at_tz");
+    }
     if (m.ability == null) {
         npc.swingMainhand();
         w.playSoundAt(npc.getPos(), arc ? "minecraft:entity.player.attack.sweep" : "minecraft:entity.generic.explode", 1.0, arc ? 0.8 : 1.2);
         if (!arc) w.spawnParticle("explosion", ox, npc.getY() + 0.3, oz, m.reach / 2, 0.2, m.reach / 2, 0, 4);
     }
-    var ps = atPlayersAt(npc, ox, npc.getY(), oz, m.reach + (line ? 1 : 0));
+    var ps = atPlayersAt(npc, ox, oy, oz, m.reach + (line ? 1 : 0), m.reachY > 0 ? m.reachY : AT_REACH_Y);
     for (var i = 0; i < ps.length; i++) {
         var p = ps[i];
         if (arc && !AtCombat.isInFrontCone(ox, oz, yaw, p, m.half)) continue;
@@ -325,13 +343,13 @@ function atLunge(npc, m) {
     atPut(npc, "at_z", nz);
 }
 
-function atPlayersAt(npc, x, y, z, r) {
+function atPlayersAt(npc, x, y, z, r, ry) {
     var list = npc.getWorld().getNearbyEntities(AtNpcAPI.getIPos(x, y, z), Math.ceil(r) + 1, 1), out = [];
     for (var i = 0; i < list.length; i++) {
         var p = list[i];
         if (!p.isAlive() || p.getGamemode() == 1 || p.getGamemode() == 3) continue;
         if (typeof atSpare == "function" && atSpare(p)) continue;
-        if (atFlat(p, x, z) <= r) out.push(p);
+        if (atFlat(p, x, z) <= r && !(Math.abs(p.getY() - y) > ry)) out.push(p);
     }
     return out;
 }

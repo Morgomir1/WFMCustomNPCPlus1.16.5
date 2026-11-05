@@ -98,6 +98,35 @@ var CENT_CHAINS = [
     { min: 0, max: 5.5, steps: [CENT_SLASH, CENT_SLASH, "thrust"] },
     { min: 0, max: 5.5, steps: [CENT_SLASH, "shove"] }
 ];
+// Гарпия — рядовая, стоянками: когти без знаков и без шага (летунье шагать некуда), быстрые, как прежний её удар; не достают
+// дальше 4 блоков по высоте. Пике — крупный приём со знаком: зелёное кольцо, его можно сбить, круг приземления фиолетовый;
+// издалека, как прежде, не чаще раза в 5 секунд, следом когти.
+var HARPY_CLAW = { move: "slash", dmg: 5, windup: 10, recover: 4, lunge: 0, half: 70, reach: 3.5, reachY: 4 };
+var HARPY_CHAINS = [
+    { min: 4, max: 14, steps: [{ move: "dive", big: 1 }, HARPY_CLAW], cd: 100 },
+    { min: 0, max: 4.5, steps: [HARPY_CLAW, HARPY_CLAW] },
+    { min: 0, max: 4.5, steps: [HARPY_CLAW, HARPY_CLAW, HARPY_CLAW], weight: 0.5 }
+];
+// Бра-шаман — единичный (со звуком окна), заклинатель: подошедшего отталкивает и отскакивает; издалека проклятие (круг там,
+// где стояла цель, 18% здоровья, если не ушла) или лужа порчи, следом сгусток душ; между ними сгусток. Заклинания сбиваются
+// ударом в окне — подойти к нему и есть ответ; толчок и отскок не сбить. Откаты прежние, сгусток — раз в 3 секунды.
+var SH_REPULSE = { move: "repulse", sig: "hard", area: 1, ability: "df_repulse", windup: 16, active: 1, recover: 4,
+    params: { radius: 3.5, knockback: 1.6, knockbackY: 0.4 } };
+var SH_RETREAT = { move: "retreat", sig: "hard", quiet: 1, ability: "retreat_dash", windup: 5, active: 6, recover: 6,
+    params: { distance: 7.0, activeTicks: 6 } };
+var SH_CURSE = { move: "curse", sig: "open", area: 1, ability: "grasping_dead", windup: 20, active: 34, recover: 6,
+    shape: "spot", reach: 3, pct: 0.18, hit: 40, params: { radius: 3.0, effectType: "slowness", effectAmplifier: 1 } };
+var SH_POOL = { move: "pool", sig: "open", area: 1, ability: "crimson_blob", windup: 20, active: 14, recover: 6,
+    params: { maxRange: 18.0, landRadius: 2.5, damage: 2.0, damageInterval: 20, zoneTicks: 120, effectId: "minecraft:poison",
+        effectDuration: 60, effectAmplifier: 0, zoneColor: typeof AT_PURPLE == "number" ? AT_PURPLE : 0xB0B050FF | 0 } };
+var SH_BOLT = { move: "bolt", sig: "open", ability: "ghost_soul_bolt", windup: 16, active: 14, recover: 6,
+    params: { maxRange: 20.0, damage: 5.0, knockback: 0.8, knockbackY: 0.3, hitRadius: 1.4, landRadius: 2.0 } };
+var SHAMAN_CHAINS = [
+    { min: 0, max: 3.5, steps: [SH_REPULSE, SH_RETREAT], cd: 160 },
+    { min: 3.5, max: 16, steps: [SH_CURSE, SH_BOLT], cd: 200 },
+    { min: 5, max: 18, steps: [SH_POOL, SH_BOLT], cd: 240 },
+    { min: 3.5, max: 20, steps: [SH_BOLT] }
+];
 
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
 // range — дальность удара: CustomNPCs меряет её от ног до ног, по умолчанию 2, и игрок с мечом перебивал стадо издалека;
@@ -109,8 +138,8 @@ var HERD = {
     gor: { hp: 140, melee: 8, range: 3, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW], chains: GOR_CHAINS, rank: 2 },
     sniffer: { hp: 40, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач", chains: SNIFFER_CHAINS, rank: 0 },
     centigor: { hp: 100, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2, chains: CENT_CHAINS, rank: 1 },
-    harpy: { hp: 80, melee: 6, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1 },
-    shaman: { hp: 130, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_REPULSE, SHAMAN_RETREAT, SHAMAN_CURSE, SHAMAN_POOL, SHAMAN_BOLT] },
+    harpy: { hp: 80, melee: 6, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1, chains: HARPY_CHAINS, rank: 0 },
+    shaman: { hp: 130, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_REPULSE, SHAMAN_RETREAT, SHAMAN_CURSE, SHAMAN_POOL, SHAMAN_BOLT], chains: SHAMAN_CHAINS, rank: 2 },
     pack: { hp: 250, melee: 5, aggro: 1, speed: 5, wander: 0, loot: 10, name: "Вьючный бивнегор" }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200, HUNT_AGGRO = 64;

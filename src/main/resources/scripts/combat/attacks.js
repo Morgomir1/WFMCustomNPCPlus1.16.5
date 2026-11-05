@@ -21,8 +21,9 @@
 // Красные — те, от которых только уходят. Сбитый моб AT_GUARD тиков после стана собран: его приёмы идут красными, без окна,
 // иначе его держали бы в стане вечно.
 //
-// Цепочки: у моба chains — список { min, max, steps, fork, weight }. Следующая выбирается случайно из тех, что подходят
-// по расстоянию до цели (min..max, по горизонтали), та же дважды подряд — только если другой нет. Между цепочками
+// Цепочки: у моба chains — список { min, max, steps, fork, weight, cd }. Следующая выбирается случайно из тех, что подходят
+// по расстоянию до цели (min..max, по горизонтали), та же дважды подряд — только если другой нет; cd — откат цепочки в тиках
+// (сеть, рывок: иначе их бросали бы каждую цепочку). Между цепочками
 // передышка rest ([от, до] тиков, по умолчанию AT_REST) — окно игрока. fork — развилка: после шага after с шансом chance
 // цепочка идёт по своим шагам steps; у развилки свой сигнал, обычно прерываемый приём с золотым окном.
 // Шаг — имя приёма из AT_MOVES или { move: имя, ...поля поверх }, params сливаются.
@@ -31,8 +32,11 @@
 // big: 1 — сигнал и у рядового. Способность мода: ability, params (chargeTicks ставит windup), active — сколько она идёт
 // после замаха (по умолчанию params.activeTicks), line: 1 — своя полоса до цели (у способности её нет); window — своё окно
 // вместо AT_WINDOW.
-// Свой удар скрипта: shape "arc" (дуга перед собой: reach, half) или "circle" (круг вокруг: reach), hit — тик удара
-// (по умолчанию windup), dmg — обычный урон через броню, pct — доля здоровья мимо брони, push — отбрасывание;
+// Свой удар скрипта: shape "arc" (дуга перед собой: reach, half), "circle" (круг вокруг: reach) или "line" (полоса от точки
+// замаха по его направлению: reach — длина, width — ширина), hit — тик удара (по умолчанию windup), dmg — обычный удар моба
+// (броня, щит и отбрасывание, как от удара рукой: AbilityCombatHelper.mobStrike; на старом JAR — урон без источника, его
+// щит не держит), pct — доля здоровья мимо брони, push — отбрасывание сверху, slow — секунд замедления;
+// у приёма способности свой удар рисует свою зону, а зону способности выключает: знак показывает то, что бьёт;
 // lunge — шаг вперёд по направлению замаха в момент удара, до стольких блоков, но не ближе AT_LUNGE_GAP к цели, не в стену
 // и не с обрыва: иначе от замаха уходят шагом назад и моба просто не подпускают. Конус замаха показывает reach + lunge.
 var AtAbility = Java.type("noppes.npcs.abilities.AbilityAPI");
@@ -71,6 +75,9 @@ var AT_MOVES = {
     // Вращение с оружием: круг вокруг себя, бьёт, пока крутится. Фиолетовый круг способности.
     spin: { sig: "hard", area: 1, ability: "weapon_spin", windup: 16, recover: 14,
         params: { activeTicks: 24, radius: 3.5, damagePerTick: 2.0 } },
+    // Сеть: летит на точку цели и замедляет всех в круге. Фиолетовый круг на месте падения.
+    net: { sig: "hard", area: 1, ability: "net_throw", windup: 20, active: 12, recover: 10,
+        params: { radius: 2.5, effectDuration: 30, effectAmplifier: 2, landSound: "minecraft:entity.leash_knot.place" } },
     // Бросок топора: летит до цели и возвращается. Своя красная полоса до цели.
     throw: { sig: "hard", ability: "axe_throw", windup: 16, active: 26, recover: 6, line: 1,
         params: { maxRange: 16.0, hitRadius: 1.4, outboundTicks: 14, holdTicks: 2, returnTicks: 10, arcHeight: 0.4,
@@ -113,12 +120,12 @@ function atSteps(chain, forked) {
     return chain.steps.slice(0, chain.fork.after).concat(chain.fork.steps);
 }
 
-// Цепочка по расстоянию; прошлая — только если другой нет.
-function atPick(mob, dist, last) {
+// Цепочка по расстоянию и не на откате; прошлая — только если другой нет.
+function atPick(npc, mob, dist, last, now) {
     var fit = [], i;
     for (i = 0; i < mob.chains.length; i++) {
         var c = mob.chains[i];
-        if (dist >= c.min && dist <= c.max) fit.push(i);
+        if (dist >= c.min && dist <= c.max && now >= atNum(npc, "at_cd" + i)) fit.push(i);
     }
     if (fit.length > 1 && fit.indexOf(last) >= 0) fit.splice(fit.indexOf(last), 1);
     if (fit.length == 0) return -1;
@@ -148,9 +155,10 @@ function atBusy(npc) { return atGet(npc, "at_chain", "-1") != "-1"; }
 function atTick(npc, mob, t, now) {
     if (now < atNum(npc, "at_stun") || atBusy(npc)) return true;
     if (now < atNum(npc, "at_rest") || AtAbility.isBusy(npc) || t == null || !t.isAlive()) return false;
-    var c = atPick(mob, atFlat(t, npc.getX(), npc.getZ()), Number(atGet(npc, "at_last", "-1")));
+    var c = atPick(npc, mob, atFlat(t, npc.getX(), npc.getZ()), Number(atGet(npc, "at_last", "-1")), now);
     if (c < 0) return false;
     var chain = mob.chains[c], forked = chain.fork != null && Math.random() < chain.fork.chance;
+    if (chain.cd > 0) atPut(npc, "at_cd" + c, now + chain.cd);
     atPut(npc, "at_chain", c);
     atPut(npc, "at_fork", forked ? 1 : 0);
     atPut(npc, "at_target", t.getUUID());
@@ -222,7 +230,7 @@ function atParams(m, show) {
     var p = AtAbility.params(), k;
     for (k in m.params) p.put(k, m.params[k]);
     p.put("chargeTicks", m.windup);
-    p.put("telegraph", show ? 1 : 0);
+    p.put("telegraph", show && m.shape == null ? 1 : 0);
     p.put("telegraphColor", atZoneColor(m));
     return p;
 }
@@ -234,10 +242,18 @@ function atSignal(npc, m, t, x, y, z, yaw) {
         var len = Math.min(atFlat(t, x, z) + 1, m.params.maxRange > 0 ? m.params.maxRange : 16);
         atTg(npc, AtTelegraph.line(npc, x, y, z, yaw, len, (m.params.hitRadius > 0 ? m.params.hitRadius : 1) * 2, m.windup, color));
     }
-    if (m.ability != null || m.shape == null) return;
+    if (m.shape == null) return;
     var until = m.hit > 0 ? m.hit : m.windup;
-    if (m.shape == "circle") atTg(npc, AtTelegraph.circle(npc, x, y, z, m.reach, until, color));
-    else atTg(npc, AtTelegraph.cone(npc, x, y, z, yaw, m.reach + (m.lunge > 0 ? m.lunge : 0), m.half, until, color));
+    if (m.shape == "circle") {
+        // Круг вокруг себя идёт за мобом: бьёт там, где он стоит в момент удара.
+        var id = AtTelegraph.circle(npc, x, y, z, m.reach, until, color);
+        AtTelegraph.follow(id, npc);
+        atTg(npc, id);
+    } else if (m.shape == "line") {
+        atTg(npc, AtTelegraph.line(npc, x, y, z, yaw, m.reach, m.width, until, color));
+    } else {
+        atTg(npc, AtTelegraph.cone(npc, x, y, z, yaw, m.reach + (m.lunge > 0 ? m.lunge : 0), m.half, until, color));
+    }
 }
 
 // Окно открылось: золотое кольцо и вспышка всем рядом, звук — только тому, на кого замах, и только у ранга 2.
@@ -255,22 +271,44 @@ function atWindow(npc, mob, m) {
 
 // Свой удар скрипта: дуга — от точки и по направлению замаха, круг — вокруг того места, где моб стоит в момент удара.
 function atStrike(npc, m) {
-    var arc = m.shape == "arc", w = npc.getWorld();
+    var arc = m.shape == "arc", line = m.shape == "line", w = npc.getWorld();
     if (m.lunge > 0) atLunge(npc, m);
-    var ox = arc ? atNum(npc, "at_x") : npc.getX(), oz = arc ? atNum(npc, "at_z") : npc.getZ(), yaw = atNum(npc, "at_yaw");
+    var fixed = arc || line, ox = fixed ? atNum(npc, "at_x") : npc.getX(), oz = fixed ? atNum(npc, "at_z") : npc.getZ();
+    var yaw = atNum(npc, "at_yaw");
     if (m.ability == null) {
         npc.swingMainhand();
         w.playSoundAt(npc.getPos(), arc ? "minecraft:entity.player.attack.sweep" : "minecraft:entity.generic.explode", 1.0, arc ? 0.8 : 1.2);
         if (!arc) w.spawnParticle("explosion", ox, npc.getY() + 0.3, oz, m.reach / 2, 0.2, m.reach / 2, 0, 4);
     }
-    var ps = atPlayersAt(npc, ox, npc.getY(), oz, m.reach);
+    var ps = atPlayersAt(npc, ox, npc.getY(), oz, m.reach + (line ? 1 : 0));
     for (var i = 0; i < ps.length; i++) {
         var p = ps[i];
         if (arc && !AtCombat.isInFrontCone(ox, oz, yaw, p, m.half)) continue;
-        if (m.dmg > 0) p.damage(m.dmg);
+        if (line && !atOnLine(p, ox, oz, yaw, m.reach, m.width / 2)) continue;
+        if (m.dmg > 0) atHit(npc, p, m.dmg);
         if (m.pct > 0) atStrikePct(p, m.pct);
-        if (m.push > 0 && p.isAlive()) p.knockback(Math.round(m.push), AtCombat.computeYaw(p.getX() - ox, p.getZ() - oz));
+        if (!p.isAlive()) continue;
+        if (m.push > 0) p.knockback(Math.round(m.push), AtCombat.computeYaw(p.getX() - ox, p.getZ() - oz));
+        if (m.slow > 0) p.addPotionEffect(2, m.slow, 0, false);
     }
+}
+
+// Удар моба, как его удар рукой: броня, щит и отбрасывание. На старом JAR CustomNPCs помощника нет — урон без источника.
+function atHit(npc, p, dmg) {
+    var strike = null;
+    try { strike = AtCombat.mobStrike; } catch (err) {}
+    if (strike != null) AtCombat.mobStrike(npc, p, dmg);
+    else {
+        atLogOnce("mob_strike", "нет AbilityCombatHelper.mobStrike: старый JAR, удар без источника, щит его не держит");
+        p.damage(dmg);
+    }
+}
+
+// На полосе: от точки замаха вперёд не дальше len, вбок не дальше half; чуть позади точки — тоже.
+function atOnLine(p, sx, sz, yaw, len, half) {
+    var rad = (yaw + 90) * Math.PI / 180, fx = Math.cos(rad), fz = Math.sin(rad), dx = p.getX() - sx, dz = p.getZ() - sz;
+    var along = dx * fx + dz * fz;
+    return along >= -1 && along <= len && Math.abs(dx * fz - dz * fx) <= half;
 }
 
 // Шаг вперёд по направлению замаха: к цели, но не вплотную; новая точка — начало дуги.

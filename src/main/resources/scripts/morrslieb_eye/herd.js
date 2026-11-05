@@ -66,16 +66,49 @@ var GOR_CHAINS = [
     { min: 6.5, max: 16, steps: ["throw", "charge"] }
 ];
 
+// Унгор — рядовой: в стае его удары без знаков, виден только тычок (big). Вблизи «рубит, колет» или «рубит, рубит».
+// Удар — его прежние 4–5 как обычный удар моба, через броню и щит.
+var UNGOR_SLASH = { move: "slash", dmg: 4, windup: 12, lunge: 1.5 };
+var UNGOR_JAB = { move: "thrust", big: 1, params: { damage: 3.0 } };
+var UNGOR_CHAINS = [
+    { min: 0, max: 5.5, steps: [UNGOR_SLASH, UNGOR_JAB] },
+    { min: 0, max: 5.5, steps: [UNGOR_SLASH, UNGOR_SLASH] }
+];
+// Нюхач — тот же унгор: издалека сеть, не чаще раза в 20 секунд, вблизи «рубит, колет».
+var SNIFFER_CHAINS = [
+    { min: 5, max: 14, steps: [{ move: "net", big: 1 }], cd: 400 },
+    { min: 0, max: 5.5, steps: [{ move: "slash", dmg: 3, windup: 12, lunge: 1.5 }, UNGOR_JAB] }
+];
+// Бивнегор — элитный: бодает (дуга уже и сильнее), топчет вокруг себя, толкает; издалека разбег по полосе, как прежде
+// 12% здоровья тем, кто на ней, и не чаще раза в 8 секунд.
+var TUSK_GORE = { move: "slash", dmg: 6, half: 45 };
+var TUSK_STAMP = { move: "slam", dmg: 5, reach: 3.0 };
+var TUSK_RUSH = { move: "charge", windup: 28, params: { distance: 10.0, damage: 5.0 }, shape: "line", reach: 10, width: 3, pct: 0.12, hit: 34 };
+var TUSK_CHAINS = [
+    { min: 0, max: 5.5, steps: [TUSK_GORE, TUSK_STAMP] },
+    { min: 0, max: 5.5, steps: [TUSK_GORE, TUSK_GORE, "shove"] },
+    { min: 5.5, max: 12, steps: [TUSK_RUSH, TUSK_GORE], cd: 160 }
+];
+// Центигор — элитный охотник: удары замедляют на 2 секунды, как прежде его удар; издалека бросает топор и бежит следом
+// рывком по полосе, 15% здоровья тем, кто на ней, не чаще раза в 10 секунд; вблизи «рубит, рубит, колет» или «рубит, толкает».
+var CENT_SLASH = { move: "slash", dmg: 6, slow: 2 };
+var CENT_RUSH = { move: "charge", windup: 28, params: { distance: 12.0, damage: 6.0 }, shape: "line", reach: 12, width: 3, pct: 0.15, hit: 34 };
+var CENT_CHAINS = [
+    { min: 5.5, max: 16, steps: [{ move: "throw", params: { damagePercent: 0.08 } }, CENT_RUSH], cd: 200 },
+    { min: 0, max: 5.5, steps: [CENT_SLASH, CENT_SLASH, "thrust"] },
+    { min: 0, max: 5.5, steps: [CENT_SLASH, "shove"] }
+];
+
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
 // range — дальность удара: CustomNPCs меряет её от ног до ног, по умолчанию 2, и игрок с мечом перебивал стадо издалека;
 // delay — тиков между ударами, по умолчанию 20. chains — цепочки языка атак вместо casts и обычного удара, rank — ранг для сигналов
 // (0 рядовой, 1 элитный, 2 единичный: со звуком окна). fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
 var HERD = {
-    ungor: { hp: 55, melee: 5, range: 3, aggro: 16, speed: 6, wander: 8, casts: [UNGOR_THRUST] },
-    tuskgor: { hp: 110, melee: 7, range: 4, aggro: 14, speed: 6, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
+    ungor: { hp: 55, melee: 5, range: 3, aggro: 16, speed: 6, wander: 8, casts: [UNGOR_THRUST], chains: UNGOR_CHAINS, rank: 0 },
+    tuskgor: { hp: 110, melee: 7, range: 4, aggro: 14, speed: 6, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP], chains: TUSK_CHAINS, rank: 1 },
     gor: { hp: 140, melee: 8, range: 3, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW], chains: GOR_CHAINS, rank: 2 },
-    sniffer: { hp: 40, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
-    centigor: { hp: 100, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
+    sniffer: { hp: 40, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач", chains: SNIFFER_CHAINS, rank: 0 },
+    centigor: { hp: 100, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2, chains: CENT_CHAINS, rank: 1 },
     harpy: { hp: 80, melee: 6, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1 },
     shaman: { hp: 130, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_REPULSE, SHAMAN_RETREAT, SHAMAN_CURSE, SHAMAN_POOL, SHAMAN_BOLT] },
     pack: { hp: 250, melee: 5, aggro: 1, speed: 5, wander: 0, loot: 10, name: "Вьючный бивнегор" }

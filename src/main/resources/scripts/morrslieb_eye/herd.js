@@ -7,6 +7,8 @@
 // Охотники, нюхач и центигор, идут на свет своей добычи: кто погас, вошёл в зону или ушёл дальше HUNT_LOSE, того они теряют
 // и через HUNT_LOSE_TICKS уходят. Гарпия летает, это настройка навигации NPC. Шаман лечит стадо рядом, а кого заметил, того
 // подсвечивает: такого видит и Кигор.
+// Гор-сторож бьёт цепочками приёмов на общем языке атак (combat/attacks.js, в списке скриптов перед этим файлом): сигналы,
+// золотое окно, в которое его сбивают ударом, передышки. Нет файла у клона — бьёт по-старому, приёмами casts, строка в журнале.
 var AbilityAPI = Java.type("noppes.npcs.abilities.AbilityAPI");
 var TelegraphAPI = Java.type("noppes.npcs.telegraph.TelegraphAPI");
 var Combat = Java.type("noppes.npcs.abilities.AbilityCombatHelper");
@@ -50,17 +52,94 @@ var SHAMAN_POOL = { ability: "crimson_blob", cd: 240, min: 5, max: 18, shape: "n
 var SHAMAN_BOLT = { ability: "ghost_soul_bolt", cd: 60, min: 4, max: 20, shape: "none",
     params: function () { return AbilityAPI.params("chargeTicks", 16, "maxRange", 20.0, "damage", 5.0, "knockback", 0.8, "knockbackY", 0.3, "hitRadius", 1.4, "landRadius", 2.0); } };
 
+// Цепочки гора — шаги из набора приёмов combat/attacks.js, числа поверх набора. Вплотную: рубит, рубит, толкает; изредка
+// после первого удара пауза и прыжок. Удары, толчок и прыжок прерываемы: зелёное кольцо, золотое окно в конце замаха. Или
+// рубит и крутится: вращение красное, от него уходят. Издалека бросает топор и бежит следом рывком, тоже красные.
+// Вращение бьёт, как прежде, долей здоровья в круге в конце. Рубить начинает с 6,5 блока:
+// удар шагает вперёд на 2 и достаёт на 4,5 от новой точки — иначе от гора отходили на шаг и не подпускали (проба 4 ноября).
+var GOR_SLASH = { move: "slash", dmg: 7 };
+var GOR_LEAP = { move: "leap", windup: 28 };
+var GOR_SPIN_STEP = { move: "spin", shape: "circle", reach: 3.5, pct: 0.15, hit: 40 };
+var GOR_CHAINS = [
+    { min: 0, max: 6.5, steps: [GOR_SLASH, GOR_SLASH, "shove"], fork: { after: 1, chance: 0.3, steps: [GOR_LEAP] } },
+    { min: 0, max: 6.5, steps: [GOR_SLASH, GOR_SPIN_STEP] },
+    { min: 6.5, max: 16, steps: ["throw", "charge"] }
+];
+
+// Унгор — рядовой: в стае его удары без знаков, виден только тычок (big). Вблизи «рубит, колет» или «рубит, рубит».
+// Удар — его прежние 4–5 как обычный удар моба, через броню и щит.
+var UNGOR_SLASH = { move: "slash", dmg: 4, windup: 12, lunge: 1.5 };
+var UNGOR_JAB = { move: "thrust", big: 1, params: { damage: 3.0 } };
+var UNGOR_CHAINS = [
+    { min: 0, max: 5.5, steps: [UNGOR_SLASH, UNGOR_JAB] },
+    { min: 0, max: 5.5, steps: [UNGOR_SLASH, UNGOR_SLASH] }
+];
+// Нюхач — тот же унгор: издалека сеть, не чаще раза в 20 секунд, вблизи «рубит, колет».
+var SNIFFER_CHAINS = [
+    { min: 5, max: 14, steps: [{ move: "net", big: 1 }], cd: 400 },
+    { min: 0, max: 5.5, steps: [{ move: "slash", dmg: 3, windup: 12, lunge: 1.5 }, UNGOR_JAB] }
+];
+// Бивнегор — элитный: бодает (дуга уже и сильнее), топчет вокруг себя, толкает; издалека разбег по полосе, как прежде
+// 12% здоровья тем, кто на ней, и не чаще раза в 8 секунд.
+var TUSK_GORE = { move: "slash", dmg: 6, half: 45 };
+var TUSK_STAMP = { move: "slam", dmg: 5, reach: 3.0 };
+var TUSK_RUSH = { move: "charge", windup: 28, params: { distance: 10.0, damage: 5.0 }, shape: "line", reach: 10, width: 3, pct: 0.12, hit: 34 };
+var TUSK_CHAINS = [
+    { min: 0, max: 5.5, steps: [TUSK_GORE, TUSK_STAMP] },
+    { min: 0, max: 5.5, steps: [TUSK_GORE, TUSK_GORE, "shove"] },
+    { min: 5.5, max: 12, steps: [TUSK_RUSH, TUSK_GORE], cd: 160 }
+];
+// Центигор — элитный охотник: удары замедляют на 2 секунды, как прежде его удар; издалека бросает топор и бежит следом
+// рывком по полосе, 15% здоровья тем, кто на ней, не чаще раза в 10 секунд; вблизи «рубит, рубит, колет» или «рубит, толкает».
+var CENT_SLASH = { move: "slash", dmg: 6, slow: 2 };
+var CENT_RUSH = { move: "charge", windup: 28, params: { distance: 12.0, damage: 6.0 }, shape: "line", reach: 12, width: 3, pct: 0.15, hit: 34 };
+var CENT_CHAINS = [
+    { min: 5.5, max: 16, steps: [{ move: "throw", params: { damagePercent: 0.08 } }, CENT_RUSH], cd: 200 },
+    { min: 0, max: 5.5, steps: [CENT_SLASH, CENT_SLASH, "thrust"] },
+    { min: 0, max: 5.5, steps: [CENT_SLASH, "shove"] }
+];
+// Гарпия — рядовая, стоянками: когти без знаков и без шага (летунье шагать некуда), быстрые, как прежний её удар; не достают
+// дальше 4 блоков по высоте. Пике — крупный приём со знаком: зелёное кольцо, его можно сбить, круг приземления фиолетовый;
+// издалека, как прежде, не чаще раза в 5 секунд, следом когти.
+var HARPY_CLAW = { move: "slash", dmg: 5, windup: 10, recover: 4, lunge: 0, half: 70, reach: 3.5, reachY: 4 };
+var HARPY_CHAINS = [
+    { min: 4, max: 14, steps: [{ move: "dive", big: 1 }, HARPY_CLAW], cd: 100 },
+    { min: 0, max: 4.5, steps: [HARPY_CLAW, HARPY_CLAW] },
+    { min: 0, max: 4.5, steps: [HARPY_CLAW, HARPY_CLAW, HARPY_CLAW], weight: 0.5 }
+];
+// Бра-шаман — единичный (со звуком окна), заклинатель: подошедшего отталкивает и отскакивает; издалека проклятие (круг там,
+// где стояла цель, 18% здоровья, если не ушла) или лужа порчи, следом сгусток душ; между ними сгусток. Заклинания сбиваются
+// ударом в окне — подойти к нему и есть ответ; толчок и отскок не сбить. Откаты прежние, сгусток — раз в 3 секунды.
+var SH_REPULSE = { move: "repulse", sig: "hard", area: 1, ability: "df_repulse", windup: 16, active: 1, recover: 4,
+    params: { radius: 3.5, knockback: 1.6, knockbackY: 0.4 } };
+var SH_RETREAT = { move: "retreat", sig: "hard", quiet: 1, ability: "retreat_dash", windup: 5, active: 6, recover: 6,
+    params: { distance: 7.0, activeTicks: 6 } };
+var SH_CURSE = { move: "curse", sig: "open", area: 1, ability: "grasping_dead", windup: 20, active: 34, recover: 6,
+    shape: "spot", reach: 3, pct: 0.18, hit: 40, params: { radius: 3.0, effectType: "slowness", effectAmplifier: 1 } };
+var SH_POOL = { move: "pool", sig: "open", area: 1, ability: "crimson_blob", windup: 20, active: 14, recover: 6,
+    params: { maxRange: 18.0, landRadius: 2.5, damage: 2.0, damageInterval: 20, zoneTicks: 120, effectId: "minecraft:poison",
+        effectDuration: 60, effectAmplifier: 0, zoneColor: typeof AT_PURPLE == "number" ? AT_PURPLE : 0xB0B050FF | 0 } };
+var SH_BOLT = { move: "bolt", sig: "open", ability: "ghost_soul_bolt", windup: 16, active: 14, recover: 6,
+    params: { maxRange: 20.0, damage: 5.0, knockback: 0.8, knockbackY: 0.3, hitRadius: 1.4, landRadius: 2.0 } };
+var SHAMAN_CHAINS = [
+    { min: 0, max: 3.5, steps: [SH_REPULSE, SH_RETREAT], cd: 160 },
+    { min: 3.5, max: 16, steps: [SH_CURSE, SH_BOLT], cd: 200 },
+    { min: 5, max: 18, steps: [SH_POOL, SH_BOLT], cd: 240 },
+    { min: 3.5, max: 20, steps: [SH_BOLT] }
+];
+
 // aggro — на сколько блоков замечает, wander — сколько бродит от точки, 0 — не бродит, hunter — охотник на свет,
 // range — дальность удара: CustomNPCs меряет её от ног до ног, по умолчанию 2, и игрок с мечом перебивал стадо издалека;
-// delay — тиков между ударами, по умолчанию 20. fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
+// delay — тиков между ударами, по умолчанию 20. chains — цепочки языка атак вместо casts и обычного удара, rank — ранг для сигналов
+// (0 рядовой, 1 элитный, 2 единичный: со звуком окна). fly — летает, slow — на сколько секунд замедляет ударом, casts — приёмы по порядку, у каждого свой откат, loot — сколько осколков роняет.
 var HERD = {
-    ungor: { hp: 55, melee: 5, range: 3, aggro: 16, speed: 6, wander: 8, casts: [UNGOR_THRUST] },
-    tuskgor: { hp: 110, melee: 7, range: 4, aggro: 14, speed: 6, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP] },
-    gor: { hp: 140, melee: 8, range: 3, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW] },
-    sniffer: { hp: 40, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач" },
-    centigor: { hp: 100, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2 },
-    harpy: { hp: 80, melee: 6, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1 },
-    shaman: { hp: 130, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_REPULSE, SHAMAN_RETREAT, SHAMAN_CURSE, SHAMAN_POOL, SHAMAN_BOLT] },
+    ungor: { hp: 55, melee: 5, range: 3, aggro: 16, speed: 6, wander: 8, casts: [UNGOR_THRUST], chains: UNGOR_CHAINS, rank: 0 },
+    tuskgor: { hp: 110, melee: 7, range: 4, aggro: 14, speed: 6, wander: 10, casts: [TUSK_CHARGE, TUSK_STOMP], chains: TUSK_CHAINS, rank: 1 },
+    gor: { hp: 140, melee: 8, range: 3, aggro: 18, speed: 5, wander: 3, casts: [GOR_SPIN, GOR_THROW], chains: GOR_CHAINS, rank: 2 },
+    sniffer: { hp: 40, melee: 4, range: 3, aggro: 64, speed: 7, wander: 0, casts: [SNIFFER_NET], hunter: 1, name: "Унгор-нюхач", chains: SNIFFER_CHAINS, rank: 0 },
+    centigor: { hp: 100, melee: 7, range: 4, aggro: 64, speed: 8, wander: 0, casts: [CENT_CHARGE, CENT_THROW], hunter: 1, slow: 2, chains: CENT_CHAINS, rank: 1 },
+    harpy: { hp: 80, melee: 6, range: 4, delay: 14, aggro: 16, speed: 8, wander: 12, casts: [HARPY_DIVE], fly: 1, chains: HARPY_CHAINS, rank: 0 },
+    shaman: { hp: 130, melee: 4, range: 3, aggro: 20, speed: 4, wander: 3, casts: [SHAMAN_REPULSE, SHAMAN_RETREAT, SHAMAN_CURSE, SHAMAN_POOL, SHAMAN_BOLT], chains: SHAMAN_CHAINS, rank: 2 },
     pack: { hp: 250, melee: 5, aggro: 1, speed: 5, wander: 0, loot: 10, name: "Вьючный бивнегор" }
 };
 var HUNT_LOSE = 48, HUNT_LOSE_TICKS = 200, HUNT_AGGRO = 64;
@@ -75,6 +154,17 @@ var T_HIT = 1, T_WALK = 2, WALK_STEP = 0.3, WALK_RISE = 0.6, WALK_CLIMB = 32;
 // только стрелы и брошенное, а пули и копья мода снарядами не помечены. Добавочный урон чар стрелкового оружия идёт
 // от самого игрока, его узнаём по типу.
 var RANGED_TAKEN = 0.25, RANGED_TYPES = { "wfm.splitting_shot": 1, "wfm.trap_bolt": 1 };
+
+// Язык атак есть в списке скриптов клона и у вида есть цепочки.
+function hChains(kind) {
+    if (kind == null || kind.chains == null) return false;
+    if (typeof atTick == "function") return true;
+    moLogOnce("herd_attacks", "у клона нет combat/attacks.js: цепочек нет, бьёт по-старому");
+    return false;
+}
+
+// Кого удары языка атак не задевают: сейф-зона и алтарь, как и для всего стада.
+function atSpare(p) { return moInSanctuary(p.getX(), p.getZ()); }
 
 function hGet(npc, k, def) { var d = npc.getStoreddata(); return d.has(k) ? String(d.get(k)) : def; }
 function hNum(npc, k) { return Number(hGet(npc, k, "0")); }
@@ -238,6 +328,7 @@ function init(e) {
     if (!e.npc.isAlive()) return;
     e.npc.getTimers().clear();
     AbilityAPI.cancel(e.npc);
+    if (typeof atInit == "function") atInit(e.npc);
 }
 
 function tick(e) {
@@ -277,10 +368,12 @@ function tick(e) {
     if (t == null) return;
     var astray = !hunts && to == "" && moFlat(npc, npc.getHomeX(), npc.getHomeZ()) > HERD_LEASH;
     if (astray || (t.typeOf(1) && moInSanctuary(t.getX(), t.getZ()))) npc.setAttackTarget(null);
+    else if (hChains(kind)) atTick(npc, kind, t, now);
     else hCast(npc, kind.casts, t, now);
 }
 
 function timer(e) {
+    if (typeof atTimer == "function" && atTimer(e, HERD[hGet(e.npc, "herd", "")])) return;
     if (e.id == T_WALK) hWalk(e.npc);
     if (e.id != T_HIT) return;
     var npc = e.npc;
@@ -324,6 +417,11 @@ function meleeAttack(e) {
         return;
     }
     var kind = HERD[hGet(e.npc, "herd", "")];
+    // Бьющий цепочками бьёт только ими: обычный удар мода не перебивает его ритм и передышки.
+    if (hChains(kind)) {
+        e.setCanceled(true);
+        return;
+    }
     if (kind != null && kind.slow > 0 && e.target != null && e.target.typeOf(1)) e.target.addPotionEffect(2, kind.slow, 0, false);
 }
 
@@ -332,7 +430,13 @@ function damaged(e) {
         e.setCanceled(true);
         return;
     }
-    if (hRangedOrBlast(e.damageSource)) e.damage = e.damage * RANGED_TAKEN;
+    if (hRangedOrBlast(e.damageSource)) {
+        e.damage = e.damage * RANGED_TAKEN;
+        return;
+    }
+    // Сбить приём можно только ударом рукой.
+    var kind = HERD[hGet(e.npc, "herd", "")];
+    if (hChains(kind)) atDamaged(e, kind);
 }
 
 // Снаряд, как у Кигора: помечен снарядом или ударило не то, что им бросило. Взрыв — по типу урона.

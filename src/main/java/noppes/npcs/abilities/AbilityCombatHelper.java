@@ -1166,6 +1166,30 @@ public final class AbilityCombatHelper {
         return dealPureDamage(victim, amount, false);
     }
 
+    /**
+     * Удар NPC из скрипта как его обычный удар: источник — сам NPC, броня, щит, отбрасывание и сообщение о смерти — как
+     * у удара рукой. {@link IEntity#damage} бьёт {@link DamageSource#GENERIC} без источника, его щит не держит.
+     */
+    public static boolean mobStrike(final ICustomNpc npc, final IEntity victim, final float amount) {
+        if (npc == null || victim == null || !victim.isAlive() || amount <= 0.0F) {
+            return false;
+        }
+        try {
+            final Entity attacker = npc.getMCEntity();
+            final Entity mc = victim.getMCEntity();
+            if (attacker instanceof LivingEntity && mc instanceof LivingEntity) {
+                return ((LivingEntity) mc).hurt(DamageSource.mobAttack((LivingEntity) attacker), amount);
+            }
+        } catch (final Exception ignored) {
+        }
+        try {
+            victim.damage(amount);
+            return true;
+        } catch (final Exception ignored) {
+            return false;
+        }
+    }
+
     public static boolean dealPureDamage(final LivingEntity living, final float amount, final boolean ignoreIframes) {
         if (living == null || !living.isAlive() || amount <= 0.0F) {
             return false;
